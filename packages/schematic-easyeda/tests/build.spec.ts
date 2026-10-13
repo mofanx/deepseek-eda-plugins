@@ -10,6 +10,7 @@ import {
   renderImportReadbackScript,
   renderOracleScript,
   renderPrepareScript,
+  renderSheetSymbolChunkScript,
   renderWireChunkScript,
   serializeEasyEdaProject,
   type EasyEdaBridge,
@@ -170,6 +171,31 @@ describe('renderBlockChunkScript', () => {
   })
 })
 
+describe('renderSheetSymbolChunkScript', () => {
+  it('draws box, title, and pin labels, dedupes on content, and counts nothing', () => {
+    const code = renderSheetSymbolChunkScript([
+      {
+        irId: 'blk1', title: 'POWER', x: 290, y: 300, width: 80, height: 110, titleX: 298, titleY: 310,
+        pins: [{ pinId: 'p1', name: 'VIN', x: 298, y: 340 }],
+      },
+    ], 'page-1', 0)
+    for (const token of [
+      'sch_PrimitiveRectangle.create(',
+      'sch_PrimitiveText.getAll',
+      'sch_PrimitiveText.create(',
+      'getState_Content',
+      '"title":"POWER"',
+      '"name":"VIN"',
+      'openDocument',
+      "'WRONG_PAGE'",
+      'FRAME_FAILED',
+      'created: 0',
+    ]) {
+      expect(code).toContain(token)
+    }
+  })
+})
+
 describe('renderOracleScript', () => {
   it('collects counts, net names, and DRC detail', () => {
     const code = renderOracleScript(['page-1'], true)
@@ -246,6 +272,94 @@ describe('buildIntoEasyEda chunked placement', () => {
     expect(report.created).toBe(7)
     expect(report.findings.filter(f => f.severity === 'error')).toEqual([])
   })
+
+  const hierarchicalIr: SchematicIr = {
+    sheets: [{
+      components: [
+        ...ir.sheets[0]!.components,
+        {
+          id: 'blk1', kind: 'block', designator: 'POWER', sheetIndex: 1,
+          position: { x: 300, y: 300 },
+          pins: [{ id: 'p1', name: 'VIN', number: '1', electric: 'INPUT', endpoint: { x: 310, y: 340 } }],
+        },
+      ],
+      wires: ir.sheets[0]!.wires,
+      busEntries: [], junctions: [], attrs: [],
+    }],
+  }
+
+  it('draws hierarchy blocks instead of placing them, outside the count invariant', async () => {
+    const { bridge, calls } = scriptedBridge([
+      prepareOk,
+      chunkOk(1),
+      chunkOk(4),
+      chunkOk(2),
+      { status: 'OK', failures: [], created: 0 },
+      [null],
+      oracleOk,
+    ])
+    const report = await buildIntoEasyEda(hierarchicalIr, { bridge })
+    // prepare + part + markers + wires + sheet-symbol chunk + read-back + oracle.
+    expect(calls).toHaveLength(7)
+    // The block never reaches a component chunk: no NO_DEVICE failure, no
+    // component placement call carries it.
+    expect(calls.slice(1, 4).some(c => c.includes('"irId":"blk1"') && c.includes('sch_PrimitiveComponent.create('))).toBe(false)
+    expect(calls[4]).toContain('sch_PrimitiveRectangle.create(')
+    expect(calls[4]).toContain('"title":"POWER"')
+    expect(calls[4]).toContain('"name":"VIN"')
+    // The oracle's component count (5) matches the fixture without the block.
+    expect(report.findings.filter(f => f.severity === 'error')).toEqual([])
+    expect(report.created).toBe(7)
+  })
+
+  it('accepts the sheet-symbol title TEXT as the block designator evidence', async () => {
+    const { bridge } = scriptedBridge([
+      prepareOk,
+      chunkOk(1),
+      chunkOk(4),
+      chunkOk(2),
+      { status: 'OK', failures: [], created: 0 },
+      ['{"type":"TEXT","id":"t1","ticket":9}||{"x":298,"y":-310,"value":"POWER"}|'],
+      oracleOk,
+    ])
+    const report = await buildIntoEasyEda(hierarchicalIr, { bridge })
+    expect(report.findings.filter(f => f.code === 'SCHEMATIC_ROUNDTRIP_DESIGNATOR' && f.locator?.componentId === 'blk1')).toEqual([])
+  })
+
+  it('warns when the read-back has no sheet-symbol title for a block', async () => {
+    const { bridge } = scriptedBridge([
+      prepareOk,
+      chunkOk(1),
+      chunkOk(4),
+      chunkOk(2),
+      { status: 'OK', failures: [], created: 0 },
+      ['{"type":"TEXT","id":"t1","ticket":9}||{"x":298,"y":-310,"value":"OTHER"}|'],
+      oracleOk,
+    ])
+    const report = await buildIntoEasyEda(hierarchicalIr, { bridge })
+    const finding = report.findings.find(f => f.code === 'SCHEMATIC_ROUNDTRIP_DESIGNATOR' && f.locator?.componentId === 'blk1')
+    expect(finding?.severity).toBe('warning')
+    expect(finding?.message).toContain('POWER')
+  })
+
+  for (const [thrown, detail] of [[new Error('bridge exploded'), 'bridge exploded'], ['plain-string failure', 'plain-string failure']] as const) {
+    it(`reports a sheet-symbol chunk failure as warnings, never errors (${typeof thrown})`, async () => {
+      const { bridge } = scriptedBridge([
+        prepareOk,
+        chunkOk(1),
+        chunkOk(4),
+        chunkOk(2),
+        { reject: thrown },
+        [null],
+        oracleOk,
+      ])
+      const report = await buildIntoEasyEda(hierarchicalIr, { bridge, retries: 0 })
+      const finding = report.findings.find(f => f.code === 'SCHEMATIC_BUILD_FRAME_FAILED' && f.locator?.componentId === 'blk1')
+      expect(finding?.severity).toBe('warning')
+      expect(finding?.message).toContain(detail)
+      expect(report.findings.filter(f => f.severity === 'error')).toEqual([])
+    })
+  }
 
   it('reports a frame create failure as a warning, never an error', async () => {
     const { bridge } = scriptedBridge([

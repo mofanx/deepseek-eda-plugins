@@ -10,6 +10,8 @@
 
 export { computeBlockFrames } from './blocks.ts'
 export type { EasyEdaBlockFrame } from './blocks.ts'
+export { computeSheetSymbolBoxes } from './hierarchy.ts'
+export type { EasyEdaSheetSymbolBox, EasyEdaSheetSymbolPin } from './hierarchy.ts'
 export { serializeEasyEdaDocument, serializeEasyEdaProject } from './serialize.ts'
 export type {
   EasyEdaEmbeddedDoc,

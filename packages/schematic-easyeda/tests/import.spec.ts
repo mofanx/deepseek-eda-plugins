@@ -145,6 +145,21 @@ describe('importIntoEasyEda read-back edges', () => {
     expect(report.findings).toEqual([])
   })
 
+  it('accepts a TEXT sheet-symbol title as the block designator evidence', async () => {
+    const hierarchicalIr: SchematicIr = {
+      sheets: [{
+        components: [{ id: 'blk1', kind: 'block', designator: 'POWER', sheetIndex: 0, position: { x: 0, y: 0 }, pins: [] }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    }
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY,
+      { status: 'OK', projectUuid: 'p' },
+      { pageUuids: ['pg-1'], sources: ['{"type":"TEXT","id":"t1","ticket":1}||{"x":0,"y":0,"value":"POWER"}|'] },
+    ])
+    const report = await importIntoEasyEda(hierarchicalIr, { bridge })
+    expect(report.findings.filter(f => f.code === 'SCHEMATIC_IMPORT_DESIGNATOR')).toEqual([])
+  })
+
   it('treats a NET-only read-back as missing the designator', async () => {
     const { bridge } = scriptedBridge([EMPTY_LIBRARY,
       { status: 'OK', projectUuid: 'p' },

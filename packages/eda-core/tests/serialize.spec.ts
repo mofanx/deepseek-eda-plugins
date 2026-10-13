@@ -226,6 +226,48 @@ describe('module frames', () => {
     expect(source).not.toContain('"type":"RECT"')
     expect(source).not.toContain('"type":"TEXT"')
   })
+
+  const hierarchical: SchematicIr = {
+    sheets: [{
+      name: 'TOP',
+      components: [
+        {
+          id: 'blk1', kind: 'block', designator: 'POWER', sheetIndex: 1,
+          position: { x: 300, y: 300 },
+          pins: [
+            { id: 'p1', name: 'VIN', number: '1', electric: 'INPUT', endpoint: { x: 310, y: 340 } },
+            { id: 'p2', name: 'VOUT', number: '2', electric: 'OUTPUT', endpoint: { x: 310, y: 380 } },
+          ],
+        },
+      ],
+      wires: [],
+      busEntries: [],
+      junctions: [],
+      attrs: [],
+    }, {
+      name: 'POWER',
+      components: [],
+      wires: [],
+      busEntries: [],
+      junctions: [],
+      attrs: [],
+    }],
+  }
+
+  it('draws a hierarchy block as a sheet-symbol box without a COMPONENT record', () => {
+    const lines = linesOf(serializeEasyEdaDocument(hierarchical))
+    expect(lines.filter(l => l.startsWith('{"type":"COMPONENT"'))).toHaveLength(0)
+    const rects = lines.filter(l => l.startsWith('{"type":"RECT"'))
+    const texts = lines.filter(l => l.startsWith('{"type":"TEXT"'))
+    expect(rects).toHaveLength(1)
+    // Title plus one TEXT per interface pin.
+    expect(texts).toHaveLength(3)
+    expect(texts[0]).toContain('"value":"POWER"')
+    expect(texts.some(l => l.includes('"value":"VIN"'))).toBe(true)
+    expect(texts.some(l => l.includes('"value":"VOUT"'))).toBe(true)
+    // Two SCH_PAGE documents: TOP and the POWER child.
+    expect(lines.filter(l => l.startsWith('{"type":"DOCHEAD"'))).toHaveLength(2)
+  })
 })
 
 describe('layout golden', () => {

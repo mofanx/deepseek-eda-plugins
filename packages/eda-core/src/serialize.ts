@@ -17,6 +17,7 @@ import type {
   SchematicIrSheet,
 } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { computeBlockFrames } from './blocks.ts'
+import { computeSheetSymbolBoxes } from './hierarchy.ts'
 
 /** Inputs to one document-source projection. */
 export interface EasyEdaSerializeOptions {
@@ -129,11 +130,11 @@ class Emitter {
     )
   }
 
-  /** Emit one non-electrical TEXT record (module title); `x`/`y` are IR coordinates. */
-  text(x: number, y: number, value: string): void {
+  /** Emit one non-electrical TEXT record (module/block label); `x`/`y` are IR coordinates. */
+  text(x: number, y: number, value: string, fontSize = 40, align: 'LEFT_TOP' | 'RIGHT_TOP' = 'LEFT_TOP'): void {
     const id = `text${this.drawSeq++}`
     this.lines.push(
-      `{"type":"TEXT","id":"${id}","ticket":${this.nextTicket()}}||{"x":${x},"y":${-y},"rotation":0,"color":"#000088","fontFamily":null,"fontSize":40,"fontWeight":true,"italic":false,"underline":false,"align":"LEFT_TOP","value":${JSON.stringify(value)},"fillColor":"#000088","zIndex":0}|`,
+      `{"type":"TEXT","id":"${id}","ticket":${this.nextTicket()}}||{"x":${x},"y":${-y},"rotation":0,"color":"#000088","fontFamily":null,"fontSize":${fontSize},"fontWeight":true,"italic":false,"underline":false,"align":"${align}","value":${JSON.stringify(value)},"fillColor":"#000088","zIndex":0}|`,
     )
   }
 }
@@ -179,7 +180,13 @@ function emitSheet(
     emit.lines.push(`{"type":"META","ticket":${emit.nextTicket()},"id":"META"}||{"title":${JSON.stringify(sheet.name ?? `P${sheetIndex + 1}`)},"schematic":"${schematicUuid}","source":"","zIndex":${sheetIndex}}|`)
   }
   emit.lines.push(`{"type":"CANVAS","ticket":${emit.nextTicket()},"id":"CANVAS"}||{"originX":0,"originY":0}|`)
-  for (const component of sheet.components) emitComponent(emit, component, bindings)
+  for (const component of sheet.components) {
+    // A `kind: 'block'` component carries no library binding — an unresolved
+    // COMPONENT record renders an empty "?" box — so it projects to drawn
+    // sheet-symbol graphics instead of a component record.
+    if (component.kind === 'block') continue
+    emitComponent(emit, component, bindings)
+  }
   for (const wire of sheet.wires) {
     const type = wire.kind === 'bus' ? 'BUS' : 'WIRE'
     emit.lines.push(
@@ -203,6 +210,14 @@ function emitSheet(
   for (const frame of computeBlockFrames(sheet)) {
     emit.rect(frame.x, frame.y, frame.x + frame.width, frame.y + frame.height)
     emit.text(frame.titleX, frame.titleY, frame.title)
+  }
+  // Hierarchy blocks draw as a labelled sheet-symbol box with one pin-name
+  // label per interface pin; pin endpoints land on the box edges so wires
+  // terminate flush.
+  for (const box of computeSheetSymbolBoxes(sheet)) {
+    emit.rect(box.x, box.y, box.x + box.width, box.y + box.height)
+    emit.text(box.titleX, box.titleY, box.title)
+    for (const pin of box.pins) emit.text(pin.x, pin.y, pin.name, 20, pin.align)
   }
 }
 

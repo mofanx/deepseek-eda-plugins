@@ -18,7 +18,7 @@ import type {
   SchematicSymbolPin,
 } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
-import { computeBlockFrames, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
+import { computeBlockFrames, computeSheetSymbolBoxes, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { EasyEdaEmbeddedDoc, EasyEdaProjectLibrary, EasyEdaProjectPackage } from '@deepseek-ai/dsh-plugin-eda-core'
 import { diffNetlists, parseDocumentSource, readBackAttrs } from '@deepseek-ai/dsh-plugin-eda-core'
 
@@ -103,10 +103,24 @@ interface BuildBlock {
   titleY: number
 }
 
+/** One drawn sheet-symbol box for a `kind: 'block'` component. */
+interface BuildSheetSymbol {
+  irId: string
+  title: string
+  x: number
+  y: number
+  width: number
+  height: number
+  titleX: number
+  titleY: number
+  pins: { pinId: string; name: string; x: number; y: number }[]
+}
+
 interface BuildSheet {
   components: BuildComponent[]
   wires: BuildWire[]
   blocks: BuildBlock[]
+  sheetSymbols: BuildSheetSymbol[]
   busEntryIds: string[]
   attrIds: string[]
 }
@@ -142,6 +156,17 @@ function toBuildPayload(ir: SchematicIr, createDocument: boolean): BuildPayload 
         ...w.net !== undefined ? { net: w.net } : {},
       })),
       blocks: computeBlockFrames(sheet).map(frame => ({ ...frame })),
+      sheetSymbols: computeSheetSymbolBoxes(sheet).map(box => ({
+        irId: box.componentId,
+        title: box.title,
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+        titleX: box.titleX,
+        titleY: box.titleY,
+        pins: box.pins.map(pin => ({ pinId: pin.pinId, name: pin.name, x: pin.x, y: pin.y })),
+      })),
       busEntryIds: sheet.busEntries.map(entry => entry.id),
       attrIds: sheet.attrs.map(attr => attr.id),
     })),
@@ -347,6 +372,48 @@ for (const b of doc.blocks) {
     }
   } catch (e) {
     failures.push({ code: 'FRAME_FAILED', irId: 'block:' + b.name, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
+  }
+}
+return { status: 'OK', failures, created: 0 };`
+}
+
+/**
+ * Render one placement chunk for sheet-symbol boxes: the drawn rectangle,
+ * title, and pin-name labels of `kind: 'block'` components. The box is
+ * non-electrical (the child's same-named netports carry the interface), so
+ * the chunk reports `created: 0` and failures arrive as warnings; retries
+ * dedupe on the title text already on the page.
+ * @param symbols - the sheet's hierarchy blocks.
+ * @param pageUuid - target page uuid from the preparation stage.
+ * @param sheetIndex - sheet index reported back on failures.
+ * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
+ */
+export function renderSheetSymbolChunkScript(symbols: readonly BuildSheetSymbol[], pageUuid: string, sheetIndex: number): string {
+  return `${THROWN_DETAIL}const doc = { pageUuid: ${JSON.stringify(pageUuid)}, sheetIndex: ${sheetIndex}, symbols: ${JSON.stringify(symbols)} };
+const failures = [];
+await eda.dmt_EditorControl.openDocument(doc.pageUuid);
+const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!active || active.uuid !== doc.pageUuid) return { status: 'WRONG_PAGE', failures, created: 0 };
+const texts = [];
+try { texts.push(...(await eda.sch_PrimitiveText.getAll() || [])) } catch (e) {}
+const seen = new Set();
+for (const t of texts) { try { seen.add(t.getState_Content()) } catch (e) {} }
+for (const s of doc.symbols) {
+  try {
+    if (!seen.has(s.title)) {
+      const rect = await placeOnce(() => eda.sch_PrimitiveRectangle.create(s.x, s.y, s.width, s.height, 0, 0, null, '', null, 1, 'None'));
+      if (rect === undefined) { failures.push({ code: 'FRAME_FAILED', irId: s.irId, sheetIndex: doc.sheetIndex }); continue; }
+      const title = await placeOnce(() => eda.sch_PrimitiveText.create(s.titleX, s.titleY, s.title, 0, '#000088', null, 40, true, false, false, 1));
+      if (title === undefined) failures.push({ code: 'FRAME_FAILED', irId: s.irId, sheetIndex: doc.sheetIndex });
+      seen.add(s.title);
+    }
+    for (const pin of s.pins) {
+      if (seen.has(pin.name)) continue;
+      const label = await placeOnce(() => eda.sch_PrimitiveText.create(pin.x, pin.y, pin.name, 0, '#000088', null, 20, true, false, false, 1));
+      if (label === undefined) failures.push({ code: 'FRAME_FAILED', irId: s.irId, sheetIndex: doc.sheetIndex }); else seen.add(pin.name);
+    }
+  } catch (e) {
+    failures.push({ code: 'FRAME_FAILED', irId: s.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
   }
 }
 return { status: 'OK', failures, created: 0 };`
@@ -645,7 +712,7 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
     const pageUuid = prepared.pageUuids[sheetIndex]
     if (typeof pageUuid !== 'string') continue
     const chunks: { script: string; irIds: string[]; sheetIndex: number }[] = []
-    const parts = sheet.components.filter(c => c.kind === 'part' || c.kind === 'block')
+    const parts = sheet.components.filter(c => c.kind === 'part')
     const markers = sheet.components.filter(c => c.kind !== 'part' && c.kind !== 'block')
     for (const part of parts) {
       chunks.push({ script: renderComponentChunkScript([part], pageUuid, sheetIndex), irIds: [part.irId], sheetIndex })
@@ -669,6 +736,17 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
         pushFailures(sheet.blocks.map(block => ({ code: 'FRAME_FAILED', irId: `block:${block.name}`, sheetIndex, detail })))
+      }
+    }
+    // Hierarchy blocks draw as labelled sheet-symbol boxes — non-electrical,
+    // so a failure is a warning rather than a dropped electrical primitive.
+    if (sheet.sheetSymbols.length > 0) {
+      try {
+        const raw = await executeChunk(bridge, renderSheetSymbolChunkScript(sheet.sheetSymbols, pageUuid, sheetIndex), executeOptions, retries, backoffMs)
+        pushFailures(raw.failures)
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error)
+        pushFailures(sheet.sheetSymbols.map(symbol => ({ code: 'FRAME_FAILED', irId: symbol.irId, sheetIndex, detail })))
       }
     }
     for (const busEntryId of sheet.busEntryIds) {
@@ -721,10 +799,26 @@ return sources;`,
         })
         continue
       }
-      const attrs = readBackAttrs(parseDocumentSource(source))
+      const parsed = parseDocumentSource(source)
+      const attrs = readBackAttrs(parsed)
       const designators = new Set(attrs.get('Designator') ?? [])
+      const texts = new Set(parsed
+        .filter(r => r.type === 'TEXT' && typeof r.inner === 'object')
+        .map(r => (r.inner as { value?: unknown }).value)
+        .filter((v): v is string => typeof v === 'string'))
       for (const component of sheet.components) {
-        if ((component.kind === 'part' || component.kind === 'block') && component.designator !== undefined && !designators.has(component.designator)) {
+        // Drawn sheet symbols prove themselves by their title TEXT, not a
+        // Designator ATTR.
+        if (component.kind === 'block' && component.designator !== undefined && !texts.has(component.designator)) {
+          findings.push({
+            code: 'SCHEMATIC_ROUNDTRIP_DESIGNATOR',
+            severity: 'warning',
+            message: `read-back source has no sheet-symbol title "${component.designator}"`,
+            locator: { sheetIndex, componentId: component.id, designator: component.designator },
+          })
+          continue
+        }
+        if (component.kind === 'part' && component.designator !== undefined && !designators.has(component.designator)) {
           findings.push({
             code: 'SCHEMATIC_ROUNDTRIP_DESIGNATOR',
             severity: 'warning',
@@ -776,7 +870,10 @@ return sources;`,
     // be a false positive. Only trust that reading when the placement stage
     // itself confirmed it created every primitive; otherwise a genuinely
     // dropped wire would hide behind the same symptom.
-    const expectedTotal = ir.sheets.reduce((total, sheet) => total + sheet.components.length + sheet.wires.length, 0)
+    // `kind: 'block'` components project to drawn sheet-symbol graphics, so
+    // they are not part of the component-primitive count invariant.
+    const expectedTotal = ir.sheets.reduce((total, sheet) =>
+      total + sheet.components.filter(c => c.kind !== 'block').length + sheet.wires.length, 0)
     const placementComplete = created >= expectedTotal
     const unready = new Set<number>()
     for (const [index, count] of counts.entries()) {
@@ -784,7 +881,7 @@ return sources;`,
       const sheet = sheetIndex === undefined ? undefined : ir.sheets[sheetIndex]
       if (sheet === undefined || sheetIndex === undefined) continue
       const actual = typeof count === 'object' && count !== null ? count as { components?: unknown; wires?: unknown } : undefined
-      const expectedComponents = sheet.components.length
+      const expectedComponents = sheet.components.filter(c => c.kind !== 'block').length
       const expectedWires = sheet.wires.length
       if (placementComplete && actual !== undefined && expectedWires > 0 && actual.wires === 0) {
         unready.add(sheetIndex)
@@ -1485,8 +1582,16 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
       findings.push({ code: 'SCHEMATIC_IMPORT_READBACK', severity: 'warning', message: `imported page ${index + 1} source could not be read back`, locator: { sheetIndex: index } })
       continue
     }
-    const attrs = readBackAttrs(parseDocumentSource(source))
+    const parsed = parseDocumentSource(source)
+    const attrs = readBackAttrs(parsed)
     const names = new Set([...(attrs.get('Designator') ?? []), ...(attrs.get('Name') ?? []), ...(attrs.get('NET') ?? [])])
+    // Drawn sheet symbols persist their title as a TEXT record, not an ATTR.
+    for (const record of parsed) {
+      if (record.type === 'TEXT' && typeof record.inner === 'object') {
+        const value = (record.inner as { value?: unknown }).value
+        if (typeof value === 'string') names.add(value)
+      }
+    }
     for (const component of sheet.components) {
       const expected = component.designator ?? component.netName
       if (expected !== undefined && !names.has(expected)) {

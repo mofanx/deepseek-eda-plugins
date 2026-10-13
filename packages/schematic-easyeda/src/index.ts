@@ -41,6 +41,7 @@ export {
   renderComponentChunkScript,
   renderWireChunkScript,
   renderBlockChunkScript,
+  renderSheetSymbolChunkScript,
   renderOracleScript,
   renderImportScript,
   renderImportReadbackScript,

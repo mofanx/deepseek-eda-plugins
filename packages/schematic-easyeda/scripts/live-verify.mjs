@@ -30,6 +30,7 @@ const has = (flag) => args.includes(flag)
 const lcsc = take('--lcsc', 'C25804')
 const projectName = take('--name', `dsh-live-verify-${Date.now()}`)
 const checkDefect = has('--check-defect')
+const hierarchy = has('--hierarchy')
 
 const spec = process.env.DSH_EASYEDA_IMPORT ?? '@deepseek-ai/dsh-plugin-eda-easyeda'
 const { HttpEasyEdaBridge, EasyEdaLibrary, importIntoEasyEda } = await import(spec)
@@ -113,6 +114,57 @@ const ir = {
   }],
 }
 
+// 3b. Hierarchical variant: page TOP hosts a drawn sheet-symbol block bound
+//     to the child page POWER (sheetIndex), whose part pins merge into the
+//     interface nets through netports of the same names.
+if (hierarchy) {
+  const blockPins = [
+    { id: 'b1', name: 'VIN', number: '1', endpoint: { x: 320, y: 360 }, net: 'VIN' },
+    { id: 'b2', name: 'VOUT', number: '2', endpoint: { x: 320, y: 400 }, net: 'VOUT' },
+  ]
+  const childSheet = ir.sheets[0]
+  childSheet.name = 'POWER'
+  childSheet.blocks = undefined
+  for (const component of childSheet.components) delete component.block
+  childSheet.components[0].pins[0] = { ...childSheet.components[0].pins[0], net: 'VIN' }
+  childSheet.components[0].pins[1] = { ...childSheet.components[0].pins[1], net: 'VOUT' }
+  // Netports sit above/below the part so the two stubs route around the
+  // symbol without crossing each other — a crossing merges the regions.
+  childSheet.components.push(
+    { id: 'np1', kind: 'netport', netName: 'VIN', position: { x: 700, y: 340 }, pins: [] },
+    { id: 'np2', kind: 'netport', netName: 'VOUT', position: { x: 700, y: 460 }, pins: [] },
+  )
+  // Orthogonal stubs: outward along the pin axis, then across to the netport
+  // anchor — a straight diagonal would cut through the symbol.
+  const ortho = (pin, net, ty) => {
+    const e = endpointOf(pin)
+    const elbow = Math.abs(pin.x) >= Math.abs(pin.y) ? [e.x + Math.sign(pin.x || 1) * 20, e.y] : [e.x, e.y + Math.sign(pin.y || 1) * 20]
+    return { kind: 'wire', dots: [[e.x, e.y, ...elbow], [...elbow, elbow[0], ty], [elbow[0], ty, 700, ty]], net }
+  }
+  childSheet.wires[0] = { id: 'w1', ...ortho(usedPins[0], 'VIN', 340) }
+  childSheet.wires[1] = { id: 'w2', ...ortho(usedPins[1], 'VOUT', 460) }
+  ir.sheets.unshift({
+    name: 'TOP',
+    components: [{
+      id: 'blk_power',
+      kind: 'block',
+      designator: 'POWER',
+      sheetIndex: 1,
+      position: { x: 310, y: 300 },
+      pins: blockPins.map(p => ({ ...p, electric: 'BI' })),
+    }],
+    wires: blockPins.map((p, i) => ({
+      id: `bw${i + 1}`,
+      kind: 'wire',
+      dots: [[p.endpoint.x, p.endpoint.y, p.endpoint.x - 60, p.endpoint.y]],
+      net: p.net,
+    })),
+    busEntries: [],
+    junctions: [],
+    attrs: [],
+  })
+}
+
 // 4. Import through the client and reconcile the read-back.
 const report = await stage(importIntoEasyEda(ir, {
   bridge,
@@ -130,21 +182,37 @@ for (const f of report.findings) {
   console.log(`  [${f.severity}] ${f.code}: ${f.message}`)
 }
 
-// 5. Module-frame proof: the imported page must hold the dashed RECT border
-//    and the TEXT title the serializer emits for the sheet's declared block.
-const frameCount = await stage(bridge.execute(`let rects = 0; let texts = 0;
+// 5. Drawing proof: the imported pages must hold the dashed RECT borders and
+//    TEXT titles the serializer emits — module frames in the flat case, the
+//    sheet-symbol box plus pin labels on TOP in the hierarchical case.
+const wantPages = hierarchy ? 2 : 1
+if (report.pageUuids.length !== wantPages) {
+  fail(`expected ${wantPages} imported page(s), got ${report.pageUuids.length}`)
+}
+const frameCount = await stage(bridge.execute(`const perPage = [];
 for (const uuid of ${JSON.stringify(report.pageUuids)}) {
   try {
     await eda.dmt_EditorControl.openDocument(uuid);
-    try { rects += (await eda.sch_PrimitiveRectangle.getAll() || []).length } catch (e) {}
-    try { texts += (await eda.sch_PrimitiveText.getAll() || []).length } catch (e) {}
-  } catch (e) {}
+    let rects = 0; let texts = 0; let components = 0;
+    try { rects = (await eda.sch_PrimitiveRectangle.getAll() || []).length } catch (e) {}
+    try { texts = (await eda.sch_PrimitiveText.getAll() || []).length } catch (e) {}
+    try { components = (await eda.sch_PrimitiveComponent.getAll(undefined, false) || []).length } catch (e) {}
+    perPage.push({ uuid, rects, texts, components });
+  } catch (e) { perPage.push({ uuid, error: String(e) }) }
 }
-return { rects, texts };`, { timeoutMs: 60_000 }), 'frame probe')
-if (!frameCount || frameCount.rects < 1 || frameCount.texts < 1) {
-  fail(`module frame missing on imported page: ${JSON.stringify(frameCount)}`)
+return perPage;`, { timeoutMs: 60_000 }), 'frame probe')
+console.log(`frames: ${JSON.stringify(frameCount)}`)
+if (hierarchy) {
+  const top = frameCount[0]
+  const child = frameCount[1]
+  if (!top || top.rects < 1 || top.texts < 3) fail(`sheet-symbol box missing on TOP page: ${JSON.stringify(top)}`)
+  if (!child || child.components < 3) fail(`child page missing part/netports: ${JSON.stringify(child)}`)
+} else {
+  const page = frameCount[0]
+  if (!page || page.rects < 1 || page.texts < 1) {
+    fail(`module frame missing on imported page: ${JSON.stringify(frameCount)}`)
+  }
 }
-console.log(`frames: ${frameCount.rects} rectangle(s), ${frameCount.texts} text(s) rendered`)
 
 const errors = report.findings.filter(f => f.severity === 'error')
 if (checkDefect) {
