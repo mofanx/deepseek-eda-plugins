@@ -1,0 +1,47 @@
+{
+  "name": "@deepseek-ai/dsh-schematic-bundle",
+  "description": "Optional profile layer that mounts the schematic-generation capability seam, the EasyEDA engine, and its model tools.",
+  "version": "0.1.0",
+  "icon": "./icon.svg",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "icon.svg",
+    "locale/*.json",
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-schematic": "workspace:*",
+    "@deepseek-ai/dsh-schematic-easyeda": "workspace:*",
+    "@deepseek-ai/dsh-tool-schematic": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.4"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "off"
+  },
+  "env": {
+    "builtin": true
+  },
+  "ignorePatterns": [
+    "**/lib/**",
+    "**/node_modules/**",
+    "**/coverage/**",
+    "**/*.js",
+    "**/*.mjs",
+    "**/*.config.ts"
+  ],
+  "rules": {
+    "no-var": "error",
+    "prefer-const": "error",
+    "prefer-rest-params": "error",
+    "prefer-spread": "error",
+    "no-array-constructor": "error",
+    "no-unused-expressions": "error",
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "no-useless-constructor": "error",
+    "typescript/ban-ts-comment": [
+      "error",
+      {
+        "minimumDescriptionLength": 10
+      }
+    ],
+    "typescript/no-duplicate-enum-values": "error",
+    "typescript/no-extra-non-null-assertion": "error",
+    "typescript/no-non-null-asserted-nullish-coalescing": "error",
+    "typescript/no-non-null-asserted-optional-chain": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-this-alias": "error",
+    "typescript/prefer-as-const": "error",
+    "typescript/prefer-promise-reject-errors": "error"
+  },
+  "plugins": [
+    "typescript"
+  ]
+}

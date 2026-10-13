@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/schematic/schematic-easyeda/README.md
+/:
+  en: a4c4850d7838c16b
+  zh: ba0b7acd823cb257
+/deepseek-ai-dsh-schematic-easyeda:
+  en: 5acd5802fb3c5eb1
+  zh: fc0b6a5aa3f84c19
+/deepseek-ai-dsh-schematic-easyeda/summary:
+  en: a1a1903bb896b0ae
+  zh: 5cff23c5950a0972
+/deepseek-ai-dsh-schematic-easyeda/table-of-contents:
+  en: 3460b3e585e0c020
+  zh: bb83d3d282b286d8
+/deepseek-ai-dsh-schematic-easyeda/use-this-package:
+  en: da2338a406f9d536
+  zh: cd52c96f811051a7
+/deepseek-ai-dsh-schematic-easyeda/understand-the-implementation:
+  en: 58cb49cbfee887f7
+  zh: e976a934c34a52d6
+/deepseek-ai-dsh-schematic-easyeda/model-experience:
+  en: 9f656cde2a2bdf2c
+  zh: c3818839a5d39f9f
+/deepseek-ai-dsh-schematic-easyeda/model-experience/kv-cache-effect:
+  en: 22fd222d7c88b25e
+  zh: 97a8b0a5ee556966
+/deepseek-ai-dsh-schematic-easyeda/known-limitations-and-deferred-work:
+  en: 1b12481ce2b6a5ab
+  zh: aa3e67083a3a4cf2
+/deepseek-ai-dsh-schematic-easyeda/known-limitations-and-deferred-work/dev-note:
+  en: 64ee46559b704be8
+  zh: 78e6f45f0654e664
+/deepseek-ai-dsh-schematic-easyeda/known-limitations-and-deferred-work/dev-note/open-cold-workspace-library-documents:
+  en: f4e984477cab5644
+  zh: 8b2ac180b22be292

@@ -1,0 +1,1368 @@
+/**
+ * Live EasyEDA build path: project the IR onto a running EasyEDA Pro client,
+ * one `eda.*` primitive call at a time, through the injectable
+ * {@link EasyEdaBridge} boundary. The in-client interpreter checks document
+ * preconditions, creates every placeable primitive, then the host reads back
+ * `sys_FileManager.getDocumentSource()` for a round-trip diff and optionally
+ * collects the client's own BETA `sch_Drc` detail as advisory findings.
+ * @module @deepseek-ai/dsh-schematic-easyeda/build
+ */
+
+import { randomUUID } from 'node:crypto'
+import { SchematicError } from '@deepseek-ai/dsh-schematic'
+import type {
+  SchematicComponentKind,
+  SchematicFinding,
+  SchematicIr,
+  SchematicLocator,
+  SchematicSymbolPin,
+} from '@deepseek-ai/dsh-schematic'
+import type { EasyEdaBridge } from './bridge.ts'
+import { serializeEasyEdaProject } from './serialize.ts'
+import type { EasyEdaEmbeddedDoc, EasyEdaProjectLibrary, EasyEdaProjectPackage } from './serialize.ts'
+import { diffNetlists, parseDocumentSource, readBackAttrs } from './readback.ts'
+
+/** Options for {@link buildIntoEasyEda}. */
+export interface EasyEdaBuildOptions {
+  /** Bridge to execute code inside EasyEDA; inject a mock in tests. */
+  readonly bridge: EasyEdaBridge
+  /** Create the schematic container when the open project has none. Target
+   * pages are always created fresh and activated — the build never writes into
+   * whatever document happens to be open. */
+  readonly createDocument?: boolean | undefined
+  /** Collect the BETA `sch_Drc` detail as advisory findings after the build. */
+  readonly advisoryDrc?: boolean | undefined
+  /** Per-call timeout override for the bridge executions, in milliseconds. */
+  readonly timeoutMs?: number | undefined
+  /**
+   * Extra attempts per chunked bridge call before it reports failure;
+   * defaults to 2 (three attempts total). The bridge enforces a ~30s wall per
+   * execution, so chunks — not retries — are what keep large builds moving.
+   */
+  readonly retries?: number | undefined
+  /** Delay between chunk retries in milliseconds; defaults to 500. */
+  readonly retryBackoffMs?: number | undefined
+  /**
+   * Non-part primitives and wires per bridge execution; defaults to 4. Parts
+   * always go one per execution because each placement fetches the device and
+   * symbol through the client catalog.
+   */
+  readonly batchSize?: number | undefined
+  /**
+   * Pin geometry per bound symbol UUID (the `symbolPins` snapshot from
+   * `resolveBindings`). When present, the read-back diff also reconciles
+   * every pin endpoint against the real symbol pin position, which catches
+   * mirrored/offset endpoints that a name-level netlist diff cannot see.
+   */
+  readonly symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]> | undefined
+}
+
+/** Structured outcome of one live build. */
+export interface EasyEdaBuildReport {
+  /** Primitives the client reports as created. */
+  readonly created: number
+  /** Page uuids each IR sheet was built into, in sheet order. */
+  readonly pageUuids: readonly string[]
+  /** Build, round-trip, and advisory findings for routing back to the model. */
+  readonly findings: readonly SchematicFinding[]
+}
+
+interface BuildComponent {
+  irId: string
+  kind: SchematicComponentKind
+  designator?: string
+  netName?: string
+  deviceUuid?: string
+  /** Owning-library scope of `deviceUuid`; required for system-library parts. */
+  deviceLibraryUuid?: string
+  subPartName?: string
+  x: number
+  y: number
+  rotation: number
+  mirror: boolean
+  addIntoBom: boolean
+  addIntoPcb: boolean
+}
+
+interface BuildWire {
+  irId: string
+  kind: 'wire' | 'bus'
+  dots: number[][]
+  net?: string
+}
+
+interface BuildSheet {
+  components: BuildComponent[]
+  wires: BuildWire[]
+  busEntryIds: string[]
+  attrIds: string[]
+}
+
+interface BuildPayload {
+  createDocument: boolean
+  sheets: BuildSheet[]
+}
+
+function toBuildPayload(ir: SchematicIr, createDocument: boolean): BuildPayload {
+  return {
+    createDocument,
+    sheets: ir.sheets.map(sheet => ({
+      components: sheet.components.map(c => ({
+        irId: c.id,
+        kind: c.kind,
+        ...c.designator !== undefined ? { designator: c.designator } : {},
+        ...c.netName !== undefined ? { netName: c.netName } : {},
+        ...c.deviceUuid !== undefined ? { deviceUuid: c.deviceUuid } : {},
+        ...c.deviceLibraryUuid !== undefined ? { deviceLibraryUuid: c.deviceLibraryUuid } : {},
+        ...c.partId !== undefined && c.partId !== '' ? { subPartName: c.partId } : {},
+        x: c.position?.x ?? 0,
+        y: c.position?.y ?? 0,
+        rotation: c.rotation ?? 0,
+        mirror: c.mirror ?? false,
+        addIntoBom: c.addIntoBom ?? true,
+        addIntoPcb: c.addIntoPcb ?? true,
+      })),
+      wires: sheet.wires.map(w => ({
+        irId: w.id,
+        kind: w.kind,
+        dots: (w.dots ?? []).map(line => [...line]),
+        ...w.net !== undefined ? { net: w.net } : {},
+      })),
+      busEntryIds: sheet.busEntries.map(entry => entry.id),
+      attrIds: sheet.attrs.map(attr => attr.id),
+    })),
+  }
+}
+
+const THROWN_DETAIL = `const thrownDetail = (e) => {
+  if (e && e.message) return String(e.message);
+  try { return JSON.stringify(e) } catch (e2) { return String(e) }
+};
+// A create call on a freshly (re)opened page can throw while the client is
+// still initializing the document; one short settle and retry absorbs it.
+const placeOnce = async (fn) => {
+  try { return await fn() } catch (e) {
+    await new Promise(r => setTimeout(r, 300));
+    return await fn();
+  }
+};
+`
+
+/**
+ * Render the preparation stage: project/schematic precondition checks plus one
+ * fresh, activated, identity-verified page per IR sheet. Placement runs in the
+ * per-chunk scripts — a single execution carrying every device outlives the
+ * bridge's ~30s wall.
+ * @param payload - the primitive payload produced by {@link buildIntoEasyEda}.
+ * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
+ */
+export function renderPrepareScript(payload: BuildPayload): string {
+  return `${THROWN_DETAIL}const doc = ${JSON.stringify(payload)};
+const failures = [];
+const pageUuids = [];
+const project = await eda.dmt_Project.getCurrentProjectInfo();
+if (!project) return { status: 'NO_PROJECT', failures, pageUuids };
+const openPage = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+let schematicUuid = openPage && openPage.parentSchematicUuid;
+if (!schematicUuid) {
+  if (!doc.createDocument) return { status: 'NO_ACTIVE_PAGE', failures, pageUuids };
+  schematicUuid = await eda.dmt_Schematic.createSchematic();
+  if (typeof schematicUuid !== 'string') return { status: 'NO_SCHEMATIC', failures, pageUuids };
+}
+for (let sheetIndex = 0; sheetIndex < doc.sheets.length; sheetIndex++) {
+  // Never write into the currently open document: every sheet gets a fresh
+  // page, activated and identity-checked before any primitive is created —
+  // building into a foreign open page silently contaminates it.
+  // createSchematicPage can throw AFTER creating the page (the client builds
+  // its return value from a partially-loaded schematic), so the new page is
+  // recovered by diffing the page list when the call does not return a uuid.
+  const beforePages = new Set(((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid));
+  let targetPageUuid;
+  try {
+    targetPageUuid = await eda.dmt_Schematic.createSchematicPage(schematicUuid);
+  } catch (e) {
+    // Page may still have been created; recovered below.
+  }
+  if (typeof targetPageUuid !== 'string') {
+    const fresh = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || [])
+      .map(p => p.uuid).filter(u => !beforePages.has(u));
+    if (fresh.length === 1) targetPageUuid = fresh[0];
+  }
+  if (typeof targetPageUuid !== 'string') { failures.push({ code: 'PAGE_CREATE_FAILED', sheetIndex }); pageUuids.push(null); continue; }
+  await eda.dmt_EditorControl.openDocument(targetPageUuid);
+  const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+  if (!active || active.uuid !== targetPageUuid) { failures.push({ code: 'PAGE_ACTIVATE_FAILED', sheetIndex }); pageUuids.push(null); continue; }
+  pageUuids.push(targetPageUuid);
+}
+return { status: 'OK', failures, pageUuids };`
+}
+
+/**
+ * Render one placement chunk for component-kind primitives on an already
+ * activated page. The script re-activates the target page and skips primitives
+ * whose `(x,y)` position is already occupied, so retrying a timed-out chunk
+ * does not duplicate placements.
+ * @param components - the chunk's components (parts one per chunk; flags,
+ * ports, and shorts batched).
+ * @param pageUuid - target page uuid from the preparation stage.
+ * @param sheetIndex - sheet index reported back on failures.
+ * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
+ */
+export function renderComponentChunkScript(components: readonly BuildComponent[], pageUuid: string, sheetIndex: number): string {
+  return `${THROWN_DETAIL}const doc = { pageUuid: ${JSON.stringify(pageUuid)}, sheetIndex: ${sheetIndex}, components: ${JSON.stringify(components)} };
+const failures = [];
+let created = 0;
+await eda.dmt_EditorControl.openDocument(doc.pageUuid);
+const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!active || active.uuid !== doc.pageUuid) return { status: 'WRONG_PAGE', failures, created };
+// Idempotency key is the (x,y) position: a primitive already sitting there
+// means an earlier attempt placed it before the bridge timed out.
+const occupied = [];
+try { occupied.push(...(await eda.sch_PrimitiveComponent.getAll(undefined, false) || [])) } catch (e) {}
+for (const c of doc.components) {
+  if (occupied.some(p => Math.abs(p.x - c.x) < 0.5 && Math.abs(p.y - c.y) < 0.5)) { created += 1; continue; }
+  try {
+    let placed;
+    if (c.kind === 'part' || c.kind === 'block') {
+      if (c.deviceUuid === undefined) { failures.push({ code: 'NO_DEVICE', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
+      // Binding UUIDs from library lookups are scoped to their owning library;
+      // an unscoped lib_Device.get resolves the marketplace default scope and
+      // misses system/project copies.
+      let device;
+      try {
+        device = await eda.lib_Device.get(c.deviceUuid, c.deviceLibraryUuid);
+      } catch (e) {
+        device = await eda.lib_Device.get(c.deviceUuid, undefined);
+      }
+      if (device === undefined) { failures.push({ code: 'DEVICE_NOT_FOUND', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
+      placed = await placeOnce(() => eda.sch_PrimitiveComponent.create(device, c.x, c.y, c.subPartName, c.rotation, c.mirror, c.addIntoBom, c.addIntoPcb));
+      if (placed === undefined) { failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
+      if (c.designator !== undefined) await eda.sch_PrimitiveComponent.modify(placed, { designator: c.designator });
+      created += 1;
+    } else if (c.kind === 'netflag') {
+      if (c.netName === undefined) { failures.push({ code: 'MISSING_NET', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
+      const identification = /^(GND|AGND|DGND|PGND|PE|GROUND|EARTH)/i.test(c.netName) ? 'Ground' : 'Power';
+      placed = await placeOnce(() => eda.sch_PrimitiveComponent.createNetFlag(identification, c.netName, c.x, c.y, c.rotation, c.mirror));
+      if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); else created += 1;
+    } else if (c.kind === 'netport') {
+      if (c.netName === undefined) { failures.push({ code: 'MISSING_NET', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
+      placed = await placeOnce(() => eda.sch_PrimitiveComponent.createNetPort('BI', c.netName, c.x, c.y, c.rotation, c.mirror));
+      if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); else created += 1;
+    } else if (c.kind === 'short') {
+      placed = await placeOnce(() => eda.sch_PrimitiveComponent.createShortCircuitFlag(c.x, c.y, c.rotation, c.mirror));
+      if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); else created += 1;
+    } else {
+      failures.push({ code: 'UNSUPPORTED_KIND', irId: c.irId, sheetIndex: doc.sheetIndex, kind: c.kind });
+    }
+  } catch (e) {
+    failures.push({ code: 'CREATE_THROWN', irId: c.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
+  }
+}
+return { status: 'OK', failures, created };`
+}
+
+/**
+ * Render one placement chunk for wire/bus primitives. Retried chunks dedupe on
+ * `(net, line)` read back from the page so a lost response cannot double a
+ * wire.
+ * @param wires - the chunk's wires (buses included).
+ * @param pageUuid - target page uuid from the preparation stage.
+ * @param sheetIndex - sheet index reported back on failures.
+ * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
+ */
+export function renderWireChunkScript(wires: readonly BuildWire[], pageUuid: string, sheetIndex: number): string {
+  return `${THROWN_DETAIL}const doc = { pageUuid: ${JSON.stringify(pageUuid)}, sheetIndex: ${sheetIndex}, wires: ${JSON.stringify(wires)} };
+const failures = [];
+let created = 0;
+await eda.dmt_EditorControl.openDocument(doc.pageUuid);
+const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!active || active.uuid !== doc.pageUuid) return { status: 'WRONG_PAGE', failures, created };
+const seen = new Set();
+try {
+  for (const w of await eda.sch_PrimitiveWire.getAll() || []) {
+    try { seen.add(w.getState_Net() + '|' + JSON.stringify(w.getState_Line())) } catch (e) {}
+  }
+} catch (e) {}
+for (const w of doc.wires) {
+  try {
+    if (w.net === undefined) { failures.push({ code: 'MISSING_NET', irId: w.irId, sheetIndex: doc.sheetIndex }); continue; }
+    const line = w.dots.length === 1 ? w.dots[0] : w.dots;
+    if (w.kind !== 'bus' && seen.has(w.net + '|' + JSON.stringify(line))) { created += 1; continue; }
+    const placed = w.kind === 'bus'
+      ? await placeOnce(() => eda.sch_PrimitiveBus.create(w.net, line))
+      : await placeOnce(() => eda.sch_PrimitiveWire.create(line, w.net));
+    if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: w.irId, sheetIndex: doc.sheetIndex }); else created += 1;
+  } catch (e) {
+    failures.push({ code: 'CREATE_THROWN', irId: w.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
+  }
+}
+return { status: 'OK', failures, created };`
+}
+
+/**
+ * Render the post-build oracle: per-page primitive counts and the client's net
+ * names, plus the BETA `sch_Drc` detail when enabled. Everything degrades to a
+ * field error instead of throwing so the host can always classify what the
+ * client reported.
+ * @param pageUuids - the built page uuids to inspect.
+ * @param runDrc - whether to invoke `sch_Drc.check` with verbose detail.
+ * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
+ */
+export function renderOracleScript(pageUuids: readonly string[], runDrc: boolean): string {
+  return `${THROWN_DETAIL}const out = { counts: [], nets: undefined, netsError: undefined, drc: undefined, drcError: undefined };
+for (const uuid of ${JSON.stringify([...pageUuids])}) {
+  try {
+    await eda.dmt_EditorControl.openDocument(uuid);
+    const comps = await eda.sch_PrimitiveComponent.getAll(undefined, false);
+    let wires = 0;
+    try { const wl = await eda.sch_PrimitiveWire.getAll(); wires += wl ? wl.length : 0 } catch (e) {}
+    try { const bl = await eda.sch_PrimitiveBus.getAll(); wires += bl ? bl.length : 0 } catch (e) {}
+    // The page's drawing frame is itself a component (componentType "sheet");
+    // it is not part of the design and must not count against the IR total.
+    let placed = comps ? comps.length : -1;
+    if (comps) {
+      placed = 0;
+      for (const c of comps) {
+        let componentType;
+        try { componentType = c.getState_ComponentType() } catch (e) { componentType = undefined }
+        if (componentType === 'sheet') continue;
+        placed += 1;
+      }
+    }
+    out.counts.push({ components: placed, wires });
+  } catch (e) { out.counts.push(null); }
+}
+try {
+  // The client computes connectivity asynchronously; a netlist generated
+  // immediately after placement can miss just-created nets, so let it settle.
+  await new Promise(r => setTimeout(r, 1500));
+  let nets;
+  try { nets = await eda.sch_Net.getAllNets() } catch (e) {}
+  if (!nets || !nets.length) { try { nets = await eda.sch_Net.getCurrentProjectAllNets() } catch (e) {} }
+  if (nets && nets.length) {
+    out.nets = nets.map(n => typeof n === 'string' ? n : n && (n.name ?? n.net)).filter(n => typeof n === 'string');
+  }
+  // The Protel netlist file is the only bounded call that carries pad-level
+  // detail, and it also backstops net names (sch_Netlist.getNetlist is
+  // deprecated and can stall past the bridge wall in a live client). Net blocks
+  // read "(", net name, pad rows, ")".
+  //
+  // The client recomputes connectivity asynchronously, so a single read taken
+  // right after the last placement chunk can see a half-built netlist — nets
+  // absent, or present with only some of their pads. A verdict drawn from that
+  // snapshot is all false positives (observed on a 231-component page: 0 wires,
+  // 1 net). Read until two consecutive reads agree, inside a bounded budget.
+  const readNetPads = async () => {
+    const file = await eda.sch_ManufactureData.getNetlistFile('dsh-oracle', 'Protel2');
+    const text = file && await file.text();
+    if (typeof text !== 'string') return undefined;
+    const parsed = {};
+    let inNet = false;
+    let net;
+    for (const line of text.split(/\\r?\\n/)) {
+      const t = line.trim();
+      if (t === '(') { inNet = true; net = undefined; continue; }
+      if (t === ')') { inNet = false; net = undefined; continue; }
+      if (!inNet || t === '') continue;
+      if (net === undefined) { net = t.replace(/^"|"$/g, ''); if (parsed[net] === undefined) parsed[net] = []; continue; }
+      // A pad row reads "DESIGNATOR-PIN  FOOTPRINT-PIN  TYPE"; the first
+      // token is the schematic pad the net actually lands on.
+      const pad = t.split(/\\s+/)[0].replace(/^"|"$/g, '');
+      if (/^[A-Za-z]+\\d+-\\S+$/.test(pad)) parsed[net].push(pad);
+    }
+    return Object.keys(parsed).length > 0 ? parsed : undefined;
+  };
+  try {
+    let settled;
+    let previousCount = -1;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 1800));
+      let candidate;
+      try { candidate = await readNetPads() } catch (e) { candidate = undefined }
+      const count = candidate === undefined ? 0 : Object.keys(candidate).length;
+      if (count > 0) settled = candidate;
+      if (count > 0 && count === previousCount) break;
+      previousCount = count;
+    }
+    if (settled !== undefined) {
+      out.netPads = settled;
+      if (!out.nets || !out.nets.length) out.nets = Object.keys(settled);
+    }
+  } catch (e) {}
+} catch (e) { out.netsError = thrownDetail(e) }
+if (${runDrc ? 'true' : 'false'}) {
+  try { out.drc = await eda.sch_Drc.check(true, false, true) } catch (e) { out.drcError = thrownDetail(e) }
+}
+return out;`
+}
+
+interface ScriptFailure {
+  code: string
+  irId?: string
+  sheetIndex?: number
+  kind?: string
+  detail?: string
+}
+
+interface PrepareResult {
+  status: string
+  failures: ScriptFailure[]
+  /** One slot per IR sheet; `null` where the page could not be prepared. */
+  pageUuids: (string | null)[]
+}
+
+function isPrepareResult(value: unknown): value is PrepareResult {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return typeof v.status === 'string' && Array.isArray(v.failures) && Array.isArray(v.pageUuids)
+}
+
+const ERROR_FAILURE_CODES = new Set(['NO_DEVICE', 'DEVICE_NOT_FOUND', 'MISSING_NET', 'CREATE_FAILED', 'CREATE_THROWN', 'PAGE_CREATE_FAILED', 'PAGE_ACTIVATE_FAILED', 'CHUNK_FAILED'])
+
+/** Chunk scripts return this placement shape. */
+interface ChunkResult {
+  status: string
+  failures: ScriptFailure[]
+  created: number
+}
+
+function isChunkResult(value: unknown): value is ChunkResult {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return typeof v.status === 'string' && Array.isArray(v.failures) && typeof v.created === 'number'
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Execute one chunk with bounded retries. A timeout does not mean the client
+ * skipped the placement, so retries rely on the chunk scripts' in-page
+ * idempotency checks rather than re-delivering blind.
+ */
+async function executeChunk(
+  bridge: EasyEdaBridge,
+  script: string,
+  options: { timeoutMs?: number | undefined },
+  retries: number,
+  backoffMs: number,
+): Promise<ChunkResult> {
+  let lastError: unknown
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const raw = await bridge.execute(script, options)
+      if (!isChunkResult(raw)) {
+        throw new SchematicError('easyeda chunk returned an unrecognized result shape', 'SCHEMATIC_BRIDGE_PROTOCOL')
+      }
+      if (raw.status === 'WRONG_PAGE') {
+        throw new SchematicError('the target page could not be re-activated for placement', 'SCHEMATIC_BUILD_PAGE_ACTIVATE')
+      }
+      return raw
+    } catch (error) {
+      lastError = error
+      const code = error instanceof SchematicError ? error.code : ''
+      if (code === 'SCHEMATIC_BRIDGE_CIRCUIT_OPEN' || code === 'SCHEMATIC_BRIDGE_NO_EDA') throw error
+      if (attempt >= retries) throw error
+      await sleep(backoffMs)
+    }
+  }
+  throw lastError
+}
+
+function findingCode(scriptCode: string): string {
+  switch (scriptCode) {
+    case 'NO_DEVICE': return 'SCHEMATIC_BUILD_NO_DEVICE'
+    case 'DEVICE_NOT_FOUND': return 'SCHEMATIC_BUILD_DEVICE_NOT_FOUND'
+    case 'MISSING_NET': return 'SCHEMATIC_BUILD_MISSING_NET'
+    case 'PAGE_CREATE_FAILED': return 'SCHEMATIC_BUILD_PAGE_CREATE'
+    case 'PAGE_ACTIVATE_FAILED': return 'SCHEMATIC_BUILD_PAGE_ACTIVATE'
+    case 'UNSUPPORTED_KIND': return 'SCHEMATIC_BUILD_UNSUPPORTED_KIND'
+    case 'UNSUPPORTED_BUSENTRY': return 'SCHEMATIC_BUILD_UNSUPPORTED_BUSENTRY'
+    case 'UNSUPPORTED_ATTR': return 'SCHEMATIC_BUILD_UNSUPPORTED_ATTR'
+    default: return 'SCHEMATIC_BUILD_PRIMITIVE_FAILED'
+  }
+}
+
+function scriptFailureMessage(failure: ScriptFailure): string {
+  const target = failure.irId ?? `sheet ${failure.sheetIndex ?? '?'}`
+  switch (failure.code) {
+    case 'NO_DEVICE': return `component "${target}" has no deviceUuid — the live build places devices, not raw symbols`
+    case 'DEVICE_NOT_FOUND': return `component "${target}": device uuid did not resolve in the workspace library`
+    case 'MISSING_NET': return `primitive "${target}" has no net name`
+    case 'CREATE_FAILED': return `primitive "${target}": the client create call returned undefined`
+    case 'CREATE_THROWN': return `primitive "${target}": the client create call threw${failure.detail === undefined ? '' : ` (${failure.detail})`}`
+    case 'PAGE_CREATE_FAILED': return 'the client could not create a schematic page for this sheet'
+    case 'PAGE_ACTIVATE_FAILED': return 'the created page did not become the active document — aborting instead of building into the wrong page'
+    case 'UNSUPPORTED_KIND': return `component "${target}" kind "${failure.kind ?? '?'}" has no live placement path`
+    case 'UNSUPPORTED_BUSENTRY': return `bus entry "${target}": no public API creates BUSENTRY primitives`
+    case 'UNSUPPORTED_ATTR': return `ATTR "${target}": free-form attributes have no live placement path`
+    case 'CHUNK_FAILED': return `placement chunk containing "${target}" failed after retries${failure.detail === undefined ? '' : ` (${failure.detail})`}`
+    default: return `primitive "${target}": build failed`
+  }
+}
+
+/**
+ * Build the IR into the running EasyEDA client: precondition checks, then one
+ * primitive call per placeable element, then a read-back diff of
+ * `getDocumentSource()` against the intended designators and net names, then
+ * optional BETA `sch_Drc` advisory detail. Findings are advisory or blocking by
+ * severity; the static seam validator remains the authoritative gate.
+ * @param ir - the schematic IR (already seam-validated by the caller).
+ * @param options - bridge instance and build switches.
+ * @returns creation count, built page uuids, and structured findings.
+ */
+export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOptions): Promise<EasyEdaBuildReport> {
+  const { bridge } = options
+  const executeOptions = { timeoutMs: options.timeoutMs }
+  const retries = options.retries ?? 2
+  const backoffMs = options.retryBackoffMs ?? 500
+  const batchSize = Math.max(1, options.batchSize ?? 4)
+  const payload = toBuildPayload(ir, options.createDocument ?? false)
+
+  // Stage 1: preconditions and fresh activated pages. One execution only — it
+  // performs no primitive placement.
+  const prepared = await bridge.execute(renderPrepareScript(payload), executeOptions)
+  if (!isPrepareResult(prepared)) {
+    throw new SchematicError('easyeda build returned an unrecognized result shape', 'SCHEMATIC_BRIDGE_PROTOCOL')
+  }
+  if (prepared.status === 'NO_PROJECT') {
+    throw new SchematicError('no EasyEDA project is open — open a project before building', 'SCHEMATIC_BUILD_NO_PROJECT')
+  }
+  if (prepared.status === 'NO_ACTIVE_PAGE' || prepared.status === 'NO_SCHEMATIC') {
+    throw new SchematicError(
+      `no active schematic page is available to build into (${prepared.status}); open a schematic page or enable createDocument`,
+      'SCHEMATIC_BUILD_NO_ACTIVE_PAGE',
+    )
+  }
+  if (prepared.status !== 'OK') {
+    throw new SchematicError(`easyeda build precondition failed: ${prepared.status}`, 'SCHEMATIC_BUILD_PRECONDITION')
+  }
+
+  const locatorByIrId = new Map<string, SchematicLocator>()
+  for (const [sheetIndex, sheet] of ir.sheets.entries()) {
+    for (const component of sheet.components) {
+      locatorByIrId.set(component.id, { sheetIndex, componentId: component.id, designator: component.designator })
+    }
+  }
+
+  const findings: SchematicFinding[] = []
+  const pushFailures = (failures: readonly ScriptFailure[]) => {
+    for (const failure of failures) {
+      const code = findingCode(failure.code)
+      const severity = ERROR_FAILURE_CODES.has(failure.code) ? 'error' as const : 'warning' as const
+      findings.push({
+        code,
+        severity,
+        message: scriptFailureMessage(failure),
+        locator: failure.irId === undefined
+          ? { sheetIndex: failure.sheetIndex }
+          : { sheetIndex: failure.sheetIndex, ...locatorByIrId.get(failure.irId) },
+      })
+    }
+  }
+  pushFailures(prepared.failures)
+
+  // Stage 2: chunked placement. Parts go one per execution (each placement
+  // does a catalog fetch and is the slowest step); net flags, net ports,
+  // shorts, and wires go in batches. A bridge timeout does not prove the
+  // client skipped the work, so retries lean on the in-page (x,y)/(net,line)
+  // idempotency checks.
+  let created = 0
+  let chunkStreak = 0
+  const runChunks = async (chunks: { script: string; irIds: string[]; sheetIndex: number }[]) => {
+    for (const chunk of chunks) {
+      if (chunkStreak >= 3) break
+      try {
+        const raw = await executeChunk(bridge, chunk.script, executeOptions, retries, backoffMs)
+        chunkStreak = 0
+        created += raw.created
+        pushFailures(raw.failures)
+      } catch (error) {
+        chunkStreak += 1
+        const detail = error instanceof Error ? error.message : String(error)
+        pushFailures(chunk.irIds.map(irId => ({ code: 'CHUNK_FAILED', irId, sheetIndex: chunk.sheetIndex, detail })))
+      }
+    }
+  }
+
+  for (const [sheetIndex, sheet] of payload.sheets.entries()) {
+    const pageUuid = prepared.pageUuids[sheetIndex]
+    if (typeof pageUuid !== 'string') continue
+    const chunks: { script: string; irIds: string[]; sheetIndex: number }[] = []
+    const parts = sheet.components.filter(c => c.kind === 'part' || c.kind === 'block')
+    const markers = sheet.components.filter(c => c.kind !== 'part' && c.kind !== 'block')
+    for (const part of parts) {
+      chunks.push({ script: renderComponentChunkScript([part], pageUuid, sheetIndex), irIds: [part.irId], sheetIndex })
+    }
+    for (let i = 0; i < markers.length; i += batchSize) {
+      const batch = markers.slice(i, i + batchSize)
+      chunks.push({ script: renderComponentChunkScript(batch, pageUuid, sheetIndex), irIds: batch.map(c => c.irId), sheetIndex })
+    }
+    for (let i = 0; i < sheet.wires.length; i += batchSize) {
+      const batch = sheet.wires.slice(i, i + batchSize)
+      chunks.push({ script: renderWireChunkScript(batch, pageUuid, sheetIndex), irIds: batch.map(w => w.irId), sheetIndex })
+    }
+    await runChunks(chunks)
+    for (const busEntryId of sheet.busEntryIds) {
+      pushFailures([{ code: 'UNSUPPORTED_BUSENTRY', irId: busEntryId, sheetIndex }])
+    }
+    for (const attrId of sheet.attrIds) {
+      pushFailures([{ code: 'UNSUPPORTED_ATTR', irId: attrId, sheetIndex }])
+    }
+  }
+  if (chunkStreak >= 3) {
+    findings.push({
+      code: 'SCHEMATIC_BUILD_ABORTED',
+      severity: 'error',
+      message: 'placement aborted after 3 consecutive chunk failures — the client may be busy (dialogs) or the bridge is wedged; rerun to resume',
+    })
+  }
+  const builtPages = prepared.pageUuids
+    .map((uuid, sheetIndex) => ({ uuid, sheetIndex }))
+    .filter((page): page is { uuid: string; sheetIndex: number } => typeof page.uuid === 'string')
+  const builtPageUuids = builtPages.map(page => page.uuid)
+
+  // Round-trip: re-open each built page and diff its document source against
+  // the intended designators and wire nets. Missing evidence is advisory —
+  // the client's persisted view is what the user will actually open.
+  // Read-back is verification, not delivery: a bridge failure degrades to an
+  // advisory finding instead of failing a build the client already applied.
+  const sources = await bridge.execute(
+    `const sources = [];
+for (const uuid of ${JSON.stringify(builtPageUuids)}) {
+  const tab = await eda.dmt_EditorControl.openDocument(uuid);
+  if (!tab) { sources.push(null); continue; }
+  const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+  if (!active || active.uuid !== uuid) { sources.push(null); continue; }
+  sources.push(await eda.sys_FileManager.getDocumentSource());
+}
+return sources;`,
+    executeOptions,
+  ).catch(() => undefined)
+  if (Array.isArray(sources)) {
+    for (const [index, source] of sources.entries()) {
+      const sheetIndex = builtPages[index]?.sheetIndex
+      const sheet = sheetIndex === undefined ? undefined : ir.sheets[sheetIndex]
+      if (sheet === undefined || sheetIndex === undefined) continue
+      if (typeof source !== 'string') {
+        findings.push({
+          code: 'SCHEMATIC_ROUNDTRIP_UNAVAILABLE',
+          severity: 'warning',
+          message: `page ${sheetIndex + 1} document source could not be read back for verification`,
+          locator: { sheetIndex },
+        })
+        continue
+      }
+      const attrs = readBackAttrs(parseDocumentSource(source))
+      const designators = new Set(attrs.get('Designator') ?? [])
+      for (const component of sheet.components) {
+        if ((component.kind === 'part' || component.kind === 'block') && component.designator !== undefined && !designators.has(component.designator)) {
+          findings.push({
+            code: 'SCHEMATIC_ROUNDTRIP_DESIGNATOR',
+            severity: 'warning',
+            message: `read-back source has no Designator "${component.designator}"`,
+            locator: { sheetIndex, componentId: component.id, designator: component.designator },
+          })
+        }
+      }
+      const nets = new Set(attrs.get('NET') ?? [])
+      for (const wire of sheet.wires) {
+        if (wire.net !== undefined && !nets.has(wire.net)) {
+          findings.push({
+            code: 'SCHEMATIC_ROUNDTRIP_NET',
+            severity: 'warning',
+            message: `read-back source has no NET "${wire.net}"`,
+            locator: { sheetIndex, net: wire.net },
+          })
+        }
+      }
+      findings.push(...diffNetlists(sheet, source, sheetIndex, options.symbolPins))
+    }
+  } else {
+    findings.push({
+      code: 'SCHEMATIC_ROUNDTRIP_UNAVAILABLE',
+      severity: 'warning',
+      message: 'document sources could not be read back for verification',
+    })
+  }
+
+  // Client oracle: primitive counts on each built page, client net names, and
+  // the BETA `sch_Drc` detail. A failed oracle call degrades to advisory
+  // findings — the build itself already reported what it placed.
+  const oracle = await bridge.execute(
+    renderOracleScript(builtPageUuids, options.advisoryDrc === true),
+    executeOptions,
+  ).catch(() => undefined)
+  const oracleRecord = typeof oracle === 'object' && oracle !== null ? oracle as Record<string, unknown> : undefined
+  if (oracleRecord === undefined) {
+    findings.push({
+      code: 'SCHEMATIC_EDA_ORACLE_UNAVAILABLE',
+      severity: 'warning',
+      message: 'client oracle did not return — counts, netlist, and DRC evidence are missing',
+    })
+  } else {
+    const counts = Array.isArray(oracleRecord.counts) ? oracleRecord.counts : []
+    // A page the build has just filled cannot legitimately report zero wires
+    // while the IR declares some — the client simply has not rebuilt
+    // connectivity yet, so every net/pad verdict drawn from that snapshot would
+    // be a false positive. Only trust that reading when the placement stage
+    // itself confirmed it created every primitive; otherwise a genuinely
+    // dropped wire would hide behind the same symptom.
+    const expectedTotal = ir.sheets.reduce((total, sheet) => total + sheet.components.length + sheet.wires.length, 0)
+    const placementComplete = created >= expectedTotal
+    const unready = new Set<number>()
+    for (const [index, count] of counts.entries()) {
+      const sheetIndex = builtPages[index]?.sheetIndex
+      const sheet = sheetIndex === undefined ? undefined : ir.sheets[sheetIndex]
+      if (sheet === undefined || sheetIndex === undefined) continue
+      const actual = typeof count === 'object' && count !== null ? count as { components?: unknown; wires?: unknown } : undefined
+      const expectedComponents = sheet.components.length
+      const expectedWires = sheet.wires.length
+      if (placementComplete && actual !== undefined && expectedWires > 0 && actual.wires === 0) {
+        unready.add(sheetIndex)
+        findings.push({
+          code: 'SCHEMATIC_EDA_ORACLE_UNAVAILABLE',
+          severity: 'warning',
+          message: `page ${sheetIndex + 1} reports 0 wire(s) straight after placement — the client had not rebuilt connectivity yet, so its counts, netlist, and pad detail are not evidence`,
+          locator: { sheetIndex },
+        })
+        continue
+      }
+      if (actual === undefined || actual.components !== expectedComponents || actual.wires !== expectedWires) {
+        findings.push({
+          code: 'SCHEMATIC_EDA_COUNT_MISMATCH',
+          severity: 'error',
+          message: `page ${sheetIndex + 1} primitive counts differ from the IR: expected ${expectedComponents} component(s)/${expectedWires} wire(s), client reports ${actual === undefined ? 'unreadable' : `${JSON.stringify(actual.components)} component(s)/${JSON.stringify(actual.wires)} wire(s)`}`,
+          locator: { sheetIndex },
+        })
+      }
+    }
+    const clientNets = Array.isArray(oracleRecord.nets)
+      ? new Set(oracleRecord.nets.filter((n): n is string => typeof n === 'string'))
+      : undefined
+    if (clientNets === undefined) {
+      findings.push({
+        code: 'SCHEMATIC_EDA_NETLIST_UNAVAILABLE',
+        severity: 'warning',
+        message: `client net names could not be read for reconciliation${typeof oracleRecord.netsError === 'string' ? ` (${oracleRecord.netsError})` : ''}`,
+      })
+    } else {
+      for (const [sheetIndex, sheet] of ir.sheets.entries()) {
+        if (unready.has(sheetIndex)) continue
+        for (const net of new Set(sheet.wires.map(w => w.net).filter((n): n is string => n !== undefined))) {
+          if (!clientNets.has(net)) {
+            findings.push({
+              code: 'SCHEMATIC_EDA_NET_MISMATCH',
+              severity: 'error',
+              message: `client netlist has no net "${net}"`,
+              locator: { sheetIndex, net },
+            })
+          }
+        }
+      }
+    }
+    // Pad-level reconciliation. Net *names* cannot see a wire that lands on
+    // the wrong pin of the right part — a mirrored pin endpoint keeps every
+    // name intact while wiring the design incorrectly — so when the oracle
+    // reports per-net pads, every IR pin's `DESIGNATOR-PIN` must appear on its
+    // declared net and nothing else of that part may. Pads belonging to other
+    // pages of the same project are ignored: the client netlist is
+    // project-wide while the IR document is one page.
+    const padMap = typeof oracleRecord.netPads === 'object' && oracleRecord.netPads !== null
+      ? oracleRecord.netPads as Record<string, unknown>
+      : undefined
+    if (padMap !== undefined) {
+      const designatorsInSheet = new Set<string>()
+      for (const component of ir.sheets.flatMap(sheet => sheet.components)) {
+        if (component.designator !== undefined) designatorsInSheet.add(component.designator)
+      }
+      for (const [sheetIndex, sheet] of ir.sheets.entries()) {
+        if (unready.has(sheetIndex)) continue
+        const expected = new Map<string, Set<string>>()
+        for (const component of sheet.components) {
+          for (const pin of component.pins) {
+            if (pin.net === undefined || pin.number === undefined || component.designator === undefined) continue
+            const pads = expected.get(pin.net) ?? new Set<string>()
+            pads.add(`${component.designator}-${pin.number}`)
+            expected.set(pin.net, pads)
+          }
+        }
+        for (const [net, wanted] of expected) {
+          const raw = padMap[net]
+          if (!Array.isArray(raw)) continue
+          const reported = new Set<string>()
+          for (const entry of raw) {
+            if (typeof entry !== 'string') continue
+            const cut = entry.lastIndexOf('-')
+            if (cut <= 0 || !designatorsInSheet.has(entry.slice(0, cut))) continue
+            reported.add(entry)
+          }
+          const missing = [...wanted].filter(pad => !reported.has(pad))
+          const extra = [...reported].filter(pad => !wanted.has(pad))
+          if (missing.length === 0 && extra.length === 0) continue
+          findings.push({
+            code: 'SCHEMATIC_EDA_NET_PAD_MISMATCH',
+            severity: 'error',
+            message: `client netlist for "${net}" lands on the wrong pins: missing [${missing.join(', ')}], unexpected [${extra.join(', ')}]`,
+            locator: { sheetIndex, net },
+            suggestion: 'a wire or flag sits on a neighbouring pin — check the pin-endpoint convention of the bound symbol geometry',
+          })
+        }
+      }
+    }
+    if (options.advisoryDrc === true) {
+      if (Array.isArray(oracleRecord.drc)) {
+        for (const detail of oracleRecord.drc) {
+          const record = typeof detail === 'object' && detail !== null ? detail as Record<string, unknown> : undefined
+          const rule = typeof record?.rule === 'string' && record.rule !== '' ? record.rule : undefined
+          const type = typeof record?.type === 'string' ? record.type : undefined
+          const text = typeof detail === 'string' ? detail : JSON.stringify(detail)
+          if (type === 'fatalError' || rule === undefined) {
+            findings.push({
+              code: 'SCHEMATIC_EDA_ABNORMAL_DATA',
+              severity: 'error',
+              message: `client DRC reports corrupted document data: ${text}`,
+            })
+          } else if (rule === 'CHECKFLOATPIN') {
+            // A pin the IR declares `noConnect` is *meant* to float; the client
+            // has no such notion, so it reports it like any other open pin.
+            const noConnect = new Set<string>()
+            for (const component of ir.sheets.flatMap(sheet => sheet.components)) {
+              for (const pin of component.pins) {
+                if (pin.noConnect === true && component.designator !== undefined && pin.number !== undefined) {
+                  noConnect.add(`${component.designator}-${pin.number}`)
+                }
+              }
+            }
+            const primitives = Array.isArray(record?.primitives) ? record.primitives : undefined
+            const unexpected = primitives === undefined
+              ? undefined
+              : primitives.filter((primitive) => {
+                const item = typeof primitive === 'object' && primitive !== null ? primitive as Record<string, unknown> : undefined
+                const designator = typeof item?.designator === 'string' ? item.designator : undefined
+                const pinNumber = typeof item?.name === 'string' ? item.name : undefined
+                if (designator === undefined || pinNumber === undefined) return true
+                return !noConnect.has(`${designator}-${pinNumber}`)
+              })
+            if (unexpected !== undefined && unexpected.length === 0) continue
+            findings.push({
+              code: 'SCHEMATIC_EDA_FLOATING_PIN',
+              severity: 'error',
+              message: `client DRC: floating pin — ${unexpected === undefined ? text : JSON.stringify({ ...record, primitives: unexpected })}`,
+            })
+          } else if (rule === 'SHOWFLOATING') {
+            findings.push({
+              code: 'SCHEMATIC_EDA_FLOATING_NET',
+              severity: 'warning',
+              message: `client DRC: floating net — ${text}`,
+            })
+          } else {
+            findings.push({
+              code: 'SCHEMATIC_EDA_DRC',
+              severity: 'warning',
+              message: `client DRC: ${text}`,
+            })
+          }
+        }
+      } else {
+        findings.push({
+          code: 'SCHEMATIC_EDA_DRC_UNAVAILABLE',
+          severity: 'warning',
+          message: `client DRC did not return detail (${typeof oracleRecord.drcError === 'string' ? oracleRecord.drcError : 'unexpected result'})`,
+        })
+      }
+    }
+  }
+
+  return { created, pageUuids: builtPageUuids, findings }
+}
+
+/** Library documents resolved for one `.epro2` import package. */
+export interface EasyEdaImportLibrary {
+  /** Embedded `DEVICE`/`SYMBOL`/`FOOTPRINT` copies for the serializer. */
+  readonly library: EasyEdaProjectLibrary
+  /** Per-binding fetch failures; affected components keep library uuids. */
+  readonly findings: readonly SchematicFinding[]
+}
+
+const hex16 = (): string => randomUUID().replaceAll('-', '').slice(0, 16)
+
+function maxTicket(source: string): number {
+  let max = 0
+  for (const match of source.matchAll(/"ticket":(\d+)/g)) max = Math.max(max, Number(match[1]))
+  return max
+}
+
+/**
+ * Rewrite a fetched library document into a project-local copy: fresh
+ * `DOCHEAD` uuid plus a `META` record pointing back at the library origin,
+ * matching the shape real exports persist (`source` = `<uuid>|<library>`).
+ */
+function localizeLibraryDoc(source: string, localUuid: string, meta: Record<string, unknown>): string {
+  const lines = source.split('\n').filter(line => line !== '')
+  const head = lines[0]
+  if (head === undefined) return source
+  const rewritten = head
+    .replace(/"uuid":"[^"]*"/, `"uuid":"${localUuid}"`)
+    .replace(/"user":\{[^}]*\}/, `"user":{"uuid":"${localUuid}"}`)
+  const metaLine = `{"type":"META","ticket":${maxTicket(source) + 1},"id":"META"}||${JSON.stringify(meta)}|`
+  return [rewritten, ...lines.slice(1), metaLine].join('\n')
+}
+
+/**
+ * Fetch every distinct component binding's `DEVICE`/`SYMBOL`/`FOOTPRINT`
+ * document through the bridge and localize the copies for embedding. Device
+ * associations pull in their own symbol/footprint documents so the
+ * synthesized `DEVICE` attributes resolve too. Components whose fetch fails
+ * keep their library uuids and report a `SCHEMATIC_IMPORT_LIBDOC` warning —
+ * the client renders them as unresolved boxes, which the finding names.
+ * @param ir - the schematic IR to collect bindings from.
+ * @param bridge - a connected bridge into the running client.
+ * @param timeoutMs - per-call timeout override for the library batch.
+ * @returns embedded docs for {@link serializeEasyEdaProject} and findings.
+ */
+export async function collectProjectLibrary(
+  ir: SchematicIr,
+  bridge: EasyEdaBridge,
+  timeoutMs?: number,
+): Promise<EasyEdaImportLibrary> {
+  const wanted: { devices: Record<string, string>; symbols: Record<string, string>; footprints: Record<string, string> } = {
+    devices: {}, symbols: {}, footprints: {},
+  }
+  const flagQueries: { id: string; queries: string[] }[] = []
+  for (const sheet of ir.sheets) {
+    for (const component of sheet.components) {
+      if (component.deviceUuid !== undefined) wanted.devices[component.deviceUuid] ??= component.deviceLibraryUuid ?? ''
+      if (component.symbolUuid !== undefined) wanted.symbols[component.symbolUuid] ??= component.symbolLibraryUuid ?? ''
+      if (component.footprintUuid !== undefined) wanted.footprints[component.footprintUuid] ??= component.footprintLibraryUuid ?? ''
+      if (component.deviceUuid === undefined && component.netName !== undefined) {
+        if (component.kind === 'netport') {
+          flagQueries.push({ id: component.id, queries: ['Netport'] })
+        } else if (component.kind === 'netflag') {
+          flagQueries.push({
+            id: component.id,
+            queries: /^(GND|AGND|DGND|PGND|PE|GROUND|EARTH)/i.test(component.netName)
+              ? ['Ground-GND', 'GND']
+              : [`Power-${component.netName}`, 'Power-VCC'],
+          })
+        }
+      }
+    }
+  }
+  const raw = await bridge.execute(`
+const sysLib = await eda.lib_LibrariesList.getSystemLibraryUuid().catch(() => undefined)
+const wanted = ${JSON.stringify(wanted)}
+const flagQueries = ${JSON.stringify(flagQueries)}
+const scopeOf = (s) => s || sysLib
+const getWith = async (api, uuid, scope) => {
+  try { return await eda[api].get(uuid, scopeOf(scope)) }
+  catch (e) { try { return await eda[api].get(uuid, undefined) } catch (e2) { return undefined } }
+}
+const srcWith = async (api, uuid, scope) => {
+  try { return await eda[api].getDocumentSource(uuid, scopeOf(scope)) }
+  catch (e) { try { return await eda[api].getDocumentSource(uuid, undefined) } catch (e2) { return undefined } }
+}
+const out = { devices: {}, symbols: {}, footprints: {}, flags: {}, errors: [] }
+// Flags bind a name-specific flag device ('Ground-GND', 'Power-VCC', 'Netport')
+// rather than a part binding; search resolves the device, its association
+// supplies the flag symbol, and both feed the normal doc pipeline.
+for (const f of flagQueries) {
+  for (const q of f.queries) {
+    const hits = await eda.lib_Device.search(q, sysLib).catch(() => undefined)
+    const hit = Array.isArray(hits) ? hits.find(h => typeof h?.uuid === 'string') : undefined
+    if (hit === undefined) continue
+    const info = await getWith('lib_Device', hit.uuid, sysLib)
+    if (info === undefined) continue
+    const symUuid = info.association?.symbolUuid ?? info.association?.symbol?.uuid
+    out.flags[f.id] = { device: hit.uuid, symbol: symUuid }
+    wanted.devices[hit.uuid] = sysLib
+    if (typeof symUuid === 'string' && symUuid !== '') wanted.symbols[symUuid] = sysLib
+    break
+  }
+}
+for (const [uuid, scope] of Object.entries(wanted.devices)) {
+  const info = await getWith('lib_Device', uuid, scope)
+  if (info === undefined) { out.errors.push({ kind: 'device', uuid }); continue }
+  out.devices[uuid] = { info, scope: scopeOf(scope) }
+  const assoc = info.association ?? {}
+  const symUuid = assoc.symbolUuid ?? assoc.symbol?.uuid
+  const fpUuid = assoc.footprintUuid ?? assoc.footprint?.uuid
+  if (typeof symUuid === 'string' && symUuid !== '' && !(symUuid in wanted.symbols)) wanted.symbols[symUuid] = assoc.symbol?.libraryUuid ?? scope
+  if (typeof fpUuid === 'string' && fpUuid !== '' && !(fpUuid in wanted.footprints)) wanted.footprints[fpUuid] = assoc.footprint?.libraryUuid ?? scope
+}
+for (const [uuid, scope] of Object.entries(wanted.symbols)) {
+  const info = await getWith('lib_Symbol', uuid, scope)
+  const source = await srcWith('lib_Symbol', uuid, scope)
+  if (info === undefined || source === undefined) { out.errors.push({ kind: 'symbol', uuid }); continue }
+  out.symbols[uuid] = { info, source, scope: scopeOf(scope) }
+}
+for (const [uuid, scope] of Object.entries(wanted.footprints)) {
+  const info = await getWith('lib_Footprint', uuid, scope)
+  const source = await srcWith('lib_Footprint', uuid, scope)
+  if (info === undefined || source === undefined) { out.errors.push({ kind: 'footprint', uuid }); continue }
+  out.footprints[uuid] = { info, source, scope: scopeOf(scope) }
+}
+return out
+`, { timeoutMs }) as {
+    devices?: Record<string, { info?: Record<string, unknown>; scope?: string }>
+    symbols?: Record<string, { info?: Record<string, unknown>; source?: string; scope?: string }>
+    footprints?: Record<string, { info?: Record<string, unknown>; source?: string; scope?: string }>
+    flags?: Record<string, { device?: string; symbol?: string }>
+    errors?: { kind?: string; uuid?: string }[]
+  }
+
+  const symbols: EasyEdaEmbeddedDoc[] = []
+  const footprints: EasyEdaEmbeddedDoc[] = []
+  const devices: EasyEdaEmbeddedDoc[] = []
+  const localDevice = new Map<string, EasyEdaEmbeddedDoc>()
+  const localSymbol = new Map<string, EasyEdaEmbeddedDoc>()
+  const localFootprint = new Map<string, EasyEdaEmbeddedDoc>()
+  const partIdOf = (info: Record<string, unknown> | undefined, source: string): string | undefined => {
+    const names = info?.subPartNames
+    if (Array.isArray(names) && typeof names[0] === 'string') return names[0]
+    return source.match(/"type":"PART"[^|]*"id":"([^"]+)"/)?.[1]
+  }
+  const meta = (info: Record<string, unknown> | undefined) => ({
+    title: typeof info?.name === 'string' ? info.name : '',
+    description: typeof info?.description === 'string' ? info.description : '',
+    tags: Array.isArray(info?.classification) ? info.classification : [],
+  })
+  for (const [uuid, entry] of Object.entries(raw.symbols ?? {})) {
+    if (typeof entry.source !== 'string') continue
+    const localUuid = hex16()
+    const doc: EasyEdaEmbeddedDoc = {
+      sourceUuid: uuid,
+      localUuid,
+      source: localizeLibraryDoc(entry.source, localUuid, {
+        ...meta(entry.info),
+        // Symbol kinds are typed in the library (2 part, 18 netflag, 19
+        // netport); the embedded META must mirror the real type or the
+        // client reports invalid symbol data on annotation primitives.
+        docType: typeof entry.info?.type === 'number' ? entry.info.type : 2,
+        source: `${uuid}|${entry.scope ?? ''}`,
+      }),
+      title: meta(entry.info).title,
+      partId: partIdOf(entry.info, entry.source),
+    }
+    symbols.push(doc)
+    localSymbol.set(uuid, doc)
+  }
+  for (const [uuid, entry] of Object.entries(raw.footprints ?? {})) {
+    if (typeof entry.source !== 'string') continue
+    const localUuid = hex16()
+    const doc: EasyEdaEmbeddedDoc = {
+      sourceUuid: uuid,
+      localUuid,
+      title: meta(entry.info).title,
+      source: localizeLibraryDoc(entry.source, localUuid, {
+        ...meta(entry.info),
+        source: `${uuid}|${entry.scope ?? ''}`,
+      }),
+    }
+    footprints.push(doc)
+    localFootprint.set(uuid, doc)
+  }
+  for (const [uuid, entry] of Object.entries(raw.devices ?? {})) {
+    const info = entry.info ?? {}
+    const association = (typeof info.association === 'object' && info.association !== null ? info.association : {}) as Record<string, unknown>
+    const property = (typeof info.property === 'object' && info.property !== null ? info.property : {}) as Record<string, unknown>
+    const other = (typeof property.otherProperty === 'object' && property.otherProperty !== null ? property.otherProperty : {}) as Record<string, unknown>
+    const pickUuid = (value: unknown): string | undefined =>
+      typeof value === 'string' && value !== '' ? value : undefined
+    const assocSym = pickUuid(association.symbolUuid) ?? pickUuid((association.symbol as Record<string, unknown> | undefined)?.uuid)
+    const assocFp = pickUuid(association.footprintUuid) ?? pickUuid((association.footprint as Record<string, unknown> | undefined)?.uuid)
+    const sym = assocSym === undefined ? undefined : localSymbol.get(assocSym)
+    const fp = assocFp === undefined ? undefined : localFootprint.get(assocFp)
+    const localUuid = hex16()
+    const model3d = other['3D Model']
+    const doc: EasyEdaEmbeddedDoc = {
+      sourceUuid: uuid,
+      localUuid,
+      source: [
+        `{"type":"DOCHEAD","ticket":1}||{"docType":"DEVICE","client":"dsh","uuid":"${localUuid}","updateTime":1,"version":"1","editVersion":"4.1.71","user":{"uuid":"${localUuid}"}}|`,
+        `{"type":"META","ticket":2,"id":"META"}||${JSON.stringify({
+          title: typeof info.name === 'string' ? info.name : '',
+          tags: Array.isArray(info.classification) ? info.classification : [],
+          source: `${uuid}|${entry.scope ?? ''}`,
+          images: Array.isArray(association.images) ? association.images : [],
+          attributes: {
+            ...other,
+            ...(typeof model3d === 'string' && !model3d.includes('|') ? { '3D Model': `${model3d}|${entry.scope ?? ''}` } : {}),
+            ...(sym === undefined ? {} : { Symbol: sym.localUuid }),
+            ...(fp === undefined ? {} : { Footprint: fp.localUuid }),
+            ...(sym === undefined ? {} : { SymbolName: JSON.stringify({ name: sym.title, uuid: sym.localUuid, source: '' }) }),
+            ...(fp === undefined ? {} : { FootprintName: JSON.stringify({ name: fp.title, uuid: fp.localUuid, source: '' }) }),
+          },
+        })}|`,
+      ].join('\n'),
+    }
+    devices.push(doc)
+    localDevice.set(uuid, doc)
+  }
+  const flags = new Map<string, { device: EasyEdaEmbeddedDoc; symbol: EasyEdaEmbeddedDoc }>()
+  for (const [componentId, binding] of Object.entries(raw.flags ?? {})) {
+    const device = typeof binding.device === 'string' ? localDevice.get(binding.device) : undefined
+    const symbol = typeof binding.symbol === 'string' ? localSymbol.get(binding.symbol) : undefined
+    if (device !== undefined && symbol !== undefined) flags.set(componentId, { device, symbol })
+  }
+  const findings: SchematicFinding[] = (raw.errors ?? []).map(error => ({
+    code: 'SCHEMATIC_IMPORT_LIBDOC',
+    severity: 'warning' as const,
+    message: `${error.kind ?? 'library'} document ${error.uuid ?? '?'} could not be fetched; components bound to it render as unresolved boxes`,
+  }))
+  return { library: { devices, symbols, footprints, flags }, findings }
+}
+
+/** Options for {@link importIntoEasyEda}. */
+export interface EasyEdaImportOptions {
+  /** Bridge to execute code inside EasyEDA; inject a mock in tests. */
+  readonly bridge: EasyEdaBridge
+  /** Friendly name of the imported project; defaults to `DSH Schematic`. */
+  readonly projectName?: string | undefined
+  /** Eventual-consistency client tag written into each `DOCHEAD`. */
+  readonly clientId?: string | undefined
+  /**
+   * Allow closing every open document tab in the current project to satisfy
+   * `openProject`. Defaults to `false` — the fallback mutates the user's
+   * editor layout, so it is opt-in rather than unconditional.
+   */
+  readonly allowTabClose?: boolean | undefined
+  /**
+   * Pin geometry per bound symbol UUID (the `symbolPins` snapshot from
+   * `resolveBindings`); reconciles pin endpoints against real symbol pins
+   * during the read-back diff — see {@link EasyEdaBuildOptions.symbolPins}.
+   */
+  readonly symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]> | undefined
+  /** Per-call timeout override for the bridge execution, in milliseconds. */
+  readonly timeoutMs?: number | undefined
+}
+
+/** Structured outcome of one `.epro2` project import. */
+export interface EasyEdaImportReport {
+  /** Uuid of the imported project. */
+  readonly projectUuid: string
+  /** Page uuids the importer attached to the schematic, in sheet order where known. */
+  readonly pageUuids: readonly string[]
+  /** Import and round-trip findings for routing back to the model. */
+  readonly findings: readonly SchematicFinding[]
+}
+
+/**
+ * Render the in-client body that packs `project2.json` + `*.epru` into a
+ * store-method zip, hands it to `sys_FileManager.importProjectByProjectFile`
+ * (BETA), then re-opens each imported page and returns its document source.
+ * @param pkg - the serialized project payload.
+ * @param projectName - friendly name of the imported project.
+ * @param allowTabClose - whether openProject may close the current project's
+ * open document tabs when the client refuses to switch.
+ * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
+ */
+export function renderImportScript(pkg: EasyEdaProjectPackage, projectName: string, allowTabClose = false): string {
+  return `const crcTable = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t })();
+const crc32 = (bytes) => { let c = 0xFFFFFFFF; for (const b of bytes) c = crcTable[(c ^ b) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0 };
+const enc = new TextEncoder();
+const zipEntries = [['project2.json', ${JSON.stringify(pkg.projectJson)}], ['dsh-import.epru', ${JSON.stringify(pkg.epru)}]];
+const chunks = []; const central = []; let offset = 0;
+for (const [name, content] of zipEntries) {
+  const nameB = enc.encode(name); const data = enc.encode(content); const crc = crc32(data);
+  const lh = new DataView(new ArrayBuffer(30));
+  lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0, true); lh.setUint16(8, 0, true);
+  lh.setUint16(10, 0, true); lh.setUint16(12, 0, true); lh.setUint32(14, crc, true);
+  lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+  lh.setUint16(26, nameB.length, true); lh.setUint16(28, 0, true);
+  chunks.push(new Uint8Array(lh.buffer), nameB, data);
+  const cd = new DataView(new ArrayBuffer(46));
+  cd.setUint32(0, 0x02014b50, true); cd.setUint16(4, 20, true); cd.setUint16(6, 20, true);
+  cd.setUint16(8, 0, true); cd.setUint16(10, 0, true); cd.setUint16(12, 0, true); cd.setUint16(14, 0, true);
+  cd.setUint32(16, crc, true); cd.setUint32(20, data.length, true); cd.setUint32(24, data.length, true);
+  cd.setUint16(28, nameB.length, true); cd.setUint32(42, offset, true);
+  central.push(new Uint8Array(cd.buffer), nameB);
+  offset += 30 + nameB.length + data.length;
+}
+const cdStart = offset; const cdBytes = central.reduce((s, c) => s + c.length, 0);
+const eo = new DataView(new ArrayBuffer(22));
+eo.setUint32(0, 0x06054b50, true); eo.setUint16(8, zipEntries.length, true); eo.setUint16(10, zipEntries.length, true);
+eo.setUint32(12, cdBytes, true); eo.setUint32(16, cdStart, true);
+chunks.push(...central, new Uint8Array(eo.buffer));
+const teams = await eda.dmt_Team.getAllTeamsInfo();
+if (!teams || !teams.length) return { status: 'NO_TEAM' };
+// Same-name projects collide in the workspace; pick a free suffix upfront.
+let projectName = ${JSON.stringify(projectName)};
+try {
+  const uuids = await eda.dmt_Project.getAllProjectsUuid(teams[0].uuid) || [];
+  const names = new Set();
+  for (const u of uuids) {
+    try {
+      const info = await eda.dmt_Project.getProjectInfo(u);
+      const n = info && (info.name ?? info.friendlyName);
+      if (typeof n === 'string') names.add(n);
+      // Project names can come back owner-prefixed ("owner/name"); the import
+      // option takes the bare name, so collide on the basename too.
+      if (typeof n === 'string' && n.includes('/')) names.add(n.slice(n.lastIndexOf('/') + 1));
+    } catch (e) {}
+  }
+  for (let attempt = 1; names.has(projectName) && attempt < 20; attempt++) {
+    projectName = ${JSON.stringify(projectName)} + ' v' + (attempt + 1);
+  }
+} catch (e) {}
+const file = new File([new Blob(chunks)], 'dsh-import.epro2', { type: 'application/octet-stream' });
+const project = await eda.sys_FileManager.importProjectByProjectFile(file, 'JLCEDA Pro', undefined, {
+  operation: 'New Project',
+  newProjectOwnerTeamUuid: teams[0].uuid,
+  newProjectName: projectName,
+  newProjectFriendlyName: projectName,
+});
+if (!project) return { status: 'IMPORT_REJECTED' };
+// The client refuses to switch projects while the current one has open
+// document tabs; closing them mutates the user's editor layout, so the
+// fallback runs only under allowTabClose and otherwise reports.
+let opened = await eda.dmt_Project.openProject(project.uuid);
+let openTabs = 0;
+if (!opened) {
+  const tabIds = [];
+  const walkTabs = (n) => {
+    if (!n || typeof n !== 'object') return;
+    if (Array.isArray(n)) return n.forEach(walkTabs);
+    if (typeof n.tabId === 'string') tabIds.push(n.tabId);
+    for (const k in n) walkTabs(n[k]);
+  };
+  walkTabs(await eda.dmt_EditorControl.getSplitScreenTree());
+  openTabs = tabIds.length;
+  if (${allowTabClose ? 'true' : 'false'}) {
+    for (const t of tabIds) await eda.dmt_EditorControl.closeDocument(t);
+    opened = await eda.dmt_Project.openProject(project.uuid);
+  }
+}
+const current = await eda.dmt_Project.getCurrentProjectInfo();
+if (!opened || !current || current.uuid !== project.uuid) {
+  return { status: 'OPEN_FAILED', projectUuid: project.uuid, pageUuids: [], sources: [], openTabs, projectName };
+}
+// Only pages emitted by this archive count: enumerating without scoping can
+// return the previously open project's documents, and diffing the IR against
+// a foreign document produces false netlist findings.
+const expectedPages = ${JSON.stringify(pkg.pageUuids)};
+let pages = [];
+for (let attempt = 0; attempt < 20 && pages.length < expectedPages.length; attempt++) {
+  const all = await eda.dmt_Schematic.getAllSchematicPagesInfo() || [];
+  pages = expectedPages.filter(u => all.some(p => p.uuid === u));
+  if (pages.length < expectedPages.length) await new Promise(r => setTimeout(r, 500));
+}
+const sources = [];
+for (const uuid of pages) {
+  await eda.dmt_EditorControl.openDocument(uuid);
+  const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+  if (!active || active.uuid !== uuid) { sources.push(null); continue; }
+  sources.push(await eda.sys_FileManager.getDocumentSource());
+}
+return { status: 'OK', projectUuid: project.uuid, pageUuids: pages, sources, projectName };`
+}
+
+/**
+ * Import the IR as a new project through `importProjectByProjectFile` (BETA):
+ * the IR is serialized to `CONFIG`/`SCH`/`SCH_PAGE` logs in the client's
+ * persisted schema together with project-local copies of every referenced
+ * `DEVICE`/`SYMBOL`/`FOOTPRINT` document (the client renders components as
+ * empty boxes without them), zipped as `.epro2`, imported, then every
+ * attached page is read back for a name/net round-trip diff.
+ * @param ir - the schematic IR (already seam-validated by the caller).
+ * @param options - bridge instance, project name, tab-close consent, and
+ * client tag.
+ * @returns imported project uuid, page uuids, and structured findings.
+ */
+export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportOptions): Promise<EasyEdaImportReport> {
+  const { bridge } = options
+  const projectName = options.projectName ?? 'DSH Schematic'
+  const collected = await collectProjectLibrary(ir, bridge, options.timeoutMs)
+    .catch((error: unknown) => ({
+      library: { devices: [], symbols: [], footprints: [] },
+      findings: [{
+        code: 'SCHEMATIC_IMPORT_LIBDOC',
+        severity: 'warning' as const,
+        message: `project-library collection failed (${error instanceof Error ? error.message : String(error)}); components render as unresolved boxes`,
+      }],
+    }))
+  const pkg = serializeEasyEdaProject(ir, { clientId: options.clientId, title: projectName, library: collected.library })
+  const raw = await bridge.execute(
+    renderImportScript(pkg, projectName, options.allowTabClose === true),
+    { timeoutMs: options.timeoutMs },
+  ) as {
+    status?: string
+    projectUuid?: string
+    projectName?: string
+    pageUuids?: string[]
+    sources?: (string | null)[]
+    openTabs?: number
+  }
+  if (raw.status === 'NO_TEAM') {
+    throw new SchematicError('no team resolved for the import destination', 'SCHEMATIC_IMPORT_NO_TEAM')
+  }
+  if (raw.status === 'OPEN_FAILED' && typeof raw.projectUuid === 'string') {
+    return {
+      projectUuid: raw.projectUuid,
+      pageUuids: [],
+      findings: [{
+        code: 'SCHEMATIC_IMPORT_OPEN_FAILED',
+        severity: 'error',
+        message: `project ${raw.projectUuid} imported but the client refused to open it (openProject returned false)` +
+          (typeof raw.openTabs === 'number' && raw.openTabs > 0 && options.allowTabClose !== true
+            ? ` — ${raw.openTabs} document tab(s) block the project switch; set allowTabClose to close them, or close them in the editor`
+            : ' — read-back skipped so no foreign document is diffed'),
+      }],
+    }
+  }
+  if (raw.status !== 'OK' || typeof raw.projectUuid !== 'string' || !Array.isArray(raw.pageUuids)) {
+    throw new SchematicError('the client rejected the generated project package', 'SCHEMATIC_IMPORT_REJECTED')
+  }
+
+  const findings: SchematicFinding[] = [...collected.findings]
+  if (typeof raw.projectName === 'string' && raw.projectName !== projectName) {
+    findings.push({
+      code: 'SCHEMATIC_IMPORT_RENAMED',
+      severity: 'warning',
+      message: `project name "${projectName}" was already taken; imported as "${raw.projectName}"`,
+    })
+  }
+  if (raw.pageUuids.length < ir.sheets.length) {
+    findings.push({
+      code: 'SCHEMATIC_IMPORT_PAGE_LOST',
+      severity: 'error',
+      message: `importer attached ${raw.pageUuids.length} of ${ir.sheets.length} sheets`,
+    })
+  }
+  const sources = Array.isArray(raw.sources) ? raw.sources : []
+  for (const [index, source] of sources.entries()) {
+    const sheet = ir.sheets[index]
+    if (sheet === undefined) break
+    if (typeof source !== 'string') {
+      findings.push({ code: 'SCHEMATIC_IMPORT_READBACK', severity: 'warning', message: `imported page ${index + 1} source could not be read back`, locator: { sheetIndex: index } })
+      continue
+    }
+    const attrs = readBackAttrs(parseDocumentSource(source))
+    const names = new Set([...(attrs.get('Designator') ?? []), ...(attrs.get('Name') ?? []), ...(attrs.get('NET') ?? [])])
+    for (const component of sheet.components) {
+      const expected = component.designator ?? component.netName
+      if (expected !== undefined && !names.has(expected)) {
+        findings.push({
+          code: 'SCHEMATIC_IMPORT_DESIGNATOR',
+          severity: 'warning',
+          message: `imported page ${index + 1} source has no "${expected}" attr`,
+          locator: { sheetIndex: index, componentId: component.id, designator: component.designator },
+        })
+      }
+    }
+    for (const wire of sheet.wires) {
+      if (wire.net !== undefined && !names.has(wire.net)) {
+        findings.push({
+          code: 'SCHEMATIC_IMPORT_NET',
+          severity: 'warning',
+          message: `imported page ${index + 1} source has no NET "${wire.net}"`,
+          locator: { sheetIndex: index, net: wire.net },
+        })
+      }
+    }
+    findings.push(...diffNetlists(sheet, source, index, options.symbolPins))
+  }
+
+  return { projectUuid: raw.projectUuid, pageUuids: raw.pageUuids, findings }
+}

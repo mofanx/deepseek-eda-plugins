@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "原理图生成",
+    "description": "通过 EasyEDA 引擎生成并静态校验原理图文档。"
+  }
+}

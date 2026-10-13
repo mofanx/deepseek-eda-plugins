@@ -1,0 +1,13 @@
+# Source-launch overlay for running this checkout inside a dsh profile:
+#   pnpm dsh --profile headless --patch /path/to/deepseek-schematic-plugin/cordis.patch.yml
+# Plugin rows resolve relative source files beside this patch file; published
+# installs use the bundle's own cordis.patch.yml with package names instead.
+- insert:
+    - id: optional-schematic
+      name: './packages/schematic/src/index.ts'
+
+    - id: optional-schematic-easyeda
+      name: './packages/schematic-easyeda/src/index.ts'
+
+    - id: optional-tool-schematic
+      name: './packages/tool-schematic/src/index.ts'

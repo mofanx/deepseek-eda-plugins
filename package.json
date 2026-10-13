@@ -1,0 +1,23 @@
+{
+  "name": "deepseek-schematic-plugin",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "oxlint packages"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "oxlint": "^1.0.0",
+    "typescript": "^5.9.0",
+    "vite-tsconfig-paths": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

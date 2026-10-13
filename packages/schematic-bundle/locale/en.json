@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Schematic generation",
+    "description": "Generate and statically validate schematic documents through the EasyEDA engine."
+  }
+}
