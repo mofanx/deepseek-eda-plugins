@@ -61,7 +61,13 @@ class UnionFind {
   }
 }
 
-const pointKey = (p: SchematicPoint): string => `pt:${p.x},${p.y}`
+// Geometry and primitive ids are sheet-scoped: a point on one sheet never
+// touches a point on another. Flag/port keys stay name-global — netflags
+// and netports join nets across pages by name, which is their purpose.
+const pointKey = (sheetIndex: number, p: SchematicPoint): string => `pt:${sheetIndex}:${p.x},${p.y}`
+const pinKey = (sheetIndex: number, id: string): string => `pin:${sheetIndex}:${id}`
+const wireKey = (sheetIndex: number, id: string): string => `wire:${sheetIndex}:${id}`
+const busEntryKey = (sheetIndex: number, id: string): string => `busentry:${sheetIndex}:${id}`
 const flagKey = (name: string): string => `flag:${name}`
 const portKey = (name: string): string => `port:${name}`
 
@@ -162,11 +168,13 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
   }
 
   const allPins: PinRef[] = []
-  const pinsById = new Map<string, PinRef>()
-  const componentIds = new Set<string>()
-  const wireIds = new Set<string>()
-  const busEntryIds = new Set<string>()
-  const pinIds = new Set<string>()
+  // Id sets and pin lookups are per sheet: ids only need to be unique within
+  // their own sheet, so an ATTR on one page cannot adopt another's primitive.
+  const componentIdsBySheet: Set<string>[] = []
+  const wireIdsBySheet: Set<string>[] = []
+  const busEntryIdsBySheet: Set<string>[] = []
+  const pinIdsBySheet: Set<string>[] = []
+  const pinRefsBySheet: PinRef[][] = []
   const countId = (ids: Map<string, number>, id: string): void => {
     ids.set(id, (ids.get(id) ?? 0) + 1)
   }
@@ -186,10 +194,10 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
   }
 
   const uf = new UnionFind()
-  const segments: Segment[] = []
+  const segments: { segment: Segment; sheetIndex: number }[] = []
   // Points that can tap a segment interior: wire polyline endpoints (own chain
   // excluded), pin endpoints, flag/port positions, and bus-entry points.
-  const taps: { point: SchematicPoint; skip: Segment[] }[] = []
+  const taps: { point: SchematicPoint; skip: Segment[]; sheetIndex: number }[] = []
   const netDecl = new Map<string, Set<string>>()
   // Resolved `block` → child-sheet edges, collected for the cycle pass.
   const hierarchyEdges: { sheet: number; componentId: string; target: number }[] = []
@@ -310,60 +318,71 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
       }
     }
 
+    const sheetComponentIds = new Set<string>()
+    const sheetWireIds = new Set<string>()
+    const sheetBusEntryIds = new Set<string>()
+    const sheetPinIds = new Set<string>()
+    const sheetPinRefs: PinRef[] = []
+    componentIdsBySheet.push(sheetComponentIds)
+    wireIdsBySheet.push(sheetWireIds)
+    busEntryIdsBySheet.push(sheetBusEntryIds)
+    pinIdsBySheet.push(sheetPinIds)
+    pinRefsBySheet.push(sheetPinRefs)
+
     for (const component of sheet.components) {
-      componentIds.add(component.id)
+      sheetComponentIds.add(component.id)
       countId(localComponentIds, component.id)
       groupCheck(component.groupId, component.id)
       if ((component.kind === 'netflag' || component.kind === 'netport') && component.position !== undefined) {
-        taps.push({ point: component.position, skip: [] })
+        taps.push({ point: component.position, skip: [], sheetIndex })
       }
       for (const pin of component.pins) {
-        pinIds.add(pin.id)
+        sheetPinIds.add(pin.id)
         countId(localPinIds, pin.id)
         groupCheck(pin.groupId, pin.id)
         const ref: PinRef = { pin, component, sheetIndex }
         allPins.push(ref)
-        pinsById.set(pin.id, ref)
+        sheetPinRefs.push(ref)
         if (pin.endpoint !== undefined) {
-          uf.union(`pin:${pin.id}`, pointKey(pin.endpoint))
-          taps.push({ point: pin.endpoint, skip: [] })
+          uf.union(pinKey(sheetIndex, pin.id), pointKey(sheetIndex, pin.endpoint))
+          taps.push({ point: pin.endpoint, skip: [], sheetIndex })
         }
       }
     }
     for (const wire of sheet.wires) {
-      wireIds.add(wire.id)
+      sheetWireIds.add(wire.id)
       countId(localWireIds, wire.id)
       groupCheck(wire.groupId, wire.id)
       for (const chain of segmentsOf(wire)) {
         for (const segment of chain) {
-          segments.push(segment)
-          uf.union(pointKey(segment.a), pointKey(segment.b))
+          segments.push({ segment, sheetIndex })
+          uf.union(pointKey(sheetIndex, segment.a), pointKey(sheetIndex, segment.b))
         }
         const first = chain[0]
         const last = chain[chain.length - 1]
-        if (first !== undefined) taps.push({ point: first.a, skip: chain })
-        if (last !== undefined) taps.push({ point: last.b, skip: chain })
+        if (first !== undefined) taps.push({ point: first.a, skip: chain, sheetIndex })
+        if (last !== undefined) taps.push({ point: last.b, skip: chain, sheetIndex })
       }
       if (wire.net !== undefined) {
         const firstSeg = segmentsOf(wire).flat()[0]
-        const rootKey = firstSeg !== undefined ? uf.find(pointKey(firstSeg.a)) : uf.find(`wire:${wire.id}`)
+        const rootKey = firstSeg !== undefined ? uf.find(pointKey(sheetIndex, firstSeg.a)) : uf.find(wireKey(sheetIndex, wire.id))
         const names = netDecl.get(rootKey) ?? new Set<string>()
         names.add(wire.net)
         netDecl.set(rootKey, names)
       }
     }
     for (const entry of sheet.busEntries) {
-      busEntryIds.add(entry.id)
+      sheetBusEntryIds.add(entry.id)
       countId(localBusEntryIds, entry.id)
       groupCheck(entry.groupId, entry.id)
-      uf.union(`busentry:${entry.id}`, pointKey(entry.point))
-      taps.push({ point: entry.point, skip: [] })
-      const names = netDecl.get(uf.find(pointKey(entry.point))) ?? new Set<string>()
+      uf.union(busEntryKey(sheetIndex, entry.id), pointKey(sheetIndex, entry.point))
+      taps.push({ point: entry.point, skip: [], sheetIndex })
+      const names = netDecl.get(uf.find(pointKey(sheetIndex, entry.point))) ?? new Set<string>()
       names.add(entry.busNet)
-      netDecl.set(uf.find(pointKey(entry.point)), names)
+      netDecl.set(uf.find(pointKey(sheetIndex, entry.point)), names)
     }
     for (const junction of sheet.junctions) {
-      uf.find(pointKey(junction.point))
+      uf.find(pointKey(sheetIndex, junction.point))
     }
     for (const attr of sheet.attrs) countId(localAttrIds, attr.id)
 
@@ -403,31 +422,32 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
     }
   }
 
-  // T-connections: a tap point strictly inside another segment joins that net.
-  for (const { point, skip } of taps) {
-    for (const segment of segments) {
-      if (skip.includes(segment)) continue
-      if (onInterior(point, segment)) uf.union(pointKey(point), pointKey(segment.a))
+  // T-connections: a tap point strictly inside another segment joins that
+  // net — segments and taps pair only within their own sheet.
+  for (const { point, skip, sheetIndex } of taps) {
+    for (const entry of segments) {
+      if (entry.sheetIndex !== sheetIndex || skip.includes(entry.segment)) continue
+      if (onInterior(point, entry.segment)) uf.union(pointKey(sheetIndex, point), pointKey(sheetIndex, entry.segment.a))
     }
   }
 
   // NetFlag / NetPort / Short symbols participate by name across all sheets.
-  for (const sheet of ir.sheets) {
+  for (const [sheetIndex, sheet] of ir.sheets.entries()) {
     for (const component of sheet.components) {
       if (component.kind === 'netflag' && component.netName !== undefined && component.position !== undefined) {
-        uf.union(flagKey(component.netName), pointKey(component.position))
-        const names = netDecl.get(uf.find(pointKey(component.position))) ?? new Set<string>()
+        uf.union(flagKey(component.netName), pointKey(sheetIndex, component.position))
+        const names = netDecl.get(uf.find(pointKey(sheetIndex, component.position))) ?? new Set<string>()
         names.add(component.netName)
-        netDecl.set(uf.find(pointKey(component.position)), names)
+        netDecl.set(uf.find(pointKey(sheetIndex, component.position)), names)
       } else if (component.kind === 'netport' && component.netName !== undefined && component.position !== undefined) {
-        uf.union(portKey(component.netName), pointKey(component.position))
-        const names = netDecl.get(uf.find(pointKey(component.position))) ?? new Set<string>()
+        uf.union(portKey(component.netName), pointKey(sheetIndex, component.position))
+        const names = netDecl.get(uf.find(pointKey(sheetIndex, component.position))) ?? new Set<string>()
         names.add(component.netName)
-        netDecl.set(uf.find(pointKey(component.position)), names)
+        netDecl.set(uf.find(pointKey(sheetIndex, component.position)), names)
       } else if (component.kind === 'short' && component.pins.length === 2) {
         const [first, second] = component.pins
         /* v8 ignore next -- pins.length === 2 guarantees both elements */
-        if (first !== undefined && second !== undefined) uf.union(`pin:${first.id}`, `pin:${second.id}`)
+        if (first !== undefined && second !== undefined) uf.union(pinKey(sheetIndex, first.id), pinKey(sheetIndex, second.id))
       }
     }
   }
@@ -442,13 +462,13 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
 
   const netPins = new Map<string, PinRef[]>()
   for (const ref of allPins) {
-    const root = uf.find(`pin:${ref.pin.id}`)
+    const root = uf.find(pinKey(ref.sheetIndex, ref.pin.id))
     const list = netPins.get(root) ?? []
     list.push(ref)
     netPins.set(root, list)
   }
   const carrierRoots = new Set<string>()
-  for (const segment of segments) carrierRoots.add(uf.find(pointKey(segment.a)))
+  for (const entry of segments) carrierRoots.add(uf.find(pointKey(entry.sheetIndex, entry.segment.a)))
 
   const netRoots = new Set<string>([...netPins.keys()])
   for (const key of carrierRoots) netRoots.add(key)
@@ -465,7 +485,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
 
   // --- Family: pin connectivity -------------------------------------------------
   for (const ref of allPins) {
-    const root = uf.find(`pin:${ref.pin.id}`)
+    const root = uf.find(pinKey(ref.sheetIndex, ref.pin.id))
     /* v8 ignore next -- the netPins loop above seeds an entry for every pin root */
     const members = netPins.get(root) ?? []
     const connected = members.length > 1 || carrierRoots.has(root)
@@ -555,22 +575,28 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
   }
 
   // AMBIGUOUS_CROSSING: interior-interior intersections without a junction.
-  const junctionKeys = new Set<string>()
-  for (const sheet of ir.sheets) {
-    for (const junction of sheet.junctions) junctionKeys.add(pointKey(junction.point))
+  // Crossings are sheet-local — wires on different pages never intersect.
+  const junctionKeysBySheet: Set<string>[] = ir.sheets.map(() => new Set())
+  const segmentsBySheet: Segment[][] = ir.sheets.map(() => [])
+  for (const [sheetIndex, sheet] of ir.sheets.entries()) {
+    for (const junction of sheet.junctions) junctionKeysBySheet[sheetIndex]?.add(pointKey(sheetIndex, junction.point))
   }
-  for (let i = 0; i < segments.length; i++) {
-    for (let j = i + 1; j < segments.length; j++) {
-      const crossing = interiorIntersection(segments[i] as Segment, segments[j] as Segment)
-      if (crossing === undefined) continue
-      if (junctionKeys.has(pointKey(crossing))) continue
-      report(
-        'AMBIGUOUS_CROSSING',
-        'warning',
-        `wires cross at (${crossing.x}, ${crossing.y}) without a junction`,
-        { x: crossing.x, y: crossing.y },
-        'Place an explicit junction or re-route so the crossing cannot be read as connected',
-      )
+  for (const entry of segments) segmentsBySheet[entry.sheetIndex]?.push(entry.segment)
+  for (const [sheetIndex, sheetSegments] of segmentsBySheet.entries()) {
+    const junctionKeys = junctionKeysBySheet[sheetIndex] as Set<string>
+    for (let i = 0; i < sheetSegments.length; i++) {
+      for (let j = i + 1; j < sheetSegments.length; j++) {
+        const crossing = interiorIntersection(sheetSegments[i] as Segment, sheetSegments[j] as Segment)
+        if (crossing === undefined) continue
+        if (junctionKeys.has(pointKey(sheetIndex, crossing))) continue
+        report(
+          'AMBIGUOUS_CROSSING',
+          'warning',
+          `wires cross at (${crossing.x}, ${crossing.y}) without a junction`,
+          { sheetIndex, x: crossing.x, y: crossing.y },
+          'Place an explicit junction or re-route so the crossing cannot be read as connected',
+        )
+      }
     }
   }
 
@@ -843,13 +869,14 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
       }
     }
     for (const attr of sheet.attrs) {
-      const direct = componentIds.has(attr.parentId)
-        || wireIds.has(attr.parentId)
-        || busEntryIds.has(attr.parentId)
-        || pinIds.has(attr.parentId)
+      const direct = componentIdsBySheet[sheetIndex]?.has(attr.parentId) === true
+        || wireIdsBySheet[sheetIndex]?.has(attr.parentId) === true
+        || busEntryIdsBySheet[sheetIndex]?.has(attr.parentId) === true
+        || pinIdsBySheet[sheetIndex]?.has(attr.parentId) === true
       let resolved = direct
       if (!resolved) {
-        for (const ref of pinsById.values()) {
+        // Populated per sheet in the first pass — same index space.
+        for (const ref of pinRefsBySheet[sheetIndex]!) {
           if (attr.parentId === `${ref.component.id}${ref.pin.id}`) {
             resolved = true
             break

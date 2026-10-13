@@ -416,6 +416,86 @@ describe('connectivity edge cases', () => {
   })
 })
 
+describe('cross-sheet identity isolation', () => {
+  it('does not union same-coordinate nodes on different sheets', () => {
+    // Sheet 0 ties a pin to net GND at (0,0); sheet 1 puts netport NET_A on
+    // the same coordinate. Point keys are sheet-scoped, so the nets stay
+    // distinct — only same-named markers merge across pages.
+    const ir: SchematicIr = {
+      sheets: [
+        {
+          components: [part('c1', 'U1', [pin('p1', 'OUTPUT', { x: 0, y: 0 })])],
+          wires: [{ id: 'w1', kind: 'wire', dots: [[0, 0, 10, 0]], net: 'GND' }],
+          busEntries: [], junctions: [], attrs: [],
+        },
+        {
+          components: [{ id: 'np1', kind: 'netport', netName: 'NET_A', position: { x: 0, y: 0 }, pins: [] }],
+          wires: [{ id: 'w2', kind: 'wire', dots: [[0, 0, 10, 0]], net: 'NET_A' }],
+          busEntries: [], junctions: [], attrs: [],
+        },
+      ],
+    }
+    const report = validateSchematic(ir)
+    expect(report.findings.filter(f => f.code === 'NET_NAME_CONFLICT')).toHaveLength(0)
+    expect(report.findings.filter(f => f.severity === 'error')).toHaveLength(0)
+  })
+
+  it('still merges same-named markers across sheets (intentional global nets)', () => {
+    const ir: SchematicIr = {
+      sheets: [
+        {
+          components: [part('c1', 'U1', [pin('p1', 'OUTPUT', { x: 0, y: 0 })])],
+          wires: [{ id: 'w1', kind: 'wire', dots: [[0, 0, 10, 0]], net: 'SIG' }],
+          busEntries: [], junctions: [], attrs: [],
+        },
+        {
+          components: [{ id: 'np1', kind: 'netport', netName: 'SIG', position: { x: 40, y: 40 }, pins: [] }],
+          wires: [],
+          busEntries: [], junctions: [], attrs: [],
+        },
+      ],
+    }
+    const report = validateSchematic(ir)
+    expect(report.findings.filter(f => f.severity === 'error')).toHaveLength(0)
+  })
+
+  it('flags ORPHAN_ATTR when the parent id exists only on another sheet', () => {
+    const ir: SchematicIr = {
+      sheets: [
+        {
+          components: [part('c1', 'U1', [pin('p1', 'OUTPUT', { x: 0, y: 0 })])],
+          wires: [{ id: 'w1', kind: 'wire', dots: [[0, 0, 10, 0]], net: 'SIG' }],
+          busEntries: [], junctions: [],
+          attrs: [{ id: 'a1', parentId: 'ghost', key: 'k', value: 'v' }],
+        },
+        {
+          components: [{ id: 'ghost', kind: 'netflag', netName: 'SIG', position: { x: 0, y: 0 }, pins: [] }],
+          wires: [],
+          busEntries: [], junctions: [], attrs: [],
+        },
+      ],
+    }
+    expect(codes(ir)).toContain('ORPHAN_ATTR')
+  })
+
+  it('does not report AMBIGUOUS_CROSSING for crossings on different sheets', () => {
+    // The horizontal wire lives on sheet 0, the vertical on sheet 1: they
+    // would cross at (5,0) if the segments were pooled globally.
+    const ir: SchematicIr = {
+      sheets: [
+        { components: [], wires: [{ id: 'wh', kind: 'wire', dots: [[0, 0, 10, 0]], net: 'H' }], busEntries: [], junctions: [], attrs: [] },
+        { components: [], wires: [{ id: 'wv', kind: 'wire', dots: [[5, -5, 5, 5]], net: 'V' }], busEntries: [], junctions: [], attrs: [] },
+      ],
+    }
+    expect(codes(ir)).not.toContain('AMBIGUOUS_CROSSING')
+    // Same geometry pooled on one sheet warns once.
+    const pooled: SchematicIr = {
+      sheets: [{ components: [], wires: [...ir.sheets[0]!.wires, ...ir.sheets[1]!.wires], busEntries: [], junctions: [], attrs: [] }],
+    }
+    expect(codes(pooled).filter(c => c === 'AMBIGUOUS_CROSSING')).toHaveLength(1)
+  })
+})
+
 describe('designator and binding edge cases', () => {
   it('warns DESIGNATOR_MALFORMED on a designator without the PREFIX+digits shape', () => {
     const ir: SchematicIr = {

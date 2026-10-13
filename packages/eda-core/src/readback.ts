@@ -107,6 +107,10 @@ const segmentsTouch = (a: Segment, b: Segment): boolean => {
 }
 
 const nodeTouches = (a: NetNode, b: NetNode): boolean => {
+  // Two flag attach points at one coordinate short their nets the same way a
+  // wire endpoint touching a segment does — without this the read-back misses
+  // a collision the validator's point graph already reports as merged.
+  if (a.point !== undefined && b.point !== undefined && a.point.x === b.point.x && a.point.y === b.point.y) return true
   if (a.point !== undefined && b.segments.some(segment => onSegment(a.point as Point, segment))) return true
   if (b.point !== undefined && a.segments.some(segment => onSegment(b.point as Point, segment))) return true
   return a.segments.some(sa => b.segments.some(sb => segmentsTouch(sa, sb)))

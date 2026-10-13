@@ -773,8 +773,25 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
   // the client's persisted view is what the user will actually open.
   // Read-back is verification, not delivery: a bridge failure degrades to an
   // advisory finding instead of failing a build the client already applied.
-  const sources = await bridge.execute(
-    `const sources = [];
+  //
+  // A chunk returns once its create calls resolve on the gateway, but the
+  // page-side dispatch can still be flushing the last placements — a source
+  // read fired immediately after diffs a stale page. Drain the dispatch
+  // queue with a no-op probe first; it only returns once every earlier
+  // request finished. Then resend the read-back while the call dies on the
+  // gateway's per-request budget — an array of per-page results (nulls for
+  // pages that refused to open) is authoritative and ends the resend.
+  const drainDeadline = Date.now() + (options.timeoutMs ?? 30_000) * 2
+  let drained = false
+  while (!drained && Date.now() < drainDeadline) {
+    try {
+      await bridge.execute('return true', { timeoutMs: 15_000 })
+      drained = true
+    } catch {
+      await new Promise(r => setTimeout(r, 1_000))
+    }
+  }
+  const readScript = `const sources = [];
 for (const uuid of ${JSON.stringify(builtPageUuids)}) {
   const tab = await eda.dmt_EditorControl.openDocument(uuid);
   if (!tab) { sources.push(null); continue; }
@@ -782,9 +799,19 @@ for (const uuid of ${JSON.stringify(builtPageUuids)}) {
   if (!active || active.uuid !== uuid) { sources.push(null); continue; }
   sources.push(await eda.sys_FileManager.getDocumentSource());
 }
-return sources;`,
-    executeOptions,
-  ).catch(() => undefined)
+return sources;`
+  // Resend while the execute itself dies (gateway budget, wedged client); a
+  // returned value — array or not — is authoritative and ends the resend.
+  const readDeadline = Date.now() + (options.timeoutMs ?? 30_000) * 4
+  let sources: unknown
+  while (Date.now() < readDeadline) {
+    try {
+      sources = await bridge.execute(readScript, executeOptions)
+      break
+    } catch {
+      if (Date.now() < readDeadline) await new Promise(r => setTimeout(r, 1_000))
+    }
+  }
   if (Array.isArray(sources)) {
     for (const [index, source] of sources.entries()) {
       const sheetIndex = builtPages[index]?.sheetIndex

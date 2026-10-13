@@ -231,8 +231,8 @@ describe('buildIntoEasyEda chunked placement', () => {
   it('executes prepare, one part chunk, batched markers, batched wires, read-back, oracle', async () => {
     const { bridge, calls } = scriptedBridge(standardQueue())
     const report = await buildIntoEasyEda(ir, { bridge })
-    // 6 executions: prepare + part + markers + wires + read-back + oracle.
-    expect(calls).toHaveLength(6)
+    // 7 executions: prepare + part + markers + wires + drain probe + read-back + oracle.
+    expect(calls).toHaveLength(7)
     expect(calls[0]).toContain('createSchematicPage')
     expect(calls[1]).toContain('"deviceUuid":"dev-uuid"')
     expect(calls[1]).toContain('"deviceLibraryUuid":"sys-lib"')
@@ -240,8 +240,9 @@ describe('buildIntoEasyEda chunked placement', () => {
     expect(calls[2]).toContain('"netName":"GND"')
     expect(calls[2]).toContain('"netName":"SIG"')
     expect(calls[3]).toContain('"net":"SIG"')
-    expect(calls[4]).toContain('getDocumentSource')
-    expect(calls[5]).toContain('counts')
+    expect(calls[4]).toBe('return true')
+    expect(calls[5]).toContain('getDocumentSource')
+    expect(calls[6]).toContain('counts')
     expect(report.created).toBe(7)
     expect(report.pageUuids).toEqual(['page-1'])
   })
@@ -265,7 +266,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       oracleOk,
     ])
     const report = await buildIntoEasyEda(blockedIr, { bridge })
-    expect(calls).toHaveLength(7)
+    expect(calls).toHaveLength(8)
     expect(calls[4]).toContain('sch_PrimitiveRectangle.create(')
     expect(calls[4]).toContain('sch_PrimitiveText.create(')
     expect(calls[4]).toContain('"title":"PWR"')
@@ -299,8 +300,8 @@ describe('buildIntoEasyEda chunked placement', () => {
       oracleOk,
     ])
     const report = await buildIntoEasyEda(hierarchicalIr, { bridge })
-    // prepare + part + markers + wires + sheet-symbol chunk + read-back + oracle.
-    expect(calls).toHaveLength(7)
+    // prepare + part + markers + wires + sheet-symbol chunk + drain + read-back + oracle.
+    expect(calls).toHaveLength(8)
     // The block never reaches a component chunk: no NO_DEVICE failure, no
     // component placement call carries it.
     expect(calls.slice(1, 4).some(c => c.includes('"irId":"blk1"') && c.includes('sch_PrimitiveComponent.create('))).toBe(false)
@@ -420,7 +421,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       oracleOk,
     ])
     const report = await buildIntoEasyEda(ir, { bridge, retryBackoffMs: 0 })
-    expect(calls).toHaveLength(7)
+    expect(calls).toHaveLength(8)
     expect(report.created).toBe(7)
     expect(report.findings.filter(f => f.severity === 'error')).toEqual([])
   })
@@ -437,7 +438,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       oracleOk,
     ])
     const report = await buildIntoEasyEda(ir, { bridge, retryBackoffMs: 0 })
-    expect(calls).toHaveLength(8)
+    expect(calls).toHaveLength(9)
     const chunkFailures = report.findings.filter(f => f.code === 'SCHEMATIC_BUILD_PRIMITIVE_FAILED' && f.message.includes('after retries'))
     expect(chunkFailures).toHaveLength(1)
     expect(chunkFailures[0]?.severity).toBe('error')
@@ -455,7 +456,7 @@ describe('buildIntoEasyEda chunked placement', () => {
     ])
     const report = await buildIntoEasyEda(ir, { bridge })
     // No retry on the part chunk.
-    expect(calls).toHaveLength(6)
+    expect(calls).toHaveLength(7)
     expect(report.findings.some(f => f.message.includes('after retries'))).toBe(true)
   })
 
@@ -491,8 +492,8 @@ describe('buildIntoEasyEda chunked placement', () => {
     ])
     const report = await buildIntoEasyEda(twoParts, { bridge, retries: 0 })
     // 4 chunks exist but the 4th is skipped once the streak hits 3.
-    expect(calls).toHaveLength(6)
-    expect(calls[4]).toContain('getDocumentSource')
+    expect(calls).toHaveLength(7)
+    expect(calls[5]).toContain('getDocumentSource')
     expect(report.findings.find(f => f.code === 'SCHEMATIC_BUILD_ABORTED')?.severity).toBe('error')
   })
 
@@ -520,11 +521,33 @@ describe('buildIntoEasyEda chunked placement', () => {
     expect(report.findings.some(f => f.message.includes('could not be re-activated'))).toBe(true)
   })
 
+  it('resends the drain probe while the gateway is still busy', async () => {
+    // First probe dies (queued work still applying); the retry succeeds and
+    // the read-back proceeds normally.
+    let probeFails = 1
+    const calls: string[] = []
+    const queue = standardQueue()
+    const bridge: EasyEdaBridge = {
+      async execute(code: string) {
+        calls.push(code)
+        if (code === 'return true') {
+          if (probeFails-- > 0) throw new Error('gateway busy')
+          return true
+        }
+        return queue.shift()
+      },
+    }
+    const report = await buildIntoEasyEda(ir, { bridge, retryBackoffMs: 0 })
+    expect(calls.filter(c => c === 'return true')).toHaveLength(2)
+    expect(calls.some(c => c.includes('getDocumentSource'))).toBe(true)
+    expect(report.created).toBe(7)
+  })
+
   it('reports chunk failures when a non-positive retry budget throws the last error', async () => {
     const { bridge, calls } = scriptedBridge([prepareOk])
     const report = await buildIntoEasyEda(ir, { bridge, retries: -1 })
-    // prepare + read-back + oracle; no chunk ever reaches execute.
-    expect(calls).toHaveLength(3)
+    // prepare + drain probe + read-back + oracle; no chunk ever reaches execute.
+    expect(calls).toHaveLength(4)
     const failed = report.findings.filter(f => f.message.includes('failed after retries'))
     // One finding per irId in each failed chunk: 1 part + 4 markers + 2 wires.
     expect(failed).toHaveLength(7)
@@ -1063,7 +1086,7 @@ describe('buildIntoEasyEda client oracle', () => {
   it('skips the DRC call when advisoryDrc is off', async () => {
     const { bridge, calls } = scriptedBridge(standardQueue())
     await buildIntoEasyEda(ir, { bridge, advisoryDrc: false })
-    expect(calls[5]).toContain('if (false)')
+    expect(calls[6]).toContain('if (false)')
   })
 })
 
@@ -1096,8 +1119,8 @@ describe('EasyEdaSchematicEngine.build', () => {
   it('honours the per-call advisoryDrc override', async () => {
     const { bridge, calls } = scriptedBridge(standardQueue())
     await engine.build(ir, { bridge, advisoryDrc: false })
-    expect(calls).toHaveLength(6)
-    expect(calls[5]).toContain('if (false)')
+    expect(calls).toHaveLength(7)
+    expect(calls[6]).toContain('if (false)')
   })
 })
 
@@ -1650,7 +1673,7 @@ describe('EasyEdaSchematicEngine.verify', () => {
   it('delegates to the live build path and returns its findings', async () => {
     const { bridge, calls } = scriptedBridge(standardQueue())
     const findings = await engine.verify(ir, { bridge })
-    expect(calls).toHaveLength(6)
+    expect(calls).toHaveLength(7)
     expect(findings.map(f => f.code)).toContain('SCHEMATIC_ROUNDTRIP_UNAVAILABLE')
   })
 })

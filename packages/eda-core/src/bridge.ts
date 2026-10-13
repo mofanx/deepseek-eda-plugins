@@ -153,6 +153,18 @@ export class HttpEasyEdaBridge implements EasyEdaBridge {
     )
   }
 
+  /** Short-deadline `/health` read used to classify an execute timeout. */
+  private async probeHealth(): Promise<BridgeHealth | undefined> {
+    try {
+      using d = deadline(undefined, Math.min(this.timeoutMs, 5_000), 'SCHEMATIC_BRIDGE_TIMEOUT')
+      const res = await this.fetchFn(`${this.baseUrl}/health`, { signal: d.signal })
+      if (!res.ok) return undefined
+      return await res.json() as BridgeHealth
+    } catch {
+      return undefined
+    }
+  }
+
   /**
    * Execute a code body via `POST /execute`. Consecutive timeouts open a
    * fail-fast circuit because the page-side gateway serializes executions —
@@ -184,6 +196,16 @@ export class HttpEasyEdaBridge implements EasyEdaBridge {
         this.timeoutStreak += 1
         if (this.timeoutStreak >= this.timeoutStreakLimit) {
           this.circuitOpenUntil = Date.now() + this.circuitCooldownMs
+        }
+        // A window that died between registration and execute (editor reload
+        // drops the gateway socket) keeps `/health` claiming edaConnected
+        // until the server's heartbeat sweeps it. Re-ask before reporting a
+        // timeout: a drained window list deserves the actionable NO_EDA.
+        if ((await this.probeHealth())?.edaConnected === false) {
+          throw new SchematicError(
+            `easyeda bridge at ${this.baseUrl} lost its EasyEDA window — reopen the api/landing page to re-register the editor`,
+            'SCHEMATIC_BRIDGE_NO_EDA',
+          )
         }
         throw new SchematicError(`easyeda bridge execute timed out after ${timeoutMs}ms`, 'SCHEMATIC_BRIDGE_TIMEOUT')
       }

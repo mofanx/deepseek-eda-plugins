@@ -167,6 +167,78 @@ describe('HttpEasyEdaBridge.execute', () => {
     await expect(bridge.execute('while(true){}')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_TIMEOUT' }))
   })
 
+  it('reclassifies an execute timeout as NO_EDA when the window list drained', async () => {
+    // Editor reload drops the gateway socket; a follow-up /health that already
+    // sees edaConnected:false turns the opaque timeout into the actionable error.
+    let connected = true
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      if (String(input).endsWith('/health')) return health('easyeda-bridge', connected)
+      connected = false
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const reason: unknown = init.signal?.reason
+          reject(reason instanceof Error ? reason : new Error(String(reason)))
+        })
+      })
+    }) as typeof fetch
+    const bridge = await HttpEasyEdaBridge.discover({ fetchFn, timeoutMs: 5 })
+    await expect(bridge.execute('x')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_NO_EDA' }))
+  })
+
+  it('keeps TIMEOUT when the post-timeout health probe still shows a window', async () => {
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      if (String(input).endsWith('/health')) return health('easyeda-bridge')
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const reason: unknown = init.signal?.reason
+          reject(reason instanceof Error ? reason : new Error(String(reason)))
+        })
+      })
+    }) as typeof fetch
+    const bridge = await HttpEasyEdaBridge.discover({ fetchFn, timeoutMs: 5 })
+    await expect(bridge.execute('x')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_TIMEOUT' }))
+  })
+
+  it('keeps TIMEOUT when the health probe itself fails after the timeout', async () => {
+    // Discovery succeeds once; every later fetch — execute and the probe —
+    // dies, so the timeout stays unclassified.
+    let probed = false
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      if (String(input).endsWith('/health') && !probed) {
+        probed = true
+        return health('easyeda-bridge')
+      }
+      if (String(input).endsWith('/health')) return Promise.reject(new Error('conn reset'))
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const reason: unknown = init.signal?.reason
+          reject(reason instanceof Error ? reason : new Error(String(reason)))
+        })
+      })
+    }) as typeof fetch
+    const bridge = await HttpEasyEdaBridge.discover({ fetchFn, timeoutMs: 5 })
+    await expect(bridge.execute('x')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_TIMEOUT' }))
+  })
+
+  it('keeps TIMEOUT when the health probe answers a non-OK status', async () => {
+    let probed = false
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      if (String(input).endsWith('/health') && !probed) {
+        probed = true
+        return health('easyeda-bridge')
+      }
+      if (String(input).endsWith('/health')) return new Response('gone', { status: 404 })
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const reason: unknown = init.signal?.reason
+          reject(reason instanceof Error ? reason : new Error(String(reason)))
+        })
+      })
+    }) as typeof fetch
+    const bridge = await HttpEasyEdaBridge.discover({ fetchFn, timeoutMs: 5 })
+    await expect(bridge.execute('x')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_TIMEOUT' }))
+  })
+
   it('turns an unrecognized payload into SCHEMATIC_BRIDGE_PROTOCOL', async () => {
     const bridge = await boundBridge(() => new Response(JSON.stringify({ weird: true }), { status: 200 }))
     await expect(bridge.execute('x')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_PROTOCOL' }))

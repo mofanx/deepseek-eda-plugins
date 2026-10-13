@@ -271,6 +271,11 @@ const httpHandler = async (req, res) => {
 
 function attachEdaClient(ws) {
   let registeredWindowId = null
+  // Liveness tracking for the heartbeat sweep below: a dead-but-unclosed
+  // socket (editor reload, wedged gateway page) would otherwise keep the
+  // window registered forever while every execute queues up and times out.
+  ws.isAlive = true
+  ws.on('pong', () => { ws.isAlive = true })
 
   const onMessage = (raw) => {
     try {
@@ -395,6 +400,21 @@ function createBridgeServer() {
 const httpServer = createBridgeServer()
 const gatewayServer = createBridgeServer()
 let gatewayAttempted = false
+
+// Heartbeat: ping every registered EDA window and terminate any that missed
+// the previous pong. `terminate()` fires 'close', which unregisters the
+// window — health then reports edaConnected:false instead of a stale entry.
+const HEARTBEAT_MS = 15_000
+setInterval(() => {
+  for (const client of edaClients.values()) {
+    if (client.isAlive === false) {
+      try { client.terminate() } catch { /* socket already gone */ }
+      continue
+    }
+    client.isAlive = false
+    try { client.ping() } catch { try { client.terminate() } catch { /* socket already gone */ } }
+  }
+}, HEARTBEAT_MS).unref()
 
 // ─── Core logic ─────────────────────────────────────────────────────
 

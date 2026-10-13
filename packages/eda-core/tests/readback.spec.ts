@@ -176,6 +176,26 @@ describe('diffNetlists', () => {
     expect(named).toEqual(['OTHER', 'SIG', 'THIRD'])
   })
 
+  it('unions a flag sitting exactly on a wire endpoint through point-point contact', () => {
+    // The flag lands on the wire's endpoint coordinate with no segment
+    // interior contact — read-back must still merge them into one region.
+    const src = [
+      '{"type":"WIRE","id":"w1","ticket":1}||{}|',
+      '{"type":"ATTR","id":"a1","ticket":2}||{"parentId":"w1","key":"NET","value":"SIG"}|',
+      '{"type":"LINE","id":"l1","ticket":3}||{"lineGroup":"w1","startX":0,"startY":0,"endX":100,"endY":0}|',
+      '{"type":"COMPONENT","id":"f1","ticket":4}||{"x":100,"y":0,"rotation":0,"isMirror":false,"attrs":{}}|',
+      '{"type":"ATTR","id":"a2","ticket":5}||{"parentId":"f1","key":"Name","value":"SIG"}|',
+      '{"type":"COMPONENT","id":"f2","ticket":6}||{"x":100,"y":0,"rotation":0,"isMirror":false,"attrs":{}}|',
+      '{"type":"ATTR","id":"a3","ticket":7}||{"parentId":"f2","key":"Name","value":"SIG"}|',
+      '{"type":"COMPONENT","id":"f3","ticket":8}||{"x":0,"y":0,"rotation":0,"isMirror":false,"attrs":{}}|',
+      '{"type":"ATTR","id":"a4","ticket":9}||{"parentId":"f3","key":"Name","value":"SIG"}|',
+      '{"type":"COMPONENT","id":"f4","ticket":10}||{"x":50,"y":50,"rotation":0,"isMirror":false,"attrs":{}}|',
+      '{"type":"ATTR","id":"a5","ticket":11}||{"parentId":"f4","key":"Name","value":"LONELY"}|',
+    ].join('\n') + '\n'
+    const named = readBackNetRegions(src).map(region => [...region.names].sort().join('/')).sort()
+    expect(named).toEqual(['LONELY', 'SIG'])
+  })
+
   it('skips records with non-object bodies and id-less WIRE/COMPONENT records', () => {
     const src = [
       '{"type":"WIRE","ticket":1}||{}|',
