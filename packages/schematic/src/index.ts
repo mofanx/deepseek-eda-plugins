@@ -42,6 +42,7 @@ export type {
   SchematicFindingSeverity,
   SchematicIr,
   SchematicIrAttr,
+  SchematicIrBlock,
   SchematicIrBusEntry,
   SchematicIrComponent,
   SchematicIrJunction,

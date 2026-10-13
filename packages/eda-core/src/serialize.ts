@@ -155,7 +155,7 @@ function emitSheet(
 ): void {
   emit.lines.push(`{"type":"DOCHEAD","ticket":${emit.nextTicket()}}||{"docType":"SCH_PAGE","client":"${clientId}","uuid":"${docUuid}","updateTime":1,"version":"1","user":{"uuid":"${docUuid}"}}|`)
   if (schematicUuid !== undefined) {
-    emit.lines.push(`{"type":"META","ticket":${emit.nextTicket()},"id":"META"}||{"title":"P${sheetIndex + 1}","schematic":"${schematicUuid}","source":"","zIndex":${sheetIndex}}|`)
+    emit.lines.push(`{"type":"META","ticket":${emit.nextTicket()},"id":"META"}||{"title":${JSON.stringify(sheet.name ?? `P${sheetIndex + 1}`)},"schematic":"${schematicUuid}","source":"","zIndex":${sheetIndex}}|`)
   }
   emit.lines.push(`{"type":"CANVAS","ticket":${emit.nextTicket()},"id":"CANVAS"}||{"originX":0,"originY":0}|`)
   for (const component of sheet.components) emitComponent(emit, component, bindings)

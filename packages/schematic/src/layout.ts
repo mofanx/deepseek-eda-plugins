@@ -36,6 +36,8 @@ const DEFAULT_FLAG_FANOUT = 6
 const FLAG_STUB = 40
 /** Horizontal gap between the main zone and the annotation margin. */
 const ANNOTATION_GAP = 120
+/** Gap between functional-module cells in the placement grid. */
+const MODULE_GAP = 200
 /**
  * Body half-width for the placement outline; the library APIs expose no
  * symbol geometry, so occupancy derives from the declared pin counts.
@@ -57,6 +59,7 @@ interface ResolvedLayoutOptions {
   pinPitch: number
   pinStub: number
   flagFanout: number
+  moduleColumns: number | undefined
   symbolPins: ReadonlyMap<string, readonly SchematicSymbolPin[]>
 }
 
@@ -69,6 +72,7 @@ function resolveOptions(options: SchematicLayoutOptions): ResolvedLayoutOptions 
     pinPitch: options.pinPitch ?? DEFAULT_PIN_PITCH,
     pinStub: options.pinStub ?? DEFAULT_PIN_STUB,
     flagFanout: options.flagFanout ?? DEFAULT_FLAG_FANOUT,
+    moduleColumns: options.moduleColumns,
     symbolPins: options.symbolPins ?? new Map(),
   }
 }
@@ -226,24 +230,37 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
   })
 
   const sheets: SchematicIrSheet[] = ir.sheets.map((sheet) => {
-    // --- Zoning: main-zone parts flow left to right in signal-flow columns;
-    // annotation symbols (net flags, net ports, non-electrical marks) stack in
-    // the right margin.
+    // --- Zoning: components cluster by declared functional block (component
+    // `block` against `sheet.blocks`), each module runs the signal-flow
+    // layering inside its own grid cell, and the cells pack row-major in
+    // declaration order (undeclared names sorted, ungrouped last). A sheet
+    // without module membership degenerates to one group — the flat layout.
     const main = sheet.components.filter(component => !ANNOTATION_KINDS.has(component.kind))
     const annotation = sheet.components.filter(component => ANNOTATION_KINDS.has(component.kind))
-    const layers = layerOf(main)
-    const columns = new Map<number, SchematicIrComponent[]>()
-    for (const component of main) {
-      const layer = layers.get(component.id) as number
-      const column = columns.get(layer) ?? []
-      column.push(component)
-      columns.set(layer, column)
-    }
-    for (const column of columns.values()) {
-      column.sort((a, b) => componentKey(a).localeCompare(componentKey(b)))
-    }
 
-    // --- Component outlines from declared pin counts.
+    const declaredOrder = new Map<string, number>()
+    sheet.blocks?.forEach((block, index) => declaredOrder.set(block.name, index))
+    const groups = new Map<string, SchematicIrComponent[]>()
+    for (const component of main) {
+      const key = component.block ?? ''
+      const group = groups.get(key) ?? []
+      group.push(component)
+      groups.set(key, group)
+    }
+    // Grid order: declared modules in declaration order, undeclared names
+    // alphabetically, and the ungrouped remainder last.
+    const named = [...groups.keys()].filter(key => key !== '')
+    const orderedGroups = [
+      ...named.filter(key => declaredOrder.has(key))
+        .sort((a, b) => (declaredOrder.get(a) as number) - (declaredOrder.get(b) as number)),
+      ...named.filter(key => !declaredOrder.has(key)).sort((a, b) => a.localeCompare(b)),
+      ...(groups.has('') ? [''] : []),
+    ].map(key => [key, groups.get(key) as SchematicIrComponent[]] as const)
+    // Component → module key for inter-module net detection; a net spanning
+    // two groups routes through flags instead of a trunk so modules stay
+    // visually separable.
+    const blockOf = new Map<string, string>()
+    for (const [key, group] of groups) for (const component of group) blockOf.set(component.id, key)
     const sidesOf = new Map<string, PinSide[]>()
     const halfHeightOf = new Map<string, number>()
     for (const component of sheet.components) {
@@ -261,19 +278,54 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
     for (const component of sheet.components) {
       if (component.position !== undefined) positions.set(component.id, component.position)
     }
-    let annotationX = o.margin.x
-    for (const layer of [...columns.keys()].sort((a, b) => a - b)) {
-      const column = columns.get(layer) as SchematicIrComponent[]
-      let cursor = o.margin.y
-      const columnX = snap(o.margin.x + layer * o.columnPitch, o.grid)
-      for (const component of column) {
-        const half = halfHeightOf.get(component.id) as number
-        if (!positions.has(component.id)) {
-          positions.set(component.id, { x: snap(columnX + BODY_HALF_WIDTH, o.grid), y: snap(cursor + half, o.grid) })
-        }
-        cursor += 2 * half + o.rowGap
+    // Place one module group relative to `origin` in signal-flow columns;
+    // returns the group's bounding span for grid packing.
+    const placeGroup = (members: readonly SchematicIrComponent[], origin: SchematicPoint): { width: number; height: number } => {
+      const layers = layerOf([...members])
+      const columns = new Map<number, SchematicIrComponent[]>()
+      for (const component of members) {
+        const layer = layers.get(component.id) as number
+        const column = columns.get(layer) ?? []
+        column.push(component)
+        columns.set(layer, column)
       }
-      annotationX = Math.max(annotationX, columnX + 2 * BODY_HALF_WIDTH)
+      for (const column of columns.values()) {
+        column.sort((a, b) => componentKey(a).localeCompare(componentKey(b)))
+      }
+      let width = 0
+      let height = 0
+      for (const layer of [...columns.keys()].sort((a, b) => a - b)) {
+        const column = columns.get(layer) as SchematicIrComponent[]
+        let cursor = origin.y
+        const columnX = snap(origin.x + layer * o.columnPitch, o.grid)
+        for (const component of column) {
+          const half = halfHeightOf.get(component.id) as number
+          if (!positions.has(component.id)) {
+            positions.set(component.id, { x: snap(columnX + BODY_HALF_WIDTH, o.grid), y: snap(cursor + half, o.grid) })
+          }
+          cursor += 2 * half + o.rowGap
+        }
+        width = Math.max(width, columnX + 2 * BODY_HALF_WIDTH - origin.x)
+        height = Math.max(height, cursor - o.rowGap - origin.y)
+      }
+      return { width, height }
+    }
+
+    const moduleColumns = o.moduleColumns ?? Math.ceil(Math.sqrt(orderedGroups.length))
+    let annotationX = o.margin.x
+    let rowY = o.margin.y
+    for (let row = 0; row * moduleColumns < orderedGroups.length; row += 1) {
+      let cellX = o.margin.x
+      let rowHeight = 0
+      for (let column = 0; column < moduleColumns; column += 1) {
+        const group = orderedGroups[row * moduleColumns + column]
+        if (group === undefined) break
+        const box = placeGroup(group[1], { x: cellX, y: rowY })
+        cellX += box.width + MODULE_GAP
+        rowHeight = Math.max(rowHeight, box.height)
+        annotationX = Math.max(annotationX, cellX - MODULE_GAP)
+      }
+      rowY += rowHeight + MODULE_GAP
     }
     let annotationCursor = o.margin.y
     for (const component of annotation) {
@@ -418,7 +470,9 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
       if (unrouted.length === 0) continue
       const crossSheet = (netSheets.get(net) as Set<number>).size > 1
       const powerClass = isPowerNet(net) || members.some(member => member.pin.powerName !== undefined)
-      const useFlags = flags.length > 0 || powerClass || isGroundNet(net) || crossSheet || members.length >= o.flagFanout
+      const crossModule = groups.size > 1
+        && new Set(members.map(member => blockOf.get(member.component.source.id))).size > 1
+      const useFlags = flags.length > 0 || powerClass || isGroundNet(net) || crossSheet || crossModule || members.length >= o.flagFanout
       const foreign: SchematicPoint[] = [...occupied.entries()]
         .filter(([, owner]) => owner !== net)
         .map(([key]) => {

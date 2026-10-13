@@ -195,6 +195,44 @@ describe('parseSchematicIr', () => {
     expect(ir.sheets[0]!.wires[0]!.dots).toEqual([])
   })
 
+  it('parses optional module fields: sheet name/blocks and component block', () => {
+    const ir = parseSchematicIr({
+      sheets: [{
+        name: 'POWER',
+        blocks: [{ name: 'psu', title: 'Power Supply' }, { name: 'mcu' }],
+        components: [{ id: 'c1', kind: 'part', block: 'psu', pins: [] }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    })
+    const sheet = ir.sheets[0]!
+    expect(sheet.name).toBe('POWER')
+    expect(sheet.blocks).toEqual([{ name: 'psu', title: 'Power Supply' }, { name: 'mcu', title: undefined }])
+    expect(sheet.components[0]!.block).toBe('psu')
+  })
+
+  it('leaves module fields undefined when absent', () => {
+    const sheet = parseSchematicIr(minimal).sheets[0]!
+    expect(sheet.name).toBeUndefined()
+    expect(sheet.blocks).toBeUndefined()
+    expect(sheet.components[0]!.block).toBeUndefined()
+  })
+
+  it('rejects malformed module fields', () => {
+    const doc = (sheetExtra: Record<string, unknown>, compExtra: Record<string, unknown> = {}) => ({
+      sheets: [{
+        components: [{ id: 'c', kind: 'part', pins: [], ...compExtra }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+        ...sheetExtra,
+      }],
+    })
+    expect(() => parseSchematicIr(doc({ name: 7 }))).toThrow(irInvalid())
+    expect(() => parseSchematicIr(doc({ blocks: 'x' }))).toThrow(irInvalid())
+    expect(() => parseSchematicIr(doc({ blocks: [42] }))).toThrow(irInvalid())
+    expect(() => parseSchematicIr(doc({ blocks: [{ title: 'T' }] }))).toThrow(irInvalid())
+    expect(() => parseSchematicIr(doc({ blocks: [{ name: 'm', title: 5 }] }))).toThrow(irInvalid())
+    expect(() => parseSchematicIr(doc({}, { block: 7 }))).toThrow(irInvalid())
+  })
+
   it('rejects a non-string pin net and a non-point endpoint', () => {
     const doc = (pin: Record<string, unknown>) => ({
       sheets: [{

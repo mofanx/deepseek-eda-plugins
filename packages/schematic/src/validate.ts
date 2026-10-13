@@ -124,6 +124,9 @@ function onInterior(p: SchematicPoint, s: Segment): boolean {
   return dot > 1e-9 && dot < len - 1e-9
 }
 
+/** Default `SCHEMATIC_LAYOUT_MONOLITHIC` trigger: more than this many `part` components on a module-free sheet. */
+const MONOLITHIC_COMPONENT_THRESHOLD = 20
+
 /** Proper interior-interior intersection of two segments, or `undefined`. */
 function interiorIntersection(s1: Segment, s2: Segment): SchematicPoint | undefined {
   const d1x = s1.b.x - s1.a.x
@@ -147,6 +150,7 @@ function interiorIntersection(s1: Segment, s2: Segment): SchematicPoint | undefi
 export function validateSchematic(ir: SchematicIr, options: SchematicValidationOptions = {}): SchematicValidationReport {
   const findings: SchematicFinding[] = []
   const disabled = new Set(options.disabledRules ?? [])
+  const monolithicThreshold = options.monolithicThreshold ?? MONOLITHIC_COMPONENT_THRESHOLD
   const report = (
     code: string,
     severity: SchematicFinding['severity'],
@@ -194,6 +198,18 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
     const localBusEntryIds = new Map<string, number>()
     const localAttrIds = new Map<string, number>()
     const localPinIds = new Map<string, number>()
+
+    const partCount = sheet.components.filter(component => component.kind === 'part').length
+    const hasModules = (sheet.blocks?.length ?? 0) > 0 || sheet.components.some(component => component.block !== undefined)
+    if (partCount > monolithicThreshold && !hasModules) {
+      report(
+        'SCHEMATIC_LAYOUT_MONOLITHIC',
+        'warning',
+        `sheet ${sheetIndex + 1} places ${partCount} parts with no module grouping; the layout stays one undifferentiated canvas`,
+        { sheetIndex },
+        'Declare functional modules: add `blocks` (name + title) on the sheet and set `block` on each part, or split into multiple sheets',
+      )
+    }
 
     for (const component of sheet.components) {
       componentIds.add(component.id)

@@ -74,6 +74,14 @@ export interface SchematicIrComponent {
   /** Sub-part selector for multi-part devices (`""` for single-part). */
   readonly partId?: string | undefined
   readonly groupId?: string | undefined
+  /**
+   * Functional-module membership, referencing a `name` in the owning sheet's
+   * `blocks` list (free-form names are accepted and ordered after declared
+   * blocks). The layout stage clusters members of one module together and
+   * routes inter-module nets through flags instead of trunk wires; absent is
+   * the flat, ungrouped behavior.
+   */
+  readonly block?: string | undefined
   /** Reference designator (`U1`, `R3`, …); required on physical kinds. */
   readonly designator?: string | undefined
   /** The net name a `netflag`/`netport` merges under. */
@@ -152,8 +160,27 @@ export interface SchematicIrJunction {
   readonly point: SchematicPoint
 }
 
+/** A functional module declared on a sheet; components bind by {@link SchematicIrComponent.block}. */
+export interface SchematicIrBlock {
+  /** Stable module name referenced by component `block` values. */
+  readonly name: string
+  /** Human-readable module title, e.g. `POWER SUPPLY`. */
+  readonly title?: string | undefined
+}
+
 /** All primitives of one schematic page. */
 export interface SchematicIrSheet {
+  /**
+   * Page title; serializers write it into the page META record (falling back
+   * to `P<n>` when absent).
+   */
+  readonly name?: string | undefined
+  /**
+   * Declared functional modules in display order. Component `block` values
+   * not listed here are accepted and placed after declared modules (name
+   * order); a sheet without any `block` membership lays out flat as before.
+   */
+  readonly blocks?: readonly SchematicIrBlock[] | undefined
   readonly components: readonly SchematicIrComponent[]
   readonly wires: readonly SchematicIrWire[]
   readonly busEntries: readonly SchematicIrBusEntry[]
@@ -354,6 +381,12 @@ export interface SchematicValidationOptions {
   readonly requireLibrary?: boolean | undefined
   /** Finding codes to suppress entirely (exact code match). */
   readonly disabledRules?: readonly string[] | undefined
+  /**
+   * `SCHEMATIC_LAYOUT_MONOLITHIC` advisory threshold: a sheet holding more
+   * than this many `part` components with zero module membership reports a
+   * grouping suggestion. Default `20`.
+   */
+  readonly monolithicThreshold?: number | undefined
 }
 
 /** Inputs to one live {@link SchematicEngine.verify} call. */
@@ -422,6 +455,11 @@ export interface SchematicLayoutOptions {
    * through net flags instead of a wire trunk. Default `6`.
    */
   readonly flagFanout?: number | undefined
+  /**
+   * Modules per row in the placement grid when a sheet declares functional
+   * blocks. Default `ceil(sqrt(module count))`; ignored for flat sheets.
+   */
+  readonly moduleColumns?: number | undefined
   /**
    * Pin geometry per bound symbol UUID (the `symbolPins` snapshot from
    * {@link SchematicRuntime.resolveBindings}). When the bound symbol's pins

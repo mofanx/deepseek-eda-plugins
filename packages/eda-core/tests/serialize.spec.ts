@@ -108,6 +108,14 @@ describe('serializeEasyEdaDocument', () => {
     const source = serializeEasyEdaDocument(ir, { schematicUuid: 'sch-9', docUuid: 'doc-1' })
     expect(source).toContain('"type":"META","ticket":2,"id":"META"')
     expect(source).toContain('"schematic":"sch-9"')
+    expect(source).toContain('"title":"P1"')
+  })
+
+  it('writes the sheet name into the page META title', () => {
+    const named: SchematicIr = { sheets: [{ ...ir.sheets[0]!, name: 'POWER' }] }
+    const source = serializeEasyEdaDocument(named, { schematicUuid: 'sch-9', docUuid: 'doc-1' })
+    expect(source).toContain('"title":"POWER"')
+    expect(source).not.toContain('"title":"P1"')
   })
 
   it('omits binding attrs when the IR leaves them undefined', () => {

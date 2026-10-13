@@ -1,28 +1,28 @@
 # Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write packages/schematic/schematic/README.md
+#   pnpm run verify-translation-pairing --write packages/schematic/README.md
 /:
   en: b151ee33c87447f0
   zh: 4283ea24e65fc87c
 /deepseek-ai-dsh-plugin-eda-sch:
-  en: a71f70a551ebe984
-  zh: 21a208d68f5652ec
+  en: 94dd29d7cb7d5342
+  zh: 127f117c9d1e1fed
 /deepseek-ai-dsh-plugin-eda-sch/summary:
-  en: 50cc1f943061c4ec
-  zh: 820bd40da009c73b
+  en: 40b55c402b9a637b
+  zh: 476df9918c6dde1e
 /deepseek-ai-dsh-plugin-eda-sch/table-of-contents:
   en: 3460b3e585e0c020
   zh: bb83d3d282b286d8
 /deepseek-ai-dsh-plugin-eda-sch/use-this-package:
-  en: 88315bade1041aba
-  zh: f7c242c2216f3205
+  en: 701145a7d2a1871a
+  zh: 2520d609e9e8aede
 /deepseek-ai-dsh-plugin-eda-sch/use-this-package/minimal-configuration:
   en: dd232ede489daf5e
   zh: 4c910bb140c998f8
 /deepseek-ai-dsh-plugin-eda-sch/use-this-package/deterministic-layout:
-  en: f933537f75b2143f
-  zh: 62b7f8149db0e8c3
+  en: aaede9537277832f
+  zh: e92b5486c0d3e761
 /deepseek-ai-dsh-plugin-eda-sch/use-this-package/validating-and-emitting:
   en: 52b49a90fe090288
   zh: 945b0c4708db169e
@@ -33,23 +33,23 @@
   en: ee4615a04fa6503d
   zh: ee2c5fb2204a43cf
 /deepseek-ai-dsh-plugin-eda-sch/understand-the-implementation/the-ir:
-  en: 0974bc6f7272119c
-  zh: 6a3649076394ad51
+  en: 956dedb94d29243e
+  zh: 022167b306edbb92
 /deepseek-ai-dsh-plugin-eda-sch/understand-the-implementation/the-gate:
-  en: 9a240b27051f397d
-  zh: 7a6c57ed4b2cfd87
+  en: 6145d5b1c2842eb4
+  zh: b0cc8056936ad857
 /deepseek-ai-dsh-plugin-eda-sch/model-experience:
-  en: edbd52d9f028e98e
-  zh: e7e84bce2c2863f9
+  en: d060a96dd674449b
+  zh: 02e61fd88e79d84b
 /deepseek-ai-dsh-plugin-eda-sch/model-experience/kv-cache-effect:
   en: 22fd222d7c88b25e
   zh: 97a8b0a5ee556966
 /deepseek-ai-dsh-plugin-eda-sch/known-limitations-and-deferred-work:
-  en: 5b1193eef116450d
-  zh: ad88f5a8ef9d1343
+  en: 53a5b43502727256
+  zh: 23d45f44c5d34828
 /deepseek-ai-dsh-plugin-eda-sch/known-limitations-and-deferred-work/dev-note:
   en: 64ee46559b704be8
   zh: 78e6f45f0654e664
 /deepseek-ai-dsh-plugin-eda-sch/known-limitations-and-deferred-work/dev-note/open-engine-supplied-validation-options:
-  en: 5fc5f9144bf3c124
-  zh: da21324e3e02c9d6
+  en: 74469db159b1919f
+  zh: 058d70e21e469067

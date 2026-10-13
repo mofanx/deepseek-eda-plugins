@@ -1,0 +1,266 @@
+{
+  "sheets": [
+    {
+      "components": [
+        {
+          "id": "u1",
+          "kind": "part",
+          "designator": "U1",
+          "lcsc": "C25804",
+          "block": "driver",
+          "pins": [
+            {
+              "id": "p1",
+              "name": "OUT",
+              "number": "3",
+              "electric": "OUTPUT",
+              "net": "SIG",
+              "endpoint": {
+                "x": 340,
+                "y": 360
+              }
+            },
+            {
+              "id": "p2",
+              "name": "VCC",
+              "number": "8",
+              "electric": "BI",
+              "net": "VCC",
+              "powerName": "VCC",
+              "endpoint": {
+                "x": 180,
+                "y": 350
+              }
+            },
+            {
+              "id": "p3",
+              "name": "GND",
+              "number": "4",
+              "electric": "BI",
+              "net": "GND",
+              "powerName": "GND",
+              "endpoint": {
+                "x": 180,
+                "y": 370
+              }
+            }
+          ],
+          "position": {
+            "x": 260,
+            "y": 360
+          }
+        },
+        {
+          "id": "r1",
+          "kind": "part",
+          "designator": "R1",
+          "lcsc": "C25804",
+          "block": "driver",
+          "pins": [
+            {
+              "id": "p1",
+              "name": "1",
+              "number": "1",
+              "electric": "BI",
+              "net": "SIG",
+              "endpoint": {
+                "x": 180,
+                "y": 230
+              }
+            },
+            {
+              "id": "p2",
+              "name": "2",
+              "number": "2",
+              "electric": "BI",
+              "net": "VCC",
+              "powerName": "VCC",
+              "endpoint": {
+                "x": 340,
+                "y": 230
+              }
+            }
+          ],
+          "position": {
+            "x": 260,
+            "y": 230
+          }
+        },
+        {
+          "id": "u2",
+          "kind": "part",
+          "designator": "U2",
+          "lcsc": "C25804",
+          "block": "load",
+          "pins": [
+            {
+              "id": "p1",
+              "name": "IN",
+              "number": "1",
+              "electric": "INPUT",
+              "net": "SIG",
+              "endpoint": {
+                "x": 500,
+                "y": 230
+              }
+            },
+            {
+              "id": "p2",
+              "name": "GND",
+              "number": "2",
+              "electric": "BI",
+              "net": "GND",
+              "powerName": "GND",
+              "endpoint": {
+                "x": 660,
+                "y": 230
+              }
+            }
+          ],
+          "position": {
+            "x": 580,
+            "y": 230
+          }
+        },
+        {
+          "id": "layout:flag:GND:0",
+          "kind": "netflag",
+          "netName": "GND",
+          "position": {
+            "x": 180,
+            "y": 330
+          },
+          "pins": []
+        },
+        {
+          "id": "layout:flag:GND:1",
+          "kind": "netflag",
+          "netName": "GND",
+          "position": {
+            "x": 660,
+            "y": 190
+          },
+          "pins": []
+        },
+        {
+          "id": "layout:flag:SIG:0",
+          "kind": "netflag",
+          "netName": "SIG",
+          "position": {
+            "x": 380,
+            "y": 360
+          },
+          "pins": []
+        },
+        {
+          "id": "layout:flag:SIG:1",
+          "kind": "netflag",
+          "netName": "SIG",
+          "position": {
+            "x": 140,
+            "y": 230
+          },
+          "pins": []
+        },
+        {
+          "id": "layout:flag:SIG:2",
+          "kind": "netflag",
+          "netName": "SIG",
+          "position": {
+            "x": 460,
+            "y": 230
+          },
+          "pins": []
+        },
+        {
+          "id": "layout:flag:VCC:0",
+          "kind": "netflag",
+          "netName": "VCC",
+          "position": {
+            "x": 180,
+            "y": 390
+          },
+          "pins": []
+        },
+        {
+          "id": "layout:flag:VCC:1",
+          "kind": "netflag",
+          "netName": "VCC",
+          "position": {
+            "x": 340,
+            "y": 270
+          },
+          "pins": []
+        }
+      ],
+      "wires": [
+        {
+          "id": "layout:wire:GND:flags",
+          "kind": "wire",
+          "dots": [
+            [
+              180,
+              370,
+              180,
+              330
+            ],
+            [
+              660,
+              230,
+              660,
+              190
+            ]
+          ],
+          "net": "GND"
+        },
+        {
+          "id": "layout:wire:SIG:flags",
+          "kind": "wire",
+          "dots": [
+            [
+              340,
+              360,
+              380,
+              360
+            ],
+            [
+              180,
+              230,
+              140,
+              230
+            ],
+            [
+              500,
+              230,
+              460,
+              230
+            ]
+          ],
+          "net": "SIG"
+        },
+        {
+          "id": "layout:wire:VCC:flags",
+          "kind": "wire",
+          "dots": [
+            [
+              180,
+              350,
+              180,
+              390
+            ],
+            [
+              340,
+              230,
+              340,
+              270
+            ]
+          ],
+          "net": "VCC"
+        }
+      ],
+      "busEntries": [],
+      "junctions": [],
+      "attrs": []
+    }
+  ]
+}

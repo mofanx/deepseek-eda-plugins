@@ -517,10 +517,121 @@ describe('layoutSchematic bound-symbol geometry', () => {
   })
 })
 
+describe('layoutSchematic module clustering', () => {
+  const byId = (laid: SchematicIr) =>
+    new Map(laid.sheets[0]?.components.map(component => [component.id, component]))
+
+  it('packs declared modules into separate grid cells in declaration order', () => {
+    const laid = layoutSchematic(ir(sheet({
+      blocks: [{ name: 'mcu', title: 'MCU' }, { name: 'psu', title: 'PSU' }],
+      components: [
+        comp('u1', { block: 'mcu', pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+        comp('u2', { block: 'mcu' }),
+        comp('u3', { block: 'psu' }),
+        comp('u4', { block: 'psu' }),
+      ],
+    })))
+    const placed = byId(laid)
+    const mcuRight = Math.max(placed.get('u1')?.position?.x ?? 0, placed.get('u2')?.position?.x ?? 0)
+    const psuLeft = Math.min(placed.get('u3')?.position?.x ?? 0, placed.get('u4')?.position?.x ?? 0)
+    expect(psuLeft).toBeGreaterThan(mcuRight)
+    // The module gap is wider than one signal-flow column.
+    expect(psuLeft - mcuRight).toBeGreaterThan(240)
+  })
+
+  it('orders undeclared block names after declared modules and ungrouped members last', () => {
+    const laid = layoutSchematic(ir(sheet({
+      blocks: [{ name: 'psu' }],
+      components: [
+        comp('u1', { block: 'extra' }),
+        comp('u2', { block: 'psu' }),
+        comp('u3'),
+      ],
+    })))
+    const placed = byId(laid)
+    const x = (id: string) => placed.get(id)?.position?.x ?? 0
+    const y = (id: string) => placed.get(id)?.position?.y ?? 0
+    // Three cells with the default √3≈2 columns: psu and extra on row one,
+    // the ungrouped remainder wrapped onto row two.
+    expect(x('u2')).toBeLessThan(x('u1'))
+    expect(y('u3')).toBeGreaterThan(y('u1'))
+  })
+
+  it('routes inter-module nets through flags instead of a trunk', () => {
+    const laid = layoutSchematic(ir(sheet({
+      blocks: [{ name: 'a' }, { name: 'b' }],
+      components: [
+        comp('u1', { block: 'a', pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        comp('u2', { block: 'b', pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+      ],
+    })))
+    expect(laid.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:SIG')).toBe(false)
+    const flags = laid.sheets[0]?.components.filter(component => component.id.startsWith('layout:flag:SIG:'))
+    expect(flags?.map(flag => flag.kind)).toEqual(['netflag', 'netflag'])
+    expect(flags?.every(flag => flag.netName === 'SIG')).toBe(true)
+  })
+
+  it('keeps an intra-module net on its trunk', () => {
+    const laid = layoutSchematic(ir(sheet({
+      blocks: [{ name: 'a' }],
+      components: [
+        comp('u1', { block: 'a', pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        comp('u2', { block: 'a', pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+      ],
+    })))
+    expect(laid.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:SIG')).toBe(true)
+  })
+
+  it('treats members of one implicit block set as cross-module', () => {
+    const laid = layoutSchematic(ir(sheet({
+      components: [
+        comp('u1', { block: 'a', pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        comp('u2', { pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+      ],
+    })))
+    // u2 has no block: the implicit remainder group is a distinct module cell,
+    // so SIG still routes through flags.
+    expect(laid.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:SIG')).toBe(false)
+    expect(laid.sheets[0]?.components.filter(c => c.id.startsWith('layout:flag:SIG:')).length).toBe(2)
+  })
+
+  it('stacks modules vertically when moduleColumns is 1', () => {
+    const laid = layoutSchematic(ir(sheet({
+      blocks: [{ name: 'a' }, { name: 'b' }],
+      components: [comp('u1', { block: 'a' }), comp('u2', { block: 'b' })],
+    })), { moduleColumns: 1 })
+    const placed = byId(laid)
+    expect(placed.get('u2')?.position?.y).toBeGreaterThan(placed.get('u1')?.position?.y ?? 0)
+    expect(placed.get('u2')?.position?.x).toBe(placed.get('u1')?.position?.x)
+  })
+
+  it('is deterministic and idempotent with modules', () => {
+    const doc = ir(sheet({
+      blocks: [{ name: 'a' }, { name: 'b' }],
+      components: [
+        comp('u1', { block: 'a', pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        comp('u2', { block: 'b', pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+      ],
+    }))
+    const once = layoutSchematic(doc)
+    expect(layoutSchematic(doc)).toEqual(once)
+    expect(layoutSchematic(once)).toEqual(once)
+  })
+})
+
 describe('golden fixture', () => {
+  const read = (name: string) =>
+    JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')) as SchematicIr
+
   it('reproduces the committed laid IR for the fixture document', () => {
-    const read = (name: string) =>
-      JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')) as SchematicIr
     expect(layoutSchematic(read('layout-input.json'))).toEqual(read('layout-golden.json'))
+  })
+
+  it('reproduces the committed module-grouped laid IR', () => {
+    const laid = layoutSchematic(read('module-input.json'))
+    expect(laid).toEqual(read('module-golden.json'))
+    // The committed module document keeps SIG on flags across the block
+    // boundary: no cross-cell trunk wire exists.
+    expect(laid.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:SIG')).toBe(false)
   })
 })

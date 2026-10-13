@@ -12,6 +12,7 @@ import type {
   SchematicComponentKind,
   SchematicIr,
   SchematicIrAttr,
+  SchematicIrBlock,
   SchematicIrBusEntry,
   SchematicIrComponent,
   SchematicIrJunction,
@@ -99,6 +100,7 @@ function parseComponent(value: unknown, path: string): SchematicIrComponent {
     kind: reqEnum(value, 'kind', COMPONENT_KINDS, path),
     partId: optString(value, 'partId', path),
     groupId: optString(value, 'groupId', path),
+    block: optString(value, 'block', path),
     designator: optString(value, 'designator', path),
     netName: optString(value, 'netName', path),
     position: value.position === undefined ? undefined : parsePoint(value.position, `${path}.position`),
@@ -171,9 +173,24 @@ function parseJunction(value: unknown, path: string): SchematicIrJunction {
   return { point: parsePoint(value.point, `${path}.point`) }
 }
 
+function parseBlock(value: unknown, path: string): SchematicIrBlock {
+  if (!isRecord(value)) bad(path, 'a block object')
+  return {
+    name: reqString(value, 'name', path),
+    title: optString(value, 'title', path),
+  }
+}
+
 function parseArray<T>(value: Record<string, unknown>, key: string, parse: (v: unknown, p: string) => T, path: string): readonly T[] {
   const field = value[key]
   if (!Array.isArray(field)) bad(`${path}.${key}`, 'an array')
+  return field.map((entry, index) => parse(entry, `${path}.${key}[${index}]`))
+}
+
+function optArray<T>(value: Record<string, unknown>, key: string, parse: (v: unknown, p: string) => T, path: string): readonly T[] | undefined {
+  const field = value[key]
+  if (field === undefined) return undefined
+  if (!Array.isArray(field)) bad(`${path}.${key}`, 'an array or undefined')
   return field.map((entry, index) => parse(entry, `${path}.${key}[${index}]`))
 }
 
@@ -191,6 +208,8 @@ export function parseSchematicIr(value: unknown): SchematicIr {
     const path = `document.sheets[${index}]`
     if (!isRecord(sheet)) bad(path, 'a sheet object')
     return {
+      name: optString(sheet, 'name', path),
+      blocks: optArray(sheet, 'blocks', parseBlock, path),
       components: parseArray(sheet, 'components', parseComponent, path),
       wires: parseArray(sheet, 'wires', parseWire, path),
       busEntries: parseArray(sheet, 'busEntries', parseBusEntry, path),

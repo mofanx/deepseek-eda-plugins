@@ -42,7 +42,7 @@ kind: "package-reference"
 
 ### 确定性布局
 
-`layout(ir, options)` 补齐逻辑文档缺失的几何：按信号流列做栅格对齐放置（驱动在左、负载在右；`netflag`/`netport`/`nonelec` 符号堆叠在注释边距区）、按引脚电气侧生成引脚端点，并在正交主干导线与网络旗标之间选择布线策略——电源网向上挂旗标、地网向下挂、高扇出与跨页网络用旗标或网络端口。显式几何（位置、引脚端点、导线折线）原样通过，因此该阶段幂等，且在几何存在之前 `pin.net` 一直是连通性声明。`layoutSchematic` 是同一阶段的纯函数形式；`SchematicLayoutOptions` 调节栅格、边距、列距、引脚距/桩长与旗标扇出阈值。器件轮廓按声明引脚数定尺寸——EasyEDA 库 API 不暴露符号几何，已解析器件沿用同一定尺寸规则。
+`layout(ir, options)` 补齐逻辑文档缺失的几何。当图纸页声明了功能模块（页级 `blocks` 加器件级 `block`），器件按模块聚集，模块单元格按确定顺序逐行打包进网格——已声明模块按声明顺序、未声明名称按字母序、未分组成员最后，每行 `moduleColumns` 个单元格。每个模块内部沿用与平铺图纸相同的信号流列（驱动在左、负载在右；`netflag`/`netport`/`nonelec` 符号堆叠在注释边距区），按引脚电气侧生成引脚端点，并在正交主干导线与网络旗标之间选择布线策略——电源网向上挂旗标、地网向下挂、高扇出/跨页/跨模块网络用旗标或网络端口而非长导线。无模块归属的图纸退化为单个分组，即模块化之前的平铺布局。显式几何（位置、引脚端点、导线折线）原样通过，因此该阶段幂等，且在几何存在之前 `pin.net` 一直是连通性声明。`layoutSchematic` 是同一阶段的纯函数形式；`SchematicLayoutOptions` 调节栅格、边距、列距、引脚距/桩长、旗标扇出阈值与模块网格列数。器件轮廓按声明引脚数定尺寸——EasyEDA 库 API 不暴露符号几何，已解析器件沿用同一定尺寸规则。
 
 ### 校验与产出
 
@@ -61,11 +61,11 @@ kind: "package-reference"
 
 ### IR
 
-`SchematicIr` 持有按序的图纸页，每页含器件、引脚、导线、总线接入点、连接点与通用属性。坐标为 `0.01 inch` 图纸单位——绝不接受 mil 或毫米值。器件以 `kind` 判别（`part`、`block`、`netflag`、`netport`、`sheet`、`nonelec`、`short`），可携带 `deviceUuid`/`symbolUuid`/`footprintUuid` 绑定、可由库解析为这些绑定的 `lcsc` 料号、以及 `designator`，引脚端点使用图纸坐标，因此校验器无需反推布局。几何字段（`position`、引脚 `endpoint`、导线 `dots`、连接点 `point`）在输入上可选——逻辑文档经 `pin.net` 声明连通性，由布局阶段推导几何；完成布局的 IR 无需 `net` 即可保持连通。
+`SchematicIr` 持有按序的图纸页，每页含器件、引脚、导线、总线接入点、连接点与通用属性。坐标为 `0.01 inch` 图纸单位——绝不接受 mil 或毫米值。图纸页可携带 `name`（序列化器写入页面标题记录，缺省回退 `P<n>`）与 `blocks` 列表——按显示顺序声明功能模块 `{ name, title? }`；器件的可选 `block` 把它绑定到一个模块名供布局聚集。器件以 `kind` 判别（`part`、`block`、`netflag`、`netport`、`sheet`、`nonelec`、`short`），可携带 `deviceUuid`/`symbolUuid`/`footprintUuid` 绑定、可由库解析为这些绑定的 `lcsc` 料号、以及 `designator`，引脚端点使用图纸坐标，因此校验器无需反推布局。几何字段（`position`、引脚 `endpoint`、导线 `dots`、连接点 `point`）在输入上可选——逻辑文档经 `pin.net` 声明连通性，由布局阶段推导几何；完成布局的 IR 无需 `net` 即可保持连通。
 
 ### 门禁
 
-`validateSchematic` 用并查集在引脚端点、导线折线、T 型搭接、具名 netflag/netport 与短接符号上计算连通性，然后应用四族规则：引脚连通（悬空引脚、交叉歧义、同网异名）、电气健全性（多驱动、纯输入网、电源短路）、器件/符号/封装绑定（位号、库解析、引脚焊盘匹配、多部件一致性、BOM/PCB 意向），以及网络命名与格式不变量（网名语法、总线展开、id、groupId、孤儿属性）。`parseSchematicIr` 是模型/JSON 边界，把原始 `document` 参数转为类型化 IR，失败抛 `SCHEMATIC_IR_INVALID`。
+`validateSchematic` 用并查集在引脚端点、导线折线、T 型搭接、具名 netflag/netport 与短接符号上计算连通性，然后应用四族规则：引脚连通（悬空引脚、交叉歧义、同网异名）、电气健全性（多驱动、纯输入网、电源短路）、器件/符号/封装绑定（位号、库解析、引脚焊盘匹配、多部件一致性、BOM/PCB 意向），以及网络命名与格式不变量（网名语法、总线展开、id、groupId、孤儿属性）。四族之外还有一条建议级规则：`SCHEMATIC_LAYOUT_MONOLITHIC` 在图纸页放置超过 `monolithicThreshold`（默认 20）个 `part` 且零模块归属时给出 warning，引导产出方声明 `blocks` 或拆分页面。`parseSchematicIr` 是模型/JSON 边界，把原始 `document` 参数转为类型化 IR，失败抛 `SCHEMATIC_IR_INVALID`。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -83,6 +83,7 @@ kind: "package-reference"
 这些限制定义了本服务自身不完整之处，均为当前包约束。
 
 - **无层次展开** —— IR 用预先算好的图纸坐标引脚端点表示已放置器件；把 `block`/`sheet` 展开为子图纸推迟到首个有此需求的消费方。
+- **模块分区框不绘制** —— `blocks` 只影响放置、旗标布线与页面标题记录；可见的分区框与标题标签推迟到拥有绘图图元的序列化器。
 - **无在线 EDA 回读** —— 门禁刻意保持进程内、无密钥；引擎专属的回读校验（例如 EasyEDA 客户端自身的导入检查）属于引擎包。
 - **焊盘清单取决于库** —— `PIN_PAD_MISMATCH` 仅在解析出的封装携带 `pads` 清单时运行；EasyEDA BETA 封装 API 不暴露焊盘，因此 EasyEDA 解析的封装只验证存在性。
 

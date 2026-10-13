@@ -897,6 +897,45 @@ describe('net-name and attr edge cases', () => {
   })
 })
 
+describe('layout advisories', () => {
+  /** A sheet of `count` no-connect parts, optionally assigned to a block. */
+  const bigSheet = (count: number, block?: string): SchematicIr => ({
+    sheets: [{
+      ...emptySheet,
+      components: Array.from({ length: count }, (_, index) =>
+        part(`c${index}`, `U${index}`, [pin(`p${index}`, 'OUTPUT', { x: index * 10, y: 0 }, { noConnect: true })],
+          block === undefined ? {} : { block })),
+    }],
+  })
+
+  it('warns SCHEMATIC_LAYOUT_MONOLITHIC past the threshold with zero modules', () => {
+    const report = validateSchematic(bigSheet(21))
+    const finding = report.findings.find(f => f.code === 'SCHEMATIC_LAYOUT_MONOLITHIC')
+    expect(finding?.severity).toBe('warning')
+    expect(finding?.locator).toEqual({ sheetIndex: 0 })
+    expect(finding?.suggestion).toBeDefined()
+    expect(report.ok).toBe(true)
+  })
+
+  it('stays quiet with component block membership or sheet block declarations', () => {
+    expect(codes(bigSheet(21, 'mcu'))).not.toContain('SCHEMATIC_LAYOUT_MONOLITHIC')
+    const declared: SchematicIr = {
+      sheets: [{ ...bigSheet(21).sheets[0]!, blocks: [{ name: 'mcu', title: 'MCU' }] }],
+    }
+    expect(codes(declared)).not.toContain('SCHEMATIC_LAYOUT_MONOLITHIC')
+  })
+
+  it('stays quiet at or under the threshold and honors overrides', () => {
+    expect(codes(bigSheet(20))).not.toContain('SCHEMATIC_LAYOUT_MONOLITHIC')
+    expect(codes(bigSheet(5), { monolithicThreshold: 4 })).toContain('SCHEMATIC_LAYOUT_MONOLITHIC')
+  })
+
+  it('is suppressible through disabledRules for the repair loop', () => {
+    expect(codes(bigSheet(21), { disabledRules: ['SCHEMATIC_LAYOUT_MONOLITHIC'] }))
+      .not.toContain('SCHEMATIC_LAYOUT_MONOLITHIC')
+  })
+})
+
 describe('expandBusName', () => {
   it('expands single and multi-range bus names', () => {
     expect(expandBusName('A[1:3]')).toEqual(['A1', 'A2', 'A3'])
