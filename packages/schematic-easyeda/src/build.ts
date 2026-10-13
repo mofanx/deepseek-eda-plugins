@@ -5,18 +5,18 @@
  * preconditions, creates every placeable primitive, then the host reads back
  * `sys_FileManager.getDocumentSource()` for a round-trip diff and optionally
  * collects the client's own BETA `sch_Drc` detail as advisory findings.
- * @module @deepseek-ai/dsh-schematic-easyeda/build
+ * @module @deepseek-ai/dsh-plugin-eda-easyeda/build
  */
 
 import { randomUUID } from 'node:crypto'
-import { SchematicError } from '@deepseek-ai/dsh-schematic'
+import { SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type {
   SchematicComponentKind,
   SchematicFinding,
   SchematicIr,
   SchematicLocator,
   SchematicSymbolPin,
-} from '@deepseek-ai/dsh-schematic'
+} from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { EasyEdaBridge } from './bridge.ts'
 import { serializeEasyEdaProject } from './serialize.ts'
 import type { EasyEdaEmbeddedDoc, EasyEdaProjectLibrary, EasyEdaProjectPackage } from './serialize.ts'

@@ -5,51 +5,51 @@
 /:
   en: b151ee33c87447f0
   zh: 4283ea24e65fc87c
-/deepseek-ai-dsh-schematic:
+/deepseek-ai-dsh-plugin-eda-sch:
   en: a71f70a551ebe984
   zh: 21a208d68f5652ec
-/deepseek-ai-dsh-schematic/summary:
+/deepseek-ai-dsh-plugin-eda-sch/summary:
   en: 50cc1f943061c4ec
   zh: 820bd40da009c73b
-/deepseek-ai-dsh-schematic/table-of-contents:
+/deepseek-ai-dsh-plugin-eda-sch/table-of-contents:
   en: 3460b3e585e0c020
   zh: bb83d3d282b286d8
-/deepseek-ai-dsh-schematic/use-this-package:
+/deepseek-ai-dsh-plugin-eda-sch/use-this-package:
   en: 88315bade1041aba
   zh: f7c242c2216f3205
-/deepseek-ai-dsh-schematic/use-this-package/minimal-configuration:
+/deepseek-ai-dsh-plugin-eda-sch/use-this-package/minimal-configuration:
   en: dd232ede489daf5e
   zh: 4c910bb140c998f8
-/deepseek-ai-dsh-schematic/use-this-package/deterministic-layout:
+/deepseek-ai-dsh-plugin-eda-sch/use-this-package/deterministic-layout:
   en: f933537f75b2143f
   zh: 62b7f8149db0e8c3
-/deepseek-ai-dsh-schematic/use-this-package/validating-and-emitting:
+/deepseek-ai-dsh-plugin-eda-sch/use-this-package/validating-and-emitting:
   en: 52b49a90fe090288
   zh: 945b0c4708db169e
-/deepseek-ai-dsh-schematic/use-this-package/engine-and-library-registration:
+/deepseek-ai-dsh-plugin-eda-sch/use-this-package/engine-and-library-registration:
   en: 3edc256320ef9c35
   zh: f20b559a459104ae
-/deepseek-ai-dsh-schematic/understand-the-implementation:
+/deepseek-ai-dsh-plugin-eda-sch/understand-the-implementation:
   en: ee4615a04fa6503d
   zh: ee2c5fb2204a43cf
-/deepseek-ai-dsh-schematic/understand-the-implementation/the-ir:
+/deepseek-ai-dsh-plugin-eda-sch/understand-the-implementation/the-ir:
   en: 0974bc6f7272119c
   zh: 6a3649076394ad51
-/deepseek-ai-dsh-schematic/understand-the-implementation/the-gate:
+/deepseek-ai-dsh-plugin-eda-sch/understand-the-implementation/the-gate:
   en: 9a240b27051f397d
   zh: 7a6c57ed4b2cfd87
-/deepseek-ai-dsh-schematic/model-experience:
+/deepseek-ai-dsh-plugin-eda-sch/model-experience:
   en: edbd52d9f028e98e
   zh: e7e84bce2c2863f9
-/deepseek-ai-dsh-schematic/model-experience/kv-cache-effect:
+/deepseek-ai-dsh-plugin-eda-sch/model-experience/kv-cache-effect:
   en: 22fd222d7c88b25e
   zh: 97a8b0a5ee556966
-/deepseek-ai-dsh-schematic/known-limitations-and-deferred-work:
+/deepseek-ai-dsh-plugin-eda-sch/known-limitations-and-deferred-work:
   en: 5b1193eef116450d
   zh: ad88f5a8ef9d1343
-/deepseek-ai-dsh-schematic/known-limitations-and-deferred-work/dev-note:
+/deepseek-ai-dsh-plugin-eda-sch/known-limitations-and-deferred-work/dev-note:
   en: 64ee46559b704be8
   zh: 78e6f45f0654e664
-/deepseek-ai-dsh-schematic/known-limitations-and-deferred-work/dev-note/open-engine-supplied-validation-options:
+/deepseek-ai-dsh-plugin-eda-sch/known-limitations-and-deferred-work/dev-note/open-engine-supplied-validation-options:
   en: 5fc5f9144bf3c124
   zh: da21324e3e02c9d6

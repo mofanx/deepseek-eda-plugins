@@ -2,7 +2,7 @@
  * Symbol-geometry helpers shared by the layout stage and the validator: the
  * transform that maps a symbol-local pin offset onto the sheet under the
  * component's `rotation`/`mirror`.
- * @module @deepseek-ai/dsh-schematic/geometry
+ * @module @deepseek-ai/dsh-plugin-eda-sch/geometry
  */
 
 import type { SchematicPoint } from './types.ts'

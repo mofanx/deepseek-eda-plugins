@@ -4,7 +4,7 @@
  * IR, run the seam's authoritative static validator, then hand off to the
  * resolved engine's serializer. Seam error codes pass through to model-visible
  * output.
- * @module @deepseek-ai/dsh-tool-schematic
+ * @module @deepseek-ai/dsh-plugin-eda-sch-gen
  */
 
 import { Context } from '@deepseek-ai/cordis'
@@ -12,8 +12,8 @@ import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import { parseSchematicIr } from '@deepseek-ai/dsh-schematic'
-import type { SchematicBindingResolution, SchematicFinding, SchematicIr } from '@deepseek-ai/dsh-schematic'
+import { parseSchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicBindingResolution, SchematicFinding, SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 
 /** Cordis plugin name used by loader diagnostics. */

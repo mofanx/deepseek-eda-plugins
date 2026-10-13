@@ -3,13 +3,13 @@ description: "面向模型的原理图工具：schematic_generate 先经接缝�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-schematic
+# @deepseek-ai/dsh-plugin-eda-sch-gen
 
 [English](README.md) | 中文
 
 ## 概述
 
-`dsh-tool-schematic` 注册 `schematic_generate` 与 `schematic_validate` 两个工具，供模型产出原理图文档源或在定稿前检查原理图 IR 文档。与 `dsh-schematic` 和至少一个引擎插件（如 `dsh-schematic-easyeda`）一同加载；生成需要可用引擎，校验只需接缝本身。
+`dsh-plugin-eda-sch-gen` 注册 `schematic_generate` 与 `schematic_validate` 两个工具，供模型产出原理图文档源或在定稿前检查原理图 IR 文档。与 `dsh-plugin-eda-sch` 和至少一个引擎插件（如 `dsh-plugin-eda-easyeda`）一同加载；生成需要可用引擎，校验只需接缝本身。
 
 ## 目录
 
@@ -24,9 +24,9 @@ kind: "package-reference"
 ## 使用本包
 
 ```yaml
-- name: '@deepseek-ai/dsh-schematic'
-- name: '@deepseek-ai/dsh-schematic-easyeda'
-- name: '@deepseek-ai/dsh-tool-schematic'
+- name: '@deepseek-ai/dsh-plugin-eda-sch'
+- name: '@deepseek-ai/dsh-plugin-eda-easyeda'
+- name: '@deepseek-ai/dsh-plugin-eda-sch-gen'
 ```
 
 | 字段 | 默认值 | 含义 |
@@ -74,7 +74,7 @@ When the user asks to produce, emit, or check schematic primitives from a schema
 
 #### 模型看到的内容
 
-模型会看到生成的 [`schematic_generate` 与 `schematic_validate` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-schematic)。图纸页数与图元数上限属于部署设置，不是模型参数。
+模型会看到生成的 [`schematic_generate` 与 `schematic_validate` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-plugin-eda-sch-gen)。图纸页数与图元数上限属于部署设置，不是模型参数。
 
 #### Token 影响
 
@@ -104,7 +104,7 @@ When the user asks to produce, emit, or check schematic primitives from a schema
 
 这些限制定义了工具自身不完整之处，均为当前包约束。
 
-- **实机验证需要可达客户端** —— `verify: true` 只有在引擎暴露实机验证路径且客户端正在运行时才会经实机路径交付并 diff 读回网络表（当前为 `dsh-schematic-easyeda` 加运行中的嘉立创EDA 客户端）；不满足时工具报告 `SCHEMATIC_VERIFY_UNAVAILABLE`，结果仅由静态门禁支撑。
+- **实机验证需要可达客户端** —— `verify: true` 只有在引擎暴露实机验证路径且客户端正在运行时才会经实机路径交付并 diff 读回网络表（当前为 `dsh-plugin-eda-easyeda` 加运行中的嘉立创EDA 客户端）；不满足时工具报告 `SCHEMATIC_VERIFY_UNAVAILABLE`，结果仅由静态门禁支撑。
 
 <a id="dev-note"></a>
 ### 开发备注

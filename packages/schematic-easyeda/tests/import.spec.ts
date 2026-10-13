@@ -4,8 +4,8 @@ import {
   importIntoEasyEda,
   serializeEasyEdaProject,
   type EasyEdaBridge,
-} from '@deepseek-ai/dsh-schematic-easyeda'
-import type { SchematicIr } from '@deepseek-ai/dsh-schematic'
+} from '@deepseek-ai/dsh-plugin-eda-easyeda'
+import type { SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 const ir: SchematicIr = {
   sheets: [{

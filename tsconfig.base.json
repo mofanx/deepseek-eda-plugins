@@ -27,10 +27,10 @@
     // Source-level resolution for repo-internal packages, so tests never load
     // a second module-singleton copy from built lib/.
     "paths": {
-      "@deepseek-ai/dsh-schematic": ["./packages/schematic/src/index.ts"],
-      "@deepseek-ai/dsh-schematic-easyeda": ["./packages/schematic-easyeda/src/index.ts"],
-      "@deepseek-ai/dsh-tool-schematic": ["./packages/tool-schematic/src/index.ts"],
-      "@deepseek-ai/dsh-schematic-bundle": ["./packages/schematic-bundle/src/index.ts"]
+      "@deepseek-ai/dsh-plugin-eda-sch": ["./packages/schematic/src/index.ts"],
+      "@deepseek-ai/dsh-plugin-eda-easyeda": ["./packages/schematic-easyeda/src/index.ts"],
+      "@deepseek-ai/dsh-plugin-eda-sch-gen": ["./packages/tool-schematic/src/index.ts"],
+      "@deepseek-ai/dsh-plugin-eda-bundle": ["./packages/schematic-bundle/src/index.ts"]
     }
   }
 }

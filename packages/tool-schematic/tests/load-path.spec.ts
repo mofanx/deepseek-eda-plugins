@@ -10,10 +10,10 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
-import SchematicRuntime from '@deepseek-ai/dsh-schematic'
-import * as toolSchematic from '@deepseek-ai/dsh-tool-schematic'
+import SchematicRuntime from '@deepseek-ai/dsh-plugin-eda-sch'
+import * as toolSchematic from '@deepseek-ai/dsh-plugin-eda-sch-gen'
 
-describe('dsh-tool-schematic real-load-path guard', () => {
+describe('dsh-plugin-eda-sch-gen real-load-path guard', () => {
   it('has no default export and keeps name/inject/Config through unwrapExports', () => {
     expect('default' in toolSchematic).toBe(false)
 

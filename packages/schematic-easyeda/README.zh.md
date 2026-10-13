@@ -3,13 +3,13 @@ description: "EasyEDA 文档源引擎插件：经 ctx.schematic 注册中心，�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-schematic-easyeda
+# @deepseek-ai/dsh-plugin-eda-easyeda
 
 [English](README.md) | 中文
 
 ## 概述
 
-`dsh-schematic-easyeda` 是把校验过的原理图 IR 序列化为 EasyEDA V3 文档源（`SCH_PAGE` 日志记录，客户端持久化 schema）的引擎插件。当组合需要产出可导入 EasyEDA 的源文本时，与 `dsh-schematic` 一起加载它；插件以引擎 id `easyeda` 注册自身。除序列化外，它还能经 run-api-gateway bridge 把 IR 交付进运行中的 EasyEDA 客户端：逐图元写入新建的图纸页（`engine.build`），或把生成的 `.epro2` 包作为新工程导入（`engine.importProject`）。
+`dsh-plugin-eda-easyeda` 是把校验过的原理图 IR 序列化为 EasyEDA V3 文档源（`SCH_PAGE` 日志记录，客户端持久化 schema）的引擎插件。当组合需要产出可导入 EasyEDA 的源文本时，与 `dsh-plugin-eda-sch` 一起加载它；插件以引擎 id `easyeda` 注册自身。除序列化外，它还能经 run-api-gateway bridge 把 IR 交付进运行中的 EasyEDA 客户端：逐图元写入新建的图纸页（`engine.build`），或把生成的 `.epro2` 包作为新工程导入（`engine.importProject`）。
 
 ## 目录
 
@@ -26,8 +26,8 @@ kind: "package-reference"
 与接缝服务一同加载本插件；挂载时注册 `easyeda` 引擎与 `easyeda` 工作区库，fiber 卸载时一并注销。
 
 ```yaml
-- name: '@deepseek-ai/dsh-schematic'
-- name: '@deepseek-ai/dsh-schematic-easyeda'
+- name: '@deepseek-ai/dsh-plugin-eda-sch'
+- name: '@deepseek-ai/dsh-plugin-eda-easyeda'
 ```
 
 | 字段 | 默认值 | 含义 |
@@ -48,7 +48,7 @@ kind: "package-reference"
 `scripts/live-verify.mjs` 不依赖测试框架验证整条实机链路：bridge 发现、真实 `lib_Device` LCSC 查询、`resolveSymbolPins`，以及一次单器件 `.epro2` 导入——读回源与 IR 对账（`--check-defect` 注入引脚偏移并要求检出 `WIRE_NOT_ON_PIN`）。
 
 ```sh
-node node_modules/@deepseek-ai/dsh-schematic-easyeda/scripts/live-verify.mjs [--lcsc C25804] [--name <project>] [--check-defect]
+node node_modules/@deepseek-ai/dsh-plugin-eda-easyeda/scripts/live-verify.mjs [--lcsc C25804] [--name <project>] [--check-defect]
 ```
 
 <a id="understand-the-implementation"></a>
@@ -63,7 +63,7 @@ node node_modules/@deepseek-ai/dsh-schematic-easyeda/scripts/live-verify.mjs [--
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，经 `dsh-tool-schematic`：本插件注册 `easyeda` 引擎，自身不产出模型可见文本；模型经工具输出看到文档源。
+间接地，经 `dsh-plugin-eda-sch-gen`：本插件注册 `easyeda` 引擎，自身不产出模型可见文本；模型经工具输出看到文档源。
 
 #### KV Cache 影响
 

@@ -9,7 +9,7 @@
  * one exception is a pin endpoint within one grid step of its bound symbol's
  * real pin, which snaps onto the true endpoint when `symbolPins` geometry is
  * supplied.
- * @module @deepseek-ai/dsh-schematic/layout
+ * @module @deepseek-ai/dsh-plugin-eda-sch/layout
  */
 
 import { transformSymbolPoint } from './geometry.ts'

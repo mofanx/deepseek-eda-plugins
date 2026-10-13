@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSchematicIr } from '@deepseek-ai/dsh-schematic'
+import { parseSchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 const irInvalid = (): unknown => expect.objectContaining({ code: 'SCHEMATIC_IR_INVALID' })
 

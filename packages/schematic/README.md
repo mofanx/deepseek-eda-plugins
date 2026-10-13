@@ -3,13 +3,13 @@ description: "The schematic seam service (ctx.schematic): a typed schematic IR, 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-schematic
+# @deepseek-ai/dsh-plugin-eda-sch
 
 English | [中文](README.zh.md)
 
 ## Summary
 
-Use `dsh-schematic` to represent a schematic design as a typed intermediate representation (IR) and to run the deterministic delivery gate before any document source is emitted. It selects one registered serialization engine per call and gives callers a consistent validation-finding vocabulary. Choose it when a plugin or tool produces or checks schematic content; the shipped `dsh-tool-schematic` tools load it for you.
+Use `dsh-plugin-eda-sch` to represent a schematic design as a typed intermediate representation (IR) and to run the deterministic delivery gate before any document source is emitted. It selects one registered serialization engine per call and gives callers a consistent validation-finding vocabulary. Choose it when a plugin or tool produces or checks schematic content; the shipped `dsh-plugin-eda-sch-gen` tools load it for you.
 
 ## Table of Contents
 
@@ -23,15 +23,15 @@ Use `dsh-schematic` to represent a schematic design as a typed intermediate repr
 <a id="use-this-package"></a>
 ## Use this package
 
-A composition that needs schematic generation loads the `dsh-schematic` service and at least one engine plugin; callers then pass typed IR to `ctx.schematic.validate()` and obtain the resolved engine with `ctx.schematic.engine()`. The service resolves the engine at call time, so callers never see engine ids unless they configured one.
+A composition that needs schematic generation loads the `dsh-plugin-eda-sch` service and at least one engine plugin; callers then pass typed IR to `ctx.schematic.validate()` and obtain the resolved engine with `ctx.schematic.engine()`. The service resolves the engine at call time, so callers never see engine ids unless they configured one.
 
 ### Minimal configuration
 
 Load the service and let a single mounted engine auto-select, or pin an engine id with `engine`. `$DSH_SCHEMATIC_ENGINE` feeds the same field and is not a separate priority chain.
 
 ```yaml
-- name: '@deepseek-ai/dsh-schematic'
-- name: '@deepseek-ai/dsh-schematic-easyeda'
+- name: '@deepseek-ai/dsh-plugin-eda-sch'
+- name: '@deepseek-ai/dsh-plugin-eda-easyeda'
 ```
 
 | Field | Default | Meaning |
@@ -70,7 +70,7 @@ Workspace-library providers call `ctx.schematic.registerLibrary(library)` — a 
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-schematic`, which renders the gate's findings and emitted source to the model while this service contributes no prompt or schema.
+Indirectly, through `dsh-plugin-eda-sch-gen`, which renders the gate's findings and emitted source to the model while this service contributes no prompt or schema.
 
 #### KV Cache effect
 
@@ -96,6 +96,6 @@ This Dev Note is working context for maintainers: open questions and undecided d
 
 #### Open: engine-supplied validation options
 
-`resolveBindings` supplies the prefetched snapshot the binding family needs, and `dsh-tool-schematic` already runs it before the gate. A consumer that validates without the async step sees the unreachable-library degradation (or the `requireLibrary` gate) rather than verified bindings.
+`resolveBindings` supplies the prefetched snapshot the binding family needs, and `dsh-plugin-eda-sch-gen` already runs it before the gate. A consumer that validates without the async step sees the unreachable-library degradation (or the `requireLibrary` gate) rather than verified bindings.
 
 </details>

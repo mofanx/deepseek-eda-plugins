@@ -4,7 +4,7 @@
  * {@link SchematicIr}, throwing {@link SchematicError} `SCHEMATIC_IR_INVALID` on
  * any shape violation. Same-process callers already holding a typed value do
  * not need it.
- * @module @deepseek-ai/dsh-schematic/ir
+ * @module @deepseek-ai/dsh-plugin-eda-sch/ir
  */
 
 import { SchematicError } from './types.ts'

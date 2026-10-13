@@ -6,12 +6,12 @@
  * primitive-by-primitive into an open document; project import zips the IR as
  * `.epro2` and hands it to `importProjectByProjectFile`. Validation stays in
  * the seam.
- * @module @deepseek-ai/dsh-schematic-easyeda
+ * @module @deepseek-ai/dsh-plugin-eda-easyeda
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type { SchematicEngine, SchematicFinding, SchematicIr, SchematicSymbolPin } from '@deepseek-ai/dsh-schematic'
+import type { SchematicEngine, SchematicFinding, SchematicIr, SchematicSymbolPin } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { serializeEasyEdaDocument } from './serialize.ts'
 import { HttpEasyEdaBridge } from './bridge.ts'
 import { buildIntoEasyEda, importIntoEasyEda } from './build.ts'

@@ -4,10 +4,10 @@
  * evaluates JavaScript bodies inside the running EasyEDA Pro extension runtime.
  * {@link EasyEdaBridge} is the injectable boundary: tests substitute a scripted
  * mock and never touch a real client.
- * @module @deepseek-ai/dsh-schematic-easyeda/bridge
+ * @module @deepseek-ai/dsh-plugin-eda-easyeda/bridge
  */
 
-import { SchematicError } from '@deepseek-ai/dsh-schematic'
+import { SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { deadline, timeoutOf, TimeoutReason } from '@deepseek-ai/dsh-timeout'
 
 /** True when a fetch rejection was caused by our own bridge deadline. */

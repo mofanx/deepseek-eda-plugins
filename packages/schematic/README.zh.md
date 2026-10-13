@@ -3,13 +3,13 @@ description: "原理图接缝服务（ctx.schematic）：类型化原理图 IR�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-schematic
+# @deepseek-ai/dsh-plugin-eda-sch
 
 [English](README.md) | 中文
 
 ## 概述
 
-`dsh-schematic` 把原理图设计表示为类型化中间表示（IR），并在任何文档源产出前运行确定性的交付门禁。它按调用解析一个已注册的序列化引擎，并向调用方提供一致的校验发现词汇。当插件或工具需要产出/检查原理图内容时选择它；随附的 `dsh-tool-schematic` 工具会自动加载它。
+`dsh-plugin-eda-sch` 把原理图设计表示为类型化中间表示（IR），并在任何文档源产出前运行确定性的交付门禁。它按调用解析一个已注册的序列化引擎，并向调用方提供一致的校验发现词汇。当插件或工具需要产出/检查原理图内容时选择它；随附的 `dsh-plugin-eda-sch-gen` 工具会自动加载它。
 
 ## 目录
 
@@ -23,15 +23,15 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-需要原理图生成的组合加载 `dsh-schematic` 服务和至少一个引擎插件；调用方随后把类型化 IR 交给 `ctx.schematic.validate()`，并用 `ctx.schematic.engine()` 取得解析后的引擎。服务在调用时解析引擎，因此除非显式配置，调用方不会看到引擎 id。
+需要原理图生成的组合加载 `dsh-plugin-eda-sch` 服务和至少一个引擎插件；调用方随后把类型化 IR 交给 `ctx.schematic.validate()`，并用 `ctx.schematic.engine()` 取得解析后的引擎。服务在调用时解析引擎，因此除非显式配置，调用方不会看到引擎 id。
 
 ### 最小配置
 
 加载服务并让唯一可用的已挂载引擎自动选中，或用 `engine` 钉住引擎 id。`$DSH_SCHEMATIC_ENGINE` 喂给同一字段，不是独立的优先级链。
 
 ```yaml
-- name: '@deepseek-ai/dsh-schematic'
-- name: '@deepseek-ai/dsh-schematic-easyeda'
+- name: '@deepseek-ai/dsh-plugin-eda-sch'
+- name: '@deepseek-ai/dsh-plugin-eda-easyeda'
 ```
 
 | 字段 | 默认值 | 含义 |
@@ -70,7 +70,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，经 `dsh-tool-schematic` 触达模型：它把门禁发现与产出源渲染给模型，本服务不贡献任何提示词或 schema。
+间接地，经 `dsh-plugin-eda-sch-gen` 触达模型：它把门禁发现与产出源渲染给模型，本服务不贡献任何提示词或 schema。
 
 #### KV Cache 影响
 
@@ -96,6 +96,6 @@ kind: "package-reference"
 
 #### 开放：由引擎供给校验选项
 
-`resolveBindings` 提供绑定族所需的预取快照，`dsh-tool-schematic` 已在门禁前运行它。不经异步步骤直接校验的消费方看到的是"库不可达"降级（或 `requireLibrary` 门禁）而非已核实的绑定。
+`resolveBindings` 提供绑定族所需的预取快照，`dsh-plugin-eda-sch-gen` 已在门禁前运行它。不经异步步骤直接校验的消费方看到的是"库不可达"降级（或 `requireLibrary` 门禁）而非已核实的绑定。
 
 </details>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { expandBusName, SCHEMATIC_LOOKUP_FAILED, validateSchematic } from '@deepseek-ai/dsh-schematic'
-import type { SchematicIr, SchematicIrComponent, SchematicIrPin, SchematicLibraryResolver } from '@deepseek-ai/dsh-schematic'
+import { expandBusName, SCHEMATIC_LOOKUP_FAILED, validateSchematic } from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicIr, SchematicIrComponent, SchematicIrPin, SchematicLibraryResolver } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 const pin = (id: string, electric: SchematicIrPin['electric'], endpoint: { x: number; y: number }, extra: Partial<SchematicIrPin> = {}): SchematicIrPin =>
   ({ id, name: id, number: id.replace(/\D/g, '') || '1', electric, endpoint, ...extra })

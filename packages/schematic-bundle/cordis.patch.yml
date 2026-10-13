@@ -1,9 +1,9 @@
 - insert:
     - id: optional-schematic
-      name: '@deepseek-ai/dsh-schematic'
+      name: '@deepseek-ai/dsh-plugin-eda-sch'
 
     - id: optional-schematic-easyeda
-      name: '@deepseek-ai/dsh-schematic-easyeda'
+      name: '@deepseek-ai/dsh-plugin-eda-easyeda'
 
     - id: optional-tool-schematic
-      name: '@deepseek-ai/dsh-tool-schematic'
+      name: '@deepseek-ai/dsh-plugin-eda-sch-gen'

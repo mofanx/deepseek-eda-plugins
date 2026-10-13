@@ -14,7 +14,7 @@
  *   node live-verify.mjs [--lcsc C25804] [--name <project>] [--check-defect]
  *   DSH_EASYEDA_IMPORT=<specifier>  override the package import specifier —
  *   e.g. point at `../src/index.ts` under tsx for a source-tree run; defaults
- *   to the installed `@deepseek-ai/dsh-schematic-easyeda`.
+ *   to the installed `@deepseek-ai/dsh-plugin-eda-easyeda`.
  *
  * Exit code: 0 on success, 1 on bridge/library failure or error findings,
  * 2 on bad arguments.
@@ -31,7 +31,7 @@ const lcsc = take('--lcsc', 'C25804')
 const projectName = take('--name', `dsh-live-verify-${Date.now()}`)
 const checkDefect = has('--check-defect')
 
-const spec = process.env.DSH_EASYEDA_IMPORT ?? '@deepseek-ai/dsh-schematic-easyeda'
+const spec = process.env.DSH_EASYEDA_IMPORT ?? '@deepseek-ai/dsh-plugin-eda-easyeda'
 const { HttpEasyEdaBridge, EasyEdaLibrary, importIntoEasyEda } = await import(spec)
 
 const fail = (message) => {

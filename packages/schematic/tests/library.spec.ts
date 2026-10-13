@@ -5,7 +5,7 @@ import SchematicRuntime, {
   type SchematicIr,
   type SchematicLibrary,
   type SchematicResolvedFootprint,
-} from '@deepseek-ai/dsh-schematic'
+} from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** Mount a SchematicRuntime on a fresh root context with the given config. */
 async function mountSchematic(

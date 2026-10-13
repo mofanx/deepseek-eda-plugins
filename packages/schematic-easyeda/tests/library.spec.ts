@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { EasyEdaLibrary } from '@deepseek-ai/dsh-schematic-easyeda'
-import type { EasyEdaBridge } from '@deepseek-ai/dsh-schematic-easyeda'
-import { SCHEMATIC_LOOKUP_FAILED } from '@deepseek-ai/dsh-schematic'
+import { EasyEdaLibrary } from '@deepseek-ai/dsh-plugin-eda-easyeda'
+import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-easyeda'
+import { SCHEMATIC_LOOKUP_FAILED } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** A scripted bridge that records every code body and returns canned values. */
 function scriptedBridge(handler: (code: string) => unknown): { bridge: EasyEdaBridge; calls: string[] } {

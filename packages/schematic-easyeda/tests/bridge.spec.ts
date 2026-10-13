@@ -3,7 +3,7 @@ import {
   EASYEDA_BRIDGE_PORT_MAX,
   EASYEDA_BRIDGE_PORT_MIN,
   HttpEasyEdaBridge,
-} from '@deepseek-ai/dsh-schematic-easyeda'
+} from '@deepseek-ai/dsh-plugin-eda-easyeda'
 import { TimeoutReason } from '@deepseek-ai/dsh-timeout'
 
 /** A scripted fetch: maps each requested URL to a canned Response or a thrown reason. */

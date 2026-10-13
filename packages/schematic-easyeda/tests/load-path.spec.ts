@@ -8,10 +8,10 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
-import SchematicRuntime from '@deepseek-ai/dsh-schematic'
-import * as enginePlugin from '@deepseek-ai/dsh-schematic-easyeda'
+import SchematicRuntime from '@deepseek-ai/dsh-plugin-eda-sch'
+import * as enginePlugin from '@deepseek-ai/dsh-plugin-eda-easyeda'
 
-describe('dsh-schematic-easyeda real-load-path guard', () => {
+describe('dsh-plugin-eda-easyeda real-load-path guard', () => {
   it('has no default export and keeps name/inject/Config through unwrapExports', () => {
     expect('default' in enginePlugin).toBe(false)
 

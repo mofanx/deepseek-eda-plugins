@@ -3,7 +3,7 @@ description: "可选 profile 层，挂载原理图生成能力接缝、EasyEDA �
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-schematic-bundle
+# @deepseek-ai/dsh-plugin-eda-bundle
 
 [English](README.md) | 中文
 

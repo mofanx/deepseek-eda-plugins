@@ -4,9 +4,9 @@ import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ToolExecutionResult, type ToolResult } from '@deepseek-ai/dsh-tools'
-import SchematicRuntime from '@deepseek-ai/dsh-schematic'
-import type { SchematicEngine, SchematicLibrary } from '@deepseek-ai/dsh-schematic'
-import * as ToolSchematic from '@deepseek-ai/dsh-tool-schematic'
+import SchematicRuntime from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicEngine, SchematicLibrary } from '@deepseek-ai/dsh-plugin-eda-sch'
+import * as ToolSchematic from '@deepseek-ai/dsh-plugin-eda-sch-gen'
 
 const testToolSignal = new AbortController().signal
 

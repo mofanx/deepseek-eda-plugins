@@ -4,7 +4,7 @@
  * validator every engine inherits as the authoritative delivery gate. Duplicate
  * engine ids are rejected; at execution time a configured engine must exist and be
  * usable, or exactly one usable engine must be registered.
- * @module @deepseek-ai/dsh-schematic
+ * @module @deepseek-ai/dsh-plugin-eda-sch
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'

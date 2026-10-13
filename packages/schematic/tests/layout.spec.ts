@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { layoutSchematic } from '@deepseek-ai/dsh-schematic'
+import { layoutSchematic } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type {
   SchematicIr,
   SchematicIrComponent,
   SchematicIrPin,
   SchematicIrSheet,
-} from '@deepseek-ai/dsh-schematic'
+} from '@deepseek-ai/dsh-plugin-eda-sch'
 
 const pin = (id: string, extra: Partial<SchematicIrPin> = {}): SchematicIrPin => ({
   id,

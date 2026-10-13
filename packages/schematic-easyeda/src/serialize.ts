@@ -6,7 +6,7 @@
  * schematic binding through the page `META` record. Sheet pins are symbol
  * data and are not emitted; the model supplies binding `ATTR`s instead.
  * The projection is pure; validation is the seam's job and never runs here.
- * @module @deepseek-ai/dsh-schematic-easyeda/serialize
+ * @module @deepseek-ai/dsh-plugin-eda-easyeda/serialize
  */
 
 import { randomUUID } from 'node:crypto'
@@ -15,7 +15,7 @@ import type {
   SchematicIrAttr,
   SchematicIrComponent,
   SchematicIrSheet,
-} from '@deepseek-ai/dsh-schematic'
+} from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** Inputs to one document-source projection. */
 export interface EasyEdaSerializeOptions {

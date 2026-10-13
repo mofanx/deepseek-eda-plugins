@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import SchematicRuntime from '@deepseek-ai/dsh-schematic'
-import type { SchematicIr } from '@deepseek-ai/dsh-schematic'
-import { EasyEdaLibrary, HttpEasyEdaBridge, importIntoEasyEda } from '@deepseek-ai/dsh-schematic-easyeda'
+import SchematicRuntime from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { EasyEdaLibrary, HttpEasyEdaBridge, importIntoEasyEda } from '@deepseek-ai/dsh-plugin-eda-easyeda'
 
 /**
  * Env-gated live suite: opted in only when a run-api-gateway bridge answers

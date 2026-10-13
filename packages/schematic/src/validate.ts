@@ -4,7 +4,7 @@
  * net graph, electrical sanity, device/symbol/footprint binding, and net-naming
  * plus format invariants. Findings carry a stable code, severity, locator, and
  * an actionable message; `error` findings block, `warning` findings report.
- * @module @deepseek-ai/dsh-schematic/validate
+ * @module @deepseek-ai/dsh-plugin-eda-sch/validate
  */
 
 import { transformSymbolPoint } from './geometry.ts'

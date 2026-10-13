@@ -3,7 +3,7 @@ description: "Optional profile layer that mounts the schematic-generation capabi
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-schematic-bundle
+# @deepseek-ai/dsh-plugin-eda-bundle
 
 English | [中文](README.zh.md)
 

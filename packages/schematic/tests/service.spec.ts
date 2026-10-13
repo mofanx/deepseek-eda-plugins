@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import SchematicRuntime, {
   SchematicError,
   type SchematicEngine,
-} from '@deepseek-ai/dsh-schematic'
+} from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** A scripted engine for registry contract tests. */
 function makeEngine(id: string, available: boolean, source = `src:${id}`): SchematicEngine {

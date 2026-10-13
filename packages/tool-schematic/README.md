@@ -3,13 +3,13 @@ description: "The model-facing schematic tools: schematic_generate validates the
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-schematic
+# @deepseek-ai/dsh-plugin-eda-sch-gen
 
 English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-schematic` registers the `schematic_generate` and `schematic_validate` tools that models use to produce schematic document source or to check a schematic IR document before committing to it. Load it with `dsh-schematic` and at least one engine plugin (for example `dsh-schematic-easyeda`); generation requires a usable engine, while validation works with the seam alone.
+`dsh-plugin-eda-sch-gen` registers the `schematic_generate` and `schematic_validate` tools that models use to produce schematic document source or to check a schematic IR document before committing to it. Load it with `dsh-plugin-eda-sch` and at least one engine plugin (for example `dsh-plugin-eda-easyeda`); generation requires a usable engine, while validation works with the seam alone.
 
 ## Table of Contents
 
@@ -24,9 +24,9 @@ English | [中文](README.zh.md)
 ## Use this package
 
 ```yaml
-- name: '@deepseek-ai/dsh-schematic'
-- name: '@deepseek-ai/dsh-schematic-easyeda'
-- name: '@deepseek-ai/dsh-tool-schematic'
+- name: '@deepseek-ai/dsh-plugin-eda-sch'
+- name: '@deepseek-ai/dsh-plugin-eda-easyeda'
+- name: '@deepseek-ai/dsh-plugin-eda-sch-gen'
 ```
 
 | Field | Default | Meaning |
@@ -74,7 +74,7 @@ Prefix-stable while tool visibility and guidance text are unchanged; mounting or
 
 #### What the model sees
 
-The model sees the generated [`schematic_generate` and `schematic_validate` schemas](../../../docs/tool-catalog.md#deepseek-aidsh-tool-schematic). Sheet and primitive caps are deployment settings, not model arguments.
+The model sees the generated [`schematic_generate` and `schematic_validate` schemas](../../../docs/tool-catalog.md#deepseek-aidsh-plugin-eda-sch-gen). Sheet and primitive caps are deployment settings, not model arguments.
 
 #### Token effect
 
@@ -104,7 +104,7 @@ Append-only; each new finding line follows the reusable request prefix without i
 
 These limits define when the tools are incomplete on their own. They are current package constraints.
 
-- **Live verification needs a reachable client** — `verify: true` delivers through the engine's live path and diffs the read-back netlist only when an engine with live verification and a running client are available (today `dsh-schematic-easyeda` plus an EasyEDA Pro client); without one the tools report `SCHEMATIC_VERIFY_UNAVAILABLE` and the result rests on the static gate alone.
+- **Live verification needs a reachable client** — `verify: true` delivers through the engine's live path and diffs the read-back netlist only when an engine with live verification and a running client are available (today `dsh-plugin-eda-easyeda` plus an EasyEDA Pro client); without one the tools report `SCHEMATIC_VERIFY_UNAVAILABLE` and the result rests on the static gate alone.
 
 <a id="dev-note"></a>
 ### Dev Note

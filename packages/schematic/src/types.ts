@@ -2,7 +2,7 @@
  * Vocabulary for the schematic-generation capability seam (`ctx.schematic`): a typed
  * intermediate representation (IR) of components, pins, nets, and attributes; the
  * engine-provider contract; and the validation-finding taxonomy.
- * @module @deepseek-ai/dsh-schematic/types
+ * @module @deepseek-ai/dsh-plugin-eda-sch/types
  */
 
 import { HarnessError } from '@deepseek-ai/dsh-llm'

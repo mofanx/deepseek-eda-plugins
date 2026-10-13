@@ -14,9 +14,9 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ToolExecutionResult } from '@deepseek-ai/dsh-tools'
-import SchematicRuntime from '@deepseek-ai/dsh-schematic'
-import * as EasyEdaPlugin from '@deepseek-ai/dsh-schematic-easyeda'
-import * as ToolSchematic from '@deepseek-ai/dsh-tool-schematic'
+import SchematicRuntime from '@deepseek-ai/dsh-plugin-eda-sch'
+import * as EasyEdaPlugin from '@deepseek-ai/dsh-plugin-eda-easyeda'
+import * as ToolSchematic from '@deepseek-ai/dsh-plugin-eda-sch-gen'
 
 let root: string | undefined
 let context: Context | undefined
@@ -65,21 +65,21 @@ function resultText(result: { content: { type: string; text?: string }[] }): str
  * @returns the booted context.
  */
 async function boot(toolConfigLines: readonly string[] = []): Promise<Context> {
-  root = await mkdtemp(join(tmpdir(), 'dsh-schematic-loader-'))
+  root = await mkdtemp(join(tmpdir(), 'dsh-plugin-eda-sch-loader-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     "- name: '@deepseek-ai/dsh-system-prompt'",
     "- name: '@deepseek-ai/dsh-tools'",
-    "- name: '@deepseek-ai/dsh-schematic'",
+    "- name: '@deepseek-ai/dsh-plugin-eda-sch'",
     '  config:',
     "    engine: 'easyeda'",
     // Point the library bridge at an unroutable TEST-NET-1 host so the spec
     // owns the unreachable-library path even on a machine with a live client.
-    "- name: '@deepseek-ai/dsh-schematic-easyeda'",
+    "- name: '@deepseek-ai/dsh-plugin-eda-easyeda'",
     '  config:',
     "    bridgeHost: '192.0.2.1'",
     '    bridgeTimeoutMs: 50',
-    "- name: '@deepseek-ai/dsh-tool-schematic'",
+    "- name: '@deepseek-ai/dsh-plugin-eda-sch-gen'",
     ...toolConfigLines.length > 0 ? ['  config:', ...toolConfigLines] : [],
     '',
   ].join('\n'))
@@ -92,9 +92,9 @@ async function boot(toolConfigLines: readonly string[] = []): Promise<Context> {
   const modules = new Map<string, unknown>([
     ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
     ['@deepseek-ai/dsh-tools', ToolRuntime],
-    ['@deepseek-ai/dsh-schematic', SchematicRuntime],
-    ['@deepseek-ai/dsh-schematic-easyeda', EasyEdaPlugin],
-    ['@deepseek-ai/dsh-tool-schematic', ToolSchematic],
+    ['@deepseek-ai/dsh-plugin-eda-sch', SchematicRuntime],
+    ['@deepseek-ai/dsh-plugin-eda-easyeda', EasyEdaPlugin],
+    ['@deepseek-ai/dsh-plugin-eda-sch-gen', ToolSchematic],
   ])
   ctx.loader.internal = {
     version: 'v2',

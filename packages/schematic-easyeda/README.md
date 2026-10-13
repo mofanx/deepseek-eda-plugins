@@ -3,13 +3,13 @@ description: "The EasyEDA document-source engine plugin: projects the schematic 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-schematic-easyeda
+# @deepseek-ai/dsh-plugin-eda-easyeda
 
 English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-schematic-easyeda` is the engine plugin that serializes validated schematic IR into EasyEDA V3 document source (`SCH_PAGE` log records) in the client's persisted schema. Load it alongside `dsh-schematic` when the composition must emit EasyEDA-importable source; the plugin registers itself as engine id `easyeda`. Beyond serialization it can deliver the IR into a running EasyEDA client through the run-api-gateway bridge: primitive-by-primitive onto a freshly created page (`engine.build`), or as a new project imported from a generated `.epro2` package (`engine.importProject`).
+`dsh-plugin-eda-easyeda` is the engine plugin that serializes validated schematic IR into EasyEDA V3 document source (`SCH_PAGE` log records) in the client's persisted schema. Load it alongside `dsh-plugin-eda-sch` when the composition must emit EasyEDA-importable source; the plugin registers itself as engine id `easyeda`. Beyond serialization it can deliver the IR into a running EasyEDA client through the run-api-gateway bridge: primitive-by-primitive onto a freshly created page (`engine.build`), or as a new project imported from a generated `.epro2` package (`engine.importProject`).
 
 ## Table of Contents
 
@@ -26,8 +26,8 @@ English | [中文](README.zh.md)
 Load the plugin next to the seam service; it registers the `easyeda` engine and the `easyeda` workspace library at mount time and unregisters both on fiber disposal.
 
 ```yaml
-- name: '@deepseek-ai/dsh-schematic'
-- name: '@deepseek-ai/dsh-schematic-easyeda'
+- name: '@deepseek-ai/dsh-plugin-eda-sch'
+- name: '@deepseek-ai/dsh-plugin-eda-easyeda'
 ```
 
 | Field | Default | Meaning |
@@ -48,7 +48,7 @@ The live build/import paths need the run-api-gateway bridge server between this 
 `scripts/live-verify.mjs` verifies the whole live path without a test runner: bridge discovery, a real `lib_Device` LCSC lookup, `resolveSymbolPins`, and a one-component `.epro2` import whose read-back is diffed against the IR (`--check-defect` injects a pin offset and requires `WIRE_NOT_ON_PIN`).
 
 ```sh
-node node_modules/@deepseek-ai/dsh-schematic-easyeda/scripts/live-verify.mjs [--lcsc C25804] [--name <project>] [--check-defect]
+node node_modules/@deepseek-ai/dsh-plugin-eda-easyeda/scripts/live-verify.mjs [--lcsc C25804] [--name <project>] [--check-defect]
 ```
 
 <a id="understand-the-implementation"></a>
@@ -63,7 +63,7 @@ The plugin also registers `EasyEdaLibrary` (`src/library.ts`), the workspace-lib
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-schematic`: this plugin registers engine `easyeda` and emits no model-visible text itself; the model sees the source via the tool output.
+Indirectly, through `dsh-plugin-eda-sch-gen`: this plugin registers engine `easyeda` and emits no model-visible text itself; the model sees the source via the tool output.
 
 #### KV Cache effect
 

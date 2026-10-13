@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { serializeEasyEdaDocument, serializeEasyEdaProject } from '@deepseek-ai/dsh-schematic-easyeda'
-import type { SchematicIr } from '@deepseek-ai/dsh-schematic'
+import { serializeEasyEdaDocument, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-easyeda'
+import type { SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 const ir: SchematicIr = {
   sheets: [{

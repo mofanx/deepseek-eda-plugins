@@ -4,7 +4,7 @@
  * the running client's extension runtime through the run-api-gateway bridge;
  * the adapter isolates those calls so API drift surfaces as lookup failures
  * (unreachable warnings), not validator crashes.
- * @module @deepseek-ai/dsh-schematic-easyeda/library
+ * @module @deepseek-ai/dsh-plugin-eda-easyeda/library
  */
 
 import type {
@@ -12,8 +12,8 @@ import type {
   SchematicResolvedFootprint,
   SchematicResolvedPart,
   SchematicSymbolPin,
-} from '@deepseek-ai/dsh-schematic'
-import { SCHEMATIC_LOOKUP_FAILED } from '@deepseek-ai/dsh-schematic'
+} from '@deepseek-ai/dsh-plugin-eda-sch'
+import { SCHEMATIC_LOOKUP_FAILED } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { HttpEasyEdaBridge } from './bridge.ts'
 import type { EasyEdaBridge } from './bridge.ts'
 import { parseDocumentSource } from './readback.ts'

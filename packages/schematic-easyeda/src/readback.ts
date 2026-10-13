@@ -5,11 +5,11 @@
  * `Name`), then diffed against the pin→net expectations derivable from the IR.
  * Persisted coordinates mirror the IR with `y` negated; the diff works in
  * persisted space.
- * @module @deepseek-ai/dsh-schematic-easyeda/readback
+ * @module @deepseek-ai/dsh-plugin-eda-easyeda/readback
  */
 
-import type { SchematicFinding, SchematicIrSheet, SchematicLocator, SchematicSymbolPin } from '@deepseek-ai/dsh-schematic'
-import { transformSymbolPoint } from '@deepseek-ai/dsh-schematic'
+import type { SchematicFinding, SchematicIrSheet, SchematicLocator, SchematicSymbolPin } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { transformSymbolPoint } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** One `head||body|` record of a persisted document source. */
 export interface ParsedRecord {

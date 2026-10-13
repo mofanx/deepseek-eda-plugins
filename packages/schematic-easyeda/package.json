@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-schematic-easyeda",
+  "name": "@deepseek-ai/dsh-plugin-eda-easyeda",
   "description": "EasyEDA document-source engine for the schematic seam (ctx.schematic): projects the schematic IR to V3 SCH_PAGE source and delivers through the live client bridge",
   "version": "0.1.0",
   "publishConfig": {
@@ -31,14 +31,14 @@
     "@deepseek-ai/dsh-timeout": ">=0.0.1-rc.1"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-schematic": "workspace:*",
+    "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
     "@deepseek-ai/schemastery": "^3.18.4",
     "ws": "8.21.3"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
     "@deepseek-ai/cordis-plugin-loader": "link:../../../deepseek-harness/vendor/loader",
-    "@deepseek-ai/dsh-schematic": "workspace:*",
+    "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
     "@deepseek-ai/dsh-timeout": "link:../../../deepseek-harness/packages/util/timeout",
     "typescript": "^5.9.0"
   }

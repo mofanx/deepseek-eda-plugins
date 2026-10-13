@@ -1,28 +1,27 @@
-# deepseek-schematic-plugin
+# deepseek-eda-plugins
 
 Externalized schematic-generation plugin for DeepSeek Harness. The model produces a typed schematic IR (`schematic_generate`), the seam binds it to real library parts, lays it out, statically validates it, and delivers it into EasyEDA — either serialized as a `.epro2` project or built live in the client through the local bridge.
 
-**Status: migration skeleton.** Package manifests, TypeScript/vitest/oxlint infrastructure, and the bundle patch are in place; source code still lives in [`deepseek-harness`](../deepseek-harness/packages/schematic/) and moves per [docs/migration-plan.md](docs/migration-plan.md).
+**Status: first migration landed.** Source and tests are imported; `pnpm install`/`tsc -b`/`vitest`/`coverage`/`oxlint` are green, and dsh loads this checkout through the root [`cordis.patch.yml`](cordis.patch.yml). The in-tree copy in [`deepseek-harness`](../deepseek-harness/packages/schematic/) remains authoritative until npm publication — see [docs/migration-plan.md](docs/migration-plan.md).
 
 ## Layout
 
 ```
 packages/
-  schematic/            @deepseek-ai/dsh-schematic            Service Definition: ctx.schematic, IR, layout, validator
-  schematic-easyeda/    @deepseek-ai/dsh-schematic-easyeda    EasyEDA engine: serialize + live build/import/verify
-  tool-schematic/       @deepseek-ai/dsh-tool-schematic       Model tools: schematic_generate, schematic_validate
-  schematic-bundle/     @deepseek-ai/dsh-schematic-bundle     dsh.bundle layer (cordis.patch.yml)
-  bridge/               @deepseek-ai/dsh-schematic-easyeda-bridge   Local bridge server bin (live path prerequisite)
+  schematic/            @deepseek-ai/dsh-plugin-eda-sch        Service Definition: ctx.schematic, IR, layout, validator
+  schematic-easyeda/    @deepseek-ai/dsh-plugin-eda-easyeda    EasyEDA engine: serialize + live build/import/verify (ships dsh-eda-bridge bin)
+  tool-schematic/       @deepseek-ai/dsh-plugin-eda-sch-gen    Model tools: schematic_generate, schematic_validate
+  schematic-bundle/     @deepseek-ai/dsh-plugin-eda-bundle     dsh.bundle layer (cordis.patch.yml)
 ```
 
 ## Install (once published)
 
 ```sh
-dsh plugin --profile <name> add @deepseek-ai/dsh-schematic-bundle
+dsh plugin --profile <name> add @deepseek-ai/dsh-plugin-eda-bundle
 dsh --profile <name>
 ```
 
-Live delivery additionally needs the EasyEDA client running the run-api-gateway extension plus `npx @deepseek-ai/dsh-schematic-easyeda-bridge` (or the equivalent bin inside a profile install).
+Live delivery additionally needs the EasyEDA client running the run-api-gateway extension plus `dsh-eda-bridge` (the bin shipped inside `@deepseek-ai/dsh-plugin-eda-easyeda`).
 
 ## Commands
 
