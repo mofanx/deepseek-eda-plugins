@@ -82,6 +82,14 @@ export interface SchematicIrComponent {
    * the flat, ungrouped behavior.
    */
   readonly block?: string | undefined
+  /**
+   * For `kind: 'block'` components, the 0-based index of the child sheet this
+   * block expands into. Absent, validation resolves the child by matching
+   * another sheet's `name` against the block's `designator`, `netName`, or
+   * `id`; the block's pin `net` names are the interface the child's `netport`
+   * components must echo.
+   */
+  readonly sheetIndex?: number | undefined
   /** Reference designator (`U1`, `R3`, …); required on physical kinds. */
   readonly designator?: string | undefined
   /** The net name a `netflag`/`netport` merges under. */

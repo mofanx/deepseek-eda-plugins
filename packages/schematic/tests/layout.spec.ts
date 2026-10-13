@@ -197,6 +197,18 @@ describe('layoutSchematic routing', () => {
     }
   })
 
+  it('routes a block interface pin through netports to its child sheet', () => {
+    const laid = layoutSchematic(ir(
+      sheet({ components: [comp('b1', { kind: 'block', designator: 'B1', sheetIndex: 1, pins: [pin('p1', { electric: 'OUTPUT', net: 'CLK' })] })] }),
+      sheet({ components: [comp('u1', { pins: [pin('p1', { electric: 'INPUT', net: 'CLK' })] })] }),
+    ))
+    for (const laidSheet of laid.sheets) {
+      const flag = laidSheet.components.find(component => component.id.startsWith('layout:flag:'))
+      expect(flag?.kind).toBe('netport')
+      expect(flag?.netName).toBe('CLK')
+    }
+  })
+
   it('uses flags for high-fanout nets', () => {
     const members = Array.from({ length: 6 }, (_, index) =>
       comp(`u${index}`, { pins: [pin('p1', { electric: 'INPUT', net: 'WIDE' })] }))

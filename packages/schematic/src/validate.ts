@@ -191,6 +191,8 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
   // excluded), pin endpoints, flag/port positions, and bus-entry points.
   const taps: { point: SchematicPoint; skip: Segment[] }[] = []
   const netDecl = new Map<string, Set<string>>()
+  // Resolved `block` → child-sheet edges, collected for the cycle pass.
+  const hierarchyEdges: { sheet: number; componentId: string; target: number }[] = []
 
   for (const [sheetIndex, sheet] of ir.sheets.entries()) {
     const localComponentIds = new Map<string, number>()
@@ -209,6 +211,103 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
         { sheetIndex },
         'Declare functional modules: add `blocks` (name + title) on the sheet and set `block` on each part, or split into multiple sheets',
       )
+    }
+
+    // Hierarchy bindings: a `block` resolves its child sheet by explicit
+    // `sheetIndex`, else by matching a sheet `name` to its designator,
+    // netName, or id. Pin `net` names must echo as `netport`s on the child.
+    for (const component of sheet.components) {
+      if (component.kind !== 'block') {
+        if (component.sheetIndex !== undefined) {
+          report(
+            'HIERARCHY_INDEX_ON_NON_BLOCK',
+            'warning',
+            `component "${component.id}" declares sheetIndex ${component.sheetIndex} but its kind is "${component.kind}"`,
+            { sheetIndex, componentId: component.id },
+            'Only kind "block" components expand to a child sheet; remove the index or change the kind',
+          )
+        }
+        continue
+      }
+      let target: number | undefined
+      if (component.sheetIndex !== undefined) {
+        if (component.sheetIndex >= ir.sheets.length) {
+          report(
+            'HIERARCHY_BAD_SHEET_INDEX',
+            'error',
+            `block "${component.id}" points at sheet index ${component.sheetIndex}, but the document has ${ir.sheets.length} sheet(s)`,
+            { sheetIndex, componentId: component.id },
+            `Use a 0-based index below ${ir.sheets.length}`,
+          )
+        } else if (component.sheetIndex === sheetIndex) {
+          report(
+            'HIERARCHY_BAD_SHEET_INDEX',
+            'error',
+            `block "${component.id}" points at its own sheet`,
+            { sheetIndex, componentId: component.id },
+            'Point the block at a different sheet index',
+          )
+        } else {
+          target = component.sheetIndex
+        }
+      } else {
+        const names = new Set(
+          [component.designator, component.netName, component.id].filter((n): n is string => n !== undefined),
+        )
+        const candidates = ir.sheets
+          .map((_, candidateIndex) => candidateIndex)
+          .filter(candidateIndex => candidateIndex !== sheetIndex && ir.sheets[candidateIndex]!.name !== undefined && names.has(ir.sheets[candidateIndex]!.name as string))
+        if (candidates.length > 1) {
+          report(
+            'HIERARCHY_AMBIGUOUS_BLOCK',
+            'error',
+            `block "${component.id}" matches ${candidates.length} sheets by name`,
+            { sheetIndex, componentId: component.id },
+            'Set an explicit sheetIndex on the block',
+          )
+        } else if (candidates.length === 1) {
+          target = candidates[0]
+        } else {
+          report(
+            'HIERARCHY_UNRESOLVED_BLOCK',
+            'error',
+            `block "${component.id}" resolves no child sheet: no sheetIndex and no sheet named after its designator, netName, or id`,
+            { sheetIndex, componentId: component.id },
+            'Set sheetIndex, or name a sheet to match the block',
+          )
+        }
+      }
+      if (target === undefined) continue
+      hierarchyEdges.push({ sheet: sheetIndex, componentId: component.id, target })
+      const child = ir.sheets[target]!
+      const ports = new Set(
+        child.components
+          .filter(port => port.kind === 'netport' && port.netName !== undefined)
+          .map(port => port.netName as string),
+      )
+      const interfaceNets = new Set(
+        component.pins.map(pin => pin.net).filter((net): net is string => net !== undefined),
+      )
+      const missingPorts = [...interfaceNets].filter(net => !ports.has(net)).sort()
+      if (missingPorts.length > 0) {
+        report(
+          'HIERARCHY_INTERFACE_MISMATCH',
+          'warning',
+          `block "${component.id}" net(s) ${missingPorts.join(', ')} have no same-named netport on child sheet ${target + 1}`,
+          { sheetIndex, componentId: component.id },
+          `Add a netport named ${missingPorts.map(net => `"${net}"`).join(', ')} on sheet ${target + 1}`,
+        )
+      }
+      const danglingPorts = [...ports].filter(name => !interfaceNets.has(name)).sort()
+      if (danglingPorts.length > 0) {
+        report(
+          'HIERARCHY_INTERFACE_MISMATCH',
+          'warning',
+          `child sheet ${target + 1} netport(s) ${danglingPorts.join(', ')} expose no matching pin on block "${component.id}"`,
+          { sheetIndex, componentId: component.id },
+          'Expose a pin with the port net on the block, or remove the port from the child sheet',
+        )
+      }
     }
 
     for (const component of sheet.components) {
@@ -273,6 +372,35 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
     dupCheck(localBusEntryIds, 'BUSENTRY')
     dupCheck(localAttrIds, 'ATTR')
     dupCheck(localPinIds, 'PIN')
+  }
+
+  // Hierarchy cycles: any resolved block whose target can reach back to its
+  // own sheet closes a loop no consumer can expand.
+  for (const edge of hierarchyEdges) {
+    const seen = new Set<number>()
+    const stack = [edge.target]
+    let closesLoop = false
+    while (stack.length > 0) {
+      const current = stack.pop() as number
+      if (current === edge.sheet) {
+        closesLoop = true
+        break
+      }
+      if (seen.has(current)) continue
+      seen.add(current)
+      for (const next of hierarchyEdges) {
+        if (next.sheet === current) stack.push(next.target)
+      }
+    }
+    if (closesLoop) {
+      report(
+        'HIERARCHY_CYCLE',
+        'error',
+        `block "${edge.componentId}" closes a sheet hierarchy cycle`,
+        { sheetIndex: edge.sheet, componentId: edge.componentId },
+        'Restructure the blocks so sheets nest in one direction',
+      )
+    }
   }
 
   // T-connections: a tap point strictly inside another segment joins that net.
@@ -451,7 +579,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
   const designatorGroups = new Map<string, SchematicIrComponent[]>()
   for (const [sheetIndex, sheet] of ir.sheets.entries()) {
     for (const component of sheet.components) {
-      const physical = component.kind === 'part' || component.kind === 'block'
+      const physical = component.kind === 'part'
       if (physical) {
         if (component.designator === undefined || component.designator.length === 0) {
           report(

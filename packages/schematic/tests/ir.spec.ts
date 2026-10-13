@@ -217,6 +217,27 @@ describe('parseSchematicIr', () => {
     expect(sheet.components[0]!.block).toBeUndefined()
   })
 
+  it('parses an optional block sheetIndex and rejects malformed values', () => {
+    const component = parseSchematicIr({
+      sheets: [{
+        components: [{ id: 'b1', kind: 'block', sheetIndex: 1, pins: [] }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }, {
+        components: [], wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    }).sheets[0]!.components[0]!
+    expect(component.sheetIndex).toBe(1)
+    const doc = (sheetIndex: unknown) => ({
+      sheets: [{
+        components: [{ id: 'b1', kind: 'block', sheetIndex, pins: [] }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    })
+    expect(() => parseSchematicIr(doc(-1))).toThrow(irInvalid())
+    expect(() => parseSchematicIr(doc(1.5))).toThrow(irInvalid())
+    expect(() => parseSchematicIr(doc('1'))).toThrow(irInvalid())
+  })
+
   it('rejects malformed module fields', () => {
     const doc = (sheetExtra: Record<string, unknown>, compExtra: Record<string, unknown> = {}) => ({
       sheets: [{

@@ -54,6 +54,15 @@ function optNumber(value: Record<string, unknown>, key: string, path: string): n
   return field
 }
 
+function optIndex(value: Record<string, unknown>, key: string, path: string): number | undefined {
+  const field = value[key]
+  if (field === undefined) return undefined
+  if (typeof field !== 'number' || !Number.isInteger(field) || field < 0) {
+    bad(`${path}.${key}`, 'a non-negative integer or undefined')
+  }
+  return field
+}
+
 function optBoolean(value: Record<string, unknown>, key: string, path: string): boolean | undefined {
   const field = value[key]
   if (field === undefined) return undefined
@@ -101,6 +110,7 @@ function parseComponent(value: unknown, path: string): SchematicIrComponent {
     partId: optString(value, 'partId', path),
     groupId: optString(value, 'groupId', path),
     block: optString(value, 'block', path),
+    sheetIndex: optIndex(value, 'sheetIndex', path),
     designator: optString(value, 'designator', path),
     netName: optString(value, 'netName', path),
     position: value.position === undefined ? undefined : parsePoint(value.position, `${path}.position`),

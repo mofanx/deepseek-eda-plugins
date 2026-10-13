@@ -936,6 +936,135 @@ describe('layout advisories', () => {
   })
 })
 
+describe('hierarchy rules', () => {
+  /** A `block` component binding a child sheet through its pin nets. */
+  const block = (id: string, nets: string[], extra: Partial<SchematicIrComponent> = {}): SchematicIrComponent => ({
+    id,
+    kind: 'block',
+    pins: nets.map((net, index) => pin(`bp${index}`, 'BI', { x: index * 10, y: 0 }, { net, noConnect: true })),
+    ...extra,
+  })
+
+  const port = (id: string, netName: string, x = 0): SchematicIrComponent => ({
+    id,
+    kind: 'netport',
+    netName,
+    position: { x, y: 0 },
+    pins: [],
+  })
+
+  const hierarchy = (topComponents: SchematicIrComponent[], childComponents: SchematicIrComponent[], childName?: string): SchematicIr => ({
+    sheets: [
+      { ...emptySheet, components: topComponents },
+      { ...emptySheet, name: childName, components: childComponents },
+    ],
+  })
+
+  it('accepts an explicit sheetIndex whose pin nets echo as child netports', () => {
+    const ir = hierarchy(
+      [block('b1', ['SIG', 'CLK'], { sheetIndex: 1 })],
+      [port('po1', 'SIG'), port('po2', 'CLK', 10)],
+    )
+    const hierarchyFindings = validateSchematic(ir).findings.filter(f => f.code.startsWith('HIERARCHY_'))
+    expect(hierarchyFindings).toHaveLength(0)
+  })
+
+  it('flags HIERARCHY_BAD_SHEET_INDEX on out-of-range and self references', () => {
+    const far = hierarchy([block('b1', [], { sheetIndex: 5 })], [])
+    expect(codes(far)).toContain('HIERARCHY_BAD_SHEET_INDEX')
+    expect(validateSchematic(far).ok).toBe(false)
+    const self = { sheets: [{ ...emptySheet, components: [block('b1', [], { sheetIndex: 0 })] }] }
+    expect(codes(self)).toContain('HIERARCHY_BAD_SHEET_INDEX')
+  })
+
+  it('resolves the child implicitly by designator, netName, or id sheet-name match', () => {
+    for (const extra of [{ designator: 'POWER' }, { netName: 'POWER' }, {}] as const) {
+      const named = extra.designator === undefined && extra.netName === undefined ? 'POWER' : 'b1'
+      const ir = hierarchy([block(named, ['SIG'], extra)], [port('po1', 'SIG')], 'POWER')
+      const findings = validateSchematic(ir).findings.filter(f => f.code.startsWith('HIERARCHY_'))
+      expect(findings).toHaveLength(0)
+    }
+  })
+
+  it('flags HIERARCHY_AMBIGUOUS_BLOCK when several sheets share the name', () => {
+    const ir: SchematicIr = {
+      sheets: [
+        { ...emptySheet, components: [block('b1', [], { designator: 'POWER' })] },
+        { ...emptySheet, name: 'POWER' },
+        { ...emptySheet, name: 'POWER' },
+      ],
+    }
+    expect(codes(ir)).toContain('HIERARCHY_AMBIGUOUS_BLOCK')
+    expect(validateSchematic(ir).ok).toBe(false)
+  })
+
+  it('flags HIERARCHY_UNRESOLVED_BLOCK when no binding mechanism applies', () => {
+    const ir = hierarchy([block('b1', [])], [])
+    const finding = validateSchematic(ir).findings.find(f => f.code === 'HIERARCHY_UNRESOLVED_BLOCK')
+    expect(finding?.severity).toBe('error')
+    expect(finding?.suggestion).toBeDefined()
+  })
+
+  it('warns HIERARCHY_INTERFACE_MISMATCH in both directions without blocking', () => {
+    const ir = hierarchy(
+      [block('b1', ['SIG', 'CLK'], { sheetIndex: 1 })],
+      [port('po1', 'SIG'), port('po2', 'EXTRA', 10)],
+    )
+    const report = validateSchematic(ir)
+    const mismatches = report.findings.filter(f => f.code === 'HIERARCHY_INTERFACE_MISMATCH')
+    expect(mismatches).toHaveLength(2)
+    expect(mismatches.every(f => f.severity === 'warning')).toBe(true)
+    expect(mismatches[0]?.message).toContain('CLK')
+    expect(mismatches[1]?.message).toContain('EXTRA')
+    expect(report.ok).toBe(true)
+  })
+
+  it('warns HIERARCHY_INDEX_ON_NON_BLOCK when sheetIndex lands on another kind', () => {
+    const top = hierarchy([part('u1', 'U1', [pin('p1', 'INPUT', { x: 0, y: 0 }, { net: 'X' })], { sheetIndex: 1 })], [])
+    const ir: SchematicIr = {
+      sheets: [{ ...top.sheets[0]!, wires: [{ id: 'w1', kind: 'wire', dots: [[0, 0, 10, 0]], net: 'X' }] }, top.sheets[1]!],
+    }
+    expect(codes(ir)).toContain('HIERARCHY_INDEX_ON_NON_BLOCK')
+    expect(validateSchematic(ir).ok).toBe(true)
+  })
+
+  it('flags HIERARCHY_CYCLE when blocks form a sheet loop', () => {
+    const ir: SchematicIr = {
+      sheets: [
+        { ...emptySheet, components: [block('ba', [], { sheetIndex: 1 })] },
+        { ...emptySheet, components: [block('bb', [], { sheetIndex: 0 })] },
+      ],
+    }
+    expect(codes(ir)).toContain('HIERARCHY_CYCLE')
+    expect(validateSchematic(ir).ok).toBe(false)
+  })
+
+  it('explores shared descendants without reporting a cycle', () => {
+    // Sheets 2 and 3 both expand sheet 4; the diamond has no loop back to 0.
+    const ir: SchematicIr = {
+      sheets: [
+        { ...emptySheet, components: [block('b0', [], { sheetIndex: 1 })] },
+        { ...emptySheet, components: [block('b1', [], { sheetIndex: 2 }), block('b2', [], { sheetIndex: 3 })] },
+        { ...emptySheet, components: [block('b3', [], { sheetIndex: 4 })] },
+        { ...emptySheet, components: [block('b4', [], { sheetIndex: 4 })] },
+        { ...emptySheet },
+      ],
+    }
+    expect(codes(ir)).not.toContain('HIERARCHY_CYCLE')
+  })
+
+  it('accepts a one-direction nesting chain without a cycle', () => {
+    const ir: SchematicIr = {
+      sheets: [
+        { ...emptySheet, components: [block('ba', [], { sheetIndex: 1 })] },
+        { ...emptySheet, components: [block('bb', [], { sheetIndex: 2 })] },
+        { ...emptySheet },
+      ],
+    }
+    expect(validateSchematic(ir).findings.filter(f => f.code.startsWith('HIERARCHY_'))).toHaveLength(0)
+  })
+})
+
 describe('expandBusName', () => {
   it('expands single and multi-range bus names', () => {
     expect(expandBusName('A[1:3]')).toEqual(['A1', 'A2', 'A3'])
