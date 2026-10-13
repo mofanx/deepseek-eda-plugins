@@ -1,6 +1,6 @@
 /**
  * run-api-gateway bridge client for the live EasyEDA build path. The bridge is a
- * localhost HTTP relay (port range 49620–49629, `easyeda-bridge` handshake) that
+ * localhost HTTP relay (port range 49620–49630, `easyeda-bridge` handshake) that
  * evaluates JavaScript bodies inside the running EasyEDA Pro extension runtime.
  * {@link EasyEdaBridge} is the injectable boundary: tests substitute a scripted
  * mock and never touch a real client.
@@ -19,8 +19,11 @@ function bridgeTimedOut(error: unknown): boolean {
 /** First port the run-api-gateway bridge listens on (protocol constant). */
 export const EASYEDA_BRIDGE_PORT_MIN = 49620
 
-/** Last port the run-api-gateway bridge listens on (protocol constant). */
-export const EASYEDA_BRIDGE_PORT_MAX = 49629
+/**
+ * Last port scanned for a run-api-gateway bridge. The editor's built-in
+ * gateway dials the fixed 49630 endpoint, so the bridge also listens there.
+ */
+export const EASYEDA_BRIDGE_PORT_MAX = 49630
 
 /**
  * Implementation marker this package's bridge (`bin/dsh-eda-bridge.mjs`)

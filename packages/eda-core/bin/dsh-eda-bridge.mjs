@@ -12,11 +12,17 @@
  *   │   AI Agent    │ ◄───────────► │  Bridge Server  │ ◄───────────► │  EasyEDA  │
  *   │               │  Port Range   │  (this server)  │  Port Range   │  (Client) │
  *   └──────────────┘  49620-49629  └────────────────┘  49620-49629   └──────────┘
+ *                                      │                 ws://127.0.0.1:49630
+ *                                      └── also binds ──► (built-in gateway)
  *
  * Port range 49620-49629; the first free port is picked at startup. A second
- * invocation exits when a compatible bridge already answers /health; a
- * foreign implementation holding the service id (marked via the `bridge`
- * health field) fails startup unless `--force` is passed.
+ * listener binds 49630, the fixed endpoint the editor's built-in
+ * run-api-gateway dials after an `api/landing?port=` BroadcastChannel trigger
+ * (the `port` param is metadata only — the gateway always uses 49630); a busy
+ * 49630 downgrades to a warning, not a failure. A second invocation exits
+ * when a compatible bridge already answers /health; a foreign implementation
+ * holding the service id (marked via the `bridge` health field) fails startup
+ * unless `--force` is passed.
  *
  * Handshake verification:
  * - GET /health returns { service: "easyeda-bridge", ... }
@@ -50,6 +56,10 @@ import { createConnection } from 'node:net'
 // ─── Port configuration ─────────────────────────────────────────────
 const PORT_START = 49620
 const PORT_END = 49629
+// The editor's built-in run-api-gateway hard-codes ws://127.0.0.1:49630 and
+// cannot be pointed elsewhere (the api/landing `port` param is forwarded in
+// the register payload only), so the bridge binds it alongside the range.
+const BUILTIN_GATEWAY_PORT = 49630
 const SERVICE_ID = 'easyeda-bridge'
 const IMPLEMENTATION_ID = 'dsh-eda-bridge'
 const LISTEN_HOST = '127.0.0.1'
@@ -129,7 +139,10 @@ function bridgeImplementation(port) {
  * instance's port and implementation marker, or null
  */
 async function findExistingInstance() {
-  for (let port = PORT_START; port <= PORT_END; port++) {
+  const ports = []
+  for (let port = PORT_START; port <= PORT_END; port++) ports.push(port)
+  ports.push(BUILTIN_GATEWAY_PORT)
+  for (const port of ports) {
     const implementation = await bridgeImplementation(port)
     if (implementation !== null) return { port, implementation }
   }
@@ -148,7 +161,7 @@ async function findAvailablePort() {
 }
 
 // ─── HTTP server (agents submit code via HTTP POST) ─────────────────
-const httpServer = createServer(async (req, res) => {
+const httpHandler = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -252,101 +265,136 @@ const httpServer = createServer(async (req, res) => {
 
   res.writeHead(404, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify({ error: 'Not found' }))
-})
+}
 
-// ─── WebSocket server ───────────────────────────────────────────────
-const wss = new WebSocketServer({ server: httpServer })
+// ─── WebSocket handlers ─────────────────────────────────────────────
 
-wss.on('connection', (ws, req) => {
-  const clientType = req.url === '/eda' ? 'eda' : 'agent'
-  console.log(`[WS] New ${clientType} connection from ${req.socket.remoteAddress}`)
+function attachEdaClient(ws) {
+  let registeredWindowId = null
 
-  // Handshake message for client-side service verification
-  ws.send(JSON.stringify({
-    type: 'handshake',
-    service: SERVICE_ID,
-    clientType,
-    timestamp: Date.now(),
-  }))
-
-  if (clientType === 'eda') {
-    let registeredWindowId = null
-
-    ws.on('message', (raw) => {
-      try {
-        const msg = JSON.parse(raw.toString())
-        if (msg.type === 'register' && msg.windowId) {
-          registeredWindowId = msg.windowId
-          edaClients.set(registeredWindowId, ws)
-          // Auto-select the first window, or replace a lost selection
-          if (edaClients.size === 1 || !activeEdaWindowId) {
-            activeEdaWindowId = registeredWindowId
-          }
-          console.log(`[WS] EDA window registered: ${registeredWindowId}, total: ${edaClients.size}`)
-          return
+  const onMessage = (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString())
+      // The built-in gateway registers with tabId; the community extension
+      // uses windowId — either identifies an EDA window the same way.
+      if (msg.type === 'register' && (msg.windowId || msg.tabId)) {
+        registeredWindowId = msg.windowId ?? msg.tabId
+        edaClients.set(registeredWindowId, ws)
+        // Auto-select the first window, or replace a lost selection
+        if (edaClients.size === 1 || !activeEdaWindowId) {
+          activeEdaWindowId = registeredWindowId
         }
-        handleEdaMessage(msg, registeredWindowId || 'unregistered')
-      } catch (err) {
-        console.error('[WS] Failed to parse EDA message:', err.message)
+        console.log(`[WS] EDA window registered: ${registeredWindowId}, total: ${edaClients.size}`)
+        return
       }
-    })
-
-    ws.on('close', (code, reason) => {
-      console.log(`[WS] EDA window disconnected: ${registeredWindowId} (${code} ${reason})`)
-      if (registeredWindowId) {
-        edaClients.delete(registeredWindowId)
-        if (activeEdaWindowId === registeredWindowId) {
-          activeEdaWindowId = edaClients.keys().next().value || null
-        }
-        // Reject requests still in flight for the departed window
-        for (const [id, req] of pendingRequests) {
-          if (req.windowId === registeredWindowId) {
-            clearTimeout(req.timer)
-            req.reject(new Error(`EDA window "${registeredWindowId}" disconnected`))
-            pendingRequests.delete(id)
-          }
-        }
-      }
-    })
-
-    ws.on('error', (err) => {
-      console.error('[WS] EDA client error:', err.message)
-    })
-  } else {
-    // Agent-facing connection: execute requests and liveness pings
-    ws.on('message', async (raw) => {
-      try {
-        const msg = JSON.parse(raw.toString())
-        if (msg.type === 'execute') {
-          try {
-            const result = await executeOnEda(msg.code, msg.windowId)
-            ws.send(JSON.stringify({
-              type: 'result',
-              id: msg.id,
-              result,
-              timestamp: Date.now(),
-            }))
-          } catch (err) {
-            ws.send(JSON.stringify({
-              type: 'error',
-              id: msg.id,
-              error: err.message,
-              timestamp: Date.now(),
-            }))
-          }
-        } else if (msg.type === 'ping') {
-          ws.send(JSON.stringify({ type: 'pong', id: msg.id, timestamp: Date.now() }))
-        }
-      } catch (err) {
-        console.error('[WS] Failed to parse agent message:', err.message)
-      }
-    })
-
-    ws.on('close', () => {
-      console.log('[WS] Agent client disconnected')
-    })
+      handleEdaMessage(msg, registeredWindowId || 'unregistered')
+    } catch (err) {
+      console.error('[WS] Failed to parse EDA message:', err.message)
+    }
   }
-})
+
+  ws.on('message', onMessage)
+
+  ws.on('close', (code, reason) => {
+    console.log(`[WS] EDA window disconnected: ${registeredWindowId} (${code} ${reason})`)
+    if (registeredWindowId) {
+      edaClients.delete(registeredWindowId)
+      if (activeEdaWindowId === registeredWindowId) {
+        activeEdaWindowId = edaClients.keys().next().value || null
+      }
+      // Reject requests still in flight for the departed window
+      for (const [id, req] of pendingRequests) {
+        if (req.windowId === registeredWindowId) {
+          clearTimeout(req.timer)
+          req.reject(new Error(`EDA window "${registeredWindowId}" disconnected`))
+          pendingRequests.delete(id)
+        }
+      }
+    }
+  })
+
+  ws.on('error', (err) => {
+    console.error('[WS] EDA client error:', err.message)
+  })
+
+  return onMessage
+}
+
+function attachAgentClient(ws) {
+  const onMessage = async (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString())
+      if (msg.type === 'execute') {
+        try {
+          const result = await executeOnEda(msg.code, msg.windowId)
+          ws.send(JSON.stringify({
+            type: 'result',
+            id: msg.id,
+            result,
+            timestamp: Date.now(),
+          }))
+        } catch (err) {
+          ws.send(JSON.stringify({
+            type: 'error',
+            id: msg.id,
+            error: err.message,
+            timestamp: Date.now(),
+          }))
+        }
+      } else if (msg.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong', id: msg.id, timestamp: Date.now() }))
+      }
+    } catch (err) {
+      console.error('[WS] Failed to parse agent message:', err.message)
+    }
+  }
+
+  ws.on('message', onMessage)
+
+  ws.on('close', () => {
+    console.log('[WS] Agent client disconnected')
+  })
+
+  return onMessage
+}
+
+function createBridgeServer() {
+  const srv = createServer(httpHandler)
+  const wss = new WebSocketServer({ server: srv })
+
+  wss.on('connection', (ws, req) => {
+    if (req.url === '/eda' || req.url === '/agent') {
+      const clientType = req.url === '/eda' ? 'eda' : 'agent'
+      console.log(`[WS] New ${clientType} connection from ${req.socket.remoteAddress}`)
+      ws.send(JSON.stringify({ type: 'handshake', service: SERVICE_ID, clientType, timestamp: Date.now() }))
+      return clientType === 'eda' ? attachEdaClient(ws) : attachAgentClient(ws)
+    }
+
+    // The built-in gateway dials the ws root, so an unrecognised path is
+    // classified by its first message — register{windowId|tabId} marks an
+    // EDA window, anything else an agent.
+    console.log(`[WS] New unclassified connection from ${req.socket.remoteAddress} (${req.url})`)
+    ws.send(JSON.stringify({ type: 'handshake', service: SERVICE_ID, clientType: 'unknown', timestamp: Date.now() }))
+    let settled = false
+    ws.on('message', (raw) => {
+      if (settled) return
+      settled = true
+      try {
+        const msg = JSON.parse(raw.toString())
+        if (msg.type === 'register' && (msg.windowId || msg.tabId)) {
+          return attachEdaClient(ws)(raw)
+        }
+      } catch { /* a malformed first message falls through to agent handling */ }
+      attachAgentClient(ws)(raw)
+    })
+  })
+
+  return srv
+}
+
+const httpServer = createBridgeServer()
+const gatewayServer = createBridgeServer()
+let gatewayAttempted = false
 
 // ─── Core logic ─────────────────────────────────────────────────────
 
@@ -478,6 +526,19 @@ async function start() {
 
     const port = await findAvailablePort()
 
+    // The built-in gateway port is a fixed second endpoint; a busy 49630
+    // (foreign bridge, older instance) only forfeits that trigger path. Guard
+    // the bind so the EADDRINUSE retry below does not re-listen this server.
+    if (!gatewayServer.listening && !gatewayAttempted) {
+      gatewayAttempted = true
+      gatewayServer.once('error', (err) => {
+        console.error(`Built-in gateway port ${BUILTIN_GATEWAY_PORT} unavailable: ${err.message}`)
+      })
+      gatewayServer.listen(BUILTIN_GATEWAY_PORT, LISTEN_HOST, () => {
+        console.log(`Built-in gateway endpoint listening on ws://${LISTEN_HOST}:${BUILTIN_GATEWAY_PORT}`)
+      })
+    }
+
     httpServer.listen(port, LISTEN_HOST, () => {
       console.log(`
 ╔══════════════════════════════════════════════════════════════╗
@@ -492,6 +553,7 @@ ${formatBannerLine('Service ID', SERVICE_ID)}
 ║  HTTP API:    http://localhost:${port}                         ║
 ║  WS (EDA):   ws://localhost:${port}/eda                       ║
 ║  WS (Agent): ws://localhost:${port}/agent                     ║
+║  WS (built-in gateway): ws://localhost:${BUILTIN_GATEWAY_PORT}          ║
 ║                                                              ║
 ║  Endpoints:                                                  ║
 ║    GET  /health     - liveness & EDA connection state        ║

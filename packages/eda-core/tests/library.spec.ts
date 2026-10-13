@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EasyEdaLibrary } from '@deepseek-ai/dsh-plugin-eda-core'
+import { EasyEdaLibrary, EASYEDA_BRIDGE_PORT_MAX, EASYEDA_BRIDGE_PORT_MIN } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
 import { SCHEMATIC_LOOKUP_FAILED } from '@deepseek-ai/dsh-plugin-eda-sch'
 
@@ -247,12 +247,13 @@ describe('EasyEdaLibrary bridge lifecycle', () => {
   })
 
   it('rediscovers after a failed discovery so a later-started client still connects', async () => {
+    const range = EASYEDA_BRIDGE_PORT_MAX - EASYEDA_BRIDGE_PORT_MIN + 1
     let healthCalls = 0
     const fetchFn = (async (input: unknown): Promise<Response> => {
       const url = String(input)
       if (url.endsWith('/health')) {
         healthCalls++
-        if (healthCalls <= 10) throw new Error('refused')
+        if (healthCalls <= range) throw new Error('refused')
         return new Response(JSON.stringify({ service: 'easyeda-bridge', edaConnected: true }))
       }
       return new Response(JSON.stringify({ result: {} }))
@@ -261,7 +262,7 @@ describe('EasyEdaLibrary bridge lifecycle', () => {
     await expect(library.resolveDevice('x')).rejects.toThrow(/no easyeda bridge found/)
     const value = await library.resolveDevice('x')
     expect(value).toEqual({})
-    // First attempt scanned all ten ports; the retry succeeded on the first.
-    expect(healthCalls).toBe(11)
+    // First attempt scanned the whole range; the retry succeeded on the first.
+    expect(healthCalls).toBe(range + 1)
   })
 })

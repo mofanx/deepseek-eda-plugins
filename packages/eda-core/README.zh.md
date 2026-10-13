@@ -24,7 +24,7 @@ kind: "package-reference"
 
 当插件需要触达正在运行的嘉立创EDA客户端、或需要发出其文档源时依赖本包，与插件注册的引擎 id 无关。`dsh-plugin-eda-easyeda` 为生成路径消费它；审查或分析插件复用同一组入口——`HttpEasyEdaBridge`/`EasyEdaLibrary` 提供实机客户端访问，`parseDocumentSource`/`readBackAttrs`/`readBackNetRegions`/`diffNetlists` 提供读回校验，`serializeEasyEdaDocument`/`serializeEasyEdaProject` 提供文档源输出。
 
-实机路径需要在宿主与运行中的嘉立创EDA客户端之间部署 run-api-gateway 桥服务。本包以 `dsh-eda-bridge` bin 的形式交付——`npx dsh-eda-bridge`（或包内 `node bin/dsh-eda-bridge.mjs`）启动本地中继，绑定 49620–49629 中首个空闲端口，提供 `GET /health`（`{service:"easyeda-bridge", bridge:"dsh-eda-bridge", edaConnected:…}`）与 `POST /execute`，并在 `/eda` 上接受扩展的 WebSocket 注册、在 `/agent` 上接受 agent 连接（首帧为 `{type:"handshake", service:"easyeda-bridge"}`）。二次调用在已有兼容桥应答时退出；占用同一 service id 的异构实现（health 中 `bridge` 字段不同的不兼容协议）会导致启动失败，除非传入 `--force`。嘉立创EDA客户端侧需要安装并加载 `run-api-gateway` 扩展——它通过扫描相同端口范围发现桥。
+实机路径需要在宿主与运行中的嘉立创EDA客户端之间部署 run-api-gateway 桥服务。本包以 `dsh-eda-bridge` bin 的形式交付——`npx dsh-eda-bridge`（或包内 `node bin/dsh-eda-bridge.mjs`）启动本地中继，绑定 49620–49629 中首个空闲端口并在 49630 上加挂专用监听，提供 `GET /health`（`{service:"easyeda-bridge", bridge:"dsh-eda-bridge", edaConnected:…}`）与 `POST /execute`，并在 `/eda` 上接受扩展的 WebSocket 注册、在 `/agent` 上接受 agent 连接（首帧为 `{type:"handshake", service:"easyeda-bridge"}`）。二次调用在已有兼容桥应答时退出；占用同一 service id 的异构实现（health 中 `bridge` 字段不同的不兼容协议）会导致启动失败，除非传入 `--force`。嘉立创EDA客户端侧有两条连接路径：社区 `run-api-gateway` 扩展通过扫描相同端口范围发现桥；编辑器内置网关则在编辑器页签内打开 `https://pro.lceda.cn/api/landing?port=<port>` 触发（`port` 参数仅为元数据——网关固定拨 `ws://127.0.0.1:49630`，随后在 ws 根路径上以 `{type:"register", tabId}` 注册，桥按首条消息将其归类为 EDA 窗口）。49630 被占用时降级为启动警告，社区扩展路径仍可用。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

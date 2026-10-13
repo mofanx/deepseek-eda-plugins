@@ -8,7 +8,7 @@
  *
  * Prerequisites: EasyEDA Web open with the bridge extension enabled, and a
  * bridge server running (the package ships `dsh-eda-bridge`; any
- * `easyeda-bridge` handshake on 49620-49629 works).
+ * `easyeda-bridge` handshake on 49620-49630 works).
  *
  * Usage:
  *   node live-verify.mjs [--lcsc C25804] [--name <project>] [--check-defect]
