@@ -115,6 +115,9 @@ const report = await stage(importIntoEasyEda(ir, {
   bridge,
   projectName,
   symbolPins: new Map([[part.symbolUuid, pins]]),
+  // A slow client can spend minutes on the automatic project open; the
+  // queue-drain wait is timeoutMs * 8 (720s here).
+  timeoutMs: 90_000,
 }), 'importIntoEasyEda')
 console.log(`import: project ${report.projectUuid} (${report.pageUuids.length} page(s)), name "${projectName}"`)
 for (const f of report.findings) {

@@ -26,6 +26,8 @@ function scriptedBridge(responses: unknown[]): { bridge: EasyEdaBridge; calls: s
     bridge: {
       async execute(code: string) {
         calls.push(code)
+        // Post-import queue-drain probes are no-op executes.
+        if (code === 'return true') return true
         return queue.shift()
       },
     },
@@ -41,44 +43,75 @@ describe('serializeEasyEdaProject defaults', () => {
 })
 
 describe('importIntoEasyEda read-back edges', () => {
-  it('tolerates a response without a sources array', async () => {
-    const { bridge } = scriptedBridge([EMPTY_LIBRARY, { status: 'OK', projectUuid: 'p', pageUuids: ['pg'] }])
+  it('tolerates a read-back response without a sources array', async () => {
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY, { status: 'OK', projectUuid: 'p' }, { pageUuids: ['pg'] }])
     const report = await importIntoEasyEda(ir, { bridge })
     expect(report.findings).toEqual([])
   })
 
+  it('reports dropped pages when the read-back stage returns no page list', async () => {
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY, { status: 'OK', projectUuid: 'p' }, { sources: [] }])
+    const report = await importIntoEasyEda(ir, { bridge })
+    expect(report.findings.map(f => f.code)).toContain('SCHEMATIC_IMPORT_PAGE_LOST')
+  })
+
+  it('falls back to the uuid resolved by the read-back stage', async () => {
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY,
+      { status: 'OK', projectUuid: null },
+      { status: 'OK', projectUuid: 'resolved-1', pageUuids: [], sources: [] },
+    ])
+    const report = await importIntoEasyEda(ir, { bridge })
+    expect(report.projectUuid).toBe('resolved-1')
+  })
+
+  it('reports an empty uuid when neither stage resolves one', async () => {
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY,
+      { status: 'OK' },
+      { status: 'OK', pageUuids: [], sources: [] },
+    ])
+    const report = await importIntoEasyEda(ir, { bridge })
+    expect(report.projectUuid).toBe('')
+  })
+
+  it('reports an empty uuid on open failure without an import uuid', async () => {
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY,
+      { status: 'OK' },
+      { status: 'OPEN_FAILED' },
+    ])
+    const report = await importIntoEasyEda(ir, { bridge })
+    expect(report.projectUuid).toBe('')
+    expect(report.findings.map(f => f.code)).toContain('SCHEMATIC_IMPORT_OPEN_FAILED')
+  })
+
   it('stops reading back once every sheet is accounted for', async () => {
-    const { bridge } = scriptedBridge([EMPTY_LIBRARY, {
-      status: 'OK',
-      projectUuid: 'p',
-      pageUuids: ['pg-1', 'pg-2'],
-      sources: [
-        '{"type":"ATTR","id":"a1","ticket":1}||{"key":"Designator","value":"U1"}|',
-        '{"type":"ATTR","id":"a2","ticket":2}||{"key":"Designator","value":"X9"}|',
-      ],
-    }])
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY,
+      { status: 'OK', projectUuid: 'p' },
+      {
+        pageUuids: ['pg-1', 'pg-2'],
+        sources: [
+          '{"type":"ATTR","id":"a1","ticket":1}||{"key":"Designator","value":"U1"}|',
+          '{"type":"ATTR","id":"a2","ticket":2}||{"key":"Designator","value":"X9"}|',
+        ],
+      },
+    ])
     const report = await importIntoEasyEda(ir, { bridge })
     expect(report.findings).toEqual([])
   })
 
   it('does not require a NET attr for the designator check', async () => {
-    const { bridge } = scriptedBridge([EMPTY_LIBRARY, {
-      status: 'OK',
-      projectUuid: 'p',
-      pageUuids: ['pg-1'],
-      sources: ['{"type":"ATTR","id":"a1","ticket":1}||{"key":"Designator","value":"U1"}|'],
-    }])
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY,
+      { status: 'OK', projectUuid: 'p' },
+      { pageUuids: ['pg-1'], sources: ['{"type":"ATTR","id":"a1","ticket":1}||{"key":"Designator","value":"U1"}|'] },
+    ])
     const report = await importIntoEasyEda(ir, { bridge })
     expect(report.findings).toEqual([])
   })
 
   it('treats a NET-only read-back as missing the designator', async () => {
-    const { bridge } = scriptedBridge([EMPTY_LIBRARY, {
-      status: 'OK',
-      projectUuid: 'p',
-      pageUuids: ['pg-1'],
-      sources: ['{"type":"ATTR","id":"a1","ticket":1}||{"key":"NET","value":"SIG"}|'],
-    }])
+    const { bridge } = scriptedBridge([EMPTY_LIBRARY,
+      { status: 'OK', projectUuid: 'p' },
+      { pageUuids: ['pg-1'], sources: ['{"type":"ATTR","id":"a1","ticket":1}||{"key":"NET","value":"SIG"}|'] },
+    ])
     const report = await importIntoEasyEda(ir, { bridge })
     expect(report.findings.map(f => f.code)).toContain('SCHEMATIC_IMPORT_DESIGNATOR')
   })
@@ -93,16 +126,13 @@ describe('EasyEdaSchematicEngine.importProject discovery', () => {
         return new Response(JSON.stringify({ service: 'easyeda-bridge', edaConnected: true }))
       }
       expect(url.endsWith('/execute')).toBe(true)
-      const first = executions++ === 0
+      const nth = executions++
       return new Response(JSON.stringify({
-        result: first
+        result: nth === 0
           ? EMPTY_LIBRARY
-          : {
-            status: 'OK',
-            projectUuid: 'proj-live',
-            pageUuids: ['pg-1'],
-            sources: ['{"type":"ATTR","id":"a1","ticket":1}||{"key":"Designator","value":"U1"}|'],
-          },
+          : nth === 1
+            ? { status: 'OK', projectUuid: 'proj-live' }
+            : { pageUuids: ['pg-1'], sources: ['{"type":"ATTR","id":"a1","ticket":1}||{"key":"Designator","value":"U1"}|'] },
       }))
     }) as typeof fetch
     const engine = new EasyEdaSchematicEngine({

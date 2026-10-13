@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "packages/schematic" },
+    { "path": "packages/eda-core" },
     { "path": "packages/schematic-easyeda" },
     { "path": "packages/tool-schematic" },
     { "path": "packages/schematic-bundle" }

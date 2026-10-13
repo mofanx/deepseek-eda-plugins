@@ -9,7 +9,8 @@ Externalized schematic-generation plugin for DeepSeek Harness. The model produce
 ```
 packages/
   schematic/            @deepseek-ai/dsh-plugin-eda-sch        Service Definition: ctx.schematic, IR, layout, validator
-  schematic-easyeda/    @deepseek-ai/dsh-plugin-eda-easyeda    EasyEDA engine: serialize + live build/import/verify (ships dsh-eda-bridge bin)
+  eda-core/             @deepseek-ai/dsh-plugin-eda-core       Shared EasyEDA client machinery: bridge client/bin, library, readback, serializers
+  schematic-easyeda/    @deepseek-ai/dsh-plugin-eda-easyeda    EasyEDA engine: live build/import/verify orchestration
   tool-schematic/       @deepseek-ai/dsh-plugin-eda-sch-gen    Model tools: schematic_generate, schematic_validate
   schematic-bundle/     @deepseek-ai/dsh-plugin-eda-bundle     dsh.bundle layer (cordis.patch.yml)
 ```
@@ -21,7 +22,7 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-plugin-eda-bundle
 dsh --profile <name>
 ```
 
-Live delivery additionally needs the EasyEDA client running the run-api-gateway extension plus `dsh-eda-bridge` (the bin shipped inside `@deepseek-ai/dsh-plugin-eda-easyeda`).
+Live delivery additionally needs the EasyEDA client running the run-api-gateway extension plus `dsh-eda-bridge` (the bin shipped inside `@deepseek-ai/dsh-plugin-eda-core`).
 
 ## Commands
 

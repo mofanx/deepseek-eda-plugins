@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { serializeEasyEdaDocument, diffNetlists, parseDocumentSource, readBackAttrs, readBackNetRegions } from '@deepseek-ai/dsh-plugin-eda-easyeda'
+import { serializeEasyEdaDocument, diffNetlists, parseDocumentSource, readBackAttrs, readBackNetRegions } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { SchematicIr, SchematicIrSheet } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** U1 drives SIG into U2 over one wire: the canonical clean document. */

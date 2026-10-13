@@ -10,6 +10,9 @@
   "references": [
     {
       "path": "../schematic"
+    },
+    {
+      "path": "../eda-core"
     }
   ]
 }

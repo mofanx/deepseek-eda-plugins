@@ -1,28 +1,28 @@
 # Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write packages/schematic/schematic-easyeda/README.md
+#   pnpm run verify-translation-pairing --write ../deepseek-eda-plugins/packages/schematic-easyeda/README.md
 /:
   en: a4c4850d7838c16b
   zh: ba0b7acd823cb257
 /deepseek-ai-dsh-plugin-eda-easyeda:
-  en: 5acd5802fb3c5eb1
-  zh: fc0b6a5aa3f84c19
+  en: 740cdc1f23026cbe
+  zh: feb7cbf6be2d4326
 /deepseek-ai-dsh-plugin-eda-easyeda/summary:
-  en: a1a1903bb896b0ae
-  zh: 5cff23c5950a0972
+  en: 1c35389582cd67c9
+  zh: bc2492c2dd272e83
 /deepseek-ai-dsh-plugin-eda-easyeda/table-of-contents:
   en: 3460b3e585e0c020
   zh: bb83d3d282b286d8
 /deepseek-ai-dsh-plugin-eda-easyeda/use-this-package:
-  en: da2338a406f9d536
-  zh: cd52c96f811051a7
+  en: e785883952ac7327
+  zh: f371f4db4f8aaeee
 /deepseek-ai-dsh-plugin-eda-easyeda/understand-the-implementation:
-  en: 58cb49cbfee887f7
-  zh: e976a934c34a52d6
+  en: dbfa6ecde9371638
+  zh: 60d72f50d034598d
 /deepseek-ai-dsh-plugin-eda-easyeda/model-experience:
-  en: 9f656cde2a2bdf2c
-  zh: c3818839a5d39f9f
+  en: 84e1b864bbff0c35
+  zh: 45ea935097dd38a1
 /deepseek-ai-dsh-plugin-eda-easyeda/model-experience/kv-cache-effect:
   en: 22fd222d7c88b25e
   zh: 97a8b0a5ee556966

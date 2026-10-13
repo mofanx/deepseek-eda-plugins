@@ -30,6 +30,22 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@22.20.5)
 
+  packages/eda-core:
+    dependencies:
+      '@deepseek-ai/dsh-plugin-eda-sch':
+        specifier: workspace:*
+        version: link:../schematic
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
+    devDependencies:
+      '@deepseek-ai/dsh-timeout':
+        specifier: link:../../../deepseek-harness/packages/util/timeout
+        version: link:../../../deepseek-harness/packages/util/timeout
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.2
+
   packages/schematic:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -67,15 +83,15 @@ importers:
 
   packages/schematic-easyeda:
     dependencies:
+      '@deepseek-ai/dsh-plugin-eda-core':
+        specifier: workspace:*
+        version: link:../eda-core
       '@deepseek-ai/dsh-plugin-eda-sch':
         specifier: workspace:*
         version: link:../schematic
       '@deepseek-ai/schemastery':
         specifier: ^3.18.4
         version: 3.18.4
-      ws:
-        specifier: 8.21.3
-        version: 8.21.3
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: link:../../../deepseek-harness/vendor/cordis
@@ -83,9 +99,6 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: link:../../../deepseek-harness/vendor/loader
         version: link:../../../deepseek-harness/vendor/loader
-      '@deepseek-ai/dsh-timeout':
-        specifier: link:../../../deepseek-harness/packages/util/timeout
-        version: link:../../../deepseek-harness/packages/util/timeout
       typescript:
         specifier: ^5.9.0
         version: 5.9.2

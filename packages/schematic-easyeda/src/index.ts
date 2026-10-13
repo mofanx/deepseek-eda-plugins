@@ -12,27 +12,27 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { SchematicEngine, SchematicFinding, SchematicIr, SchematicSymbolPin } from '@deepseek-ai/dsh-plugin-eda-sch'
-import { serializeEasyEdaDocument } from './serialize.ts'
-import { HttpEasyEdaBridge } from './bridge.ts'
+import { serializeEasyEdaDocument } from '@deepseek-ai/dsh-plugin-eda-core'
+import { HttpEasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
 import { buildIntoEasyEda, importIntoEasyEda } from './build.ts'
-import { EasyEdaLibrary } from './library.ts'
-import type { EasyEdaBridge } from './bridge.ts'
+import { EasyEdaLibrary } from '@deepseek-ai/dsh-plugin-eda-core'
+import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { EasyEdaBuildReport, EasyEdaImportReport } from './build.ts'
 
-export { serializeEasyEdaDocument, serializeEasyEdaProject } from './serialize.ts'
+export { serializeEasyEdaDocument, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
 export type {
   EasyEdaEmbeddedDoc,
   EasyEdaProjectLibrary,
   EasyEdaProjectPackage,
   EasyEdaSerializeOptions,
-} from './serialize.ts'
+} from '@deepseek-ai/dsh-plugin-eda-core'
 export {
   EASYEDA_BRIDGE_IMPLEMENTATION,
   EASYEDA_BRIDGE_PORT_MAX,
   EASYEDA_BRIDGE_PORT_MIN,
   HttpEasyEdaBridge,
-} from './bridge.ts'
-export type { EasyEdaBridge, EasyEdaBridgeExecuteOptions, HttpEasyEdaBridgeOptions } from './bridge.ts'
+} from '@deepseek-ai/dsh-plugin-eda-core'
+export type { EasyEdaBridge, EasyEdaBridgeExecuteOptions, HttpEasyEdaBridgeOptions } from '@deepseek-ai/dsh-plugin-eda-core'
 export {
   buildIntoEasyEda,
   collectProjectLibrary,
@@ -42,6 +42,7 @@ export {
   renderWireChunkScript,
   renderOracleScript,
   renderImportScript,
+  renderImportReadbackScript,
 } from './build.ts'
 export type {
   EasyEdaBuildOptions,
@@ -50,9 +51,9 @@ export type {
   EasyEdaImportOptions,
   EasyEdaImportReport,
 } from './build.ts'
-export { diffNetlists, parseDocumentSource, readBackAttrs, readBackNetRegions } from './readback.ts'
-export { EasyEdaLibrary } from './library.ts'
-export type { EasyEdaLibraryOptions } from './library.ts'
+export { diffNetlists, parseDocumentSource, readBackAttrs, readBackNetRegions } from '@deepseek-ai/dsh-plugin-eda-core'
+export { EasyEdaLibrary } from '@deepseek-ai/dsh-plugin-eda-core'
+export type { EasyEdaLibraryOptions } from '@deepseek-ai/dsh-plugin-eda-core'
 
 /** Stable engine id of the EasyEDA document-source serializer. */
 export const EASYEDA_ENGINE_ID = 'easyeda'

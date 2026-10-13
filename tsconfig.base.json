@@ -28,6 +28,7 @@
     // a second module-singleton copy from built lib/.
     "paths": {
       "@deepseek-ai/dsh-plugin-eda-sch": ["./packages/schematic/src/index.ts"],
+      "@deepseek-ai/dsh-plugin-eda-core": ["./packages/eda-core/src/index.ts"],
       "@deepseek-ai/dsh-plugin-eda-easyeda": ["./packages/schematic-easyeda/src/index.ts"],
       "@deepseek-ai/dsh-plugin-eda-sch-gen": ["./packages/tool-schematic/src/index.ts"],
       "@deepseek-ai/dsh-plugin-eda-bundle": ["./packages/schematic-bundle/src/index.ts"]

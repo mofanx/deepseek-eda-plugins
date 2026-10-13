@@ -1,0 +1,40 @@
+{
+  "name": "@deepseek-ai/dsh-plugin-eda-core",
+  "description": "Shared EasyEDA client machinery for the dsh-plugin-eda-* plugins: run-api-gateway bridge client and dsh-eda-bridge bin, workspace library, document-source read-back/netlist diff, and V3 SCH_PAGE/.epro2 serializers",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "bin": {
+    "dsh-eda-bridge": "./bin/dsh-eda-bridge.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts",
+    "bin/dsh-eda-bridge.mjs"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/dsh-timeout": ">=0.0.1-rc.1"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
+    "@deepseek-ai/dsh-timeout": "link:../../../deepseek-harness/packages/util/timeout",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { EasyEdaLibrary } from '@deepseek-ai/dsh-plugin-eda-easyeda'
-import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-easyeda'
+import { EasyEdaLibrary } from '@deepseek-ai/dsh-plugin-eda-core'
+import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
 import { SCHEMATIC_LOOKUP_FAILED } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** A scripted bridge that records every code body and returns canned values. */

@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../deepseek-eda-plugins/packages/eda-core/README.md
+/:
+  en: 185a67e71cb2ff96
+  zh: 59ca9a2d52e03528
+/deepseek-ai-dsh-plugin-eda-core:
+  en: ac799b4d96dfea1b
+  zh: 383f1e5a51ff8af0
+/deepseek-ai-dsh-plugin-eda-core/summary:
+  en: 341f1fc7206774c6
+  zh: c8f63887d270f671
+/deepseek-ai-dsh-plugin-eda-core/table-of-contents:
+  en: ca5dc537b0599b2a
+  zh: 2d06aa7b69a556c3
+/deepseek-ai-dsh-plugin-eda-core/use-this-package:
+  en: f096eb99ef5922ce
+  zh: 2d2359e445457550
+/deepseek-ai-dsh-plugin-eda-core/understand-the-implementation:
+  en: dcf47a399e74e8d8
+  zh: 2fce528228a1b7b5
+/deepseek-ai-dsh-plugin-eda-core/known-limitations-and-deferred-work:
+  en: 568b16ffde590565
+  zh: 174bc36389109e3f

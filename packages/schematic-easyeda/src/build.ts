@@ -17,10 +17,10 @@ import type {
   SchematicLocator,
   SchematicSymbolPin,
 } from '@deepseek-ai/dsh-plugin-eda-sch'
-import type { EasyEdaBridge } from './bridge.ts'
-import { serializeEasyEdaProject } from './serialize.ts'
-import type { EasyEdaEmbeddedDoc, EasyEdaProjectLibrary, EasyEdaProjectPackage } from './serialize.ts'
-import { diffNetlists, parseDocumentSource, readBackAttrs } from './readback.ts'
+import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
+import { serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
+import type { EasyEdaEmbeddedDoc, EasyEdaProjectLibrary, EasyEdaProjectPackage } from '@deepseek-ai/dsh-plugin-eda-core'
+import { diffNetlists, parseDocumentSource, readBackAttrs } from '@deepseek-ai/dsh-plugin-eda-core'
 
 /** Options for {@link buildIntoEasyEda}. */
 export interface EasyEdaBuildOptions {
@@ -1150,18 +1150,23 @@ export interface EasyEdaImportReport {
 
 /**
  * Render the in-client body that packs `project2.json` + `*.epru` into a
- * store-method zip, hands it to `sys_FileManager.importProjectByProjectFile`
- * (BETA), then re-opens each imported page and returns its document source.
+ * store-method zip and hands it to
+ * `sys_FileManager.importProjectByProjectFile` (BETA). The script returns as
+ * soon as the import call resolves: the client auto-opens the new project,
+ * and while that switch is in flight every `eda.*` call serializes behind
+ * it — the caller drains the dispatch queue and confirms identity through
+ * {@link renderImportReadbackScript} instead.
  * @param pkg - the serialized project payload.
  * @param projectName - friendly name of the imported project.
- * @param allowTabClose - whether openProject may close the current project's
- * open document tabs when the client refuses to switch.
  * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
  */
-export function renderImportScript(pkg: EasyEdaProjectPackage, projectName: string, allowTabClose = false): string {
+export function renderImportScript(pkg: EasyEdaProjectPackage, projectName: string): string {
   return `const crcTable = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t })();
 const crc32 = (bytes) => { let c = 0xFFFFFFFF; for (const b of bytes) c = crcTable[(c ^ b) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0 };
 const enc = new TextEncoder();
+// Race an eda.* call against a soft deadline: a hung client-side API must not
+// stall this script past the gateway's request budget.
+const raced = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 const zipEntries = [['project2.json', ${JSON.stringify(pkg.projectJson)}], ['dsh-import.epru', ${JSON.stringify(pkg.epru)}]];
 const chunks = []; const central = []; let offset = 0;
 for (const [name, content] of zipEntries) {
@@ -1188,36 +1193,82 @@ chunks.push(...central, new Uint8Array(eo.buffer));
 const teams = await eda.dmt_Team.getAllTeamsInfo();
 if (!teams || !teams.length) return { status: 'NO_TEAM' };
 // Same-name projects collide in the workspace; pick a free suffix upfront.
+// The scan reads every workspace project name serially — unbounded, that
+// alone outlives the request budget on a large workspace (or wedges the
+// gateway queue when one getProjectInfo hangs), so every call is raced and
+// the whole scan is capped; a missed name only risks a cosmetic duplicate,
+// since the import itself is uuid-keyed.
 let projectName = ${JSON.stringify(projectName)};
 try {
-  const uuids = await eda.dmt_Project.getAllProjectsUuid(teams[0].uuid) || [];
+  const uuids = await raced(eda.dmt_Project.getAllProjectsUuid(teams[0].uuid), 5000) || [];
   const names = new Set();
-  for (const u of uuids) {
-    try {
-      const info = await eda.dmt_Project.getProjectInfo(u);
+  const deadline = Date.now() + 6000;
+  for (let i = 0; i < uuids.length && Date.now() < deadline; i += 8) {
+    await Promise.all(uuids.slice(i, i + 8).map(async (u) => {
+      const info = await raced(eda.dmt_Project.getProjectInfo(u), 1200);
       const n = info && (info.name ?? info.friendlyName);
       if (typeof n === 'string') names.add(n);
       // Project names can come back owner-prefixed ("owner/name"); the import
       // option takes the bare name, so collide on the basename too.
       if (typeof n === 'string' && n.includes('/')) names.add(n.slice(n.lastIndexOf('/') + 1));
-    } catch (e) {}
+    }));
   }
   for (let attempt = 1; names.has(projectName) && attempt < 20; attempt++) {
     projectName = ${JSON.stringify(projectName)} + ' v' + (attempt + 1);
   }
 } catch (e) {}
 const file = new File([new Blob(chunks)], 'dsh-import.epro2', { type: 'application/octet-stream' });
-const project = await eda.sys_FileManager.importProjectByProjectFile(file, 'JLCEDA Pro', undefined, {
+const project = await raced(eda.sys_FileManager.importProjectByProjectFile(file, 'JLCEDA Pro', undefined, {
   operation: 'New Project',
   newProjectOwnerTeamUuid: teams[0].uuid,
   newProjectName: projectName,
   newProjectFriendlyName: projectName,
-});
+}), 20000);
 if (!project) return { status: 'IMPORT_REJECTED' };
-// The client refuses to switch projects while the current one has open
-// document tabs; closing them mutates the user's editor layout, so the
-// fallback runs only under allowTabClose and otherwise reports.
-let opened = await eda.dmt_Project.openProject(project.uuid);
+// The client auto-opens the freshly imported project, and while that switch
+// is in flight every eda.* call serializes behind it — on a slow client the
+// open outlives the whole request budget. Return now: the host drains the
+// dispatch queue with no-op probes and the read-back stage confirms the
+// project identity. project can lack a uuid while the import still lands,
+// so the identity may have to be resolved by name later.
+return { status: 'OK', projectUuid: project.uuid ?? null, projectName };`
+}
+
+/**
+ * Render the read-back stage of an import as a standalone client script —
+ * the gateway bounds a single execute to ~30s, so project-identity
+ * confirmation, page enumeration, and per-page source reads run as their
+ * own request after the import stage lands and the dispatch queue drains.
+ * Only pages emitted by the archive count: enumerating without scoping can
+ * return the previously open project's documents, and diffing the IR
+ * against a foreign document produces false netlist findings.
+ * @param pageUuids - page uuids this archive emitted (`pkg.pageUuids`).
+ * @param projectUuid - uuid returned by the import call, or null when the
+ * client resolved the import without one (matched by `projectName` then).
+ * @param projectName - the name the import stage actually used.
+ * @param allowTabClose - whether openProject may close the current
+ * project's open document tabs when the client refuses to switch.
+ * @returns the script text for `bridge.execute`.
+ */
+export function renderImportReadbackScript(
+  pageUuids: readonly string[],
+  projectUuid: string | null,
+  projectName: string,
+  allowTabClose = false,
+): string {
+  return `const raced = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
+const expectedPages = ${JSON.stringify(pageUuids)};
+const wantedUuid = ${JSON.stringify(projectUuid)};
+const wantedName = ${JSON.stringify(projectName)};
+const isOurs = (p) => p && (p.uuid === wantedUuid || (wantedUuid === null && p.name === wantedName));
+// Confirm the auto-opened project is ours; a refused switch falls back to
+// explicit openProject after closing document tabs under allowTabClose.
+let current = null;
+for (let i = 0; i < 4 && !isOurs(current); i++) {
+  current = await raced(eda.dmt_Project.getCurrentProjectInfo(), 5000);
+  if (!isOurs(current)) await new Promise(r => setTimeout(r, 1000));
+}
+let opened = isOurs(current);
 let openTabs = 0;
 if (!opened) {
   const tabIds = [];
@@ -1227,35 +1278,32 @@ if (!opened) {
     if (typeof n.tabId === 'string') tabIds.push(n.tabId);
     for (const k in n) walkTabs(n[k]);
   };
-  walkTabs(await eda.dmt_EditorControl.getSplitScreenTree());
+  walkTabs(await raced(eda.dmt_EditorControl.getSplitScreenTree(), 4000));
   openTabs = tabIds.length;
   if (${allowTabClose ? 'true' : 'false'}) {
-    for (const t of tabIds) await eda.dmt_EditorControl.closeDocument(t);
-    opened = await eda.dmt_Project.openProject(project.uuid);
+    for (const t of tabIds) await raced(eda.dmt_EditorControl.closeDocument(t), 4000);
+  }
+  if (wantedUuid !== null) {
+    opened = await raced(eda.dmt_Project.openProject(wantedUuid), 8000) === true;
+    current = await raced(eda.dmt_Project.getCurrentProjectInfo(), 4000);
+    opened = opened || isOurs(current);
   }
 }
-const current = await eda.dmt_Project.getCurrentProjectInfo();
-if (!opened || !current || current.uuid !== project.uuid) {
-  return { status: 'OPEN_FAILED', projectUuid: project.uuid, pageUuids: [], sources: [], openTabs, projectName };
-}
-// Only pages emitted by this archive count: enumerating without scoping can
-// return the previously open project's documents, and diffing the IR against
-// a foreign document produces false netlist findings.
-const expectedPages = ${JSON.stringify(pkg.pageUuids)};
-let pages = [];
+if (!opened) return { status: 'OPEN_FAILED', openTabs };
+const pages = [];
 for (let attempt = 0; attempt < 20 && pages.length < expectedPages.length; attempt++) {
-  const all = await eda.dmt_Schematic.getAllSchematicPagesInfo() || [];
-  pages = expectedPages.filter(u => all.some(p => p.uuid === u));
+  const all = await raced(eda.dmt_Schematic.getAllSchematicPagesInfo(), 4000) || [];
+  for (const u of expectedPages) if (!pages.includes(u) && all.some(p => p.uuid === u)) pages.push(u);
   if (pages.length < expectedPages.length) await new Promise(r => setTimeout(r, 500));
 }
 const sources = [];
 for (const uuid of pages) {
-  await eda.dmt_EditorControl.openDocument(uuid);
-  const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+  await raced(eda.dmt_EditorControl.openDocument(uuid), 8000);
+  const active = await raced(eda.dmt_Schematic.getCurrentSchematicPageInfo(), 4000);
   if (!active || active.uuid !== uuid) { sources.push(null); continue; }
-  sources.push(await eda.sys_FileManager.getDocumentSource());
+  sources.push(await raced(eda.sys_FileManager.getDocumentSource(), 8000));
 }
-return { status: 'OK', projectUuid: project.uuid, pageUuids: pages, sources, projectName };`
+return { status: 'OK', projectUuid: current && current.uuid, pageUuids: pages, sources };`
 }
 
 /**
@@ -1271,6 +1319,9 @@ return { status: 'OK', projectUuid: project.uuid, pageUuids: pages, sources, pro
  * @returns imported project uuid, page uuids, and structured findings.
  */
 export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportOptions): Promise<EasyEdaImportReport> {
+  // A no-op execute used to detect that the client's serialized dispatch
+  // queue has drained after the import triggered an automatic project open.
+  const IMPORT_DRAIN_PROBE = 'return true'
   const { bridge } = options
   const projectName = options.projectName ?? 'DSH Schematic'
   const collected = await collectProjectLibrary(ir, bridge, options.timeoutMs)
@@ -1284,36 +1335,57 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
     }))
   const pkg = serializeEasyEdaProject(ir, { clientId: options.clientId, title: projectName, library: collected.library })
   const raw = await bridge.execute(
-    renderImportScript(pkg, projectName, options.allowTabClose === true),
+    renderImportScript(pkg, projectName),
     { timeoutMs: options.timeoutMs },
-  ) as {
-    status?: string
-    projectUuid?: string
-    projectName?: string
-    pageUuids?: string[]
-    sources?: (string | null)[]
-    openTabs?: number
-  }
+  ) as { status?: string, projectUuid?: string | null, projectName?: string }
   if (raw.status === 'NO_TEAM') {
     throw new SchematicError('no team resolved for the import destination', 'SCHEMATIC_IMPORT_NO_TEAM')
   }
-  if (raw.status === 'OPEN_FAILED' && typeof raw.projectUuid === 'string') {
+  if (raw.status !== 'OK') {
+    throw new SchematicError('the client rejected the generated project package', 'SCHEMATIC_IMPORT_REJECTED')
+  }
+
+  // The client auto-opens the imported project and serializes every later
+  // in-page call behind that switch; a slow open outlives the per-request
+  // gateway budget, so drain the dispatch queue with no-op probes — a probe
+  // only returns once every request ahead of it finished.
+  const projectUuid = typeof raw.projectUuid === 'string' ? raw.projectUuid : null
+  const openWaitMs = (options.timeoutMs ?? 30_000) * 8
+  const openDeadline = Date.now() + openWaitMs
+  let drained = false
+  while (!drained && Date.now() < openDeadline) {
+    try {
+      await bridge.execute(IMPORT_DRAIN_PROBE, { timeoutMs: 15_000 })
+      drained = true
+    } catch {
+      // The probe is still queued behind the project switch — retry.
+      await new Promise(r => setTimeout(r, 1_000))
+    }
+  }
+  const readBack = drained
+    ? await bridge.execute(
+      renderImportReadbackScript(pkg.pageUuids, projectUuid, raw.projectName ?? projectName, options.allowTabClose === true),
+      { timeoutMs: options.timeoutMs },
+    ) as { status?: string, projectUuid?: string, openTabs?: number, pageUuids?: string[], sources?: (string | null)[] }
+    : { status: 'OPEN_FAILED' as const }
+  if (readBack.status === 'OPEN_FAILED') {
     return {
-      projectUuid: raw.projectUuid,
+      projectUuid: projectUuid ?? '',
       pageUuids: [],
       findings: [{
         code: 'SCHEMATIC_IMPORT_OPEN_FAILED',
         severity: 'error',
-        message: `project ${raw.projectUuid} imported but the client refused to open it (openProject returned false)` +
-          (typeof raw.openTabs === 'number' && raw.openTabs > 0 && options.allowTabClose !== true
-            ? ` — ${raw.openTabs} document tab(s) block the project switch; set allowTabClose to close them, or close them in the editor`
-            : ' — read-back skipped so no foreign document is diffed'),
+        message: drained
+          ? `project imported but the client refused to open it` +
+            (typeof readBack.openTabs === 'number' && readBack.openTabs > 0 && options.allowTabClose !== true
+              ? ` — ${readBack.openTabs} document tab(s) block the project switch; set allowTabClose to close them, or close them in the editor`
+              : ' — read-back skipped so no foreign document is diffed')
+          : `project imported but the client did not finish opening it within ${openWaitMs}ms — read-back skipped`,
       }],
     }
   }
-  if (raw.status !== 'OK' || typeof raw.projectUuid !== 'string' || !Array.isArray(raw.pageUuids)) {
-    throw new SchematicError('the client rejected the generated project package', 'SCHEMATIC_IMPORT_REJECTED')
-  }
+  const pageUuids = Array.isArray(readBack.pageUuids) ? readBack.pageUuids : []
+  const sources = Array.isArray(readBack.sources) ? readBack.sources : []
 
   const findings: SchematicFinding[] = [...collected.findings]
   if (typeof raw.projectName === 'string' && raw.projectName !== projectName) {
@@ -1323,14 +1395,13 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
       message: `project name "${projectName}" was already taken; imported as "${raw.projectName}"`,
     })
   }
-  if (raw.pageUuids.length < ir.sheets.length) {
+  if (pageUuids.length < ir.sheets.length) {
     findings.push({
       code: 'SCHEMATIC_IMPORT_PAGE_LOST',
       severity: 'error',
-      message: `importer attached ${raw.pageUuids.length} of ${ir.sheets.length} sheets`,
+      message: `importer attached ${pageUuids.length} of ${ir.sheets.length} sheets`,
     })
   }
-  const sources = Array.isArray(raw.sources) ? raw.sources : []
   for (const [index, source] of sources.entries()) {
     const sheet = ir.sheets[index]
     if (sheet === undefined) break
@@ -1364,5 +1435,5 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
     findings.push(...diffNetlists(sheet, source, index, options.symbolPins))
   }
 
-  return { projectUuid: raw.projectUuid, pageUuids: raw.pageUuids, findings }
+  return { projectUuid: projectUuid ?? readBack.projectUuid ?? '', pageUuids, findings }
 }
