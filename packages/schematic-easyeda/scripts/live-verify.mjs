@@ -84,9 +84,12 @@ const stubEndOf = (pin, defect) => {
 }
 const ir = {
   sheets: [{
+    name: 'DUT',
+    blocks: [{ name: 'dut', title: 'DEVICE UNDER TEST' }],
     components: [{
       id: 'u1',
       kind: 'part',
+      block: 'dut',
       designator: 'U1',
       deviceUuid: part.deviceUuid,
       ...(part.deviceLibraryUuid === undefined ? {} : { deviceLibraryUuid: part.deviceLibraryUuid }),
@@ -115,6 +118,9 @@ const report = await stage(importIntoEasyEda(ir, {
   bridge,
   projectName,
   symbolPins: new Map([[part.symbolUuid, pins]]),
+  // Verification owns the editor: previous runs leave document tabs open that
+  // would otherwise block the project switch.
+  allowTabClose: true,
   // A slow client can spend minutes on the automatic project open; the
   // queue-drain wait is timeoutMs * 8 (720s here).
   timeoutMs: 90_000,
@@ -123,6 +129,22 @@ console.log(`import: project ${report.projectUuid} (${report.pageUuids.length} p
 for (const f of report.findings) {
   console.log(`  [${f.severity}] ${f.code}: ${f.message}`)
 }
+
+// 5. Module-frame proof: the imported page must hold the dashed RECT border
+//    and the TEXT title the serializer emits for the sheet's declared block.
+const frameCount = await stage(bridge.execute(`let rects = 0; let texts = 0;
+for (const uuid of ${JSON.stringify(report.pageUuids)}) {
+  try {
+    await eda.dmt_EditorControl.openDocument(uuid);
+    try { rects += (await eda.sch_PrimitiveRectangle.getAll() || []).length } catch (e) {}
+    try { texts += (await eda.sch_PrimitiveText.getAll() || []).length } catch (e) {}
+  } catch (e) {}
+}
+return { rects, texts };`, { timeoutMs: 60_000 }), 'frame probe')
+if (!frameCount || frameCount.rects < 1 || frameCount.texts < 1) {
+  fail(`module frame missing on imported page: ${JSON.stringify(frameCount)}`)
+}
+console.log(`frames: ${frameCount.rects} rectangle(s), ${frameCount.texts} text(s) rendered`)
 
 const errors = report.findings.filter(f => f.severity === 'error')
 if (checkDefect) {

@@ -40,6 +40,7 @@ export {
   renderPrepareScript,
   renderComponentChunkScript,
   renderWireChunkScript,
+  renderBlockChunkScript,
   renderOracleScript,
   renderImportScript,
   renderImportReadbackScript,

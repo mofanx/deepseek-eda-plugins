@@ -30,6 +30,19 @@ describe('diffNetlists', () => {
     expect(findings.filter(f => f.code.startsWith('SCHEMATIC_NETLIST_'))).toEqual([])
   })
 
+  it('ignores non-electrical RECT/TEXT frame records in the netlist diff', () => {
+    const doc = sheet()
+    const framed: SchematicIrSheet = {
+      ...doc,
+      blocks: [{ name: 'dut' }],
+      components: doc.components.map(component => ({ ...component, block: 'dut' })),
+    }
+    const src = source({ sheets: [framed] })
+    expect(src).toContain('"type":"RECT"')
+    expect(src).toContain('"type":"TEXT"')
+    expect(diffNetlists(framed, src, 0).filter(f => f.code.startsWith('SCHEMATIC_NETLIST_'))).toEqual([])
+  })
+
   it('reports SCHEMATIC_NETLIST_DROPPED when the wire geometry is absent', () => {
     const doc = sheet()
     const src = source({ sheets: [doc] }).split('\n')

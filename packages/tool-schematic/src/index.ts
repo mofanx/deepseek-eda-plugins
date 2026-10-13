@@ -90,8 +90,10 @@ function findingText(finding: {
 }
 
 const DOCUMENT_PARAM_DESCRIPTION =
-  'Schematic IR document: { sheets: [{ components, wires, busEntries, junctions, attrs }] }. ' +
-  'Components have { id, kind: "part"|"block"|"netflag"|"netport"|"sheet"|"nonelec"|"short", pins: [{ id, name, number, electric: "UNKNOWN"|"INPUT"|"OUTPUT"|"BI", net?, noConnect?, powerName?, endpoint?: {x,y} }] } ' +
+  'Schematic IR document: { sheets: [{ name?, blocks?, components, wires, busEntries, junctions, attrs }] }. ' +
+  'A sheet may carry name (page title) and blocks: [{ name, title? }] — declared functional modules in display order. ' +
+  'Components have { id, kind: "part"|"block"|"netflag"|"netport"|"sheet"|"nonelec"|"short", block?, pins: [{ id, name, number, electric: "UNKNOWN"|"INPUT"|"OUTPUT"|"BI", net?, noConnect?, powerName?, endpoint?: {x,y} }] } ' +
+  'where block names the component\'s functional module (a sheet.blocks name or a free-form label; same-module components cluster together and inter-module nets route through flags). ' +
   'plus optional deviceUuid/symbolUuid/footprintUuid (each with its owning-library scope deviceLibraryUuid/symbolLibraryUuid/footprintLibraryUuid — a scopeless binding is only an unverifiable warning, not a blocking miss), designator/netName/lcsc (LCSC part number resolved to library bindings when a workspace library is reachable). ' +
   'Declare connectivity with pin.net — the layout stage deterministically assigns positions, pin endpoints, and orthogonal wire or net-flag routing in 0.01-inch coordinates, so position/endpoint/dots may be omitted. ' +
   'Wires have { id, kind: "wire"|"bus", dots?: [[x1,y1,x2,y2,...]], net }.'
@@ -276,6 +278,6 @@ export function apply(ctx: Context, config: Config): void {
     order: 2500,
     text: ({ scope }) => ctx.tools.get('schematic_generate', scope) === undefined && ctx.tools.get('schematic_validate', scope) === undefined
       ? ''
-      : 'When the user asks to produce, emit, or check schematic primitives from a schematic IR document, call `schematic_generate` (validate-then-emit) or `schematic_validate` (validate only). Declare connectivity through pin.net names — the layout stage places and routes deterministically in 0.01-inch coordinates, so geometry fields may be omitted; every wire must declare its net name and every pin must carry NAME/NUMBER attributes. Pass verify: true to run the live-client netlist read-back when one is reachable. If either tool reports findings, repair the document and retry.',
+      : 'When the user asks to produce, emit, or check schematic primitives from a schematic IR document, call `schematic_generate` (validate-then-emit) or `schematic_validate` (validate only). Declare connectivity through pin.net names — the layout stage places and routes deterministically in 0.01-inch coordinates, so geometry fields may be omitted; every wire must declare its net name and every pin must carry NAME/NUMBER attributes. Tag each component\'s functional module via component.block (e.g. "power", "mcu-core", "clock", "reset", "io"; custom names are fine) and list them on sheets[].blocks so modules cluster under labelled frames; a design beyond roughly 20 parts should split into multiple sheets, one module per page, with sheets[].name set. Pass verify: true to run the live-client netlist read-back when one is reachable. If either tool reports findings, repair the document and retry.',
   })
 }

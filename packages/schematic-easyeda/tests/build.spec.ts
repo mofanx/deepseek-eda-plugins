@@ -4,6 +4,7 @@ import {
   buildIntoEasyEda,
   collectProjectLibrary,
   importIntoEasyEda,
+  renderBlockChunkScript,
   renderComponentChunkScript,
   renderImportScript,
   renderImportReadbackScript,
@@ -147,6 +148,28 @@ describe('renderWireChunkScript', () => {
   })
 })
 
+describe('renderBlockChunkScript', () => {
+  it('creates rectangles and titles, dedupes on geometry, and counts nothing', () => {
+    const code = renderBlockChunkScript([
+      { name: 'power', title: 'POWER SUPPLY', x: 20, y: 60, width: 170, height: 220, titleX: 40, titleY: 70 },
+    ], 'page-1', 0)
+    for (const token of [
+      'sch_PrimitiveRectangle.getAll',
+      'sch_PrimitiveText.getAll',
+      'sch_PrimitiveRectangle.create(',
+      'sch_PrimitiveText.create(',
+      'getState_TopLeftX',
+      'getState_Content',
+      'openDocument',
+      "'WRONG_PAGE'",
+      'FRAME_FAILED',
+      'created: 0',
+    ]) {
+      expect(code).toContain(token)
+    }
+  })
+})
+
 describe('renderOracleScript', () => {
   it('collects counts, net names, and DRC detail', () => {
     const code = renderOracleScript(['page-1'], true)
@@ -195,6 +218,81 @@ describe('buildIntoEasyEda chunked placement', () => {
     expect(calls[5]).toContain('counts')
     expect(report.created).toBe(7)
     expect(report.pageUuids).toEqual(['page-1'])
+  })
+
+  const blockedIr: SchematicIr = {
+    sheets: [{
+      ...ir.sheets[0]!,
+      blocks: [{ name: 'pwr', title: 'PWR' }],
+      components: ir.sheets[0]!.components.map(component => ({ ...component, block: 'pwr' })),
+    }],
+  }
+
+  it('draws module frames after the electrical chunks without inflating the count', async () => {
+    const { bridge, calls } = scriptedBridge([
+      prepareOk,
+      chunkOk(1),
+      chunkOk(4),
+      chunkOk(2),
+      { status: 'OK', failures: [], created: 0 },
+      [null],
+      oracleOk,
+    ])
+    const report = await buildIntoEasyEda(blockedIr, { bridge })
+    expect(calls).toHaveLength(7)
+    expect(calls[4]).toContain('sch_PrimitiveRectangle.create(')
+    expect(calls[4]).toContain('sch_PrimitiveText.create(')
+    expect(calls[4]).toContain('"title":"PWR"')
+    expect(report.created).toBe(7)
+    expect(report.findings.filter(f => f.severity === 'error')).toEqual([])
+  })
+
+  it('reports a frame create failure as a warning, never an error', async () => {
+    const { bridge } = scriptedBridge([
+      prepareOk,
+      chunkOk(1),
+      chunkOk(4),
+      chunkOk(2),
+      { status: 'OK', failures: [{ code: 'FRAME_FAILED', irId: 'block:pwr', sheetIndex: 0 }], created: 0 },
+      [null],
+      oracleOk,
+    ])
+    const report = await buildIntoEasyEda(blockedIr, { bridge })
+    const finding = report.findings.find(f => f.code === 'SCHEMATIC_BUILD_FRAME_FAILED')
+    expect(finding?.severity).toBe('warning')
+    expect(finding?.message).toContain('module frame')
+  })
+
+  it('degrades an unreachable frame chunk to warnings instead of CHUNK_FAILED errors', async () => {
+    const { bridge } = scriptedBridge([
+      prepareOk,
+      chunkOk(1),
+      chunkOk(4),
+      chunkOk(2),
+      { reject: new Error('wedged') },
+      { reject: new Error('wedged') },
+      [null],
+      oracleOk,
+    ])
+    const report = await buildIntoEasyEda(blockedIr, { bridge, retries: 1, retryBackoffMs: 0 })
+    const finding = report.findings.find(f => f.code === 'SCHEMATIC_BUILD_FRAME_FAILED')
+    expect(finding?.severity).toBe('warning')
+    expect(finding?.message).toContain('wedged')
+  })
+
+  it('renders a non-Error frame-chunk rejection verbatim', async () => {
+    const { bridge } = scriptedBridge([
+      prepareOk,
+      chunkOk(1),
+      chunkOk(4),
+      chunkOk(2),
+      { reject: 'socket gone' },
+      [null],
+      oracleOk,
+    ])
+    const report = await buildIntoEasyEda(blockedIr, { bridge, retries: 0, retryBackoffMs: 0 })
+    const finding = report.findings.find(f => f.code === 'SCHEMATIC_BUILD_FRAME_FAILED')
+    expect(finding?.message).toContain('socket gone')
   })
 
   it('retries a timed-out chunk before reporting failure', async () => {

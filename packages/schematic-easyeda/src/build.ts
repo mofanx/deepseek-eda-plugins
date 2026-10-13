@@ -18,7 +18,7 @@ import type {
   SchematicSymbolPin,
 } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
-import { serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
+import { computeBlockFrames, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { EasyEdaEmbeddedDoc, EasyEdaProjectLibrary, EasyEdaProjectPackage } from '@deepseek-ai/dsh-plugin-eda-core'
 import { diffNetlists, parseDocumentSource, readBackAttrs } from '@deepseek-ai/dsh-plugin-eda-core'
 
@@ -91,9 +91,22 @@ interface BuildWire {
   net?: string
 }
 
+/** One module frame: a dashed rectangle plus its title text. */
+interface BuildBlock {
+  name: string
+  title: string
+  x: number
+  y: number
+  width: number
+  height: number
+  titleX: number
+  titleY: number
+}
+
 interface BuildSheet {
   components: BuildComponent[]
   wires: BuildWire[]
+  blocks: BuildBlock[]
   busEntryIds: string[]
   attrIds: string[]
 }
@@ -128,6 +141,7 @@ function toBuildPayload(ir: SchematicIr, createDocument: boolean): BuildPayload 
         dots: (w.dots ?? []).map(line => [...line]),
         ...w.net !== undefined ? { net: w.net } : {},
       })),
+      blocks: computeBlockFrames(sheet).map(frame => ({ ...frame })),
       busEntryIds: sheet.busEntries.map(entry => entry.id),
       attrIds: sheet.attrs.map(attr => attr.id),
     })),
@@ -297,6 +311,45 @@ for (const w of doc.wires) {
   }
 }
 return { status: 'OK', failures, created };`
+}
+
+/**
+ * Render one placement chunk for module frames: a dashed rectangle plus its
+ * title text per functional block. Frames are non-electrical decoration, so
+ * the chunk reports `created: 0` — they are not part of the placement-count
+ * invariant — and dedupes on geometry so a retried chunk never double-draws.
+ * @param blocks - the sheet's module frames.
+ * @param pageUuid - target page uuid from the preparation stage.
+ * @param sheetIndex - sheet index reported back on failures.
+ * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
+ */
+export function renderBlockChunkScript(blocks: readonly BuildBlock[], pageUuid: string, sheetIndex: number): string {
+  return `${THROWN_DETAIL}const doc = { pageUuid: ${JSON.stringify(pageUuid)}, sheetIndex: ${sheetIndex}, blocks: ${JSON.stringify(blocks)} };
+const failures = [];
+await eda.dmt_EditorControl.openDocument(doc.pageUuid);
+const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!active || active.uuid !== doc.pageUuid) return { status: 'WRONG_PAGE', failures, created: 0 };
+const rects = [];
+try { rects.push(...(await eda.sch_PrimitiveRectangle.getAll() || [])) } catch (e) {}
+const texts = [];
+try { texts.push(...(await eda.sch_PrimitiveText.getAll() || [])) } catch (e) {}
+for (const b of doc.blocks) {
+  try {
+    const haveRect = rects.some((r) => { try { return Math.abs(r.getState_TopLeftX() - b.x) < 0.5 && Math.abs(r.getState_TopLeftY() - b.y) < 0.5 && Math.abs(r.getState_Width() - b.width) < 0.5 && Math.abs(r.getState_Height() - b.height) < 0.5 } catch (e) { return false } });
+    if (!haveRect) {
+      const rect = await placeOnce(() => eda.sch_PrimitiveRectangle.create(b.x, b.y, b.width, b.height, 0, 0, null, '', null, 1, 'None'));
+      if (rect === undefined) { failures.push({ code: 'FRAME_FAILED', irId: 'block:' + b.name, sheetIndex: doc.sheetIndex }); continue; }
+    }
+    const haveText = texts.some((t) => { try { return t.getState_Content() === b.title && Math.abs(t.getState_X() - b.titleX) < 0.5 && Math.abs(t.getState_Y() - b.titleY) < 0.5 } catch (e) { return false } });
+    if (!haveText) {
+      const text = await placeOnce(() => eda.sch_PrimitiveText.create(b.titleX, b.titleY, b.title, 0, '#000088', null, 40, true, false, false, 1));
+      if (text === undefined) failures.push({ code: 'FRAME_FAILED', irId: 'block:' + b.name, sheetIndex: doc.sheetIndex });
+    }
+  } catch (e) {
+    failures.push({ code: 'FRAME_FAILED', irId: 'block:' + b.name, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
+  }
+}
+return { status: 'OK', failures, created: 0 };`
 }
 
 /**
@@ -480,6 +533,7 @@ function findingCode(scriptCode: string): string {
     case 'UNSUPPORTED_KIND': return 'SCHEMATIC_BUILD_UNSUPPORTED_KIND'
     case 'UNSUPPORTED_BUSENTRY': return 'SCHEMATIC_BUILD_UNSUPPORTED_BUSENTRY'
     case 'UNSUPPORTED_ATTR': return 'SCHEMATIC_BUILD_UNSUPPORTED_ATTR'
+    case 'FRAME_FAILED': return 'SCHEMATIC_BUILD_FRAME_FAILED'
     default: return 'SCHEMATIC_BUILD_PRIMITIVE_FAILED'
   }
 }
@@ -497,6 +551,7 @@ function scriptFailureMessage(failure: ScriptFailure): string {
     case 'UNSUPPORTED_KIND': return `component "${target}" kind "${failure.kind ?? '?'}" has no live placement path`
     case 'UNSUPPORTED_BUSENTRY': return `bus entry "${target}": no public API creates BUSENTRY primitives`
     case 'UNSUPPORTED_ATTR': return `ATTR "${target}": free-form attributes have no live placement path`
+    case 'FRAME_FAILED': return `module frame "${target}": the client frame/title create call failed${failure.detail === undefined ? '' : ` (${failure.detail})`}`
     case 'CHUNK_FAILED': return `placement chunk containing "${target}" failed after retries${failure.detail === undefined ? '' : ` (${failure.detail})`}`
     default: return `primitive "${target}": build failed`
   }
@@ -604,6 +659,18 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
       chunks.push({ script: renderWireChunkScript(batch, pageUuid, sheetIndex), irIds: batch.map(w => w.irId), sheetIndex })
     }
     await runChunks(chunks)
+    // Module frames go last so the border never shadows a placed primitive.
+    // They are decoration: a chunk-level failure reports a warning, not the
+    // error a dropped electrical primitive earns.
+    if (sheet.blocks.length > 0) {
+      try {
+        const raw = await executeChunk(bridge, renderBlockChunkScript(sheet.blocks, pageUuid, sheetIndex), executeOptions, retries, backoffMs)
+        pushFailures(raw.failures)
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error)
+        pushFailures(sheet.blocks.map(block => ({ code: 'FRAME_FAILED', irId: `block:${block.name}`, sheetIndex, detail })))
+      }
+    }
     for (const busEntryId of sheet.busEntryIds) {
       pushFailures([{ code: 'UNSUPPORTED_BUSENTRY', irId: busEntryId, sheetIndex }])
     }

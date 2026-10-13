@@ -186,6 +186,48 @@ describe('serializeEasyEdaProject', () => {
   })
 })
 
+describe('module frames', () => {
+  const framed: SchematicIr = {
+    sheets: [{
+      name: 'MAIN',
+      blocks: [{ name: 'power', title: 'POWER SUPPLY' }],
+      components: [
+        {
+          id: 'u1', kind: 'part', designator: 'U1', block: 'power', position: { x: 100, y: 200 },
+          pins: [{ id: 'p1', name: 'IN', number: '1', electric: 'INPUT', endpoint: { x: 110, y: 200 } }],
+        },
+        { id: 'u2', kind: 'part', designator: 'U2', block: 'mcu', position: { x: 700, y: 200 }, pins: [] },
+      ],
+      wires: [], busEntries: [], junctions: [], attrs: [],
+    }],
+  }
+
+  it('emits a dashed RECT and a bold TEXT per grouped module', () => {
+    const lines = linesOf(serializeEasyEdaDocument(framed))
+    const rects = lines.filter(l => l.startsWith('{"type":"RECT"'))
+    const texts = lines.filter(l => l.startsWith('{"type":"TEXT"'))
+    expect(rects).toHaveLength(2)
+    expect(texts).toHaveLength(2)
+    // power box: members at (100..110,200) → x=20,y=60,170×220 in IR space,
+    // persisted with the y axis negated.
+    expect(rects[0]).toContain('"dotX1":20,"dotY1":-60,"dotX2":190,"dotY2":-280')
+    expect(rects[0]).toContain('"strokeStyle":1')
+    expect(rects[0]).toContain('"fillStyle":0')
+    expect(texts[0]).toContain('"value":"POWER SUPPLY"')
+    expect(texts[0]).toContain('"x":40,"y":-70')
+    expect(texts[0]).toContain('"align":"LEFT_TOP"')
+    expect(texts[0]).toContain('"fontWeight":true')
+    // Undeclared module falls back to its name as the title.
+    expect(texts[1]).toContain('"value":"mcu"')
+  })
+
+  it('emits no frame records for an ungrouped sheet', () => {
+    const source = serializeEasyEdaDocument(ir)
+    expect(source).not.toContain('"type":"RECT"')
+    expect(source).not.toContain('"type":"TEXT"')
+  })
+})
+
 describe('layout golden', () => {
   it('serializes the committed laid IR byte-identically to the recorded source', () => {
     const laid = JSON.parse(readFileSync(new URL('./fixtures/layout-golden.json', import.meta.url), 'utf8')) as SchematicIr

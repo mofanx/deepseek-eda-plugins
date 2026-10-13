@@ -16,6 +16,7 @@ import type {
   SchematicIrComponent,
   SchematicIrSheet,
 } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { computeBlockFrames } from './blocks.ts'
 
 /** Inputs to one document-source projection. */
 export interface EasyEdaSerializeOptions {
@@ -93,6 +94,7 @@ class Emitter {
   private ticket = 0
   private attrSeq = 0
   private lineSeq = 0
+  private drawSeq = 0
   readonly lines: string[] = []
 
   nextTicket(): number {
@@ -113,6 +115,25 @@ class Emitter {
     const id = `line${this.lineSeq++}`
     this.lines.push(
       `{"type":"LINE","id":"${id}","ticket":${this.nextTicket()}}||{"lineGroup":${JSON.stringify(lineGroup)},"startX":${x1},"startY":${-y1},"endX":${x2},"endY":${-y2},"strokeColor":null,"strokeStyle":null,"fillColor":null,"strokeWidth":null,"fillStyle":null}|`,
+    )
+  }
+
+  /**
+   * Emit one non-electrical RECT record (dashed module frame). The diagonal
+   * points are IR coordinates; document source negates the y axis.
+   */
+  rect(x1: number, y1: number, x2: number, y2: number): void {
+    const id = `rect${this.drawSeq++}`
+    this.lines.push(
+      `{"type":"RECT","id":"${id}","ticket":${this.nextTicket()}}||{"partId":"","groupId":"","locked":false,"zIndex":0,"dotX1":${x1},"dotY1":${-y1},"dotX2":${x2},"dotY2":${-y2},"radiusX":0,"radiusY":0,"rotation":0,"strokeColor":null,"strokeStyle":1,"fillColor":"","strokeWidth":null,"fillStyle":0}|`,
+    )
+  }
+
+  /** Emit one non-electrical TEXT record (module title); `x`/`y` are IR coordinates. */
+  text(x: number, y: number, value: string): void {
+    const id = `text${this.drawSeq++}`
+    this.lines.push(
+      `{"type":"TEXT","id":"${id}","ticket":${this.nextTicket()}}||{"x":${x},"y":${-y},"rotation":0,"color":"#000088","fontFamily":null,"fontSize":40,"fontWeight":true,"italic":false,"underline":false,"align":"LEFT_TOP","value":${JSON.stringify(value)},"fillColor":"#000088","zIndex":0}|`,
     )
   }
 }
@@ -176,6 +197,13 @@ function emitSheet(
     }
   }
   for (const attr of sheet.attrs) emitAttr(emit, attr)
+  // Module frames are non-electrical RECT/TEXT records; read-back and the
+  // netlist diff only consume ATTR/COMPONENT/WIRE/LINE, so they never join
+  // the connectivity comparison.
+  for (const frame of computeBlockFrames(sheet)) {
+    emit.rect(frame.x, frame.y, frame.x + frame.width, frame.y + frame.height)
+    emit.text(frame.titleX, frame.titleY, frame.title)
+  }
 }
 
 /**

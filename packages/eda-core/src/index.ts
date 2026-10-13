@@ -8,6 +8,8 @@
  * @module @deepseek-ai/dsh-plugin-eda-core
  */
 
+export { computeBlockFrames } from './blocks.ts'
+export type { EasyEdaBlockFrame } from './blocks.ts'
 export { serializeEasyEdaDocument, serializeEasyEdaProject } from './serialize.ts'
 export type {
   EasyEdaEmbeddedDoc,
