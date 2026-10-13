@@ -33,7 +33,7 @@ Scope: `deepseek-harness/packages/schematic/*` → 本仓（`deepseek-eda-plugin
 ### 2.2 修正项（首轮执行发现）
 
 1. **`dsh-plugin-eda-sch` 不可声明为 peer**。`plugin-compatibility.ts` 把**所有** `dsh`/`dsh-*` peer 按「dsh 运行时版本满足 semver 范围」检查——`peer: dsh-plugin-eda-sch@0.1.0` 会被判定与运行时 `0.2.1-alpha.2` 不兼容而禁用整行插件。seam 包是我们自己的分发物，改为 `dependencies`（`workspace:*`，发布时定版本）；profile 安装内单副本满足模块身份。
-2. **npm `0.0.1-rc.1` 开发路径不可行**：`dsh-tools@0.0.1-rc.1` 传递依赖未发布的 `dsh-type-meta`，直接 404。devDeps 全部改 `link:` 指向 sibling deepseek-harness 检出（依赖经其 node_modules 祖先解析）。
+2. ~~**npm `0.0.1-rc.1` 开发路径不可行**~~ **已解除**：dsh `0.2.1-alpha.2` 全线上 registry（含 `dsh-type-meta` 已摘除的 `dsh-tools`），devDeps 全部改 registry 版本，不再依赖主仓检出。
 3. **`JsonValue` 已提取**：`tool-schematic/src/index.ts` 改为本地 `type JsonValue` 别名，`dsh-util-values` 依赖消除。
 4. **覆盖缺口补测**：`build.ts` association 嵌套对象形态（`association.symbol.uuid`）分支在 dsh 侧未提交改动里也无覆盖，本仓已补测试（352/352、100%）。
 5. **pnpm 11 `allowBuilds`**：`pnpm-workspace.yaml` 需 `allowBuilds: { esbuild: true }` 放行 esbuild postinstall。
@@ -100,7 +100,7 @@ Scope: `deepseek-harness/packages/schematic/*` → 本仓（`deepseek-eda-plugin
 | # | 风险 | 等级 | 缓解 |
 |---|---|---|---|
 | R1 | ~~bridge-server.mjs 源码已失~~ **已解除**：d3 把正式实现落为 `schematic-easyeda/bin/dsh-eda-bridge.mjs`（+`ws` dep、`scripts/live-verify.mjs` 实机验证 PASS） | — | 随包分发，无独立包 |
-| R2 | **npm dsh-* 版本漂移**：已发布 0.0.1-rc.1 vs 仓内 0.2.1-alpha.2，且 rc.1 依赖未发布的 `dsh-type-meta` 导致 npm dev 路径直接 404 | **高（已证实）** | devDeps 已落 `link:` 指向 sibling deepseek-harness 检出；正式发布前必须等 dsh 0.2.x 上 registry 或钉定兼容版 |
+| R2 | ~~npm dsh-* 版本漂移/404~~ **已解除**：`0.2.1-alpha.2` 全线已发布（dsh-type-meta 不再被依赖）；devDeps 固定 0.2.1-alpha.2、peers `>=0.2.1-alpha.2 <0.3.0`，干净 clone install 验证通过 | — | 后续跟宿主 0.3.x 发布线滚动 |
 | R3 | schemastery 双实例：plugin 的 Config 与 cordis 内部 schemastery 版本不同 | 低 | 已核实 cordis 走 `~standard` 协议无 instanceof（`fiber.ts:53`）；dep `^3.18.4` 即可 |
 | R4 | peer 解析语义：`dsh plugin add` 的祖先解析规则要求 peer 在宿主运行时可见——profile 独立 node_modules 下 `dsh-llm` 等需经 dsh 安装侧解析而非 profile 本地装 | 中 | publish.md 规则已确认该机制；实装验证（4.3）覆盖；不要在 profile 里手动 `add` peer 包以免遮蔽宿主实例 |
 | R5 | live-e2e 依赖实机 EasyEDA 无法进 CI | 中 | 保留 spec 默认 exclude + 人工验证流程；README 标注 |

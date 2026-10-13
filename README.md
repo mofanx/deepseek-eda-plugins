@@ -34,4 +34,4 @@ pnpm run test:coverage  # per-file 100% on packages/*/src (same gate as dsh)
 pnpm run lint           # oxlint
 ```
 
-For development against an unpublished sibling dsh checkout, link the peer packages locally instead of using the published `0.0.1-rc.1` versions — see the version-skew section of the migration plan.
+All `@deepseek-ai/dsh-*` dependencies resolve from the npm `0.2.1-alpha.2` line; no sibling checkout is required.

@@ -83,6 +83,44 @@ describe('importIntoEasyEda read-back edges', () => {
     expect(report.findings.map(f => f.code)).toContain('SCHEMATIC_IMPORT_OPEN_FAILED')
   })
 
+  it('resends the read-back script while the client-side open is still landing', async () => {
+    let readBackAttempts = 0
+    const queue: unknown[] = [EMPTY_LIBRARY, { status: 'OK', projectUuid: 'p' }]
+    const bridge: EasyEdaBridge = {
+      async execute(code: string) {
+        if (code === 'return true') return true
+        const next = queue.shift()
+        if (next !== undefined) return next
+        readBackAttempts++
+        if (readBackAttempts < 3) throw new Error('gateway 500')
+        return {
+          status: 'OK', projectUuid: 'p',
+          pageUuids: ['pg-1'],
+          sources: ['{"type":"ATTR","id":"a1","ticket":1}||{"key":"Designator","value":"U1"}|'],
+        }
+      },
+    }
+    const report = await importIntoEasyEda(ir, { bridge })
+    expect(readBackAttempts).toBe(3)
+    expect(report.findings).toEqual([])
+    expect(report.pageUuids).toEqual(['pg-1'])
+  })
+
+  it('reports open timeout when no read-back attempt lands inside the budget', async () => {
+    const queue: unknown[] = [EMPTY_LIBRARY, { status: 'OK', projectUuid: 'p' }]
+    const bridge: EasyEdaBridge = {
+      async execute(code: string) {
+        if (code === 'return true') return true
+        const next = queue.shift()
+        if (next !== undefined) return next
+        throw new Error('gateway 500')
+      },
+    }
+    const report = await importIntoEasyEda(ir, { bridge, timeoutMs: 40 })
+    expect(report.findings.map(f => f.code)).toContain('SCHEMATIC_IMPORT_OPEN_FAILED')
+    expect(report.findings[0]?.message).toContain('did not finish opening it within')
+  })
+
   it('stops reading back once every sheet is accounted for', async () => {
     const { bridge } = scriptedBridge([EMPTY_LIBRARY,
       { status: 'OK', projectUuid: 'p' },

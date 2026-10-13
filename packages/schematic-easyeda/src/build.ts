@@ -1362,25 +1362,34 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
       await new Promise(r => setTimeout(r, 1_000))
     }
   }
-  const readBack = drained
-    ? await bridge.execute(
-      renderImportReadbackScript(pkg.pageUuids, projectUuid, raw.projectName ?? projectName, options.allowTabClose === true),
-      { timeoutMs: options.timeoutMs },
-    ) as { status?: string, projectUuid?: string, openTabs?: number, pageUuids?: string[], sources?: (string | null)[] }
-    : { status: 'OPEN_FAILED' as const }
-  if (readBack.status === 'OPEN_FAILED') {
+  // Draining only proves the dispatch queue emptied; the project open is a
+  // client-side action that can still be in flight, and a read-back sent too
+  // early dies on the gateway's per-request budget (HTTP 500/timeout). Resend
+  // the same script inside the open budget until one attempt completes.
+  let readBack: { status?: string, projectUuid?: string, openTabs?: number, pageUuids?: string[], sources?: (string | null)[] } | undefined
+  if (drained) {
+    const script = renderImportReadbackScript(pkg.pageUuids, projectUuid, raw.projectName ?? projectName, options.allowTabClose === true)
+    while (readBack === undefined && Date.now() < openDeadline) {
+      try {
+        readBack = await bridge.execute(script, { timeoutMs: options.timeoutMs }) as typeof readBack
+      } catch {
+        await new Promise(r => setTimeout(r, 1_000))
+      }
+    }
+  }
+  if (readBack === undefined || readBack.status === 'OPEN_FAILED') {
     return {
       projectUuid: projectUuid ?? '',
       pageUuids: [],
       findings: [{
         code: 'SCHEMATIC_IMPORT_OPEN_FAILED',
         severity: 'error',
-        message: drained
-          ? `project imported but the client refused to open it` +
+        message: readBack === undefined
+          ? `project imported but the client did not finish opening it within ${openWaitMs}ms — read-back skipped`
+          : `project imported but the client refused to open it` +
             (typeof readBack.openTabs === 'number' && readBack.openTabs > 0 && options.allowTabClose !== true
               ? ` — ${readBack.openTabs} document tab(s) block the project switch; set allowTabClose to close them, or close them in the editor`
-              : ' — read-back skipped so no foreign document is diffed')
-          : `project imported but the client did not finish opening it within ${openWaitMs}ms — read-back skipped`,
+              : ' — read-back skipped so no foreign document is diffed'),
       }],
     }
   }
