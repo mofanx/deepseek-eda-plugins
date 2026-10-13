@@ -22,25 +22,25 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": ">=4.0.4",
-    "@deepseek-ai/dsh-llm": ">=0.0.1-rc.1",
-    "@deepseek-ai/dsh-system-prompt": ">=0.0.1-rc.1",
-    "@deepseek-ai/dsh-tools": ">=0.0.1-rc.1"
+    "@deepseek-ai/cordis": ">=4.0.5-alpha.1 <4.1.0",
+    "@deepseek-ai/dsh-llm": ">=0.2.1-alpha.2 <0.3.0",
+    "@deepseek-ai/dsh-system-prompt": ">=0.2.1-alpha.2 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.2.1-alpha.2 <0.3.0"
   },
   "dependencies": {
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
     "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
-    "@deepseek-ai/cordis-plugin-include": "link:../../../deepseek-harness/vendor/include",
-    "@deepseek-ai/cordis-plugin-loader": "link:../../../deepseek-harness/vendor/loader",
-    "@deepseek-ai/dsh-llm": "link:../../../deepseek-harness/packages/llm/llm",
+    "@deepseek-ai/cordis": "4.0.5-alpha.1",
+    "@deepseek-ai/cordis-plugin-include": "1.0.10-alpha.1",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.6-alpha.1",
+    "@deepseek-ai/dsh-llm": "0.2.1-alpha.2",
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
     "@deepseek-ai/dsh-plugin-eda-easyeda": "workspace:*",
-    "@deepseek-ai/dsh-scope": "link:../../../deepseek-harness/packages/core/scope",
-    "@deepseek-ai/dsh-system-prompt": "link:../../../deepseek-harness/packages/core/system-prompt",
-    "@deepseek-ai/dsh-tools": "link:../../../deepseek-harness/packages/core/tools",
+    "@deepseek-ai/dsh-scope": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-alpha.2",
     "typescript": "^5.9.0"
   }
 }

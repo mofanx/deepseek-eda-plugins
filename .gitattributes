@@ -1,0 +1,5 @@
+# Pin LF for all text so autocrlf checkouts cannot mutate golden fixtures.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.epro2 binary

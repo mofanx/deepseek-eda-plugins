@@ -270,7 +270,10 @@ export function apply(ctx: Context, config: Config): void {
   applyValidateTool(ctx, resolved)
   ctx.systemPrompt.section({
     name: 'tool:schematic',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_SCHEMATIC'),
+    // 2500 == TOOL_SCHEMATIC in the host's PromptSectionOrder map; the published
+    // system-prompt build predates getSectionOrder, so the literal is required
+    // until a release exposing it lands.
+    order: 2500,
     text: ({ scope }) => ctx.tools.get('schematic_generate', scope) === undefined && ctx.tools.get('schematic_validate', scope) === undefined
       ? ''
       : 'When the user asks to produce, emit, or check schematic primitives from a schematic IR document, call `schematic_generate` (validate-then-emit) or `schematic_validate` (validate only). Declare connectivity through pin.net names — the layout stage places and routes deterministically in 0.01-inch coordinates, so geometry fields may be omitted; every wire must declare its net name and every pin must carry NAME/NUMBER attributes. Pass verify: true to run the live-client netlist read-back when one is reachable. If either tool reports findings, repair the document and retry.',

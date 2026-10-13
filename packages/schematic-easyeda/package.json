@@ -23,7 +23,7 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": ">=4.0.4"
+    "@deepseek-ai/cordis": ">=4.0.5-alpha.1 <4.1.0"
   },
   "dependencies": {
     "@deepseek-ai/dsh-plugin-eda-core": "workspace:*",
@@ -31,8 +31,8 @@
     "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
-    "@deepseek-ai/cordis-plugin-loader": "link:../../../deepseek-harness/vendor/loader",
+    "@deepseek-ai/cordis": "4.0.5-alpha.1",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.6-alpha.1",
     "@deepseek-ai/dsh-plugin-eda-core": "workspace:*",
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
     "typescript": "^5.9.0"

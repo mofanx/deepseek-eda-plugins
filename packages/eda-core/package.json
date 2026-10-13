@@ -26,7 +26,7 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-timeout": ">=0.0.1-rc.1"
+    "@deepseek-ai/dsh-timeout": ">=0.2.1-alpha.2 <0.3.0"
   },
   "dependencies": {
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
-    "@deepseek-ai/dsh-timeout": "link:../../../deepseek-harness/packages/util/timeout",
+    "@deepseek-ai/dsh-timeout": "0.2.1-alpha.2",
     "typescript": "^5.9.0"
   }
 }

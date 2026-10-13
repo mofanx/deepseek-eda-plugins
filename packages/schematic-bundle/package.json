@@ -38,10 +38,10 @@
     "@deepseek-ai/dsh-plugin-eda-sch-gen": "workspace:*"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": ">=4.0.4"
+    "@deepseek-ai/cordis": ">=4.0.5-alpha.1 <4.1.0"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
+    "@deepseek-ai/cordis": "4.0.5-alpha.1",
     "typescript": "^5.9.0"
   }
 }
