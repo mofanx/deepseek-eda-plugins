@@ -1232,6 +1232,30 @@ describe('OBJECT_OUT_OF_SHEET', () => {
     expect(codes(ir, { pageSize: { width: 500, height: 300 } })).toContain('OBJECT_OUT_OF_SHEET')
   })
 
+  it('accepts geometry inside the larger A3 frame and reports its bounds', () => {
+    // A3 landscape in 0.01-inch units: wider and taller than A4.
+    const A3 = { width: 1654, height: 1169 }
+    const inside: SchematicIr = {
+      sheets: [{ ...emptySheet, components: [part('c1', 'U1', [], { position: { x: 1300, y: 900 } })] }],
+    }
+    // Out on A4, inside on A3.
+    expect(codes(inside)).toContain('OBJECT_OUT_OF_SHEET')
+    expect(codes(inside, { pageSize: A3 })).not.toContain('OBJECT_OUT_OF_SHEET')
+    // A violation under A3 names the A3 bounds in message and suggestion.
+    const beyond: SchematicIr = {
+      sheets: [{ ...emptySheet, components: [part('c1', 'U1', [], { position: { x: 1700, y: 1200 } })] }],
+    }
+    const finding = validateSchematic(beyond, { pageSize: A3 }).findings
+      .find(f => f.code === 'OBJECT_OUT_OF_SHEET')
+    expect(finding?.message).toContain('1654×1169')
+    expect(finding?.suggestion).toContain('0..1654 × 0..1169')
+    // Negative coordinates stay violations at any size.
+    const negative: SchematicIr = {
+      sheets: [{ ...emptySheet, components: [part('c1', 'U1', [], { position: { x: -10, y: 50 } })] }],
+    }
+    expect(codes(negative, { pageSize: A3 })).toContain('OBJECT_OUT_OF_SHEET')
+  })
+
   it('respects disabledRules', () => {
     const ir: SchematicIr = {
       sheets: [{ ...emptySheet, components: [part('c1', 'U1', [], { position: { x: 2000, y: 0 } })] }],

@@ -214,7 +214,11 @@ export interface SchematicPageSize {
 /**
  * The EasyEDA A4 landscape page frame, measured from the live client's
  * `titleBlockData` (`Width 1170`, `Height 825`, `Size "A4"`). This is the
- * default hard bound for layout placement and `OBJECT_OUT_OF_SHEET`.
+ * default hard bound for layout placement and `OBJECT_OUT_OF_SHEET`, and the
+ * only page size verified against a live client: `pageSize` bounds generated
+ * geometry and validation only — the EasyEDA API exposes no way to switch a
+ * sheet's drawn frame (that is a manual editor action), so custom sizes plan
+ * against a virtual frame while delivered sheets stay the client's default.
  */
 export const SCHEMATIC_PAGE_A4: SchematicPageSize = { width: 1170, height: 825 }
 

@@ -83,6 +83,19 @@ describe('computeBlockFrames', () => {
     expect(frames[2]?.title).toBe('zzz-undeclared')
   })
 
+  it('clamps the frame onto a smaller custom pageSize', () => {
+    const [frame] = computeBlockFrames(sheet({
+      components: [part('u1', 'io', 1100, 800)],
+    }), { width: 500, height: 400 })
+    // Right/bottom clamp at the custom frame instead of A4's 1170/825.
+    expect(frame).toMatchObject({ x: 1020, y: 660, width: 0, height: 0 })
+    const [frameA3] = computeBlockFrames(sheet({
+      components: [part('u1', 'io', 1100, 800)],
+    }), { width: 1654, height: 1169 })
+    // On A3 the padded box (1100+80 → 1180, 800+80 → 880) fits without clamping.
+    expect(frameA3).toMatchObject({ x: 1020, y: 660, width: 160, height: 220 })
+  })
+
   it('mixes declared, titleless declared, and free-form names in stable order', () => {
     const frames = computeBlockFrames(sheet({
       blocks: [{ name: 'd1', title: 'D1' }, { name: 'd2' }],

@@ -65,7 +65,7 @@ kind: "package-reference"
 
 ### 门禁
 
-`validateSchematic` 用并查集在引脚端点、导线折线、T 型搭接、具名 netflag/netport 与短接符号上计算连通性，然后应用四族规则：引脚连通（悬空引脚、交叉歧义、同网异名）、电气健全性（多驱动、纯输入网、电源短路）、器件/符号/封装绑定（位号、库解析、引脚焊盘匹配、多部件一致性、BOM/PCB 意向），以及网络命名与格式不变量（网名语法、总线展开、id、groupId、孤儿属性）。层次规则族守卫 block 与子页绑定：`HIERARCHY_BAD_SHEET_INDEX`、`HIERARCHY_UNRESOLVED_BLOCK`、`HIERARCHY_AMBIGUOUS_BLOCK`、`HIERARCHY_CYCLE` 为 error；`HIERARCHY_INTERFACE_MISMATCH`（块引脚网在子页无同名 `netport`，或子页端口无块引脚响应）与 `HIERARCHY_INDEX_ON_NON_BLOCK` 为 warning。四族之外还有一条建议级规则：`SCHEMATIC_LAYOUT_MONOLITHIC` 在图纸页放置超过 `monolithicThreshold`（默认 20）个 `part` 且零模块归属时给出 warning，引导产出方声明 `blocks` 或拆分页面。`parseSchematicIr` 是模型/JSON 边界，把原始 `document` 参数转为类型化 IR，失败抛 `SCHEMATIC_IR_INVALID`。
+`validateSchematic` 用并查集在引脚端点、导线折线、T 型搭接、具名 netflag/netport 与短接符号上计算连通性，然后应用四族规则：引脚连通（悬空引脚、交叉歧义、同网异名）、电气健全性（多驱动、纯输入网、电源短路）、器件/符号/封装绑定（位号、库解析、引脚焊盘匹配、多部件一致性、BOM/PCB 意向），以及网络命名与格式不变量（网名语法、总线展开、id、groupId、孤儿属性）。层次规则族守卫 block 与子页绑定：`HIERARCHY_BAD_SHEET_INDEX`、`HIERARCHY_UNRESOLVED_BLOCK`、`HIERARCHY_AMBIGUOUS_BLOCK`、`HIERARCHY_CYCLE` 为 error；`HIERARCHY_INTERFACE_MISMATCH`（块引脚网在子页无同名 `netport`，或子页端口无块引脚响应）与 `HIERARCHY_INDEX_ON_NON_BLOCK` 为 warning。四族之外还有一条建议级规则：`SCHEMATIC_LAYOUT_MONOLITHIC` 在图纸页放置超过 `monolithicThreshold`（默认 20）个 `part` 且零模块归属时给出 warning，引导产出方声明 `blocks` 或拆分页面。`parseSchematicIr` 是模型/JSON 边界，把原始 `document` 参数转为类型化 IR，失败抛 `SCHEMATIC_IR_INVALID`。门禁与布局都接受 `pageSize` 页框（默认 `SCHEMATIC_PAGE_A4`，0.01 inch 单位 1170×825）：A4 是唯一经实机验证的规格——EasyEDA API 不提供切换图纸页图幅的入口（只能编辑器界面手改），因此自定义 `pageSize` 只在虚拟边界内规划几何，交付到客户端的图纸页仍是其默认图幅。
 
 <a id="model-experience"></a>
 ## 模型体验

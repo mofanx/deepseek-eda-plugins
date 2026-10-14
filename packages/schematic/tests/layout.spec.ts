@@ -716,6 +716,40 @@ describe('page bounds', () => {
     }
   })
 
+  it('fits more module groups on the taller A3 frame', () => {
+    // A3 landscape in 0.01-inch units — the six-module column that paginates
+    // on A4 stays on one page here.
+    const A3 = { width: 1654, height: 1169 }
+    const doc = ir(sheet({
+      blocks: Array.from({ length: 6 }, (_, i) => ({ name: `m${i}` })),
+      components: Array.from({ length: 6 }, (_, i) => comp(`u${i}`, { block: `m${i}` })),
+    }))
+    const a4 = layoutSchematic(structuredClone(doc), { moduleColumns: 1 })
+    expect(a4.sheets.length).toBeGreaterThan(1)
+    const a3 = layoutSchematic(structuredClone(doc), { moduleColumns: 1, pageSize: A3 })
+    expect(a3.sheets).toHaveLength(1)
+    for (const point of allGeometry(a3)) expect(inPage(point, A3)).toBe(true)
+  })
+
+  it('paginates module rows onto extra sheets when a smaller frame overflows', () => {
+    const small = { width: 1170, height: 500 }
+    const doc = ir(sheet({
+      blocks: Array.from({ length: 8 }, (_, i) => ({ name: `m${i}` })),
+      components: Array.from({ length: 8 }, (_, i) =>
+        comp(`u${i}`, { block: `m${i}`, pins: [pin('p1', { electric: 'BI', net: 'SHARED' })] })),
+    }))
+    const laid = layoutSchematic(doc, { moduleColumns: 1, pageSize: small })
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    for (const page of laid.sheets) {
+      for (const component of page.components) {
+        if (component.position !== undefined) expect(inPage(component.position, small)).toBe(true)
+        for (const p of component.pins) {
+          if (p.endpoint !== undefined) expect(inPage(p.endpoint, small)).toBe(true)
+        }
+      }
+    }
+  })
+
   it('compresses column pitch when a signal chain exceeds the row width', () => {
     // A five-layer chain spans 1720 units at default pitch — wider than the
     // 890-unit usable width — but fits once the pitch floors at 160.
