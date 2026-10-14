@@ -1157,3 +1157,82 @@ describe('expandBusName', () => {
     expect(expandBusName('A[')).toBeUndefined()
   })
 })
+
+describe('OBJECT_OUT_OF_SHEET', () => {
+  it('flags a component placed outside the A4 frame', () => {
+    const ir: SchematicIr = {
+      sheets: [{ ...emptySheet, components: [part('c1', 'U1', [], { position: { x: 1200, y: 100 } })] }],
+    }
+    const findings = validateSchematic(ir).findings.filter(f => f.code === 'OBJECT_OUT_OF_SHEET')
+    expect(findings.length).toBe(1)
+    expect(findings[0]?.severity).toBe('error')
+    expect(findings[0]?.locator).toMatchObject({ sheetIndex: 0, componentId: 'c1', x: 1200, y: 100 })
+    expect(validateSchematic(ir).ok).toBe(false)
+  })
+
+  it('flags a pin endpoint outside the frame', () => {
+    const ir: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [part('c1', 'U1', [pin('p1', 'INPUT', { x: 100, y: -40 })])],
+      }],
+    }
+    const finding = validateSchematic(ir).findings.find(f => f.code === 'OBJECT_OUT_OF_SHEET')
+    expect(finding?.locator).toMatchObject({ componentId: 'c1', pinId: 'p1', x: 100, y: -40 })
+  })
+
+  it('flags a wire vertex outside the frame', () => {
+    const ir: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [
+          part('c1', 'U1', [pin('p1', 'OUTPUT', { x: 100, y: 100 })]),
+          part('c2', 'U2', [pin('p2', 'INPUT', { x: 900, y: 100 })]),
+        ],
+        wires: [{ id: 'w1', kind: 'wire', dots: [[100, 100, 900, 100, 900, 900]], net: 'SIG' }],
+      }],
+    }
+    const finding = validateSchematic(ir).findings.find(f => f.code === 'OBJECT_OUT_OF_SHEET')
+    expect(finding?.locator).toMatchObject({ x: 900, y: 900 })
+  })
+
+  it('flags out-of-frame junctions and bus entries', () => {
+    const ir: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        junctions: [{ point: { x: 50, y: 900 } }],
+        busEntries: [{ id: 'be1', point: { x: 1300, y: 100 }, busNet: 'A[1:2]', order: 0 }],
+      }],
+    }
+    expect(codes(ir).filter(code => code === 'OBJECT_OUT_OF_SHEET')).toHaveLength(2)
+  })
+
+  it('accepts geometry on the frame edge and inside it', () => {
+    const ir: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [
+          part('c1', 'U1', [pin('p1', 'OUTPUT', { x: 0, y: 0 })], { position: { x: 0, y: 0 } }),
+          part('c2', 'U2', [pin('p2', 'INPUT', { x: 1170, y: 825 })], { position: { x: 1170, y: 825 } }),
+        ],
+        wires: [{ id: 'w1', kind: 'wire', dots: [[0, 0, 1170, 0, 1170, 825]], net: 'SIG' }],
+      }],
+    }
+    expect(codes(ir)).not.toContain('OBJECT_OUT_OF_SHEET')
+  })
+
+  it('honours a custom pageSize bound', () => {
+    const ir: SchematicIr = {
+      sheets: [{ ...emptySheet, components: [part('c1', 'U1', [], { position: { x: 600, y: 100 } })] }],
+    }
+    expect(codes(ir)).not.toContain('OBJECT_OUT_OF_SHEET')
+    expect(codes(ir, { pageSize: { width: 500, height: 300 } })).toContain('OBJECT_OUT_OF_SHEET')
+  })
+
+  it('respects disabledRules', () => {
+    const ir: SchematicIr = {
+      sheets: [{ ...emptySheet, components: [part('c1', 'U1', [], { position: { x: 2000, y: 0 } })] }],
+    }
+    expect(codes(ir, { disabledRules: ['OBJECT_OUT_OF_SHEET'] })).not.toContain('OBJECT_OUT_OF_SHEET')
+  })
+})

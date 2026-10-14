@@ -201,6 +201,23 @@ export interface SchematicIr {
   readonly sheets: readonly SchematicIrSheet[]
 }
 
+/**
+ * Page-frame size in sheet-space units (0.01 inch). EasyEDA schematic pages
+ * draw a bordered frame anchored at the origin (0,0) extending `width` right
+ * and `height` down; geometry outside it is reported out-of-sheet.
+ */
+export interface SchematicPageSize {
+  readonly width: number
+  readonly height: number
+}
+
+/**
+ * The EasyEDA A4 landscape page frame, measured from the live client's
+ * `titleBlockData` (`Width 1170`, `Height 825`, `Size "A4"`). This is the
+ * default hard bound for layout placement and `OBJECT_OUT_OF_SHEET`.
+ */
+export const SCHEMATIC_PAGE_A4: SchematicPageSize = { width: 1170, height: 825 }
+
 /** Whether a finding blocks delivery (`error`) or only reports (`warning`). */
 export type SchematicFindingSeverity = 'error' | 'warning'
 
@@ -395,6 +412,11 @@ export interface SchematicValidationOptions {
    * grouping suggestion. Default `20`.
    */
   readonly monolithicThreshold?: number | undefined
+  /**
+   * Page-frame bound for `OBJECT_OUT_OF_SHEET`: primitive geometry outside
+   * `[0, width] × [0, height]` is flagged. Default {@link SCHEMATIC_PAGE_A4}.
+   */
+  readonly pageSize?: SchematicPageSize | undefined
 }
 
 /** Inputs to one live {@link SchematicEngine.verify} call. */
@@ -476,6 +498,15 @@ export interface SchematicLayoutOptions {
    * explicit endpoints within one `grid` step snap onto the true pin.
    */
   readonly symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]> | undefined
+  /**
+   * Hard page-frame bound for placement; defaults to {@link SCHEMATIC_PAGE_A4}.
+   * The module grid packs inside `[margin, pageSize - edge allowance]` —
+   * module/column spacing compresses first, then groups that still overflow
+   * spill onto additional sheets. Sheets carrying explicit component
+   * positions or hierarchy primitives keep authored geometry untouched and
+   * rely on `OBJECT_OUT_OF_SHEET` instead.
+   */
+  readonly pageSize?: SchematicPageSize | undefined
 }
 
 /** Typed schematic error with a machine-routable, open-string `code`. */

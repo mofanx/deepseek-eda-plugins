@@ -8,7 +8,7 @@
  */
 
 import { transformSymbolPoint } from './geometry.ts'
-import { SCHEMATIC_LOOKUP_FAILED } from './types.ts'
+import { SCHEMATIC_LOOKUP_FAILED, SCHEMATIC_PAGE_A4 } from './types.ts'
 import type {
   SchematicFinding,
   SchematicIr,
@@ -157,6 +157,14 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
   const findings: SchematicFinding[] = []
   const disabled = new Set(options.disabledRules ?? [])
   const monolithicThreshold = options.monolithicThreshold ?? MONOLITHIC_COMPONENT_THRESHOLD
+  const pageSize = options.pageSize ?? SCHEMATIC_PAGE_A4
+  const inPage = (p: SchematicPoint): boolean =>
+    p.x >= 0 && p.x <= pageSize.width && p.y >= 0 && p.y <= pageSize.height
+  const outOfSheet = (
+    message: string,
+    locator: SchematicLocator,
+    suggestion: string,
+  ): void => report('OBJECT_OUT_OF_SHEET', 'error', message, locator, suggestion)
   const report = (
     code: string,
     severity: SchematicFinding['severity'],
@@ -333,6 +341,13 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
       sheetComponentIds.add(component.id)
       countId(localComponentIds, component.id)
       groupCheck(component.groupId, component.id)
+      if (component.position !== undefined && !inPage(component.position)) {
+        outOfSheet(
+          `component "${component.id}" sits at (${component.position.x}, ${component.position.y}) outside the ${pageSize.width}×${pageSize.height} page frame`,
+          { sheetIndex, componentId: component.id, x: component.position.x, y: component.position.y },
+          'Move it inside the frame, or omit position and let the layout stage place it',
+        )
+      }
       if ((component.kind === 'netflag' || component.kind === 'netport') && component.position !== undefined) {
         taps.push({ point: component.position, skip: [], sheetIndex })
       }
@@ -344,6 +359,13 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
         allPins.push(ref)
         sheetPinRefs.push(ref)
         if (pin.endpoint !== undefined) {
+          if (!inPage(pin.endpoint)) {
+            outOfSheet(
+              `pin "${pin.id}" endpoint (${pin.endpoint.x}, ${pin.endpoint.y}) falls outside the ${pageSize.width}×${pageSize.height} page frame`,
+              { sheetIndex, componentId: component.id, pinId: pin.id, x: pin.endpoint.x, y: pin.endpoint.y },
+              'Move the component or the endpoint inside the frame',
+            )
+          }
           uf.union(pinKey(sheetIndex, pin.id), pointKey(sheetIndex, pin.endpoint))
           taps.push({ point: pin.endpoint, skip: [], sheetIndex })
         }
@@ -353,6 +375,20 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
       sheetWireIds.add(wire.id)
       countId(localWireIds, wire.id)
       groupCheck(wire.groupId, wire.id)
+      const outVertex = (wire.dots ?? []).flatMap((chain) => {
+        const vertices: SchematicPoint[] = []
+        for (let i = 0; i + 1 < chain.length; i += 2) {
+          vertices.push({ x: chain[i] as number, y: chain[i + 1] as number })
+        }
+        return vertices
+      }).find(point => !inPage(point))
+      if (outVertex !== undefined) {
+        outOfSheet(
+          `wire "${wire.id}" vertex (${outVertex.x}, ${outVertex.y}) falls outside the ${pageSize.width}×${pageSize.height} page frame`,
+          { sheetIndex, x: outVertex.x, y: outVertex.y },
+          'Move the wire inside the frame, or drop its dots and let the layout stage route it',
+        )
+      }
       for (const chain of segmentsOf(wire)) {
         for (const segment of chain) {
           segments.push({ segment, sheetIndex })
@@ -375,6 +411,13 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
       sheetBusEntryIds.add(entry.id)
       countId(localBusEntryIds, entry.id)
       groupCheck(entry.groupId, entry.id)
+      if (!inPage(entry.point)) {
+        outOfSheet(
+          `bus entry "${entry.id}" at (${entry.point.x}, ${entry.point.y}) falls outside the ${pageSize.width}×${pageSize.height} page frame`,
+          { sheetIndex, x: entry.point.x, y: entry.point.y },
+          'Move the bus entry inside the frame',
+        )
+      }
       uf.union(busEntryKey(sheetIndex, entry.id), pointKey(sheetIndex, entry.point))
       taps.push({ point: entry.point, skip: [], sheetIndex })
       const names = netDecl.get(uf.find(pointKey(sheetIndex, entry.point))) ?? new Set<string>()
@@ -382,6 +425,13 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
       netDecl.set(uf.find(pointKey(sheetIndex, entry.point)), names)
     }
     for (const junction of sheet.junctions) {
+      if (!inPage(junction.point)) {
+        outOfSheet(
+          `junction at (${junction.point.x}, ${junction.point.y}) falls outside the ${pageSize.width}×${pageSize.height} page frame`,
+          { sheetIndex, x: junction.point.x, y: junction.point.y },
+          'Move the junction inside the frame',
+        )
+      }
       uf.find(pointKey(sheetIndex, junction.point))
     }
     for (const attr of sheet.attrs) countId(localAttrIds, attr.id)

@@ -13,6 +13,7 @@
  */
 
 import { transformSymbolPoint } from './geometry.ts'
+import { SCHEMATIC_PAGE_A4 } from './types.ts'
 import type {
   SchematicIr,
   SchematicIrComponent,
@@ -21,6 +22,7 @@ import type {
   SchematicIrSheet,
   SchematicIrWire,
   SchematicLayoutOptions,
+  SchematicPageSize,
   SchematicPoint,
   SchematicSymbolPin,
 } from './types.ts'
@@ -45,6 +47,25 @@ const MODULE_GAP = 200
 const BODY_HALF_WIDTH = 60
 /** Vertical padding above the outermost pin row inside the outline. */
 const BODY_HALF_PADDING = 20
+/**
+ * Edge allowance inside the page frame for sheets carrying module frames —
+ * covers the pin stub + flag stub plus the frame padding and title headroom
+ * the serializer adds around module members.
+ */
+const PAGE_EDGE_FRAMED = 150
+/** Edge allowance for flat sheets: pin stub plus generated flag stub. */
+const PAGE_EDGE_FLAT = 80
+/**
+ * Spacing compression ladder applied to module gap / column pitch / row gap
+ * when the module grid overflows the page; each level retries the single-page
+ * pack before layout falls back to pagination.
+ */
+const SPACING_SCALES = [1, 0.6, 0.3]
+/** Compression floors: below these, bodies/pin stubs would overlap. */
+const MIN_COLUMN_PITCH = 160
+const MIN_ROW_GAP = 30
+const MIN_MODULE_GAP = 60
+const MIN_PIN_PITCH = 10
 
 const GROUND_NET_RE = /^(GND|AGND|DGND|PGND|GNDA|VSS|GROUND)/i
 const POWER_NET_RE = /^(\+?\d+V|VCC|VDD|VBAT|VBUS|VIN|VOUT|\+)/i
@@ -61,6 +82,9 @@ interface ResolvedLayoutOptions {
   flagFanout: number
   moduleColumns: number | undefined
   symbolPins: ReadonlyMap<string, readonly SchematicSymbolPin[]>
+  pageSize: SchematicPageSize
+  /** Effective module gap after spacing compression. */
+  moduleGap: number
 }
 
 function resolveOptions(options: SchematicLayoutOptions): ResolvedLayoutOptions {
@@ -74,6 +98,24 @@ function resolveOptions(options: SchematicLayoutOptions): ResolvedLayoutOptions 
     flagFanout: options.flagFanout ?? DEFAULT_FLAG_FANOUT,
     moduleColumns: options.moduleColumns,
     symbolPins: options.symbolPins ?? new Map(),
+    pageSize: options.pageSize ?? SCHEMATIC_PAGE_A4,
+    moduleGap: MODULE_GAP,
+  }
+}
+
+/**
+ * Apply one rung of the spacing-compression ladder: module gap, column pitch,
+ * and row gap shrink toward their floors so a slightly oversized module grid
+ * still fits the page without splitting sheets.
+ */
+function compressSpacing(o: ResolvedLayoutOptions, scale: number): ResolvedLayoutOptions {
+  if (scale === 1) return o
+  return {
+    ...o,
+    columnPitch: Math.max(MIN_COLUMN_PITCH, o.columnPitch * scale),
+    rowGap: Math.max(MIN_ROW_GAP, o.rowGap * scale),
+    moduleGap: Math.max(MIN_MODULE_GAP, o.moduleGap * scale),
+    pinPitch: Math.max(MIN_PIN_PITCH, o.pinPitch * scale),
   }
 }
 
@@ -212,14 +254,321 @@ function lPath(a: SchematicPoint, b: SchematicPoint): number[] {
  * @param options - grid, spacing, and strategy tunables.
  * @returns the IR with positions, pin endpoints, and routing filled in.
  */
+/** One module group: its zone key plus member components. */
+type ModuleGroup = readonly [string, SchematicIrComponent[]]
+
+/** Per-sheet zoning: main-zone module groups and the annotation margin set. */
+interface SheetZone {
+  readonly annotation: readonly SchematicIrComponent[]
+  readonly groups: ReadonlyMap<string, SchematicIrComponent[]>
+  readonly orderedGroups: readonly ModuleGroup[]
+  readonly blockOf: ReadonlyMap<string, string>
+  readonly sidesOf: ReadonlyMap<string, readonly PinSide[]>
+}
+
+/**
+ * Zone one sheet: components cluster by declared functional block (component
+ * `block` against `sheet.blocks`), each module runs the signal-flow layering
+ * inside its own grid cell, and the cells pack row-major in declaration order
+ * (undeclared names sorted, ungrouped last). A sheet without module
+ * membership degenerates to one group — the flat layout.
+ */
+function zoneSheet(sheet: SchematicIrSheet): SheetZone {
+  const main = sheet.components.filter(component => !ANNOTATION_KINDS.has(component.kind))
+  const annotation = sheet.components.filter(component => ANNOTATION_KINDS.has(component.kind))
+
+  const declaredOrder = new Map<string, number>()
+  sheet.blocks?.forEach((block, index) => declaredOrder.set(block.name, index))
+  const groups = new Map<string, SchematicIrComponent[]>()
+  for (const component of main) {
+    const key = component.block ?? ''
+    const group = groups.get(key) ?? []
+    group.push(component)
+    groups.set(key, group)
+  }
+  // Grid order: declared modules in declaration order, undeclared names
+  // alphabetically, and the ungrouped remainder last.
+  const named = [...groups.keys()].filter(key => key !== '')
+  const orderedGroups: ModuleGroup[] = [
+    ...named.filter(key => declaredOrder.has(key))
+      .sort((a, b) => (declaredOrder.get(a) as number) - (declaredOrder.get(b) as number)),
+    ...named.filter(key => !declaredOrder.has(key)).sort((a, b) => a.localeCompare(b)),
+    ...(groups.has('') ? [''] : []),
+  ].map(key => [key, groups.get(key) as SchematicIrComponent[]] as const)
+  // Component → module key for inter-module net detection; a net spanning
+  // two groups routes through flags instead of a trunk so modules stay
+  // visually separable.
+  const blockOf = new Map<string, string>()
+  for (const [key, group] of groups) for (const component of group) blockOf.set(component.id, key)
+  const sidesOf = new Map<string, PinSide[]>()
+  for (const component of sheet.components) {
+    sidesOf.set(component.id, pinSides(component.pins))
+  }
+  return { annotation, groups, orderedGroups, blockOf, sidesOf }
+}
+
+/**
+ * Per-component half-heights under one pin pitch: the synthesized pin rows
+ * (split across both symbol sides) plus outline padding. Recomputed per
+ * spacing rung because compression shrinks the pin pitch.
+ */
+function halfHeightsOf(
+  components: readonly SchematicIrComponent[],
+  sidesOf: ReadonlyMap<string, readonly PinSide[]>,
+  pinPitch: number,
+  grid: number,
+): Map<string, number> {
+  const halfHeightOf = new Map<string, number>()
+  for (const component of components) {
+    const sides = sidesOf.get(component.id) as PinSide[]
+    const rows = Math.max(
+      sides.filter(side => side === 'left').length,
+      sides.length - sides.filter(side => side === 'left').length,
+      1,
+    )
+    halfHeightOf.set(component.id, snap((rows * pinPitch) / 2 + BODY_HALF_PADDING, grid))
+  }
+  return halfHeightOf
+}
+
+/**
+ * Place one module group relative to `origin` in signal-flow columns;
+ * returns the group's bounding span for grid packing. A column that would
+ * grow past `maxHeight` wraps into a continuation column one pitch to the
+ * right, so a tall group widens instead of running off the page.
+ */
+function placeGroup(
+  members: readonly SchematicIrComponent[],
+  origin: SchematicPoint,
+  positions: Map<string, SchematicPoint>,
+  halfHeightOf: ReadonlyMap<string, number>,
+  o: ResolvedLayoutOptions,
+  maxHeight: number,
+): { width: number; height: number } {
+  const layers = layerOf([...members])
+  const columns = new Map<number, SchematicIrComponent[]>()
+  for (const component of members) {
+    const layer = layers.get(component.id) as number
+    const column = columns.get(layer) ?? []
+    column.push(component)
+    columns.set(layer, column)
+  }
+  for (const column of columns.values()) {
+    column.sort((a, b) => componentKey(a).localeCompare(componentKey(b)))
+  }
+  let width = 0
+  let height = 0
+  for (const layer of [...columns.keys()].sort((a, b) => a - b)) {
+    const column = columns.get(layer) as SchematicIrComponent[]
+    let cursor = origin.y
+    let peak = 0
+    let columnX = snap(origin.x + layer * o.columnPitch, o.grid)
+    for (const component of column) {
+      const half = halfHeightOf.get(component.id) as number
+      if (cursor !== origin.y && cursor + 2 * half > origin.y + maxHeight) {
+        peak = Math.max(peak, cursor - o.rowGap - origin.y)
+        columnX = snap(columnX + o.columnPitch, o.grid)
+        cursor = origin.y
+      }
+      if (!positions.has(component.id)) {
+        positions.set(component.id, { x: snap(columnX + BODY_HALF_WIDTH, o.grid), y: snap(cursor + half, o.grid) })
+      }
+      cursor += 2 * half + o.rowGap
+    }
+    width = Math.max(width, columnX + 2 * BODY_HALF_WIDTH - origin.x)
+    height = Math.max(height, peak, cursor - o.rowGap - origin.y)
+  }
+  return { width, height }
+}
+
+/** Content rect inside the page frame a sheet may occupy. */
+interface PageRect {
+  readonly left: number
+  readonly top: number
+  readonly right: number
+  readonly bottom: number
+}
+
+/** One packed row of module cells with its bounding height. */
+interface PackedRow {
+  readonly groups: readonly ModuleGroup[]
+  readonly height: number
+}
+
+/**
+ * Wrap module groups into rows: at most `columns` cells per row and a row
+ * never extends past `usable.right` (a group wider than the row still lands
+ * in its own row — the validator flags what cannot fit).
+ */
+function packRows(
+  groups: readonly ModuleGroup[],
+  spans: readonly { width: number; height: number }[],
+  columns: number,
+  usable: PageRect,
+  gap: number,
+): { rows: PackedRow[]; fits: boolean } {
+  const rows: PackedRow[] = []
+  let fits = true
+  let current: ModuleGroup[] = []
+  let x = usable.left
+  let height = 0
+  const flush = (): void => {
+    if (x - gap > usable.right) fits = false
+    rows.push({ groups: current, height })
+    current = []
+    x = usable.left
+    height = 0
+  }
+  groups.forEach((group, index) => {
+    const span = spans[index] as { width: number; height: number }
+    if (current.length > 0 && (current.length === columns || x + span.width > usable.right)) flush()
+    current.push(group)
+    x += span.width + gap
+    height = Math.max(height, span.height)
+  })
+  // Callers always pass a non-empty group list, so the tail row is live.
+  flush()
+  return { rows, fits }
+}
+
+/**
+ * Stack packed rows into pages bounded by `usable.bottom`. `fits` is false
+ * when a row alone is taller than a fresh page — pagination cannot fix that;
+ * it signals the caller to keep compressing or accept the violation.
+ */
+function packPages(
+  rows: readonly PackedRow[],
+  usable: PageRect,
+  gap: number,
+): { pages: PackedRow[][]; fits: boolean } {
+  const pages: PackedRow[][] = []
+  let fits = true
+  let current: PackedRow[] = []
+  let y = usable.top
+  for (const row of rows) {
+    if (current.length > 0 && y + row.height > usable.bottom) {
+      pages.push(current)
+      current = []
+      y = usable.top
+    }
+    if (y + row.height > usable.bottom) fits = false
+    current.push(row)
+    y += row.height + gap
+  }
+  // Callers always pass a non-empty row list, so the tail page is live.
+  pages.push(current)
+  return { pages, fits }
+}
+
+
+/** Derived sheet for one pagination page: members of its groups plus (on the
+ * first page only) the source sheet's authored wires and annotations. */
+function splitSheet(sheet: SchematicIrSheet, rows: readonly PackedRow[], index: number): SchematicIrSheet {
+  const memberIds = new Set(rows.flatMap(row => row.groups.flatMap(([, members]) => members.map(component => component.id))))
+  const groupNames = new Set(rows.flatMap(row => row.groups.map(([key]) => key)).filter(key => key !== ''))
+  const blocks = sheet.blocks?.filter(block => groupNames.has(block.name))
+  if (index === 0) {
+    return {
+      ...sheet,
+      blocks,
+      components: sheet.components.filter(component => memberIds.has(component.id) || ANNOTATION_KINDS.has(component.kind)),
+    }
+  }
+  return {
+    name: sheet.name === undefined ? undefined : `${sheet.name} ${index + 1}`,
+    blocks,
+    components: sheet.components.filter(component => memberIds.has(component.id)),
+    wires: [],
+    busEntries: [],
+    junctions: [],
+    attrs: [],
+  }
+}
+
+/** Per-source-sheet placement decision: the (possibly split) sheets plus the
+ * spacing rung and row packing each produced sheet was planned with. */
+interface SheetPlan {
+  readonly sheet: SchematicIrSheet
+  readonly options: ResolvedLayoutOptions
+  readonly rows?: readonly PackedRow[]
+}
+
+/**
+ * Plan one source sheet against the page frame: measure every module group's
+ * span, then walk the degradation ladder — compress module/column spacing
+ * until the grid fits one page; if it still overflows, paginate the groups
+ * onto additional sheets at default spacing. Sheets carrying authored
+ * geometry (explicit positions) or hierarchy primitives (block/sheet
+ * components) keep their geometry and rely on `OBJECT_OUT_OF_SHEET` instead.
+ */
+function planSheet(sheet: SchematicIrSheet, o: ResolvedLayoutOptions): SheetPlan[] {
+  const authored = sheet.components.some(component =>
+    component.position !== undefined || component.kind === 'block' || component.kind === 'sheet')
+  if (authored) return [{ sheet, options: o }]
+
+  const zone = zoneSheet(sheet)
+  if (zone.orderedGroups.length === 0) return [{ sheet, options: o }]
+  const framed = (sheet.blocks?.length ?? 0) > 0 || sheet.components.some(component => component.block !== undefined)
+  const edgePad = framed ? PAGE_EDGE_FRAMED : PAGE_EDGE_FLAT
+  const usable: PageRect = {
+    left: o.margin.x,
+    top: o.margin.y,
+    right: o.pageSize.width - edgePad,
+    bottom: o.pageSize.height - edgePad,
+  }
+  const columns = o.moduleColumns ?? Math.ceil(Math.sqrt(zone.orderedGroups.length))
+  const usableHeight = usable.bottom - usable.top
+  const measure = (options: ResolvedLayoutOptions): { pages: PackedRow[][]; fits: boolean } => {
+    const halfHeightOf = halfHeightsOf(sheet.components, zone.sidesOf, options.pinPitch, options.grid)
+    const spans = zone.orderedGroups.map(([, members]) =>
+      placeGroup(members, { x: 0, y: 0 }, new Map(), halfHeightOf, options, usableHeight))
+    const packed = packRows(zone.orderedGroups, spans, columns, usable, options.moduleGap)
+    const stacked = packPages(packed.rows, usable, options.moduleGap)
+    return { pages: stacked.pages, fits: packed.fits && stacked.fits }
+  }
+
+  for (const scale of SPACING_SCALES) {
+    const options = compressSpacing(o, scale)
+    const { pages, fits } = measure(options)
+    if (fits && pages.length === 1) {
+      return [{ sheet, options, rows: pages[0] as PackedRow[] }]
+    }
+  }
+  // Still overflowing: a single group cannot split — keep the tightest
+  // spacing so the violation stays minimal; multiple groups paginate at
+  // default spacing so each delivered page stays readable.
+  if (zone.orderedGroups.length === 1) {
+    const options = compressSpacing(o, SPACING_SCALES[SPACING_SCALES.length - 1] as number)
+    return [{ sheet, options, rows: measure(options).pages[0] as PackedRow[] }]
+  }
+  return measure(o).pages.map((pageRows, index) => ({
+    sheet: splitSheet(sheet, pageRows, index),
+    options: o,
+    rows: pageRows,
+  }))
+}
+
+/**
+ * Lay out one IR document. The pass is pure and deterministic: identical input
+ * produces identical output, and re-running on the result is a no-op. Each
+ * source sheet is first planned against the page frame (`pageSize`, default
+ * A4): the module grid compresses spacing before overflowing groups spill
+ * onto additional sheets, so generated geometry stays inside the frame.
+ * @param ir - the parsed IR; geometry fields may be absent.
+ * @param options - grid, spacing, page-size, and strategy tunables.
+ * @returns the IR with positions, pin endpoints, and routing filled in.
+ */
 export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions = {}): SchematicIr {
   const o = resolveOptions(options)
+  // Pagination runs before the net census so a net crossing a pagination
+  // split is seen as multi-sheet and routes through net ports.
+  const plans = ir.sheets.flatMap(sheet => planSheet(sheet, o))
 
   // Global net census: a net declared on more than one sheet routes through
   // net ports rather than same-sheet flags.
   const netSheets = new Map<string, Set<number>>()
-  ir.sheets.forEach((sheet, sheetIndex) => {
-    for (const component of sheet.components) {
+  plans.forEach((plan, sheetIndex) => {
+    for (const component of plan.sheet.components) {
       for (const pin of component.pins) {
         if (pin.net === undefined) continue
         const set = netSheets.get(pin.net) ?? new Set<number>()
@@ -229,110 +578,68 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
     }
   })
 
-  const sheets: SchematicIrSheet[] = ir.sheets.map((sheet) => {
-    // --- Zoning: components cluster by declared functional block (component
-    // `block` against `sheet.blocks`), each module runs the signal-flow
-    // layering inside its own grid cell, and the cells pack row-major in
-    // declaration order (undeclared names sorted, ungrouped last). A sheet
-    // without module membership degenerates to one group — the flat layout.
-    const main = sheet.components.filter(component => !ANNOTATION_KINDS.has(component.kind))
-    const annotation = sheet.components.filter(component => ANNOTATION_KINDS.has(component.kind))
+  return { sheets: plans.map(plan => layoutSheet(plan, netSheets)) }
+}
 
-    const declaredOrder = new Map<string, number>()
-    sheet.blocks?.forEach((block, index) => declaredOrder.set(block.name, index))
-    const groups = new Map<string, SchematicIrComponent[]>()
-    for (const component of main) {
-      const key = component.block ?? ''
-      const group = groups.get(key) ?? []
-      group.push(component)
-      groups.set(key, group)
-    }
-    // Grid order: declared modules in declaration order, undeclared names
-    // alphabetically, and the ungrouped remainder last.
-    const named = [...groups.keys()].filter(key => key !== '')
-    const orderedGroups = [
-      ...named.filter(key => declaredOrder.has(key))
-        .sort((a, b) => (declaredOrder.get(a) as number) - (declaredOrder.get(b) as number)),
-      ...named.filter(key => !declaredOrder.has(key)).sort((a, b) => a.localeCompare(b)),
-      ...(groups.has('') ? [''] : []),
-    ].map(key => [key, groups.get(key) as SchematicIrComponent[]] as const)
-    // Component → module key for inter-module net detection; a net spanning
-    // two groups routes through flags instead of a trunk so modules stay
-    // visually separable.
-    const blockOf = new Map<string, string>()
-    for (const [key, group] of groups) for (const component of group) blockOf.set(component.id, key)
-    const sidesOf = new Map<string, PinSide[]>()
-    const halfHeightOf = new Map<string, number>()
-    for (const component of sheet.components) {
-      const sides = pinSides(component.pins)
-      sidesOf.set(component.id, sides)
-      const rows = Math.max(
-        sides.filter(side => side === 'left').length,
-        sides.length - sides.filter(side => side === 'left').length,
-        1,
-      )
-      halfHeightOf.set(component.id, snap((rows * o.pinPitch) / 2 + BODY_HALF_PADDING, o.grid))
-    }
+/** Place, endpoint, and route one planned sheet. */
+function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>>): SchematicIrSheet {
+    const { sheet } = plan
+    const o = plan.options
+    const zone = zoneSheet(sheet)
+    const { annotation, groups, orderedGroups, blockOf, sidesOf } = zone
+    const halfHeightOf = halfHeightsOf(sheet.components, sidesOf, o.pinPitch, o.grid)
 
     const positions = new Map<string, SchematicPoint>()
     for (const component of sheet.components) {
       if (component.position !== undefined) positions.set(component.id, component.position)
     }
-    // Place one module group relative to `origin` in signal-flow columns;
-    // returns the group's bounding span for grid packing.
-    const placeGroup = (members: readonly SchematicIrComponent[], origin: SchematicPoint): { width: number; height: number } => {
-      const layers = layerOf([...members])
-      const columns = new Map<number, SchematicIrComponent[]>()
-      for (const component of members) {
-        const layer = layers.get(component.id) as number
-        const column = columns.get(layer) ?? []
-        column.push(component)
-        columns.set(layer, column)
-      }
-      for (const column of columns.values()) {
-        column.sort((a, b) => componentKey(a).localeCompare(componentKey(b)))
-      }
-      let width = 0
-      let height = 0
-      for (const layer of [...columns.keys()].sort((a, b) => a - b)) {
-        const column = columns.get(layer) as SchematicIrComponent[]
-        let cursor = origin.y
-        const columnX = snap(origin.x + layer * o.columnPitch, o.grid)
-        for (const component of column) {
-          const half = halfHeightOf.get(component.id) as number
-          if (!positions.has(component.id)) {
-            positions.set(component.id, { x: snap(columnX + BODY_HALF_WIDTH, o.grid), y: snap(cursor + half, o.grid) })
-          }
-          cursor += 2 * half + o.rowGap
-        }
-        width = Math.max(width, columnX + 2 * BODY_HALF_WIDTH - origin.x)
-        height = Math.max(height, cursor - o.rowGap - origin.y)
-      }
-      return { width, height }
-    }
 
-    const moduleColumns = o.moduleColumns ?? Math.ceil(Math.sqrt(orderedGroups.length))
+    const moduleColumns = o.moduleColumns ?? Math.ceil(Math.sqrt(Math.max(orderedGroups.length, 1)))
+    const rows: readonly PackedRow[] = plan.rows ?? (() => {
+      const chunked: PackedRow[] = []
+      for (let i = 0; i < orderedGroups.length; i += moduleColumns) {
+        chunked.push({ groups: orderedGroups.slice(i, i + moduleColumns), height: 0 })
+      }
+      return chunked
+    })()
+    const framed = (sheet.blocks?.length ?? 0) > 0 || sheet.components.some(component => component.block !== undefined)
+    const edgePad = framed ? PAGE_EDGE_FRAMED : PAGE_EDGE_FLAT
+    const rightEdge = o.pageSize.width - edgePad
+    const bottomEdge = o.pageSize.height - edgePad
+    const inFrame = (p: SchematicPoint): boolean =>
+      p.x >= 0 && p.x <= o.pageSize.width && p.y >= 0 && p.y <= o.pageSize.height
+    const clampFrame = (p: SchematicPoint): SchematicPoint => ({
+      x: Math.min(Math.max(p.x, 0), o.pageSize.width),
+      y: Math.min(Math.max(p.y, 0), o.pageSize.height),
+    })
+
     let annotationX = o.margin.x
     let rowY = o.margin.y
-    for (let row = 0; row * moduleColumns < orderedGroups.length; row += 1) {
+    for (const row of rows) {
       let cellX = o.margin.x
       let rowHeight = 0
-      for (let column = 0; column < moduleColumns; column += 1) {
-        const group = orderedGroups[row * moduleColumns + column]
-        if (group === undefined) break
-        const box = placeGroup(group[1], { x: cellX, y: rowY })
-        cellX += box.width + MODULE_GAP
+      for (const group of row.groups) {
+        const box = placeGroup(group[1], { x: cellX, y: rowY }, positions, halfHeightOf, o, bottomEdge - rowY)
+        cellX += box.width + o.moduleGap
         rowHeight = Math.max(rowHeight, box.height)
-        annotationX = Math.max(annotationX, cellX - MODULE_GAP)
+        annotationX = Math.max(annotationX, cellX - o.moduleGap)
       }
-      rowY += rowHeight + MODULE_GAP
+      rowY += rowHeight + o.moduleGap
     }
+    // The annotation margin stacks beside the main zone; when a column
+    // reaches the usable bottom it wraps right, and columns that would pass
+    // the right edge clamp onto it (in-bounds, possibly crowded).
+    let annotationColumn = annotationX + ANNOTATION_GAP + BODY_HALF_WIDTH
     let annotationCursor = o.margin.y
     for (const component of annotation) {
       const half = halfHeightOf.get(component.id) as number
       if (!positions.has(component.id)) {
+        if (annotationCursor + 2 * half > bottomEdge && annotationCursor !== o.margin.y) {
+          annotationColumn += 2 * BODY_HALF_WIDTH + ANNOTATION_GAP
+          annotationCursor = o.margin.y
+        }
         positions.set(component.id, {
-          x: snap(annotationX + ANNOTATION_GAP + BODY_HALF_WIDTH, o.grid),
+          x: Math.min(snap(annotationColumn, o.grid), rightEdge),
           y: snap(annotationCursor + half, o.grid),
         })
       }
@@ -500,7 +807,7 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
         const stubDots: number[][] = []
         unrouted.forEach((member, index) => {
           const endpoint = member.pin.endpoint
-          const flagPosition: SchematicPoint = isGroundNet(net)
+          const direct: SchematicPoint = isGroundNet(net)
             ? { x: endpoint.x, y: snap(endpoint.y - FLAG_STUB, o.grid) }
             : powerClass
               ? { x: endpoint.x, y: snap(endpoint.y + FLAG_STUB, o.grid) }
@@ -508,6 +815,16 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
                 x: snap(endpoint.x + (member.side === 'left' ? -FLAG_STUB : FLAG_STUB), o.grid),
                 y: endpoint.y,
               }
+          // A flag that would land outside the page frame mirrors across the
+          // pin endpoint; an endpoint itself out of bounds clamps the flag
+          // onto the frame edge.
+          let flagPosition = direct
+          if (!inFrame(direct)) {
+            const mirrored: SchematicPoint = isGroundNet(net) || powerClass
+              ? { x: direct.x, y: snap(2 * endpoint.y - direct.y, o.grid) }
+              : { x: snap(2 * endpoint.x - direct.x, o.grid), y: direct.y }
+            flagPosition = inFrame(mirrored) ? mirrored : clampFrame(direct)
+          }
           if (endpoint.x !== flagPosition.x || endpoint.y !== flagPosition.y) {
             stubDots.push(lPath(endpoint, flagPosition))
           }
@@ -585,12 +902,11 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
     }
 
     return {
+      ...sheet,
       components,
       wires,
       busEntries: sheet.busEntries,
       junctions,
       attrs: sheet.attrs,
     }
-  })
-  return { sheets }
 }

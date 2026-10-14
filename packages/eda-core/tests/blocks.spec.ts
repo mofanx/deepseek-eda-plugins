@@ -52,16 +52,17 @@ describe('computeBlockFrames', () => {
       pins: [{ id: 'p1', name: 'P', number: '1', electric: 'INPUT' }],
     }
     const [frame] = computeBlockFrames(sheet({ components: [member] }))
-    expect(frame).toMatchObject({ x: 20, y: -40 })
+    // y=floor((100-140)/10)*10=-40 clamps onto the page frame.
+    expect(frame).toMatchObject({ x: 20, y: 0 })
   })
 
   it('lets pin endpoints widen the box beyond the component position', () => {
     const [frame] = computeBlockFrames(sheet({
       components: [part('u1', 'io', 100, 100, [{ x: -200, y: 500 }])],
     }))
-    // minX=-200 → x=floor(-280/10)*10=-280; maxX=100 → 180-(-280)=460 wide.
-    // minY=100 → y=floor((100-140)/10)*10=-40; maxY=500 → 580-(-40)=620 tall.
-    expect(frame).toMatchObject({ x: -280, y: -40, width: 460, height: 620 })
+    // minX=-200 → x=floor(-280/10)*10=-280, clamped to 0; maxX=100 → 180 wide.
+    // minY=100 → y=floor(-40/10)*10=-40, clamped to 0; maxY=500 → 580 tall.
+    expect(frame).toMatchObject({ x: 0, y: 0, width: 180, height: 580 })
   })
 
   it('uses the declared block title and orders declared blocks first', () => {

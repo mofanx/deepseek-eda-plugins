@@ -6,7 +6,8 @@
  * @module @deepseek-ai/dsh-plugin-eda-core/blocks
  */
 
-import type { SchematicIrSheet } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { SCHEMATIC_PAGE_A4 } from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicIrSheet, SchematicPageSize } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** One module frame in IR sheet coordinates (top-left origin). */
 export interface EasyEdaBlockFrame {
@@ -43,10 +44,16 @@ const TITLE_INSET_Y = 10
  * a title strip reserved above the top edge. Frame order mirrors the layout
  * stage: declared `blocks` first in declaration order, then free-form names
  * alphabetically.
+ * A frame never extends outside the page frame: the padded rectangle clamps
+ * onto `[0, pageSize]` so decoration can never go out of sheet.
  * @param sheet - the laid-out sheet (positions and pin endpoints assigned).
+ * @param pageSize - the page frame to clamp into; defaults to A4.
  * @returns the frames to draw, or an empty list when nothing is grouped.
  */
-export function computeBlockFrames(sheet: SchematicIrSheet): readonly EasyEdaBlockFrame[] {
+export function computeBlockFrames(
+  sheet: SchematicIrSheet,
+  pageSize: SchematicPageSize = SCHEMATIC_PAGE_A4,
+): readonly EasyEdaBlockFrame[] {
   const members = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
   for (const component of sheet.components) {
     if (component.block === undefined || component.position === undefined) continue
@@ -77,15 +84,17 @@ export function computeBlockFrames(sheet: SchematicIrSheet): readonly EasyEdaBlo
   })
   return names.map((name) => {
     const box = members.get(name) as { minX: number; minY: number; maxX: number; maxY: number }
-    const x = Math.floor((box.minX - FRAME_PAD) / GRID) * GRID
-    const y = Math.floor((box.minY - FRAME_PAD - TITLE_HEADROOM) / GRID) * GRID
+    const x = Math.max(0, Math.floor((box.minX - FRAME_PAD) / GRID) * GRID)
+    const y = Math.max(0, Math.floor((box.minY - FRAME_PAD - TITLE_HEADROOM) / GRID) * GRID)
+    const right = Math.min(pageSize.width, Math.ceil((box.maxX + FRAME_PAD) / GRID) * GRID)
+    const bottom = Math.min(pageSize.height, Math.ceil((box.maxY + FRAME_PAD) / GRID) * GRID)
     return {
       name,
       title: titleOf.get(name) ?? name,
       x,
       y,
-      width: Math.ceil((box.maxX + FRAME_PAD) / GRID) * GRID - x,
-      height: Math.ceil((box.maxY + FRAME_PAD) / GRID) * GRID - y,
+      width: Math.max(0, right - x),
+      height: Math.max(0, bottom - y),
       titleX: x + TITLE_INSET_X,
       titleY: y + TITLE_INSET_Y,
     }

@@ -8,7 +8,8 @@
  * @module @deepseek-ai/dsh-plugin-eda-core/hierarchy
  */
 
-import type { SchematicIrComponent, SchematicIrSheet, SchematicPoint } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { SCHEMATIC_PAGE_A4 } from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicIrComponent, SchematicIrSheet, SchematicPageSize, SchematicPoint } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** One pin-name label inside a sheet-symbol box, in IR sheet coordinates. */
 export interface EasyEdaSheetSymbolPin {
@@ -51,19 +52,24 @@ const PIN_STEP = 30
  * The outermost pin endpoints land on the box edges so wires terminate
  * flush; pins are labelled inside the nearer edge in declaration order,
  * endpoint-less pins stacked down the left edge.
+ * The box clamps onto `[0, pageSize]` so decoration never leaves the frame.
  * @param sheet - the laid-out sheet.
+ * @param pageSize - the page frame to clamp into; defaults to A4.
  * @returns one box per block component, in component declaration order.
  */
-export function computeSheetSymbolBoxes(sheet: SchematicIrSheet): readonly EasyEdaSheetSymbolBox[] {
+export function computeSheetSymbolBoxes(
+  sheet: SchematicIrSheet,
+  pageSize: SchematicPageSize = SCHEMATIC_PAGE_A4,
+): readonly EasyEdaSheetSymbolBox[] {
   const boxes: EasyEdaSheetSymbolBox[] = []
   for (const component of sheet.components) {
     if (component.kind !== 'block') continue
-    boxes.push(boxOf(component))
+    boxes.push(boxOf(component, pageSize))
   }
   return boxes
 }
 
-function boxOf(component: SchematicIrComponent): EasyEdaSheetSymbolBox {
+function boxOf(component: SchematicIrComponent, pageSize: SchematicPageSize): EasyEdaSheetSymbolBox {
   const title = component.designator ?? component.netName ?? component.id
   const placed = component.pins
     .map((pin, index) => ({ pin, index, endpoint: pin.endpoint }))
@@ -91,6 +97,10 @@ function boxOf(component: SchematicIrComponent): EasyEdaSheetSymbolBox {
     y1 = minY - TITLE_HEADROOM
     y2 = maxY === minY ? minY + MIN_HEIGHT - TITLE_HEADROOM : maxY + BODY_PAD
   }
+  x1 = Math.max(0, x1)
+  y1 = Math.max(0, y1)
+  x2 = Math.min(pageSize.width, x2)
+  y2 = Math.min(pageSize.height, y2)
 
   const pins: EasyEdaSheetSymbolPin[] = []
   const unplaced = component.pins

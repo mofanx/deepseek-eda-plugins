@@ -631,6 +631,215 @@ describe('layoutSchematic module clustering', () => {
   })
 })
 
+describe('page bounds', () => {
+  const A4 = { width: 1170, height: 825 }
+  const allGeometry = (ir: SchematicIr): { x: number; y: number }[] =>
+    ir.sheets.flatMap(sheet => [
+      ...sheet.components.flatMap(component => [
+        ...component.position === undefined ? [] : [component.position],
+        ...component.pins.flatMap(pin => pin.endpoint === undefined ? [] : [pin.endpoint]),
+      ]),
+      ...sheet.junctions.map(junction => junction.point),
+      ...sheet.wires.flatMap(wire => (wire.dots ?? []).flatMap(chain => {
+        const points: { x: number; y: number }[] = []
+        for (let i = 0; i + 1 < chain.length; i += 2) {
+          points.push({ x: chain[i] as number, y: chain[i + 1] as number })
+        }
+        return points
+      })),
+    ])
+  const inPage = (p: { x: number; y: number }, page = A4): boolean =>
+    p.x >= 0 && p.x <= page.width && p.y >= 0 && p.y <= page.height
+
+  it('keeps generated geometry inside the A4 frame for a packed module grid', () => {
+    const laid = layoutSchematic(ir(sheet({
+      blocks: [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }],
+      components: ['a', 'b', 'c', 'd'].map(block =>
+        comp(`u-${block}`, { block, pins: [pin('p1', { electric: 'OUTPUT', net: 'VCC', powerName: 'VCC' })] })),
+    })))
+    expect(laid.sheets).toHaveLength(1)
+    for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
+  })
+
+  it('compresses module spacing to keep a borderline grid on one page', () => {
+    // Four one-component modules in a single column overflow A4 height at
+    // the default 200-unit gap (780 > 675 usable); the 0.3 rung fits.
+    const doc = ir(sheet({
+      blocks: [1, 2, 3, 4].map(i => ({ name: `m${i}` })),
+      components: [1, 2, 3, 4].map(i => comp(`u${i}`, { block: `m${i}` })),
+    }))
+    const laid = layoutSchematic(doc, { moduleColumns: 1 })
+    expect(laid.sheets).toHaveLength(1)
+    const placed = new Map(laid.sheets[0]?.components.map(component => [component.id, component]))
+    expect((placed.get('u2')?.position?.y ?? 0) - (placed.get('u1')?.position?.y ?? 0))
+      .toBeLessThan(200 + 60)
+    for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
+  })
+
+  it('paginates a module grid that cannot compress onto one page', () => {
+    const doc = ir(sheet({
+      name: 'MAIN',
+      blocks: Array.from({ length: 9 }, (_, i) => ({ name: `m${i}` })),
+      components: Array.from({ length: 9 }, (_, i) =>
+        comp(`u${i}`, { block: `m${i}`, pins: [pin('p1', { electric: 'BI', net: 'VCC', powerName: 'VCC' })] })),
+    }))
+    const laid = layoutSchematic(doc, { moduleColumns: 1 })
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    expect(laid.sheets[0]?.name).toBe('MAIN')
+    expect(laid.sheets[1]?.name).toBe('MAIN 2')
+    for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
+  })
+
+  it('routes a net crossing a pagination split through net ports', () => {
+    const doc = ir(sheet({
+      blocks: Array.from({ length: 9 }, (_, i) => ({ name: `m${i}` })),
+      components: Array.from({ length: 9 }, (_, i) =>
+        comp(`u${i}`, { block: `m${i}`, pins: [pin('p1', { electric: 'BI', net: 'SHARED' })] })),
+    }))
+    const laid = layoutSchematic(doc, { moduleColumns: 1 })
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    for (const page of laid.sheets) {
+      expect(page.components.some(component => component.kind === 'netport' && component.netName === 'SHARED')).toBe(true)
+      expect(page.components.some(component => component.kind === 'netflag' && component.netName === 'SHARED')).toBe(false)
+    }
+  })
+
+  it('honours a custom pageSize bound', () => {
+    const doc = ir(sheet({
+      blocks: Array.from({ length: 9 }, (_, i) => ({ name: `m${i}` })),
+      components: Array.from({ length: 9 }, (_, i) => comp(`u${i}`, { block: `m${i}` })),
+    }))
+    const laid = layoutSchematic(doc, { moduleColumns: 1, pageSize: { width: 3000, height: 2000 } })
+    expect(laid.sheets).toHaveLength(1)
+    for (const point of allGeometry(laid)) {
+      expect(inPage(point, { width: 3000, height: 2000 })).toBe(true)
+    }
+  })
+
+  it('compresses column pitch when a signal chain exceeds the row width', () => {
+    // A five-layer chain spans 1720 units at default pitch — wider than the
+    // 890-unit usable width — but fits once the pitch floors at 160.
+    const doc = ir(sheet({
+      components: Array.from({ length: 5 }, (_, i) => comp(`u${i}`, {
+        pins: [
+          ...i > 0 ? [pin(`in${i}`, { electric: 'INPUT' as const, net: `N${i - 1}` })] : [],
+          pin(`out${i}`, { electric: 'OUTPUT' as const, net: `N${i}` }),
+        ],
+      })),
+    }))
+    const laid = layoutSchematic(doc)
+    expect(laid.sheets).toHaveLength(1)
+    const placed = laid.sheets[0]?.components.map(component => component.position)
+    expect((placed?.[4]?.x ?? 0) - (placed?.[0]?.x ?? 0)).toBeLessThanOrEqual(4 * 160)
+    for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
+  })
+
+  it('keeps a single oversized group on its page at the tightest spacing', () => {
+    // A flat sheet is one atomic group — it cannot paginate; the tightest
+    // spacing rung still applies and the validator flags what remains out.
+    const doc = ir(sheet({
+      components: Array.from({ length: 30 }, (_, i) => comp(`u${i}`)),
+    }))
+    const laid = layoutSchematic(doc)
+    expect(laid.sheets).toHaveLength(1)
+    const placed = laid.sheets[0]?.components.map(component => component.position)
+    // Tightest rung: row gap floors at 30 — a taller step would mean the
+    // ladder did not apply.
+    expect((placed?.[1]?.y ?? 0) - (placed?.[0]?.y ?? 0)).toBeLessThanOrEqual(60 + 30)
+  })
+
+  it('wraps a tall single column into continuation columns instead of overflowing', () => {
+    // One group with a column taller than the usable page wraps rightward at
+    // the bottom edge, so the whole sheet still fits on one page.
+    const doc = ir(sheet({
+      components: Array.from({ length: 12 }, (_, i) =>
+        comp(`u${i}`, { pins: Array.from({ length: 8 }, (_, p) => pin(`p${p}`)) })),
+    }))
+    const laid = layoutSchematic(doc)
+    expect(laid.sheets).toHaveLength(1)
+    const xs = new Set(laid.sheets[0]?.components.map(component => component.position?.x))
+    expect(xs.size).toBeGreaterThan(1)
+    for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
+  })
+
+  it('keeps a lone component taller than the page on one sheet at the tightest rung', () => {
+    // 240 pins on one body: even at the 10-unit pin-pitch floor its outline
+    // exceeds the usable height, so the ladder fails every rung and the sheet
+    // stays single — the validator owns the remaining violation.
+    const doc = ir(sheet({
+      components: [comp('u1', {
+        pins: Array.from({ length: 240 }, (_, p) => pin(`p${p}`)),
+      })],
+    }))
+    const laid = layoutSchematic(doc)
+    expect(laid.sheets).toHaveLength(1)
+    expect(laid.sheets[0]?.components[0]?.position).toBeDefined()
+  })
+
+  it('wraps the annotation column rightward when it would pass the bottom edge', () => {
+    // Unpositioned net flags stack beside the main zone; more flags than a
+    // column holds wrap into a second column instead of leaving the frame.
+    const doc = ir(sheet({
+      components: [
+        comp('u1', { pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        ...Array.from({ length: 9 }, (_, i) => comp(`f${i}`, { kind: 'netflag' })),
+      ],
+    }))
+    const laid = layoutSchematic(doc)
+    const flags = laid.sheets[0]?.components.filter(component => component.kind === 'netflag')
+    const xs = new Set(flags?.map(component => component.position?.x))
+    expect(xs.size).toBeGreaterThan(1)
+    for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
+  })
+
+  it('leaves authored geometry sheets unpaginated and untouched', () => {
+    const doc = ir(sheet({
+      components: [comp('u1', { position: { x: 5000, y: 5000 } })],
+    }))
+    const laid = layoutSchematic(doc)
+    expect(laid.sheets).toHaveLength(1)
+    expect(laid.sheets[0]?.components[0]?.position).toEqual({ x: 5000, y: 5000 })
+  })
+
+  it('mirrors generated flags that would land outside the frame', () => {
+    // SIG spans two modules so it routes through flags; u1's OUTPUT endpoint
+    // lands on the frame's right edge, u2's GND endpoint near the top edge.
+    const doc = ir(sheet({
+      components: [
+        comp('u1', { block: 'a', position: { x: 1090, y: 400 }, pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        comp('u2', { block: 'a', position: { x: 400, y: 30 }, pins: [pin('p1', { electric: 'BI', net: 'GND', powerName: 'GND' })] }),
+        comp('u3', { block: 'b', position: { x: 600, y: 400 }, pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+      ],
+    }))
+    const laid = layoutSchematic(doc)
+    const flags = laid.sheets[0]?.components.filter(component => component.id.startsWith('layout:flag:'))
+    for (const flag of flags ?? []) {
+      expect(flag.position === undefined ? false : inPage(flag.position)).toBe(true)
+    }
+    // u1's OUTPUT endpoint sits at x=1170: the flag mirrors to its left.
+    const sig = flags?.filter(component => component.netName === 'SIG')
+      .find(component => (component.position?.x ?? 0) > 1000)
+    expect(sig?.position?.x).toBeLessThanOrEqual(1170)
+    // u2's GND flag cannot hang above the top edge; it drops below the pin.
+    const gnd = flags?.find(component => component.netName === 'GND')
+    expect(gnd?.position?.y).toBeGreaterThan(30)
+  })
+
+  it('clamps a generated flag onto the frame when its endpoint is out of bounds', () => {
+    const doc = ir(sheet({
+      components: [
+        comp('u1', { block: 'a', position: { x: 1200, y: 400 }, pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        comp('u3', { block: 'b', position: { x: 600, y: 400 }, pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+      ],
+    }))
+    const laid = layoutSchematic(doc)
+    const flag = laid.sheets[0]?.components
+      .filter(component => component.netName === 'SIG')
+      .find(component => (component.position?.x ?? 0) > 1000)
+    expect(flag?.position?.x).toBe(A4.width)
+  })
+})
+
 describe('golden fixture', () => {
   const read = (name: string) =>
     JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')) as SchematicIr
