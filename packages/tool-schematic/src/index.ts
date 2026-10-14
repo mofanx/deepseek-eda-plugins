@@ -110,7 +110,7 @@ function parseDocument(document: unknown): { ir: SchematicIr; stringified: boole
         severity: 'error',
         code: error.code,
         message: error.message,
-        suggestion: 'repair the document argument per the finding message and retry',
+        suggestion: 'fix the value at the reported path and resend the document',
       },
     }
   }
@@ -137,7 +137,8 @@ const DOCUMENT_PARAM_DESCRIPTION =
   'plus optional deviceUuid/symbolUuid/footprintUuid (each with its owning-library scope deviceLibraryUuid/symbolLibraryUuid/footprintLibraryUuid — a scopeless binding is only an unverifiable warning, not a blocking miss), designator/netName/lcsc (LCSC part number resolved to library bindings when a workspace library is reachable). ' +
   'Declare connectivity with pin.net — the layout stage deterministically assigns positions, pin endpoints, and orthogonal wire or net-flag routing in 0.01-inch coordinates, so position/endpoint/dots may be omitted. ' +
   'All geometry must stay inside the A4 page frame (0..1170 × 0..825); layout packs modules within it and paginates overflow onto extra sheets — authored geometry outside the frame fails OBJECT_OUT_OF_SHEET. ' +
-  'Wires have { id, kind: "wire"|"bus", dots?: [[x1,y1,x2,y2,...]], net }.'
+  'Wires have { id, kind: "wire"|"bus", dots?: [[x1,y1,x2,y2,...]], net }. ' +
+  'A shape violation returns SCHEMATIC_IR_INVALID naming the failing path and the received value — fix that field and resend.'
 
 /**
  * Run the engine's live verification when requested. `verify: true` is an

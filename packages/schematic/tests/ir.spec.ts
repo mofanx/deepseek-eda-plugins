@@ -61,8 +61,40 @@ describe('parseSchematicIr', () => {
   it('diagnoses the received type and size for malformed documents', () => {
     expect(() => parseSchematicIr('{"sheets":[')).toThrow(/11-char string that is not valid JSON/)
     expect(() => parseSchematicIr('42')).toThrow(/the 2-char JSON string parses to a number/)
-    expect(() => parseSchematicIr(42)).toThrow(/received a number/)
+    expect(() => parseSchematicIr(42)).toThrow(/received a number \(42\)/)
     expect(() => parseSchematicIr([1, 2])).toThrow(/received an array of 2 items/)
+  })
+
+  it('echoes the received value in field-level shape errors', () => {
+    const doc = (extra: Record<string, unknown>) => ({
+      sheets: [{
+        components: [{ id: 'c', kind: 'part', position: { x: 0, y: 0 }, pins: [], ...extra }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    })
+    // A missing required key says so explicitly.
+    expect(() => parseSchematicIr({
+      sheets: [{ components: [{ kind: 'part', pins: [] }], wires: [], busEntries: [], junctions: [], attrs: [] }],
+    })).toThrow(/components\[0\]\.id: expected a string; the key is missing/)
+    // Small literals echo verbatim so the model sees what it sent.
+    expect(() => parseSchematicIr(doc({ id: 42 })))
+      .toThrow(/components\[0\]\.id: expected a string; received a number \(42\)/)
+    expect(() => parseSchematicIr(doc({ kind: 'weird' })))
+      .toThrow(/received a string "weird"/)
+    expect(() => parseSchematicIr(doc({ mirror: 'yes' })))
+      .toThrow(/received a string "yes"/)
+    expect(() => parseSchematicIr(doc({ netName: true })))
+      .toThrow(/received a boolean \(true\)/)
+    expect(() => parseSchematicIr(doc({ netName: null })))
+      .toThrow(/received null/)
+    expect(() => parseSchematicIr(doc({ netName: {} })))
+      .toThrow(/received an object/)
+    // Long strings report length instead of flooding the finding.
+    expect(() => parseSchematicIr(doc({ kind: 'x'.repeat(40) })))
+      .toThrow(/received a string of 40 chars/)
+    // An empty sheets array is reported, not just "expected at least one".
+    expect(() => parseSchematicIr({ sheets: [] }))
+      .toThrow(/document\.sheets: expected at least one sheet; received an array of 0 items/)
   })
 
   it('rejects a missing or empty sheets array', () => {

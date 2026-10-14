@@ -122,10 +122,11 @@ describe('schematic_generate', () => {
     const { call } = await mountTools()
     const out = await call('schematic_generate', { document: 'nope' })
     expect(out.isError).toBe(false)
-    const value = out.value as { ok: boolean; findings: { code: string; message: string }[] }
+    const value = out.value as { ok: boolean; findings: { code: string; message: string; suggestion?: string }[] }
     expect(value.ok).toBe(false)
     expect(value.findings[0]).toMatchObject({ severity: 'error', code: 'SCHEMATIC_IR_INVALID' })
     expect(value.findings[0]!.message).toContain('4-char string')
+    expect(value.findings[0]!.suggestion).toContain('reported path')
     const text = out.content.map(b => b.type === 'text' ? b.text : '').join('\n')
     expect(text).toContain('SCHEMATIC_IR_INVALID')
   })

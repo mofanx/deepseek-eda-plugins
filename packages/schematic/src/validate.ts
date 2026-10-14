@@ -160,6 +160,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
   const pageSize = options.pageSize ?? SCHEMATIC_PAGE_A4
   const inPage = (p: SchematicPoint): boolean =>
     p.x >= 0 && p.x <= pageSize.width && p.y >= 0 && p.y <= pageSize.height
+  const frame = `0..${pageSize.width} × 0..${pageSize.height}`
   const outOfSheet = (
     message: string,
     locator: SchematicLocator,
@@ -277,9 +278,9 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
           report(
             'HIERARCHY_AMBIGUOUS_BLOCK',
             'error',
-            `block "${component.id}" matches ${candidates.length} sheets by name`,
+            `block "${component.id}" matches ${candidates.length} sheets by name (sheets ${candidates.map(i => i + 1).join(', ')}) — implicit binding is ambiguous`,
             { sheetIndex, componentId: component.id },
-            'Set an explicit sheetIndex on the block',
+            'Set an explicit sheetIndex on the block, or rename the sheets so only one matches',
           )
         } else if (candidates.length === 1) {
           target = candidates[0]
@@ -345,7 +346,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
         outOfSheet(
           `component "${component.id}" sits at (${component.position.x}, ${component.position.y}) outside the ${pageSize.width}×${pageSize.height} page frame`,
           { sheetIndex, componentId: component.id, x: component.position.x, y: component.position.y },
-          'Move it inside the frame, or omit position and let the layout stage place it',
+          `Move it inside ${frame}, or omit position and let the layout stage place it`,
         )
       }
       if ((component.kind === 'netflag' || component.kind === 'netport') && component.position !== undefined) {
@@ -363,7 +364,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
             outOfSheet(
               `pin "${pin.id}" endpoint (${pin.endpoint.x}, ${pin.endpoint.y}) falls outside the ${pageSize.width}×${pageSize.height} page frame`,
               { sheetIndex, componentId: component.id, pinId: pin.id, x: pin.endpoint.x, y: pin.endpoint.y },
-              'Move the component or the endpoint inside the frame',
+              `Move the component or the endpoint inside ${frame}`,
             )
           }
           uf.union(pinKey(sheetIndex, pin.id), pointKey(sheetIndex, pin.endpoint))
@@ -386,7 +387,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
         outOfSheet(
           `wire "${wire.id}" vertex (${outVertex.x}, ${outVertex.y}) falls outside the ${pageSize.width}×${pageSize.height} page frame`,
           { sheetIndex, x: outVertex.x, y: outVertex.y },
-          'Move the wire inside the frame, or drop its dots and let the layout stage route it',
+          `Move the wire inside ${frame}, or drop its dots and let the layout stage route it`,
         )
       }
       for (const chain of segmentsOf(wire)) {
@@ -415,7 +416,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
         outOfSheet(
           `bus entry "${entry.id}" at (${entry.point.x}, ${entry.point.y}) falls outside the ${pageSize.width}×${pageSize.height} page frame`,
           { sheetIndex, x: entry.point.x, y: entry.point.y },
-          'Move the bus entry inside the frame',
+          `Move the bus entry inside ${frame}`,
         )
       }
       uf.union(busEntryKey(sheetIndex, entry.id), pointKey(sheetIndex, entry.point))
@@ -429,7 +430,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
         outOfSheet(
           `junction at (${junction.point.x}, ${junction.point.y}) falls outside the ${pageSize.width}×${pageSize.height} page frame`,
           { sheetIndex, x: junction.point.x, y: junction.point.y },
-          'Move the junction inside the frame',
+          `Move the junction inside ${frame}`,
         )
       }
       uf.find(pointKey(sheetIndex, junction.point))
@@ -760,7 +761,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
                       sheetIndex, componentId: component.id, designator: component.designator,
                       pinId: pin.id, pinNumber: pin.number, x: pin.endpoint.x, y: pin.endpoint.y,
                     },
-                    'Move the pin endpoint (or the component) so the connection lands on the bound symbol pin',
+                    `Move the pin endpoint to (${expectedX}, ${expectedY}), or shift the component so the bound symbol pin lands there`,
                   )
                 }
               }

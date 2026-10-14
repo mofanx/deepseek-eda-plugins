@@ -822,6 +822,7 @@ describe('designator and binding edge cases', () => {
     expect(finding?.severity).toBe('error')
     expect(finding?.message).toContain('of c1')
     expect(finding?.message).toContain('(-60, 20)')
+    expect(finding?.suggestion).toContain('(-60, 20)')
     expect(finding?.locator?.pinId).toBe('p1')
   })
 
@@ -1074,7 +1075,8 @@ describe('hierarchy rules', () => {
         { ...emptySheet, name: 'POWER' },
       ],
     }
-    expect(codes(ir)).toContain('HIERARCHY_AMBIGUOUS_BLOCK')
+    const finding = validateSchematic(ir).findings.find(f => f.code === 'HIERARCHY_AMBIGUOUS_BLOCK')
+    expect(finding?.message).toContain('sheets 2, 3')
     expect(validateSchematic(ir).ok).toBe(false)
   })
 
@@ -1167,6 +1169,7 @@ describe('OBJECT_OUT_OF_SHEET', () => {
     expect(findings.length).toBe(1)
     expect(findings[0]?.severity).toBe('error')
     expect(findings[0]?.locator).toMatchObject({ sheetIndex: 0, componentId: 'c1', x: 1200, y: 100 })
+    expect(findings[0]?.suggestion).toContain('0..1170 × 0..825')
     expect(validateSchematic(ir).ok).toBe(false)
   })
 

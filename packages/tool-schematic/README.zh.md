@@ -37,7 +37,7 @@ kind: "package-reference"
 
 ### schematic_generate
 
-接收 `document`（JSON 形式的原理图 IR），先解析、执行页数/图元数上限，再运行 `resolveBindings`——在工作区库可达时把 `lcsc` 声明解析为真实库绑定，然后运行确定性布局阶段为文档中未定位的几何完成放置与布线，再基于已布局 IR 与预取快照跑接缝的静态门禁；仅在无 error 级发现时经解析出的引擎序列化绑定后的 IR，返回 `{ ok, format, source, sourceBytes, findings }`。被门禁拦下的调用返回 `ok: false` 与全部发现，模型可据此修复重试。`document` 传成 JSON 编码字符串时仍会解析并标记 `SCHEMATIC_IR_STRING_ENCODED`；无法解析的文档返回 `ok: false` 及指明收到类型与大小的 `SCHEMATIC_IR_INVALID` 发现。几何字段（`position`、引脚 `endpoint`、导线 `dots`）可省略：`pin.net` 是连通性声明，其余由布局阶段推导。传 `verify: true` 可再经引擎实机路径交付并 diff 客户端读回的网络表：实机发现并入 `findings`，error 级实机发现使 `ok` 变为 `false` 但 `source` 照常返回；客户端不可达或引擎无实机验证路径时降级为 `SCHEMATIC_VERIFY_UNAVAILABLE` 警告。超过 `maxSourceChars` 的产出的源文本将从结果中省略（`source: ''`，`sourceBytes` 报出完整长度）：`verify: true` 下实机交付已完成，通知降级为 `SCHEMATIC_SOURCE_TOO_LARGE` 警告；否则为 error 级并建议改用 `verify: true` 或缩小文档。
+接收 `document`（JSON 形式的原理图 IR），先解析、执行页数/图元数上限，再运行 `resolveBindings`——在工作区库可达时把 `lcsc` 声明解析为真实库绑定，然后运行确定性布局阶段为文档中未定位的几何完成放置与布线，再基于已布局 IR 与预取快照跑接缝的静态门禁；仅在无 error 级发现时经解析出的引擎序列化绑定后的 IR，返回 `{ ok, format, source, sourceBytes, findings }`。被门禁拦下的调用返回 `ok: false` 与全部发现，模型可据此修复重试。`document` 传成 JSON 编码字符串时仍会解析并标记 `SCHEMATIC_IR_STRING_ENCODED`；无法解析的文档返回 `ok: false` 及指明失败路径与实收值的 `SCHEMATIC_IR_INVALID` 发现。几何字段（`position`、引脚 `endpoint`、导线 `dots`）可省略：`pin.net` 是连通性声明，其余由布局阶段推导。传 `verify: true` 可再经引擎实机路径交付并 diff 客户端读回的网络表：实机发现并入 `findings`，error 级实机发现使 `ok` 变为 `false` 但 `source` 照常返回；客户端不可达或引擎无实机验证路径时降级为 `SCHEMATIC_VERIFY_UNAVAILABLE` 警告。超过 `maxSourceChars` 的产出的源文本将从结果中省略（`source: ''`，`sourceBytes` 报出完整长度）：`verify: true` 下实机交付已完成，通知降级为 `SCHEMATIC_SOURCE_TOO_LARGE` 警告；否则为 error 级并建议改用 `verify: true` 或缩小文档。
 
 ### schematic_validate
 

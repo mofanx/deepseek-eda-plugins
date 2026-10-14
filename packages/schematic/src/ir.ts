@@ -30,27 +30,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function bad(path: string, expect: string): never {
-  throw new SchematicError(`${path}: expected ${expect}`, 'SCHEMATIC_IR_INVALID')
+function bad(path: string, expect: string, received: unknown): never {
+  const detail = received === undefined ? 'the key is missing' : `received ${describeValue(received)}`
+  throw new SchematicError(`${path}: expected ${expect}; ${detail}`, 'SCHEMATIC_IR_INVALID')
 }
 
 function reqString(value: Record<string, unknown>, key: string, path: string): string {
   const field = value[key]
-  if (typeof field !== 'string') bad(`${path}.${key}`, 'a string')
+  if (typeof field !== 'string') bad(`${path}.${key}`, 'a string', field)
   return field
 }
 
 function optString(value: Record<string, unknown>, key: string, path: string): string | undefined {
   const field = value[key]
   if (field === undefined) return undefined
-  if (typeof field !== 'string') bad(`${path}.${key}`, 'a string or undefined')
+  if (typeof field !== 'string') bad(`${path}.${key}`, 'a string or undefined', field)
   return field
 }
 
 function optNumber(value: Record<string, unknown>, key: string, path: string): number | undefined {
   const field = value[key]
   if (field === undefined) return undefined
-  if (typeof field !== 'number' || !Number.isFinite(field)) bad(`${path}.${key}`, 'a finite number or undefined')
+  if (typeof field !== 'number' || !Number.isFinite(field)) {
+    bad(`${path}.${key}`, 'a finite number or undefined', field)
+  }
   return field
 }
 
@@ -58,7 +61,7 @@ function optIndex(value: Record<string, unknown>, key: string, path: string): nu
   const field = value[key]
   if (field === undefined) return undefined
   if (typeof field !== 'number' || !Number.isInteger(field) || field < 0) {
-    bad(`${path}.${key}`, 'a non-negative integer or undefined')
+    bad(`${path}.${key}`, 'a non-negative integer or undefined', field)
   }
   return field
 }
@@ -66,27 +69,29 @@ function optIndex(value: Record<string, unknown>, key: string, path: string): nu
 function optBoolean(value: Record<string, unknown>, key: string, path: string): boolean | undefined {
   const field = value[key]
   if (field === undefined) return undefined
-  if (typeof field !== 'boolean') bad(`${path}.${key}`, 'a boolean or undefined')
+  if (typeof field !== 'boolean') bad(`${path}.${key}`, 'a boolean or undefined', field)
   return field
 }
 
 function reqEnum<T extends string>(value: Record<string, unknown>, key: string, allowed: readonly T[], path: string): T {
   const field = value[key]
-  if (typeof field !== 'string' || !allowed.includes(field as T)) bad(`${path}.${key}`, `one of ${allowed.join(', ')}`)
+  if (typeof field !== 'string' || !allowed.includes(field as T)) {
+    bad(`${path}.${key}`, `one of ${allowed.join(', ')}`, field)
+  }
   return field as T
 }
 
 function parsePoint(value: unknown, path: string): SchematicPoint {
-  if (!isRecord(value)) bad(path, 'a point object')
+  if (!isRecord(value)) bad(path, 'a point object', value)
   const x = value.x
   const y = value.y
-  if (typeof x !== 'number' || !Number.isFinite(x)) bad(`${path}.x`, 'a finite number')
-  if (typeof y !== 'number' || !Number.isFinite(y)) bad(`${path}.y`, 'a finite number')
+  if (typeof x !== 'number' || !Number.isFinite(x)) bad(`${path}.x`, 'a finite number', x)
+  if (typeof y !== 'number' || !Number.isFinite(y)) bad(`${path}.y`, 'a finite number', y)
   return { x, y }
 }
 
 function parsePin(value: unknown, path: string): SchematicIrPin {
-  if (!isRecord(value)) bad(path, 'a pin object')
+  if (!isRecord(value)) bad(path, 'a pin object', value)
   return {
     id: reqString(value, 'id', path),
     name: optString(value, 'name', path),
@@ -101,9 +106,9 @@ function parsePin(value: unknown, path: string): SchematicIrPin {
 }
 
 function parseComponent(value: unknown, path: string): SchematicIrComponent {
-  if (!isRecord(value)) bad(path, 'a component object')
+  if (!isRecord(value)) bad(path, 'a component object', value)
   const pins = value.pins
-  if (!Array.isArray(pins)) bad(`${path}.pins`, 'an array')
+  if (!Array.isArray(pins)) bad(`${path}.pins`, 'an array', pins)
   return {
     id: reqString(value, 'id', path),
     kind: reqEnum(value, 'kind', COMPONENT_KINDS, path),
@@ -130,16 +135,16 @@ function parseComponent(value: unknown, path: string): SchematicIrComponent {
 }
 
 function parseWire(value: unknown, path: string): SchematicIrWire {
-  if (!isRecord(value)) bad(path, 'a wire object')
+  if (!isRecord(value)) bad(path, 'a wire object', value)
   const dots = value.dots
-  if (dots !== undefined && !Array.isArray(dots)) bad(`${path}.dots`, 'an array of polylines')
+  if (dots !== undefined && !Array.isArray(dots)) bad(`${path}.dots`, 'an array of polylines', dots)
   const parsed = (dots ?? []).map((line, lineIndex) => {
     if (!Array.isArray(line) || line.length < 4 || line.length % 2 !== 0) {
-      bad(`${path}.dots[${lineIndex}]`, 'an even-length coordinate array of at least 4 numbers')
+      bad(`${path}.dots[${lineIndex}]`, 'an even-length coordinate array of at least 4 numbers', line)
     }
     for (const [index, coord] of line.entries()) {
       if (typeof coord !== 'number' || !Number.isFinite(coord)) {
-        bad(`${path}.dots[${lineIndex}][${index}]`, 'a finite number')
+        bad(`${path}.dots[${lineIndex}][${index}]`, 'a finite number', coord)
       }
     }
     return line as readonly number[]
@@ -154,10 +159,10 @@ function parseWire(value: unknown, path: string): SchematicIrWire {
 }
 
 function parseBusEntry(value: unknown, path: string): SchematicIrBusEntry {
-  if (!isRecord(value)) bad(path, 'a bus-entry object')
+  if (!isRecord(value)) bad(path, 'a bus-entry object', value)
   const order = value.order
   if (typeof order !== 'number' || !Number.isInteger(order) || order < 0) {
-    bad(`${path}.order`, 'a non-negative integer')
+    bad(`${path}.order`, 'a non-negative integer', order)
   }
   return {
     id: reqString(value, 'id', path),
@@ -169,7 +174,7 @@ function parseBusEntry(value: unknown, path: string): SchematicIrBusEntry {
 }
 
 function parseAttr(value: unknown, path: string): SchematicIrAttr {
-  if (!isRecord(value)) bad(path, 'an attr object')
+  if (!isRecord(value)) bad(path, 'an attr object', value)
   return {
     id: reqString(value, 'id', path),
     parentId: reqString(value, 'parentId', path),
@@ -179,12 +184,12 @@ function parseAttr(value: unknown, path: string): SchematicIrAttr {
 }
 
 function parseJunction(value: unknown, path: string): SchematicIrJunction {
-  if (!isRecord(value)) bad(path, 'a junction object')
+  if (!isRecord(value)) bad(path, 'a junction object', value)
   return { point: parsePoint(value.point, `${path}.point`) }
 }
 
 function parseBlock(value: unknown, path: string): SchematicIrBlock {
-  if (!isRecord(value)) bad(path, 'a block object')
+  if (!isRecord(value)) bad(path, 'a block object', value)
   return {
     name: reqString(value, 'name', path),
     title: optString(value, 'title', path),
@@ -193,22 +198,24 @@ function parseBlock(value: unknown, path: string): SchematicIrBlock {
 
 function parseArray<T>(value: Record<string, unknown>, key: string, parse: (v: unknown, p: string) => T, path: string): readonly T[] {
   const field = value[key]
-  if (!Array.isArray(field)) bad(`${path}.${key}`, 'an array')
+  if (!Array.isArray(field)) bad(`${path}.${key}`, 'an array', field)
   return field.map((entry, index) => parse(entry, `${path}.${key}[${index}]`))
 }
 
 function optArray<T>(value: Record<string, unknown>, key: string, parse: (v: unknown, p: string) => T, path: string): readonly T[] | undefined {
   const field = value[key]
   if (field === undefined) return undefined
-  if (!Array.isArray(field)) bad(`${path}.${key}`, 'an array or undefined')
+  if (!Array.isArray(field)) bad(`${path}.${key}`, 'an array or undefined', field)
   return field.map((entry, index) => parse(entry, `${path}.${key}[${index}]`))
 }
 
-/** Short human-readable description of a rejected document root. */
+/** Short human-readable description of a rejected value, echoing small literals. */
 function describeValue(value: unknown): string {
   if (Array.isArray(value)) return `an array of ${value.length} items`
   if (value === null) return 'null'
-  return `a ${typeof value}`
+  if (typeof value === 'string') return value.length > 24 ? `a string of ${value.length} chars` : `a string "${value}"`
+  if (typeof value === 'number' || typeof value === 'boolean') return `a ${typeof value} (${value})`
+  return `an ${typeof value}`
 }
 
 /**
@@ -240,13 +247,13 @@ export function parseSchematicIr(value: unknown): SchematicIr {
     }
     value = parsed
   }
-  if (!isRecord(value)) bad('document', `an object with a sheets array; received ${describeValue(value)}`)
+  if (!isRecord(value)) bad('document', 'an object with a sheets array', value)
   const sheets = value.sheets
-  if (!Array.isArray(sheets)) bad('document.sheets', 'an array')
-  if (sheets.length === 0) bad('document.sheets', 'at least one sheet')
+  if (!Array.isArray(sheets)) bad('document.sheets', 'an array', sheets)
+  if (sheets.length === 0) bad('document.sheets', 'at least one sheet', sheets)
   const parsed: SchematicIrSheet[] = sheets.map((sheet, index) => {
     const path = `document.sheets[${index}]`
-    if (!isRecord(sheet)) bad(path, 'a sheet object')
+    if (!isRecord(sheet)) bad(path, 'a sheet object', sheet)
     return {
       name: optString(sheet, 'name', path),
       blocks: optArray(sheet, 'blocks', parseBlock, path),
