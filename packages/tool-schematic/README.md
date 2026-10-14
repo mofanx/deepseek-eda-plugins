@@ -33,19 +33,20 @@ English | [中文](README.zh.md)
 |---|---|---|
 | `maxPrimitives` | `5000` | Maximum id-carrying primitives across the whole IR document |
 | `maxSheets` | `32` | Maximum sheets in the IR document |
+| `maxSourceChars` | `1000000` | Maximum chars of emitted document source returned in one result |
 
 ### schematic_generate
 
-Takes `document` (the schematic IR as JSON), parses it, enforces the sheet/primitive caps, runs `resolveBindings` to turn `lcsc` declarations into real library bindings when a workspace library is reachable, runs the deterministic layout stage to place and route anything the document left unpositioned, runs the seam's static gate against the laid IR and the prefetched snapshot, and — only when no error finding exists — serializes the bound IR through the resolved engine and returns `{ ok, format, source, findings }`. A blocked call returns `ok: false` with the findings so the model can repair and retry. Geometry fields (`position`, pin `endpoint`, wire `dots`) may be omitted: `pin.net` is the connectivity declaration, and the layout stage derives the rest. Pass `verify: true` to additionally deliver through the engine's live path and diff the client read-back netlist: verify findings join `findings`, an error-severity verify finding flips `ok` to `false` while `source` is still returned, and an unreachable client or an engine without live verification degrades to a `SCHEMATIC_VERIFY_UNAVAILABLE` warning.
+Takes `document` (the schematic IR as JSON), parses it, enforces the sheet/primitive caps, runs `resolveBindings` to turn `lcsc` declarations into real library bindings when a workspace library is reachable, runs the deterministic layout stage to place and route anything the document left unpositioned, runs the seam's static gate against the laid IR and the prefetched snapshot, and — only when no error finding exists — serializes the bound IR through the resolved engine and returns `{ ok, format, source, sourceBytes, findings }`. A blocked call returns `ok: false` with the findings so the model can repair and retry. A `document` passed as a JSON-encoded string is parsed anyway and flagged `SCHEMATIC_IR_STRING_ENCODED`; a document that cannot parse returns `ok: false` with an `SCHEMATIC_IR_INVALID` finding naming the received type and size. Geometry fields (`position`, pin `endpoint`, wire `dots`) may be omitted: `pin.net` is the connectivity declaration, and the layout stage derives the rest. Pass `verify: true` to additionally deliver through the engine's live path and diff the client read-back netlist: verify findings join `findings`, an error-severity verify finding flips `ok` to `false` while `source` is still returned, and an unreachable client or an engine without live verification degrades to a `SCHEMATIC_VERIFY_UNAVAILABLE` warning. Emitted source above `maxSourceChars` is omitted from the result (`source: ''`, `sourceBytes` reports the full length): with `verify: true` the live delivery already happened so the notice degrades to a `SCHEMATIC_SOURCE_TOO_LARGE` warning, otherwise it is an error and the call suggests `verify: true` or a smaller document.
 
 ### schematic_validate
 
-Runs the same parse, caps, binding resolution, layout, and gate without emitting anything, returning `{ ok, findings }`. Use it to check a document before generation or after a repair loop. Pass `verify: true` to run the live read-back diff after a clean static gate.
+Runs the same parse, caps, binding resolution, layout, and gate without emitting anything, returning `{ ok, findings }`. The same string-encoded `document` tolerance and parse-failure findings apply. Use it to check a document before generation or after a repair loop. Pass `verify: true` to run the live read-back diff after a clean static gate.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-Both tools fail argument-shape violations as `SCHEMATIC_IR_INVALID` (via `parseSchematicIr`) and cap violations as `SCHEMATIC_IR_BOUNDS` before the gate runs. Engine-resolution errors surface the seam's `SCHEMATIC_ENGINE_*` codes unchanged, so the model sees the same vocabulary as the service. Presenters are generic cards; the model-facing body is the rendered finding list.
+Both tools report argument-shape violations as `ok: false` `SCHEMATIC_IR_INVALID` findings (via `parseSchematicIr`) and cap violations as thrown `SCHEMATIC_IR_BOUNDS` errors before the gate runs. Engine-resolution errors surface the seam's `SCHEMATIC_ENGINE_*` codes unchanged, so the model sees the same vocabulary as the service. Presenters are generic cards; the model-facing body is the rendered finding list.
 
 <a id="model-experience"></a>
 ## Model Experience

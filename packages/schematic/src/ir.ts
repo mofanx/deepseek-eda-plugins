@@ -204,13 +204,43 @@ function optArray<T>(value: Record<string, unknown>, key: string, parse: (v: unk
   return field.map((entry, index) => parse(entry, `${path}.${key}[${index}]`))
 }
 
+/** Short human-readable description of a rejected document root. */
+function describeValue(value: unknown): string {
+  if (Array.isArray(value)) return `an array of ${value.length} items`
+  if (value === null) return 'null'
+  return `a ${typeof value}`
+}
+
 /**
- * Parse and validate a model-supplied IR document.
+ * Parse and validate a model-supplied IR document. A `string` argument is a
+ * JSON-encoded document (a common model mistake when the parameter declares
+ * `json`): it is parsed once, then validated like an object argument.
  * @param value - the raw `document` tool argument.
  * @returns the typed schematic IR.
  */
 export function parseSchematicIr(value: unknown): SchematicIr {
-  if (!isRecord(value)) bad('document', 'an object with a sheets array')
+  if (typeof value === 'string') {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(value.charCodeAt(0) === 0xFEFF ? value.slice(1) : value)
+    } catch (error) {
+      /* v8 ignore start -- JSON.parse only throws SyntaxError, always an Error */
+      const detail = error instanceof Error ? error.message : String(error)
+      /* v8 ignore stop */
+      throw new SchematicError(
+        `document: expected an object or a JSON string encoding one; received a ${value.length}-char string that is not valid JSON (${detail})`,
+        'SCHEMATIC_IR_INVALID',
+      )
+    }
+    if (!isRecord(parsed)) {
+      throw new SchematicError(
+        `document: expected an object with a sheets array; the ${value.length}-char JSON string parses to ${describeValue(parsed)}`,
+        'SCHEMATIC_IR_INVALID',
+      )
+    }
+    value = parsed
+  }
+  if (!isRecord(value)) bad('document', `an object with a sheets array; received ${describeValue(value)}`)
   const sheets = value.sheets
   if (!Array.isArray(sheets)) bad('document.sheets', 'an array')
   if (sheets.length === 0) bad('document.sheets', 'at least one sheet')

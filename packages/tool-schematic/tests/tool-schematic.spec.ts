@@ -118,11 +118,71 @@ describe('schematic_generate', () => {
     expect(text).toContain('FLOATING_INPUT_PIN')
   })
 
-  it('fails argument validation on a non-object document', async () => {
+  it('returns a repairable finding for a malformed document argument', async () => {
     const { call } = await mountTools()
     const out = await call('schematic_generate', { document: 'nope' })
-    expect(out.isError).toBe(true)
-    expect(out.error?.info).toMatchObject({ code: 'SCHEMATIC_IR_INVALID', name: 'SchematicError' })
+    expect(out.isError).toBe(false)
+    const value = out.value as { ok: boolean; findings: { code: string; message: string }[] }
+    expect(value.ok).toBe(false)
+    expect(value.findings[0]).toMatchObject({ severity: 'error', code: 'SCHEMATIC_IR_INVALID' })
+    expect(value.findings[0]!.message).toContain('4-char string')
+    const text = out.content.map(b => b.type === 'text' ? b.text : '').join('\n')
+    expect(text).toContain('SCHEMATIC_IR_INVALID')
+  })
+
+  it('diagnoses a non-string non-object document with its received type', async () => {
+    const { call } = await mountTools()
+    const out = await call('schematic_validate', { document: 42 })
+    expect(out.isError).toBe(false)
+    const value = out.value as { ok: boolean; findings: { code: string; message: string }[] }
+    expect(value.ok).toBe(false)
+    expect(value.findings[0]!.code).toBe('SCHEMATIC_IR_INVALID')
+    expect(value.findings[0]!.message).toContain('received a number')
+  })
+
+  it('accepts a JSON-encoded document string and flags the double encoding', async () => {
+    const { call } = await mountTools()
+    const out = await call('schematic_generate', { document: JSON.stringify(validDoc) })
+    expect(out.isError).toBe(false)
+    const text = out.content.map(b => b.type === 'text' ? b.text : '').join('\n')
+    expect(text).toContain('Emitted stub document source')
+    expect(text).toContain('SCHEMATIC_IR_STRING_ENCODED')
+    const validate = await call('schematic_validate', { document: JSON.stringify(validDoc) })
+    const validateText = validate.content.map(b => b.type === 'text' ? b.text : '').join('\n')
+    expect(validateText).toContain('Schematic IR is valid')
+    expect(validateText).toContain('SCHEMATIC_IR_STRING_ENCODED')
+  })
+
+  it('degrades an oversized emitted source to an omitted-source notice', async () => {
+    const { call } = await mountTools({
+      config: { maxSourceChars: 10 },
+      engine: { id: 'big', available: () => true, serialize: () => 'X'.repeat(50) },
+    })
+    const out = await call('schematic_generate', { document: validDoc })
+    expect(out.isError).toBe(false)
+    const value = out.value as { ok: boolean; source: string; sourceBytes: number; findings: { code: string; severity: string }[] }
+    expect(value).toMatchObject({ ok: false, source: '', sourceBytes: 50 })
+    const notice = value.findings.find(f => f.code === 'SCHEMATIC_SOURCE_TOO_LARGE')
+    expect(notice?.severity).toBe('error')
+    const text = out.content.map(b => b.type === 'text' ? b.text : '').join('\n')
+    expect(text).toContain('over the result cap')
+    expect(text).toContain('SCHEMATIC_SOURCE_TOO_LARGE')
+  })
+
+  it('keeps ok when an oversized source was already delivered through verify: true', async () => {
+    const { call } = await mountTools({
+      config: { maxSourceChars: 10 },
+      engine: {
+        id: 'big', available: () => true,
+        serialize: () => 'X'.repeat(50),
+        verify: async () => [],
+      },
+    })
+    const out = await call('schematic_generate', { document: validDoc, verify: true })
+    expect(out.isError).toBe(false)
+    const value = out.value as { ok: boolean; source: string; sourceBytes: number; findings: { code: string; severity: string }[] }
+    expect(value).toMatchObject({ ok: true, source: '', sourceBytes: 50 })
+    expect(value.findings.find(f => f.code === 'SCHEMATIC_SOURCE_TOO_LARGE')?.severity).toBe('warning')
   })
 
   it('emits source while carrying warning findings', async () => {
@@ -203,7 +263,7 @@ describe('tool projections and presenters', () => {
     const { ctx } = await mountTools()
     const bare = { severity: 'warning', code: 'W_BARE', message: 'unlocated' }
     const gen = ctx.tools.get('schematic_generate')
-    const blocks = gen?.output.render({}, { ok: true, format: 'stub', source: 'x', findings: [bare, { ...bare, suggestion: '' }] })
+    const blocks = gen?.output.render({}, { ok: true, format: 'stub', source: 'x', sourceBytes: 1, findings: [bare, { ...bare, suggestion: '' }] })
     const text = blocks?.[0]?.type === 'text' ? blocks[0].text : ''
     expect(text).toContain('[warning W_BARE] unlocated')
     expect(text).not.toContain('()')
@@ -216,8 +276,10 @@ describe('tool projections and presenters', () => {
   it('renders the clean verdicts when no findings exist', async () => {
     const { ctx } = await mountTools()
     const gen = ctx.tools.get('schematic_generate')
-    const genBlocks = gen?.output.render({}, { ok: true, format: 'stub', source: 'abc', findings: [] })
+    const genBlocks = gen?.output.render({}, { ok: true, format: 'stub', source: 'abc', sourceBytes: 3, findings: [] })
     expect(genBlocks?.[0]?.type === 'text' ? genBlocks[0].text : '').toBe('Emitted stub document source (3 chars).')
+    const capped = gen?.output.render({}, { ok: true, format: 'stub', source: '', sourceBytes: 50, findings: [{ severity: 'warning', code: 'SCHEMATIC_SOURCE_TOO_LARGE', message: 'omitted' }] })
+    expect(capped?.[0]?.type === 'text' ? capped[0].text : '').toContain('over the result cap')
     const val = ctx.tools.get('schematic_validate')
     const valBlocks = val?.output.render({}, { ok: true, findings: [] })
     expect(valBlocks?.[0]?.type === 'text' ? valBlocks[0].text : '').toBe('Schematic IR is valid.')
@@ -226,8 +288,8 @@ describe('tool projections and presenters', () => {
   it('projects presentationMeta for both tools', async () => {
     const { ctx } = await mountTools()
     const gen = ctx.tools.get('schematic_generate')
-    expect(gen?.output.presentationMeta?.({}, { ok: true, format: 'stub', findings: [{}, {}] }))
-      .toEqual({ ok: true, format: 'stub', findings: 2 })
+    expect(gen?.output.presentationMeta?.({}, { ok: true, format: 'stub', sourceBytes: 7, findings: [{}, {}] }))
+      .toEqual({ ok: true, format: 'stub', findings: 2, sourceBytes: 7 })
     const val = ctx.tools.get('schematic_validate')
     expect(val?.output.presentationMeta?.({}, { ok: false, findings: [{}] }))
       .toEqual({ ok: false, findings: 1 })

@@ -40,10 +40,29 @@ describe('parseSchematicIr', () => {
     expect(component.footprintLibraryUuid).toBe('lib-fp')
   })
 
+  it('accepts a JSON-encoded document string', () => {
+    const ir = parseSchematicIr(JSON.stringify(minimal))
+    expect(ir.sheets).toHaveLength(1)
+    expect(ir.sheets[0]!.components[0]!.id).toBe('c1')
+  })
+
+  it('accepts a JSON-encoded document string with a BOM', () => {
+    const ir = parseSchematicIr('\uFEFF' + JSON.stringify(minimal))
+    expect(ir.sheets).toHaveLength(1)
+  })
+
   it('rejects non-object documents', () => {
     expect(() => parseSchematicIr('x')).toThrow(irInvalid())
     expect(() => parseSchematicIr(null)).toThrow(irInvalid())
     expect(() => parseSchematicIr([])).toThrow(irInvalid())
+    expect(() => parseSchematicIr(42)).toThrow(irInvalid())
+  })
+
+  it('diagnoses the received type and size for malformed documents', () => {
+    expect(() => parseSchematicIr('{"sheets":[')).toThrow(/11-char string that is not valid JSON/)
+    expect(() => parseSchematicIr('42')).toThrow(/the 2-char JSON string parses to a number/)
+    expect(() => parseSchematicIr(42)).toThrow(/received a number/)
+    expect(() => parseSchematicIr([1, 2])).toThrow(/received an array of 2 items/)
   })
 
   it('rejects a missing or empty sheets array', () => {

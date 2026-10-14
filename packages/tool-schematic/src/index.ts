@@ -12,7 +12,7 @@ import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import { parseSchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { parseSchematicIr, SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { SchematicBindingResolution, SchematicFinding, SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 
@@ -28,11 +28,14 @@ export interface Config {
   maxPrimitives?: number
   /** Maximum number of sheets in the IR document. */
   maxSheets?: number
+  /** Maximum chars of emitted document source returned in one tool result; larger sources degrade to an omitted-source notice. */
+  maxSourceChars?: number
 }
 
 export const Config: z<Config> = z.object({
   maxPrimitives: z.number().default(5000),
   maxSheets: z.number().default(32),
+  maxSourceChars: z.number().default(1_000_000),
 })
 
 /** Complete config after schemastery applies every field default. */
@@ -89,8 +92,45 @@ function findingText(finding: {
   return `[${finding.severity} ${finding.code}]${where} ${finding.message}${fix}`
 }
 
+/**
+ * Parse the `document` argument, tolerating the model's double-encoding into a
+ * JSON string. A parse or shape failure becomes a repairable error finding
+ * instead of a thrown exception, so the model sees the same finding vocabulary
+ * it repairs validation failures against.
+ */
+function parseDocument(document: unknown): { ir: SchematicIr; stringified: boolean } | { failure: FindingJson } {
+  try {
+    return { ir: parseSchematicIr(document), stringified: typeof document === 'string' }
+  } catch (error) {
+    /* v8 ignore start -- parseSchematicIr only throws SchematicError; other throws are bugs and must propagate */
+    if (!(error instanceof SchematicError)) throw error
+    /* v8 ignore stop */
+    return {
+      failure: {
+        severity: 'error',
+        code: error.code,
+        message: error.message,
+        suggestion: 'repair the document argument per the finding message and retry',
+      },
+    }
+  }
+}
+
+/** Warning finding teaching the model to stop JSON-encoding the document argument. */
+function stringifiedNote(document: unknown): readonly SchematicFinding[] {
+  return typeof document === 'string'
+    ? [{
+      severity: 'warning',
+      code: 'SCHEMATIC_IR_STRING_ENCODED',
+      message: `document arrived as a JSON-encoded string (${document.length} chars) and was parsed`,
+      suggestion: 'pass the document object itself, not its JSON text',
+    }]
+    : []
+}
+
 const DOCUMENT_PARAM_DESCRIPTION =
   'Schematic IR document: { sheets: [{ name?, blocks?, components, wires, busEntries, junctions, attrs }] }. ' +
+  'Pass the object itself — a JSON-encoded string is tolerated but flagged SCHEMATIC_IR_STRING_ENCODED. ' +
   'A sheet may carry name (page title) and blocks: [{ name, title? }] — declared functional modules in display order. ' +
   'Components have { id, kind: "part"|"block"|"netflag"|"netport"|"sheet"|"nonelec"|"short", block?, pins: [{ id, name, number, electric: "UNKNOWN"|"INPUT"|"OUTPUT"|"BI", net?, noConnect?, powerName?, endpoint?: {x,y} }] } ' +
   'where block names the component\'s functional module (a sheet.blocks name or a free-form label; same-module components cluster together and inter-module nets route through flags). ' +
@@ -170,19 +210,24 @@ function applyGenerateTool(ctx: Context, config: ResolvedConfig): void {
         properties: {
           ok: { type: 'boolean', required: true },
           format: { type: 'string', required: true, description: 'Document-source format label emitted by the engine; empty when the gate blocked' },
-          source: { type: 'string', required: true, description: 'Serialized document source text; empty when the gate blocked' },
+          source: { type: 'string', required: true, description: 'Serialized document source text; empty when the gate blocked or the source exceeded the result cap' },
+          sourceBytes: { type: 'number', required: true, description: 'Full emitted source length in chars; greater than source.length when the source was omitted over the cap' },
           findings: FINDINGS_SCHEMA,
         },
       },
       render: (_args, value) =>
         value.source.length > 0
-          ? [{ type: 'text', text: `Emitted ${value.format} document source (${value.source.length} chars).${value.findings.length === 0 ? '' : `\n${value.findings.map(findingText).join('\n')}`}` }]
-          : renderReport('Static validation failed; repair the document and retry:', value.findings),
-      presentationMeta: (_args, value) => ({ ok: value.ok, format: value.format, findings: value.findings.length }),
+          ? [{ type: 'text', text: `Emitted ${value.format} document source (${value.sourceBytes} chars).${value.findings.length === 0 ? '' : `\n${value.findings.map(findingText).join('\n')}`}` }]
+          : value.sourceBytes > 0
+            ? [{ type: 'text', text: `Emitted ${value.format} document source (${value.sourceBytes} chars); over the result cap — source text omitted.\n${value.findings.map(findingText).join('\n')}` }]
+            : renderReport('Static validation failed; repair the document and retry:', value.findings),
+      presentationMeta: (_args, value) => ({ ok: value.ok, format: value.format, findings: value.findings.length, sourceBytes: value.sourceBytes }),
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
-      const ir = parseSchematicIr(args.document)
+      const parsed = parseDocument(args.document)
+      if ('failure' in parsed) return { ok: false, format: '', source: '', sourceBytes: 0, findings: [parsed.failure] }
+      const ir = parsed.ir
       if (ir.sheets.length > config.maxSheets) {
         throw new HarnessError(`schematic document has ${ir.sheets.length} sheets, above the ${config.maxSheets} sheet cap`, 'SCHEMATIC_IR_BOUNDS')
       }
@@ -194,16 +239,26 @@ function applyGenerateTool(ctx: Context, config: ResolvedConfig): void {
       const laid = ctx.schematic.layout(bound, { symbolPins })
       exec.signal.throwIfAborted()
       const report = ctx.schematic.validate(laid, { libraryResolver })
-      if (!report.ok) return { ok: false, format: '', source: '', findings: report.findings.map(findingJson) }
+      const notes = stringifiedNote(args.document)
+      if (!report.ok) return { ok: false, format: '', source: '', sourceBytes: 0, findings: [...notes, ...report.findings].map(findingJson) }
       const engine = ctx.schematic.engine()
       const source = await engine.serialize(laid)
       const verifyFindings = args.verify === true ? await liveVerify(ctx, laid, symbolPins) : []
-      return {
-        ok: verifyFindings.every(f => f.severity !== 'error'),
-        format: engine.id,
-        source,
-        findings: [...report.findings, ...verifyFindings].map(findingJson),
+      const ok = verifyFindings.every(f => f.severity !== 'error')
+      const findings = [...notes, ...report.findings, ...verifyFindings]
+      if (source.length > config.maxSourceChars) {
+        const delivered = args.verify === true
+        const notice: SchematicFinding = {
+          severity: delivered ? 'warning' : 'error',
+          code: 'SCHEMATIC_SOURCE_TOO_LARGE',
+          message: `emitted document source is ${source.length} chars, above the ${config.maxSourceChars}-char result cap — the source text is omitted from this result`,
+          suggestion: delivered
+            ? 'the document was already delivered through the live client; no in-band source is needed'
+            : 're-run with verify: true to deliver through the live client, or reduce the document size',
+        }
+        return { ok: ok && delivered, format: engine.id, source: '', sourceBytes: source.length, findings: [...findings, notice].map(findingJson) }
       }
+      return { ok, format: engine.id, source, sourceBytes: source.length, findings: findings.map(findingJson) }
     },
     presentCall: () => ({ card: 'generic', title: 'Generate schematic source' }),
     presentResult: (_args, result) => {
@@ -239,7 +294,9 @@ function applyValidateTool(ctx: Context, config: ResolvedConfig): void {
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
-      const ir = parseSchematicIr(args.document)
+      const parsed = parseDocument(args.document)
+      if ('failure' in parsed) return { ok: false, findings: [parsed.failure] }
+      const ir = parsed.ir
       if (ir.sheets.length > config.maxSheets) {
         throw new HarnessError(`schematic document has ${ir.sheets.length} sheets, above the ${config.maxSheets} sheet cap`, 'SCHEMATIC_IR_BOUNDS')
       }
@@ -254,7 +311,7 @@ function applyValidateTool(ctx: Context, config: ResolvedConfig): void {
       const verifyFindings = args.verify === true && report.ok ? await liveVerify(ctx, laid, symbolPins) : []
       return {
         ok: report.ok && verifyFindings.every(f => f.severity !== 'error'),
-        findings: [...report.findings, ...verifyFindings].map(findingJson),
+        findings: [...stringifiedNote(args.document), ...report.findings, ...verifyFindings].map(findingJson),
       }
     },
     presentCall: () => ({ card: 'generic', title: 'Validate schematic' }),
