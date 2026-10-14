@@ -204,13 +204,16 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
    * build, round-trip, and structural
    * netlist-diff finding (`SCHEMATIC_NETLIST_*` errors for dropped, merged, or
    * wrongly named nets). The build places primitives in the client; callers
-   * opt in through the tools' `verify` parameter.
+   * opt in through the tools' `verify` parameter. Verification creates a
+   * schematic when the client has no active page — `verify` is already an
+   * explicit live-delivery opt-in; pass `createDocument: false` to require
+   * an existing document instead.
    * @param ir - the validated, laid-out schematic IR.
    * @param options - bridge injection and per-call build switches.
    * @returns build, round-trip, and netlist-diff findings.
    */
   async verify(ir: SchematicIr, options: EasyEdaEngineBuildOptions = {}): Promise<readonly SchematicFinding[]> {
-    return (await this.build(ir, options)).findings
+    return (await this.build(ir, { ...options, createDocument: options.createDocument ?? true })).findings
   }
 
   /**

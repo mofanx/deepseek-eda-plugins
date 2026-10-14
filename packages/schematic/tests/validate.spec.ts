@@ -953,6 +953,51 @@ describe('designator and binding edge cases', () => {
         .filter(f => f.code === 'WIRE_NOT_ON_PIN')).toHaveLength(0)
     }
   })
+
+  it('warns SYMBOL_PIN_COUNT_MISMATCH when declared pins do not match the bound symbol', () => {
+    const resolver: SchematicLibraryResolver = {
+      resolveDevice: () => ({}),
+      resolveSymbol: () => ({}),
+      resolveFootprint: () => ({ pads: ['1', '2'] }),
+      resolveSymbolPins: () => Array.from({ length: 30 }, (_, i) => ({ number: String(i + 1), x: 0, y: i * 10 })),
+    }
+    const ir: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [part('c1', 'C1', [
+          pin('p1', 'BI', { x: 0, y: 0 }),
+          pin('p2', 'BI', { x: 40, y: 0 }),
+        ])],
+      }],
+    }
+    const finding = validateSchematic(ir, { libraryResolver: resolver }).findings
+      .find(f => f.code === 'SYMBOL_PIN_COUNT_MISMATCH')
+    expect(finding?.severity).toBe('warning')
+    expect(finding?.message).toContain('declares 2 pin(s) but the bound symbol has 30')
+    expect(finding?.message).toContain('device dev')
+    expect(finding?.locator?.componentId).toBe('c1')
+    // A matching count stays quiet, and a positionless part is still checked.
+    const quietResolver: SchematicLibraryResolver = {
+      ...resolver,
+      resolveSymbolPins: () => [{ number: '1', x: 0, y: 0 }, { number: '2', x: 40, y: 0 }],
+    }
+    expect(codes(ir, { libraryResolver: quietResolver })).not.toContain('SYMBOL_PIN_COUNT_MISMATCH')
+    const unplaced: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [part('c1', 'C1', [pin('p1', 'BI', { x: 0, y: 0 }), pin('p2', 'BI', { x: 40, y: 0 })], { position: undefined })],
+      }],
+    }
+    expect(codes(unplaced, { libraryResolver: resolver })).toContain('SYMBOL_PIN_COUNT_MISMATCH')
+    const noDevice: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [part('c2', 'C2', [pin('p3', 'BI', { x: 0, y: 0 })], { deviceUuid: undefined, designator: undefined })],
+      }],
+    }
+    expect(validateSchematic(noDevice, { libraryResolver: resolver }).findings
+      .find(f => f.code === 'SYMBOL_PIN_COUNT_MISMATCH')?.message).not.toContain('device')
+  })
 })
 
 describe('net-name and attr edge cases', () => {

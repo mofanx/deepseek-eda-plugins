@@ -755,32 +755,43 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
               )
             }
           }
-          if (component.symbolUuid !== undefined && component.position !== undefined) {
+          if (component.symbolUuid !== undefined) {
             const symbolPins = resolver.resolveSymbolPins?.(component.symbolUuid)
             if (symbolPins !== undefined) {
-              const byNumber = new Map(symbolPins.map(symbolPin => [symbolPin.number, symbolPin]))
-              for (const pin of component.pins) {
-                if (pin.number === undefined || pin.endpoint === undefined) continue
-                const symbolPin = byNumber.get(pin.number)
-                if (symbolPin === undefined) continue
-                const offset = transformSymbolPoint(
-                  { x: symbolPin.x, y: symbolPin.y },
-                  component.rotation,
-                  component.mirror,
+              if (symbolPins.length !== component.pins.length) {
+                report(
+                  'SYMBOL_PIN_COUNT_MISMATCH',
+                  'warning',
+                  `component ${component.designator ?? component.id} declares ${component.pins.length} pin(s) but the bound symbol has ${symbolPins.length} (symbol ${component.symbolUuid}${component.deviceUuid === undefined ? '' : `, device ${component.deviceUuid}`})`,
+                  { sheetIndex, componentId: component.id, designator: component.designator },
+                  'Rebind the intended device — a mismatched symbol silently drops or adds terminals',
                 )
-                const expectedX = component.position.x + offset.x
-                const expectedY = component.position.y + offset.y
-                if (pin.endpoint.x !== expectedX || pin.endpoint.y !== expectedY) {
-                  report(
-                    'WIRE_NOT_ON_PIN',
-                    'error',
-                    `pin ${pin.id} of ${component.designator ?? component.id} sits at (${pin.endpoint.x}, ${pin.endpoint.y}) but the bound symbol's pin ${pin.number} terminates at (${expectedX}, ${expectedY})`,
-                    {
-                      sheetIndex, componentId: component.id, designator: component.designator,
-                      pinId: pin.id, pinNumber: pin.number, x: pin.endpoint.x, y: pin.endpoint.y,
-                    },
-                    `Move the pin endpoint to (${expectedX}, ${expectedY}), or shift the component so the bound symbol pin lands there`,
+              }
+              if (component.position !== undefined) {
+                const byNumber = new Map(symbolPins.map(symbolPin => [symbolPin.number, symbolPin]))
+                for (const pin of component.pins) {
+                  if (pin.number === undefined || pin.endpoint === undefined) continue
+                  const symbolPin = byNumber.get(pin.number)
+                  if (symbolPin === undefined) continue
+                  const offset = transformSymbolPoint(
+                    { x: symbolPin.x, y: symbolPin.y },
+                    component.rotation,
+                    component.mirror,
                   )
+                  const expectedX = component.position.x + offset.x
+                  const expectedY = component.position.y + offset.y
+                  if (pin.endpoint.x !== expectedX || pin.endpoint.y !== expectedY) {
+                    report(
+                      'WIRE_NOT_ON_PIN',
+                      'error',
+                      `pin ${pin.id} of ${component.designator ?? component.id} sits at (${pin.endpoint.x}, ${pin.endpoint.y}) but the bound symbol's pin ${pin.number} terminates at (${expectedX}, ${expectedY})`,
+                      {
+                        sheetIndex, componentId: component.id, designator: component.designator,
+                        pinId: pin.id, pinNumber: pin.number, x: pin.endpoint.x, y: pin.endpoint.y,
+                      },
+                      `Move the pin endpoint to (${expectedX}, ${expectedY}), or shift the component so the bound symbol pin lands there`,
+                    )
+                  }
                 }
               }
             }

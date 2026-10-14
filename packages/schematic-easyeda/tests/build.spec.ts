@@ -1691,4 +1691,13 @@ describe('EasyEdaSchematicEngine.verify', () => {
     expect(calls).toHaveLength(7)
     expect(findings.map(f => f.code)).toContain('SCHEMATIC_ROUNDTRIP_UNAVAILABLE')
   })
+
+  it('creates a schematic for verification when none is open, honoring an explicit opt-out', async () => {
+    const { bridge: auto, calls: autoCalls } = scriptedBridge(standardQueue())
+    await engine.verify(ir, { bridge: auto })
+    expect(autoCalls[0]).toContain('"createDocument":true')
+    const { bridge: manual, calls: manualCalls } = scriptedBridge(standardQueue())
+    await engine.verify(ir, { bridge: manual, createDocument: false })
+    expect(manualCalls[0]).toContain('"createDocument":false')
+  })
 })
