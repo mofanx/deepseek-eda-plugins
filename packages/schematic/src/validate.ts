@@ -474,11 +474,17 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
   }
 
   // T-connections: a tap point strictly inside another segment joins that
-  // net — segments and taps pair only within their own sheet.
+  // net — segments and taps pair only within their own sheet. Each union
+  // between two previously separate graphs is remembered so a later
+  // NET_NAME_CONFLICT can name the junction instead of just the names.
+  const mergeWitnesses: { point: SchematicPoint; root: string }[] = []
   for (const { point, skip, sheetIndex } of taps) {
     for (const entry of segments) {
       if (entry.sheetIndex !== sheetIndex || skip.includes(entry.segment)) continue
-      if (onInterior(point, entry.segment)) uf.union(pointKey(sheetIndex, point), pointKey(sheetIndex, entry.segment.a))
+      if (!onInterior(point, entry.segment)) continue
+      const tapRoot = uf.find(pointKey(sheetIndex, point))
+      if (tapRoot !== uf.find(pointKey(sheetIndex, entry.segment.a))) mergeWitnesses.push({ point, root: tapRoot })
+      uf.union(pointKey(sheetIndex, point), pointKey(sheetIndex, entry.segment.a))
     }
   }
 
@@ -574,12 +580,24 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
     const names = netNames.get(root) ?? new Set<string>()
     const pins = netPins.get(root) ?? []
     if (names.size > 1) {
+      const joins = mergeWitnesses.filter(w => uf.find(w.root) === root)
+      const joinPoints = [...new Set(joins.map(w => `(${w.point.x}, ${w.point.y})`))].slice(0, 3)
+      const memberList = pins.slice(0, 6).map(ref => {
+        const label = `${ref.component.designator ?? ref.component.id}-${ref.pin.number ?? ref.pin.id}`
+        return ref.pin.endpoint === undefined ? label : `${label}@(${ref.pin.endpoint.x}, ${ref.pin.endpoint.y})`
+      })
+      const members = pins.length === 0 ? '' : ` — members: ${memberList.join(', ')}${pins.length > memberList.length ? `, +${pins.length - memberList.length} more` : ''}`
+      const junction = joinPoints.length === 0 ? '' : ` — candidate junction(s): ${joinPoints.join(', ')}`
+      const first = joins[0]
       report(
         'NET_NAME_CONFLICT',
         'error',
-        `net ${netLabel(names)} carries ${names.size} different declared names`,
-        { net: [...names].join(' / ') },
-        'Use one name per connected graph component',
+        `net ${netLabel(names)} carries ${names.size} different declared names${members}${junction}`,
+        {
+          net: [...names].join(' / '),
+          ...(first === undefined ? {} : { x: first.point.x, y: first.point.y }),
+        },
+        'Separate the graphs near the reported point(s), or give the whole connected graph one name',
       )
     }
     const only = pins[0]

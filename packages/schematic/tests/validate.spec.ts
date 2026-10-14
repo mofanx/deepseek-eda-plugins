@@ -231,6 +231,52 @@ describe('net-naming and format rules', () => {
     expect(codes(ir)).toContain('NET_NAME_CONFLICT')
   })
 
+  it('reports the merge junction and member pins on NET_NAME_CONFLICT', () => {
+    const ir: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [
+          part('c1', 'U1', [pin('p1', 'OUTPUT', { x: 30, y: 0 })]),
+          { id: 'f1', kind: 'netflag', netName: 'B', position: { x: 30, y: 0 }, pins: [] },
+        ],
+        wires: [
+          { id: 'w1', kind: 'wire', dots: [[0, 0, 100, 0]], net: 'A' },
+          // (50,0) joins the A graph through (50,50)/(100,0) before the tap
+          // pass runs, so its interior tap on w1 is a same-root no-op.
+          { id: 'w2', kind: 'wire', dots: [[50, 50, 100, 0]], net: 'A' },
+          { id: 'w3', kind: 'wire', dots: [[50, 0, 50, 50]], net: 'A' },
+        ],
+      }],
+    }
+    const conflict = validateSchematic(ir).findings.find(f => f.code === 'NET_NAME_CONFLICT')
+    expect(conflict?.message).toContain('candidate junction(s): (30, 0)')
+    expect(conflict?.locator).toMatchObject({ x: 30, y: 0 })
+    expect(conflict?.message).toContain('U1-1@(30, 0)')
+  })
+
+  it('caps the member list and renders pins without endpoints on NET_NAME_CONFLICT', () => {
+    const nc: SchematicIrPin = { id: 'b2', name: 'b2', electric: 'BI' }
+    const ir: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [
+          { id: 's1', kind: 'short', position: { x: 0, y: 0 }, pins: [pin('a1', 'OUTPUT', { x: 50, y: 50 }), nc] },
+          part('c1', 'U1', [pin('p1', 'BI', { x: 50, y: 50 })]),
+          part('c2', 'U2', [pin('p2', 'BI', { x: 50, y: 50 })]),
+          part('c3', 'U3', [pin('p3', 'BI', { x: 50, y: 50 })]),
+          part('c4', 'U4', [pin('p4', 'BI', { x: 50, y: 50 })]),
+          part('c5', 'U5', [pin('p5', 'BI', { x: 50, y: 50 })]),
+          part('c6', 'U6', [pin('p6', 'BI', { x: 50, y: 50 })]),
+          { id: 'f1', kind: 'netflag', netName: 'A', position: { x: 50, y: 50 }, pins: [] },
+          { id: 'f2', kind: 'netflag', netName: 'B', position: { x: 50, y: 50 }, pins: [] },
+        ],
+      }],
+    }
+    const conflict = validateSchematic(ir).findings.find(f => f.code === 'NET_NAME_CONFLICT')
+    expect(conflict?.message).toContain('s1-b2')
+    expect(conflict?.message).toContain('+2 more')
+  })
+
   it('flags NET_NAME_INVALID and NET_NAME_WHITESPACE on bad names', () => {
     const bad: SchematicIr = {
       sheets: [{ ...emptySheet, wires: [{ id: 'w1', kind: 'wire', dots: [[0, 0, 10, 0]], net: 'BAD NAME*' }] }],
