@@ -185,6 +185,10 @@ const placeOnce = async (fn) => {
     return await fn();
   }
 };
+// A device create can deadlock client-side (a stale interactive placement
+// or an undismissed dialog) and never resolve; racing it turns the hang
+// into a per-part failure instead of burning the whole bridge timeout.
+const raced = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(undefined), ms))]);
 `
 
 /**
@@ -274,7 +278,10 @@ for (const c of doc.components) {
         device = await eda.lib_Device.get(c.deviceUuid, undefined);
       }
       if (device === undefined) { failures.push({ code: 'DEVICE_NOT_FOUND', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
-      placed = await placeOnce(() => eda.sch_PrimitiveComponent.create(device, c.x, c.y, c.subPartName, c.rotation, c.mirror, c.addIntoBom, c.addIntoPcb));
+      placed = await raced(placeOnce(() => eda.sch_PrimitiveComponent.create(device, c.x, c.y, c.subPartName, c.rotation, c.mirror, c.addIntoBom, c.addIntoPcb)).then(v => ['ok', v], e => ['throw', e]), 15000);
+      if (placed === undefined) { failures.push({ code: 'CREATE_TIMEOUT', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
+      if (placed[0] !== 'ok') { failures.push({ code: 'CREATE_THROWN', irId: c.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(placed[1]) }); continue; }
+      placed = placed[1];
       if (placed === undefined) { failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
       if (c.designator !== undefined) await eda.sch_PrimitiveComponent.modify(placed, { designator: c.designator });
       created += 1;
@@ -537,7 +544,7 @@ function isPrepareResult(value: unknown): value is PrepareResult {
   return typeof v.status === 'string' && Array.isArray(v.failures) && Array.isArray(v.pageUuids)
 }
 
-const ERROR_FAILURE_CODES = new Set(['NO_DEVICE', 'DEVICE_NOT_FOUND', 'MISSING_NET', 'CREATE_FAILED', 'CREATE_THROWN', 'PAGE_CREATE_FAILED', 'PAGE_ACTIVATE_FAILED', 'CHUNK_FAILED'])
+const ERROR_FAILURE_CODES = new Set(['NO_DEVICE', 'DEVICE_NOT_FOUND', 'MISSING_NET', 'CREATE_FAILED', 'CREATE_THROWN', 'CREATE_TIMEOUT', 'PAGE_CREATE_FAILED', 'PAGE_ACTIVATE_FAILED', 'CHUNK_FAILED'])
 
 /** Chunk scripts return this placement shape. */
 interface ChunkResult {
@@ -601,6 +608,7 @@ function findingCode(scriptCode: string): string {
     case 'UNSUPPORTED_BUSENTRY': return 'SCHEMATIC_BUILD_UNSUPPORTED_BUSENTRY'
     case 'UNSUPPORTED_ATTR': return 'SCHEMATIC_BUILD_UNSUPPORTED_ATTR'
     case 'FRAME_FAILED': return 'SCHEMATIC_BUILD_FRAME_FAILED'
+    case 'CREATE_TIMEOUT': return 'SCHEMATIC_BUILD_CREATE_TIMEOUT'
     default: return 'SCHEMATIC_BUILD_PRIMITIVE_FAILED'
   }
 }
@@ -613,6 +621,7 @@ function scriptFailureMessage(failure: ScriptFailure): string {
     case 'MISSING_NET': return `primitive "${target}" has no net name`
     case 'CREATE_FAILED': return `primitive "${target}": the client create call returned undefined`
     case 'CREATE_THROWN': return `primitive "${target}": the client create call threw${failure.detail === undefined ? '' : ` (${failure.detail})`}`
+    case 'CREATE_TIMEOUT': return `component "${target}": the device placement call did not return within 15s — the client is likely waiting on a dialog or a pending interactive placement; press ESC or dismiss dialogs in the EasyEDA window and rerun (a part that lands late is deduped by position)`
     case 'PAGE_CREATE_FAILED': return 'the client could not create a schematic page for this sheet'
     case 'PAGE_ACTIVATE_FAILED': return 'the created page did not become the active document — aborting instead of building into the wrong page'
     case 'UNSUPPORTED_KIND': return `component "${target}" kind "${failure.kind ?? '?'}" has no live placement path`

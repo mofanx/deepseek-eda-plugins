@@ -133,6 +133,10 @@ describe('renderComponentChunkScript', () => {
     ]) {
       expect(code).toContain(api)
     }
+    // A deadlocked device create degrades to a per-part failure instead of
+    // consuming the whole bridge timeout.
+    expect(code).toContain('raced(')
+    expect(code).toContain('CREATE_TIMEOUT')
   })
 })
 
@@ -579,6 +583,7 @@ describe('buildIntoEasyEda findings', () => {
         status: 'OK',
         failures: [
           { code: 'CREATE_THROWN', irId: 'nf1', sheetIndex: 0, detail: 'kaboom' },
+          { code: 'CREATE_TIMEOUT', irId: 'nf2', sheetIndex: 0 },
           { code: 'UNSUPPORTED_KIND', irId: 'ne1', sheetIndex: 0, kind: 'nonelec' },
         ],
         created: 3,
@@ -601,6 +606,7 @@ describe('buildIntoEasyEda findings', () => {
       'SCHEMATIC_BUILD_PRIMITIVE_FAILED',
       'SCHEMATIC_BUILD_PAGE_CREATE',
       'SCHEMATIC_BUILD_PAGE_ACTIVATE',
+      'SCHEMATIC_BUILD_CREATE_TIMEOUT',
     ]) {
       expect(byCode.get(code)?.severity).toBe('error')
     }
@@ -608,6 +614,7 @@ describe('buildIntoEasyEda findings', () => {
       expect(byCode.get(code)?.severity).toBe('warning')
     }
     expect(byCode.get('SCHEMATIC_BUILD_NO_DEVICE')?.locator?.designator).toBe('U1')
+    expect(report.findings.find(f => f.message.includes('press ESC or dismiss dialogs'))).toBeDefined()
     expect(report.findings.find(f => f.message.includes('kaboom'))).toBeDefined()
     expect(report.findings.find(f => f.message.includes('no live placement path'))).toBeDefined()
   })
