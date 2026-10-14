@@ -804,11 +804,13 @@ return sources;`
   // returned value — array or not — is authoritative and ends the resend.
   const readDeadline = Date.now() + (options.timeoutMs ?? 30_000) * 4
   let sources: unknown
+  let readError: unknown
   while (Date.now() < readDeadline) {
     try {
       sources = await bridge.execute(readScript, executeOptions)
       break
-    } catch {
+    } catch (error) {
+      readError = error
       if (Date.now() < readDeadline) await new Promise(r => setTimeout(r, 1_000))
     }
   }
@@ -871,7 +873,7 @@ return sources;`
     findings.push({
       code: 'SCHEMATIC_ROUNDTRIP_UNAVAILABLE',
       severity: 'warning',
-      message: 'document sources could not be read back for verification',
+      message: `document sources could not be read back for verification${readError instanceof Error ? ` (${readError.message})` : ''}`,
     })
   }
 

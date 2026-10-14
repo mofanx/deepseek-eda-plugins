@@ -759,7 +759,15 @@ describe('buildIntoEasyEda read-back diff', () => {
     const report = await buildIntoEasyEda(ir, { bridge })
     expect(report.created).toBe(7)
     expect(report.pageUuids).toEqual(['page-1'])
-    expect(report.findings.map(f => f.code)).toContain('SCHEMATIC_ROUNDTRIP_UNAVAILABLE')
+    const finding = report.findings.find(f => f.code === 'SCHEMATIC_ROUNDTRIP_UNAVAILABLE')
+    expect(finding?.message).toContain('timed out')
+  })
+
+  it('reports SCHEMATIC_ROUNDTRIP_UNAVAILABLE without detail when the read deadline already lapsed', async () => {
+    const { bridge } = scriptedBridge(standardQueue())
+    const report = await buildIntoEasyEda(ir, { bridge, timeoutMs: 0 })
+    const finding = report.findings.find(f => f.code === 'SCHEMATIC_ROUNDTRIP_UNAVAILABLE')
+    expect(finding?.message).toBe('document sources could not be read back for verification')
   })
 
   it('tolerates read-back entries beyond the built page list', async () => {

@@ -21,9 +21,11 @@ export type {
 } from './serialize.ts'
 export {
   EASYEDA_BRIDGE_IMPLEMENTATION,
+  EASYEDA_BRIDGE_LANDING_URL,
   EASYEDA_BRIDGE_PORT_MAX,
   EASYEDA_BRIDGE_PORT_MIN,
   HttpEasyEdaBridge,
+  spawnEasyEdaBridge,
 } from './bridge.ts'
 export type { EasyEdaBridge, EasyEdaBridgeExecuteOptions, HttpEasyEdaBridgeOptions } from './bridge.ts'
 export { diffNetlists, parseDocumentSource, readBackAttrs, readBackNetRegions } from './readback.ts'

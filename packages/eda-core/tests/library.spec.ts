@@ -258,7 +258,7 @@ describe('EasyEdaLibrary bridge lifecycle', () => {
       }
       return new Response(JSON.stringify({ result: {} }))
     }) as typeof fetch
-    const library = new EasyEdaLibrary({ host: '127.0.0.1', fetchFn, timeoutMs: 1000 })
+    const library = new EasyEdaLibrary({ host: '127.0.0.1', fetchFn, timeoutMs: 1000, autoSpawn: false })
     await expect(library.resolveDevice('x')).rejects.toThrow(/no easyeda bridge found/)
     const value = await library.resolveDevice('x')
     expect(value).toEqual({})

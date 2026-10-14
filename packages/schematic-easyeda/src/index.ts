@@ -28,9 +28,11 @@ export type {
 } from '@deepseek-ai/dsh-plugin-eda-core'
 export {
   EASYEDA_BRIDGE_IMPLEMENTATION,
+  EASYEDA_BRIDGE_LANDING_URL,
   EASYEDA_BRIDGE_PORT_MAX,
   EASYEDA_BRIDGE_PORT_MIN,
   HttpEasyEdaBridge,
+  spawnEasyEdaBridge,
 } from '@deepseek-ai/dsh-plugin-eda-core'
 export type { EasyEdaBridge, EasyEdaBridgeExecuteOptions, HttpEasyEdaBridgeOptions } from '@deepseek-ai/dsh-plugin-eda-core'
 export {
@@ -80,6 +82,12 @@ export interface Config {
   bridgeTimeoutStreakLimit?: number
   /** Cooldown before a half-open probe retries the client, in milliseconds. */
   bridgeCircuitCooldownMs?: number
+  /**
+   * Spawn the bundled `dsh-eda-bridge` bin and rescan when a localhost
+   * discovery finds no relay (default `true`); `false` keeps discovery
+   * passive in locked-down runtimes.
+   */
+  bridgeAutoSpawn?: boolean
   /** Collect the BETA `sch_Drc` detail as advisory findings after a build. */
   advisoryDrc?: boolean
   /** Workspace library UUID restricting every library lookup; omit for the default scope. */
@@ -93,6 +101,7 @@ export const Config: z<Config> = z.object({
   bridgeQueryTimeoutMs: z.number().default(10_000),
   bridgeTimeoutStreakLimit: z.number().default(3),
   bridgeCircuitCooldownMs: z.number().default(15_000),
+  bridgeAutoSpawn: z.boolean().default(true),
   advisoryDrc: z.boolean().default(true),
   libraryUuid: z.string(),
 })
@@ -178,6 +187,7 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
       timeoutMs: this.config.bridgeTimeoutMs,
       timeoutStreakLimit: this.config.bridgeTimeoutStreakLimit,
       circuitCooldownMs: this.config.bridgeCircuitCooldownMs,
+      autoSpawn: this.config.bridgeAutoSpawn,
     })
     return buildIntoEasyEda(ir, {
       bridge,
@@ -224,6 +234,7 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
       timeoutMs: this.config.bridgeTimeoutMs,
       timeoutStreakLimit: this.config.bridgeTimeoutStreakLimit,
       circuitCooldownMs: this.config.bridgeCircuitCooldownMs,
+      autoSpawn: this.config.bridgeAutoSpawn,
     })
     return importIntoEasyEda(ir, {
       bridge,
@@ -247,6 +258,7 @@ export function apply(ctx: Context, config: Config): void {
     queryTimeoutMs: resolved.bridgeQueryTimeoutMs,
     timeoutStreakLimit: resolved.bridgeTimeoutStreakLimit,
     circuitCooldownMs: resolved.bridgeCircuitCooldownMs,
+    autoSpawn: resolved.bridgeAutoSpawn,
     libraryUuid: resolved.libraryUuid,
   }))
 }

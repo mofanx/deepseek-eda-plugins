@@ -1,8 +1,10 @@
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   EASYEDA_BRIDGE_PORT_MAX,
   EASYEDA_BRIDGE_PORT_MIN,
   HttpEasyEdaBridge,
+  spawnEasyEdaBridge,
 } from '@deepseek-ai/dsh-plugin-eda-core'
 import { TimeoutReason } from '@deepseek-ai/dsh-timeout'
 
@@ -64,13 +66,18 @@ describe('HttpEasyEdaBridge.discover', () => {
   it('throws SCHEMATIC_BRIDGE_NO_EDA when the bridge reports no connected window', async () => {
     const fetchFn = fakeFetch(() => health('easyeda-bridge', false))
     await expect(HttpEasyEdaBridge.discover({ fetchFn }))
-      .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_NO_EDA' }))
+      .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_NO_EDA', message: expect.stringContaining('api/landing') }))
   })
 
-  it('throws SCHEMATIC_BRIDGE_UNAVAILABLE when the whole range refuses', async () => {
+  it('throws SCHEMATIC_BRIDGE_UNAVAILABLE with recovery steps when the whole range refuses', async () => {
+    let spawned = false
     const fetchFn = fakeFetch(() => Promise.reject(new Error('closed')))
-    await expect(HttpEasyEdaBridge.discover({ fetchFn }))
-      .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_UNAVAILABLE' }))
+    await expect(HttpEasyEdaBridge.discover({ fetchFn, autoSpawn: false, spawnBridge: () => { spawned = true } }))
+      .rejects.toThrow(expect.objectContaining({
+        code: 'SCHEMATIC_BRIDGE_UNAVAILABLE',
+        message: expect.stringContaining('dsh-eda-bridge'),
+      }))
+    expect(spawned).toBe(false)
   })
 
   it('surfaces a probe timeout as SCHEMATIC_BRIDGE_TIMEOUT', async () => {
@@ -85,7 +92,7 @@ describe('HttpEasyEdaBridge.discover', () => {
       calls += 1
       return Promise.reject(new Error('closed'))
     })
-    await expect(HttpEasyEdaBridge.discover({ fetchFn })).rejects.toThrow()
+    await expect(HttpEasyEdaBridge.discover({ fetchFn, autoSpawn: false })).rejects.toThrow()
     expect(calls).toBe(EASYEDA_BRIDGE_PORT_MAX - EASYEDA_BRIDGE_PORT_MIN + 1)
   })
 
@@ -94,6 +101,80 @@ describe('HttpEasyEdaBridge.discover', () => {
     // bridge error — UNAVAILABLE on fast refusal, TIMEOUT on a hanging lookup.
     await expect(HttpEasyEdaBridge.discover({ host: 'dsh-bridge.invalid', timeoutMs: 50 }))
       .rejects.toThrow(expect.objectContaining({ name: 'SchematicError' }))
+  })
+
+  it('auto-spawns the bundled bin and binds once the rescan answers', async () => {
+    let spawned = false
+    const fetchFn = fakeFetch(() =>
+      spawned ? health('easyeda-bridge') : Promise.reject(new Error('closed')))
+    const bridge = await HttpEasyEdaBridge.discover({ fetchFn, spawnBridge: () => { spawned = true } })
+    expect(bridge).toBeInstanceOf(HttpEasyEdaBridge)
+    expect(spawned).toBe(true)
+  })
+
+  it('never auto-spawns for a non-localhost host', async () => {
+    let spawned = false
+    const fetchFn = fakeFetch(() => Promise.reject(new Error('closed')))
+    await expect(HttpEasyEdaBridge.discover({ host: 'bridge.internal', fetchFn, spawnBridge: () => { spawned = true } }))
+      .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_UNAVAILABLE' }))
+    expect(spawned).toBe(false)
+  })
+
+  it('propagates NO_EDA from the rescan instead of waiting out the spawn window', async () => {
+    let spawned = false
+    const fetchFn = fakeFetch(() =>
+      spawned ? health('easyeda-bridge', false) : Promise.reject(new Error('closed')))
+    await expect(HttpEasyEdaBridge.discover({ fetchFn, spawnBridge: () => { spawned = true } }))
+      .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_NO_EDA' }))
+  })
+
+  it('reports UNAVAILABLE after auto-spawn when the spawned bridge never answers', async () => {
+    const fetchFn = fakeFetch(() => Promise.reject(new Error('closed')))
+    await expect(HttpEasyEdaBridge.discover({ fetchFn, spawnBridge: () => {}, autoSpawnWaitMs: 120 }))
+      .rejects.toThrow(expect.objectContaining({
+        code: 'SCHEMATIC_BRIDGE_UNAVAILABLE',
+        message: expect.stringContaining('after auto-spawn'),
+      }))
+  })
+
+  it('still reports UNAVAILABLE when the spawn hook itself throws', async () => {
+    const fetchFn = fakeFetch(() => Promise.reject(new Error('closed')))
+    await expect(HttpEasyEdaBridge.discover({
+      fetchFn,
+      spawnBridge: () => { throw new Error('spawn denied') },
+      autoSpawnWaitMs: 120,
+    }))
+      .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_UNAVAILABLE' }))
+  })
+
+  it('auto-spawns the real bin path through DSH_EDA_BRIDGE_BIN', async () => {
+    // The default spawn target is the shipped bin; tests redirect it to a
+    // fixture that exits immediately so no real relay binds a port.
+    const previous = process.env.DSH_EDA_BRIDGE_BIN
+    process.env.DSH_EDA_BRIDGE_BIN = fileURLToPath(new URL('./fixtures/exit-now.mjs', import.meta.url))
+    try {
+      const fetchFn = fakeFetch(() => Promise.reject(new Error('closed')))
+      await expect(HttpEasyEdaBridge.discover({ fetchFn, autoSpawnWaitMs: 120 }))
+        .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_UNAVAILABLE' }))
+    } finally {
+      if (previous === undefined) delete process.env.DSH_EDA_BRIDGE_BIN
+      else process.env.DSH_EDA_BRIDGE_BIN = previous
+    }
+  })
+
+  it('spawnEasyEdaBridge launches the bundled bin detached by default', () => {
+    const previous = process.env.DSH_EDA_BRIDGE_BIN
+    delete process.env.DSH_EDA_BRIDGE_BIN
+    try {
+      const child = spawnEasyEdaBridge()
+      try {
+        expect(typeof child.pid).toBe('number')
+      } finally {
+        child.kill()
+      }
+    } finally {
+      if (previous !== undefined) process.env.DSH_EDA_BRIDGE_BIN = previous
+    }
   })
 })
 
@@ -164,7 +245,7 @@ describe('HttpEasyEdaBridge.execute', () => {
       })
     }) as typeof fetch
     const bridge = await HttpEasyEdaBridge.discover({ fetchFn, timeoutMs: 5 })
-    await expect(bridge.execute('while(true){}')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_TIMEOUT' }))
+    await expect(bridge.execute('while(true){}')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_TIMEOUT', message: expect.stringContaining('api/landing') }))
   })
 
   it('reclassifies an execute timeout as NO_EDA when the window list drained', async () => {
@@ -182,7 +263,7 @@ describe('HttpEasyEdaBridge.execute', () => {
       })
     }) as typeof fetch
     const bridge = await HttpEasyEdaBridge.discover({ fetchFn, timeoutMs: 5 })
-    await expect(bridge.execute('x')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_NO_EDA' }))
+    await expect(bridge.execute('x')).rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_BRIDGE_NO_EDA', message: expect.stringContaining('api/landing') }))
   })
 
   it('keeps TIMEOUT when the post-timeout health probe still shows a window', async () => {

@@ -7,6 +7,8 @@
  * @module @deepseek-ai/dsh-plugin-eda-easyeda/bridge
  */
 
+import { spawn, type ChildProcess } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { deadline, timeoutOf, TimeoutReason } from '@deepseek-ai/dsh-timeout'
 
@@ -33,6 +35,30 @@ export const EASYEDA_BRIDGE_PORT_MAX = 49630
  * marker means the legacy bridge-server script, which is wire-identical.
  */
 export const EASYEDA_BRIDGE_IMPLEMENTATION = 'dsh-eda-bridge'
+
+/**
+ * Landing URL that wakes the editor's built-in run-api-gateway and registers
+ * the EasyEDA window with the bridge. The `port` param is metadata only — the
+ * gateway always dials the fixed `ws://127.0.0.1:49630` endpoint.
+ */
+export const EASYEDA_BRIDGE_LANDING_URL = 'https://pro.lceda.cn/api/landing?port=49620'
+
+/** Recovery instruction shared by bridge reachability errors. */
+const EASYEDA_BRIDGE_REGISTER_HINT = `open ${EASYEDA_BRIDGE_LANDING_URL} inside the EasyEDA client to register the editor window`
+
+/**
+ * Spawn the bundled `dsh-eda-bridge` bin detached so a first live call can
+ * bring the relay up itself. `DSH_EDA_BRIDGE_BIN` overrides the script path;
+ * tests point it at a fixture that exits immediately.
+ * @returns the detached child process so a caller that spawned it can reap it.
+ */
+export function spawnEasyEdaBridge(): ChildProcess {
+  const script = process.env.DSH_EDA_BRIDGE_BIN ?? fileURLToPath(new URL('../bin/dsh-eda-bridge.mjs', import.meta.url))
+  const child = spawn(process.execPath, [script], { detached: true, stdio: 'ignore', windowsHide: true })
+  child.on('error', console.warn)
+  child.unref()
+  return child
+}
 
 /** Per-call overrides accepted by {@link EasyEdaBridge.execute}. */
 export interface EasyEdaBridgeExecuteOptions {
@@ -73,6 +99,20 @@ export interface HttpEasyEdaBridgeOptions {
   readonly timeoutStreakLimit?: number | undefined
   /** Cooldown before a half-open probe retries the client, in milliseconds. */
   readonly circuitCooldownMs?: number | undefined
+  /**
+   * When a localhost scan finds no bridge, spawn the bundled
+   * `dsh-eda-bridge` bin detached and rescan briefly (default `true`). Set
+   * `false` to keep discovery purely passive — tests and locked-down
+   * runtimes.
+   */
+  readonly autoSpawn?: boolean | undefined
+  /**
+   * Injectable spawn used by auto-spawn (tests substitute a stub); defaults
+   * to {@link spawnEasyEdaBridge}.
+   */
+  readonly spawnBridge?: (() => unknown) | undefined
+  /** How long auto-spawn waits for the spawned bridge to answer, in milliseconds. */
+  readonly autoSpawnWaitMs?: number | undefined
 }
 
 interface BridgeHealth {
@@ -111,13 +151,49 @@ export class HttpEasyEdaBridge implements EasyEdaBridge {
   /**
    * Scan the run-api-gateway port range for the `easyeda-bridge` handshake and
    * return a bound client. Throws `SCHEMATIC_BRIDGE_UNAVAILABLE` when no port
-   * answers, and `SCHEMATIC_BRIDGE_NO_EDA` when a bridge answers but no EasyEDA
-   * window is connected.
-   * @param options - host, fetch override, and per-request timeout.
+   * answers, `SCHEMATIC_BRIDGE_NO_EDA` when a bridge answers but no EasyEDA
+   * window is connected — both messages carry the recovery steps — and
+   * `SCHEMATIC_BRIDGE_TIMEOUT` when a probe stalls. When a localhost scan
+   * finds nothing, the bundled `dsh-eda-bridge` bin is spawned detached and
+   * the scan retries for `autoSpawnWaitMs`; `autoSpawn: false` keeps
+   * discovery purely passive.
+   * @param options - host, fetch override, timeouts, and auto-spawn controls.
    * @returns a bridge client bound to the discovered port.
    */
   static async discover(options: HttpEasyEdaBridgeOptions = {}): Promise<HttpEasyEdaBridge> {
     const host = options.host ?? '127.0.0.1'
+    try {
+      return await HttpEasyEdaBridge.scanRange(options, host)
+    } catch (error) {
+      // Spawning a local relay cannot fix a scan of a remote host.
+      const passive = options.autoSpawn === false || (host !== '127.0.0.1' && host !== 'localhost')
+      if (passive || (error as SchematicError).code !== 'SCHEMATIC_BRIDGE_UNAVAILABLE') throw error
+    }
+    try {
+      (options.spawnBridge ?? spawnEasyEdaBridge)()
+    } catch { /* the rescan below reports the outcome */ }
+    const waitUntil = Date.now() + (options.autoSpawnWaitMs ?? 4_000)
+    for (;;) {
+      try {
+        return await HttpEasyEdaBridge.scanRange(options, host)
+      } catch (error) {
+        if ((error as SchematicError).code !== 'SCHEMATIC_BRIDGE_UNAVAILABLE') throw error
+        if (Date.now() >= waitUntil) {
+          throw new SchematicError(
+            `no easyeda bridge found on ${host} ports ${EASYEDA_BRIDGE_PORT_MIN}–${EASYEDA_BRIDGE_PORT_MAX} after auto-spawn — start it manually with "dsh-eda-bridge", then ${EASYEDA_BRIDGE_REGISTER_HINT}`,
+            'SCHEMATIC_BRIDGE_UNAVAILABLE',
+          )
+        }
+        await new Promise(resolve => setTimeout(resolve, 150))
+      }
+    }
+  }
+
+  /**
+   * One pass over the advertised port range; throws `UNAVAILABLE`, `NO_EDA`,
+   * or `TIMEOUT` when no usable bridge answers.
+   */
+  private static async scanRange(options: HttpEasyEdaBridgeOptions, host: string): Promise<HttpEasyEdaBridge> {
     const fetchFn = options.fetchFn ?? fetch
     const timeoutMs = options.timeoutMs ?? 30_000
     for (let port = EASYEDA_BRIDGE_PORT_MIN; port <= EASYEDA_BRIDGE_PORT_MAX; port++) {
@@ -143,12 +219,12 @@ export class HttpEasyEdaBridge implements EasyEdaBridge {
       if (health.service !== 'easyeda-bridge') continue
       if (typeof health.bridge === 'string' && health.bridge !== EASYEDA_BRIDGE_IMPLEMENTATION) continue
       if (health.edaConnected === false) {
-        throw new SchematicError(`easyeda bridge at ${baseUrl} has no EasyEDA window connected`, 'SCHEMATIC_BRIDGE_NO_EDA')
+        throw new SchematicError(`easyeda bridge at ${baseUrl} has no EasyEDA window connected — ${EASYEDA_BRIDGE_REGISTER_HINT}`, 'SCHEMATIC_BRIDGE_NO_EDA')
       }
       return new HttpEasyEdaBridge(baseUrl, options)
     }
     throw new SchematicError(
-      `no easyeda bridge found on ${host} ports ${EASYEDA_BRIDGE_PORT_MIN}–${EASYEDA_BRIDGE_PORT_MAX}`,
+      `no easyeda bridge found on ${host} ports ${EASYEDA_BRIDGE_PORT_MIN}–${EASYEDA_BRIDGE_PORT_MAX} — start it with "dsh-eda-bridge" (the bin ships inside @deepseek-ai/dsh-plugin-eda-core), then ${EASYEDA_BRIDGE_REGISTER_HINT}`,
       'SCHEMATIC_BRIDGE_UNAVAILABLE',
     )
   }
@@ -203,11 +279,11 @@ export class HttpEasyEdaBridge implements EasyEdaBridge {
         // timeout: a drained window list deserves the actionable NO_EDA.
         if ((await this.probeHealth())?.edaConnected === false) {
           throw new SchematicError(
-            `easyeda bridge at ${this.baseUrl} lost its EasyEDA window — reopen the api/landing page to re-register the editor`,
+            `easyeda bridge at ${this.baseUrl} lost its EasyEDA window — reopen ${EASYEDA_BRIDGE_LANDING_URL} in the EasyEDA client to re-register it`,
             'SCHEMATIC_BRIDGE_NO_EDA',
           )
         }
-        throw new SchematicError(`easyeda bridge execute timed out after ${timeoutMs}ms`, 'SCHEMATIC_BRIDGE_TIMEOUT')
+        throw new SchematicError(`easyeda bridge execute timed out after ${timeoutMs}ms — the editor may be busy or wedged; if timeouts persist, reopen ${EASYEDA_BRIDGE_LANDING_URL} to re-register it`, 'SCHEMATIC_BRIDGE_TIMEOUT')
       }
       throw new SchematicError(`easyeda bridge execute failed: ${error instanceof Error ? error.message : String(error)}`, 'SCHEMATIC_BRIDGE_EXECUTION')
     }

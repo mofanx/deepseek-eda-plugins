@@ -22,7 +22,15 @@
  * 49630 downgrades to a warning, not a failure. A second invocation exits
  * when a compatible bridge already answers /health; a foreign implementation
  * holding the service id (marked via the `bridge` health field) fails startup
- * unless `--force` is passed.
+ * unless `--force` is passed. `dsh-eda-bridge --check` is a non-serving
+ * self-check: it probes the range, prints the connection state plus the next
+ * action, and exits 0 (EDA window connected) / 1 (no window) / 2 (no bridge)
+ * / 3 (foreign implementation).
+ *
+ * Liveness: a 15 s WebSocket ping sweep terminates dead sockets, and an
+ * application-layer noop `execute` probe every 45 s terminates a window that
+ * still answers protocol pings but whose script host stopped processing
+ * execute requests (two consecutive unanswered probes).
  *
  * Handshake verification:
  * - GET /health returns { service: "easyeda-bridge", ... }
@@ -107,22 +115,19 @@ function isPortInUse(port) {
 }
 
 /**
- * Read the implementation marker of the bridge service on a port, or null
- * when the port does not answer as `easyeda-bridge`. A missing `bridge`
- * field means the legacy bridge-server script — wire-identical, so it is
- * reported as this implementation.
+ * Fetch the parsed /health payload on a port, or null when nothing bridge-
+ * shaped answers.
  * @param {number} port
- * @returns {Promise<string|null>} implementation id, or null when not a bridge
+ * @returns {Promise<object|null>}
  */
-function bridgeImplementation(port) {
+function healthPayload(port) {
   return new Promise((resolve) => {
     const req = httpGet(`http://127.0.0.1:${port}/health`, { timeout: 800 }, (res) => {
       let data = ''
       res.on('data', (chunk) => (data += chunk))
       res.on('end', () => {
         try {
-          const json = JSON.parse(data)
-          resolve(json.service === SERVICE_ID ? (typeof json.bridge === 'string' ? json.bridge : IMPLEMENTATION_ID) : null)
+          resolve(JSON.parse(data))
         } catch {
           resolve(null)
         }
@@ -131,6 +136,20 @@ function bridgeImplementation(port) {
     req.on('error', () => resolve(null))
     req.on('timeout', () => { req.destroy(); resolve(null) })
   })
+}
+
+/**
+ * Read the implementation marker of the bridge service on a port, or null
+ * when the port does not answer as `easyeda-bridge`. A missing `bridge`
+ * field means the legacy bridge-server script — wire-identical, so it is
+ * reported as this implementation.
+ * @param {number} port
+ * @returns {Promise<string|null>} implementation id, or null when not a bridge
+ */
+async function bridgeImplementation(port) {
+  const health = await healthPayload(port)
+  if (health === null || health.service !== SERVICE_ID) return null
+  return typeof health.bridge === 'string' ? health.bridge : IMPLEMENTATION_ID
 }
 
 /**
@@ -416,6 +435,52 @@ setInterval(() => {
   }
 }, HEARTBEAT_MS).unref()
 
+// Application-layer liveness: the WS heartbeat above only proves the socket
+// stack answers — a wedged script host keeps replying to protocol pings while
+// every execute queues forever. A noop `return true` execute proves the
+// page-side runtime still processes work; after APP_PROBE_MAX_MISSES
+// consecutive unanswered probes the socket is terminated, which unregisters
+// the window so /health reports edaConnected:false and clients get the
+// actionable NO_EDA instead of opaque timeouts. A wedged window is detected
+// within roughly interval + misses × timeout (~2.5 min); a busy page gets
+// the full miss budget before being kicked.
+const APP_PROBE_INTERVAL_MS = 45_000
+const APP_PROBE_TIMEOUT_MS = REQUEST_TIMEOUT_MS
+const APP_PROBE_MAX_MISSES = 2
+setInterval(() => {
+  for (const [windowId, ws] of edaClients) {
+    if (ws.readyState !== 1 || ws.probeInFlight === true) continue
+    ws.probeInFlight = true
+    const id = randomUUID()
+    const timer = setTimeout(() => {
+      pendingRequests.delete(id)
+      const client = edaClients.get(windowId)
+      if (client === undefined) return
+      client.probeInFlight = false
+      client.probeMisses = (client.probeMisses ?? 0) + 1
+      console.warn(`[WS] app-probe ${client.probeMisses}/${APP_PROBE_MAX_MISSES} unanswered for ${windowId}`)
+      if (client.probeMisses >= APP_PROBE_MAX_MISSES) {
+        console.warn(`[WS] terminating unresponsive EDA window ${windowId}`)
+        try { client.terminate() } catch { /* socket already gone */ }
+      }
+    }, APP_PROBE_TIMEOUT_MS)
+    pendingRequests.set(id, {
+      // An answered probe — result or error — proves the script host runs.
+      resolve: () => { ws.probeInFlight = false; ws.probeMisses = 0 },
+      reject: () => { ws.probeInFlight = false; ws.probeMisses = 0 },
+      timer,
+      windowId,
+    })
+    try {
+      sendToEda(windowId, { type: 'execute', id, code: 'return true', windowId, timestamp: Date.now() })
+    } catch {
+      clearTimeout(timer)
+      pendingRequests.delete(id)
+      ws.probeInFlight = false
+    }
+  }
+}, APP_PROBE_INTERVAL_MS).unref()
+
 // ─── Core logic ─────────────────────────────────────────────────────
 
 /**
@@ -507,6 +572,10 @@ function handleEdaMessage(msg, windowId) {
   }
 
   if (msg.type === 'result' || msg.type === 'error') {
+    // Any answered execute proves the script host runs — reset the
+    // app-layer probe miss counter so a busy page is never kicked.
+    const client = edaClients.get(windowId)
+    if (client !== undefined) client.probeMisses = 0
     const pending = pendingRequests.get(msg.id)
     if (pending) {
       clearTimeout(pending.timer)
@@ -521,6 +590,46 @@ function handleEdaMessage(msg, windowId) {
   }
 
   console.log('[EDA] Unknown message type:', msg.type, 'from window:', windowId)
+}
+
+// ─── Self-check (--check) ───────────────────────────────────────────
+
+const LANDING_URL = 'https://pro.lceda.cn/api/landing?port=49620'
+
+/**
+ * Probe the advertised port range and report the bridge/EDA connection state
+ * with the next action. Exit codes: 0 connected, 1 bridge up but no EDA
+ * window, 2 no bridge found, 3 a foreign implementation holds the range.
+ */
+async function runCheck() {
+  const ports = []
+  for (let port = PORT_START; port <= PORT_END; port++) ports.push(port)
+  ports.push(BUILTIN_GATEWAY_PORT)
+  let foreign = null
+  for (const port of ports) {
+    const health = await healthPayload(port)
+    if (health === null || health.service !== SERVICE_ID) continue
+    const implementation = typeof health.bridge === 'string' ? health.bridge : IMPLEMENTATION_ID
+    if (implementation !== IMPLEMENTATION_ID) {
+      foreign = { port, implementation }
+      continue
+    }
+    if (health.edaConnected === true) {
+      console.log(`check ok: dsh-eda-bridge on port ${port}, ${health.edaWindowCount} EDA window(s), active ${health.activeWindowId}`)
+      process.exit(0)
+    }
+    console.log(`check: dsh-eda-bridge is running on port ${port} but no EasyEDA window is connected`)
+    console.log(`next: open ${LANDING_URL} inside the EasyEDA client to register the editor window`)
+    process.exit(1)
+  }
+  if (foreign !== null) {
+    console.log(`check: a different easyeda-bridge (${foreign.implementation}) holds port ${foreign.port}`)
+    console.log('next: stop it and run "dsh-eda-bridge", or run "dsh-eda-bridge --force" to bind alongside it')
+    process.exit(3)
+  }
+  console.log(`check: no easyeda bridge found on ports ${PORT_START}-${BUILTIN_GATEWAY_PORT}`)
+  console.log(`next: run "dsh-eda-bridge" to start the relay, then open ${LANDING_URL} inside the EasyEDA client`)
+  process.exit(2)
 }
 
 // ─── Start ──────────────────────────────────────────────────────────
@@ -602,4 +711,8 @@ ${formatBannerLine('Service ID', SERVICE_ID)}
   }
 }
 
-start()
+if (process.argv.includes('--check')) {
+  await runCheck()
+} else {
+  start()
+}

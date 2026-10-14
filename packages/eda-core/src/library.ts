@@ -39,6 +39,16 @@ export interface EasyEdaLibraryOptions {
   /** Cooldown before the bridge half-open probe retries the client, in ms. */
   readonly circuitCooldownMs?: number | undefined
   /**
+   * When a localhost scan finds no bridge, spawn the bundled
+   * `dsh-eda-bridge` bin and rescan (default `true`); `false` keeps
+   * discovery passive.
+   */
+  readonly autoSpawn?: boolean | undefined
+  /** Injectable bridge spawn for tests; forwarded to discovery. */
+  readonly spawnBridge?: (() => unknown) | undefined
+  /** How long auto-spawn waits for the spawned bridge to answer, in ms. */
+  readonly autoSpawnWaitMs?: number | undefined
+  /**
    * Workspace library UUID restricting every lookup (`lib_*` `libraryUuid`
    * argument). Omit for the client's default library scope.
    */
@@ -141,6 +151,9 @@ export class EasyEdaLibrary implements SchematicLibrary {
           timeoutMs: options.timeoutMs,
           timeoutStreakLimit: options.timeoutStreakLimit,
           circuitCooldownMs: options.circuitCooldownMs,
+          autoSpawn: options.autoSpawn,
+          spawnBridge: options.spawnBridge,
+          autoSpawnWaitMs: options.autoSpawnWaitMs,
         })
           .catch((error: unknown) => {
             this.bridgePromise = undefined
