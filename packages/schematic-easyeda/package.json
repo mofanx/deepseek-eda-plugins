@@ -1,7 +1,12 @@
 {
   "name": "@deepseek-ai/dsh-plugin-eda-easyeda",
   "description": "EasyEDA document-source engine for the schematic seam (ctx.schematic): projects the schematic IR to V3 SCH_PAGE source and delivers through the live client bridge",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mofanx/deepseek-eda-plugins.git",
+    "directory": "packages/schematic-easyeda"
+  },
   "publishConfig": {
     "access": "public"
   },

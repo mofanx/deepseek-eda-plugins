@@ -1,7 +1,12 @@
 {
   "name": "@deepseek-ai/dsh-plugin-eda-bundle",
   "description": "Optional profile layer that mounts the schematic-generation capability seam, the EasyEDA engine, and its model tools.",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mofanx/deepseek-eda-plugins.git",
+    "directory": "packages/schematic-bundle"
+  },
   "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"

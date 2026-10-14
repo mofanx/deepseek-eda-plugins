@@ -25,7 +25,13 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在 Web 或 Desktop 中打开插件页，在 Official 分组启用 **原理图生成**。关闭即可移除该 profile 层。
+把已发布的 bundle 安装进 profile：
+
+```sh
+dsh plugin --profile <name> add @deepseek-ai/dsh-plugin-eda-bundle
+```
+
+`dsh.bundle` 清单会自动把该层追加到 `dsh.profile.bundles`。然后在 Web 或 Desktop 中打开插件页，在 Official 分组启用 **原理图生成**。关闭即可移除该 profile 层。
 
 启用或停用该 bundle 会在运行中的 Host 注册或移除原理图工具，因此每个 Agent 在下一次请求时看到变化。
 

@@ -1,7 +1,12 @@
 {
   "name": "@deepseek-ai/dsh-plugin-eda-sch-gen",
   "description": "Model-facing schematic tools (schematic_generate, schematic_validate) over the schematic capability seam",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mofanx/deepseek-eda-plugins.git",
+    "directory": "packages/tool-schematic"
+  },
   "publishConfig": {
     "access": "public"
   },

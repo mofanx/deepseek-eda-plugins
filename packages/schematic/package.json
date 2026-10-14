@@ -1,7 +1,12 @@
 {
   "name": "@deepseek-ai/dsh-plugin-eda-sch",
   "description": "Schematic-generation capability seam (ctx.schematic): typed schematic IR, engine registry with order-independent selection, and the authoritative static validator",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mofanx/deepseek-eda-plugins.git",
+    "directory": "packages/schematic"
+  },
   "publishConfig": {
     "access": "public"
   },

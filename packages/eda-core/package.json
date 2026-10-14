@@ -1,7 +1,12 @@
 {
   "name": "@deepseek-ai/dsh-plugin-eda-core",
   "description": "Shared EasyEDA client machinery for the dsh-plugin-eda-* plugins: run-api-gateway bridge client and dsh-eda-bridge bin, workspace library, document-source read-back/netlist diff, and V3 SCH_PAGE/.epro2 serializers",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mofanx/deepseek-eda-plugins.git",
+    "directory": "packages/eda-core"
+  },
   "publishConfig": {
     "access": "public"
   },

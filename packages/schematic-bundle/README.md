@@ -25,7 +25,13 @@ Mount the schematic-generation capability family in one selectable profile layer
 <a id="use-this-package"></a>
 ## Use this package
 
-In Web or Desktop, open Plugins and enable **Schematic generation** in Official. Switch it off to remove its profile layer.
+Install the published bundle into a profile:
+
+```sh
+dsh plugin --profile <name> add @deepseek-ai/dsh-plugin-eda-bundle
+```
+
+The `dsh.bundle` manifest appends the layer to `dsh.profile.bundles` automatically. In Web or Desktop, open Plugins and enable **Schematic generation** in Official. Switch it off to remove its profile layer.
 
 Enabling or disabling the bundle registers or removes the schematic tools in the running Host, so every Agent sees the change on its next request.
 
