@@ -1,5 +1,7 @@
 # deepseek-eda-plugins
 
+[![CI](https://github.com/mofanx/deepseek-eda-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/mofanx/deepseek-eda-plugins/actions/workflows/ci.yml)
+
 Externalized schematic-generation plugin for DeepSeek Harness. The model produces a typed schematic IR (`schematic_generate`), the seam binds it to real library parts, lays it out, statically validates it, and delivers it into EasyEDA — either serialized as a `.epro2` project or built live in the client through the local bridge.
 
 **Status: first migration landed.** Source and tests are imported; `pnpm install`/`tsc -b`/`vitest`/`coverage`/`oxlint` are green, and dsh loads this checkout through the root [`cordis.patch.yml`](cordis.patch.yml). This repository is the sole source of truth: the transitional `feat/schematic-generation` branch in `deepseek-harness` has been removed (dsh `master` never contained `packages/schematic`). See [docs/migration-plan.md](docs/migration-plan.md).
@@ -35,3 +37,5 @@ pnpm run lint           # oxlint
 ```
 
 All `@deepseek-ai/dsh-*` dependencies resolve from the npm `0.2.1-alpha.2` line; no sibling checkout is required.
+
+See [docs/quickstart.md](docs/quickstart.md) ([中文](docs/quickstart.zh.md)) for the end-to-end happy path — `dsh plugin add` → `dsh web` → EasyEDA editor → `schematic_generate` — and the troubleshooting list (bridge `--check` recovery, `allow-version` exemption, `CREATE_TIMEOUT`, the A4-only live-verified page size).
