@@ -42,7 +42,9 @@ From a zero-state machine to a generated schematic inside EasyEDA, then the fail
 
 ### `edaConnected:false` / no EasyEDA window
 
-Run `dsh-eda-bridge --check`. Exit code `0` means a window is registered, `1` means the relay is up but no editor tab registered (open `https://pro.lceda.cn/api/landing?port=49620` inside EasyEDA to trigger the built-in gateway), `2` means no bridge is listening (start `dsh-eda-bridge` or make any live call so the plugin auto-spawns it), `3` means another process on the port range is speaking an incompatible protocol (restart with `dsh-eda-bridge --force` if that port is really free). A window that registered but went silent is kicked by the bridge's application-level noop probe — the next `--check` then reports code `1` and the landing page re-registers it.
+Run `dsh-eda-bridge --check`. Exit code `0` means a window is registered, `1` means the relay is up but no editor tab registered (open `http://localhost:<port>/landing` for the self-closing helper page, or `https://pro.lceda.cn/api/landing?port=49620` inside EasyEDA to trigger the built-in gateway), `2` means no bridge is listening (start `dsh-eda-bridge` or make any live call so the plugin auto-spawns it), `3` means another process on the port range is speaking an incompatible protocol (restart with `dsh-eda-bridge --force` if that port is really free). A window that registered but went silent is kicked by the bridge's application-level noop probe — the next `--check` then reports code `1` and the landing page re-registers it.
+
+The `/landing` helper exists because the EasyEDA landing page calls `window.close()` after broadcasting, but browsers only honor that on script-opened windows — a tab you navigated to directly stays open. The helper opens it as a popup instead, polls `/health`, and closes the popup once a window registers.
 
 ### Plugin rejected on version check
 

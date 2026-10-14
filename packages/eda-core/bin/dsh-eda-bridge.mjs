@@ -207,6 +207,44 @@ const httpHandler = async (req, res) => {
     return
   }
 
+  // Registration helper: opens the EasyEDA landing page as a script-opened
+  // popup so its own window.close() succeeds after the BroadcastChannel post
+  // (browsers only allow close() on script-opened windows — a tab the user
+  // navigated to directly stays open). Polls /health, closes the popup once a
+  // window registers, and reports done. The landing tab never lingers.
+  if (req.method === 'GET' && req.url === '/landing') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end(`<!doctype html><meta charset="utf-8"><title>dsh-eda-bridge: register EasyEDA</title>
+<body style="font-family:ui-monospace,monospace;margin:2em">
+<p id="status">Waiting for the EasyEDA editor to register&hellip;</p>
+<p id="manual" hidden>If no popup opened, <button id="pop">open the landing page</button>
+(it closes itself once registered).</p>
+<script>
+const landing = 'https://pro.lceda.cn/api/landing?port=' + location.port
+let popup = null
+const pop = () => { popup = window.open(landing, '_blank', 'popup,width=640,height=480') }
+document.getElementById('pop').onclick = pop
+pop() // blocked without a user gesture in most browsers; the button covers that
+let connected = false
+const timer = setInterval(async () => {
+  try {
+    const health = await fetch('/health').then(r => r.json())
+    if (!health.edaConnected) {
+      document.getElementById('manual').hidden = !!popup && !popup.closed
+      return
+    }
+    connected = true
+    clearInterval(timer)
+    if (popup && !popup.closed) popup.close()
+    document.getElementById('manual').hidden = true
+    document.getElementById('status').textContent = 'EasyEDA window registered; you can close this tab.'
+    window.close()
+  } catch { /* bridge unreachable: keep polling */ }
+}, 800)
+</script>`)
+    return
+  }
+
   // List all connected EDA windows
   if (req.method === 'GET' && req.url === '/eda-windows') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -619,7 +657,7 @@ async function runCheck() {
       process.exit(0)
     }
     console.log(`check: dsh-eda-bridge is running on port ${port} but no EasyEDA window is connected`)
-    console.log(`next: open ${LANDING_URL} inside the EasyEDA client to register the editor window`)
+    console.log(`next: open http://localhost:${port}/landing for the self-closing registration page, or ${LANDING_URL} inside the EasyEDA client`)
     process.exit(1)
   }
   if (foreign !== null) {

@@ -42,7 +42,9 @@
 
 ### `edaConnected:false` / 无 EasyEDA 窗口
 
-运行 `dsh-eda-bridge --check`。退出码 `0` 表示已有窗口注册；`1` 表示中继在线但没有编辑器标签页注册（在 EasyEDA 内打开 `https://pro.lceda.cn/api/landing?port=49620` 触发内置网关）；`2` 表示端口范围内没有桥在监听（启动 `dsh-eda-bridge`，或发起任一 live 调用让插件自动拉起）；`3` 表示端口被讲不兼容协议的其他进程占用（确认端口确实空闲后以 `dsh-eda-bridge --force` 重启）。已注册但失联的窗口会被桥的应用层 noop 探活踢除——下一次 `--check` 报 `1`，落地页会重新注册。
+运行 `dsh-eda-bridge --check`。退出码 `0` 表示已有窗口注册；`1` 表示中继在线但没有编辑器标签页注册（打开 `http://localhost:<port>/landing` 用自关闭辅助页注册，或在 EasyEDA 内打开 `https://pro.lceda.cn/api/landing?port=49620` 触发内置网关）；`2` 表示端口范围内没有桥在监听（启动 `dsh-eda-bridge`，或发起任一 live 调用让插件自动拉起）；`3` 表示端口被讲不兼容协议的其他进程占用（确认端口确实空闲后以 `dsh-eda-bridge --force` 重启）。已注册但失联的窗口会被桥的应用层 noop 探活踢除——下一次 `--check` 报 `1`，落地页会重新注册。
+
+`/landing` 辅助页存在的原因：EasyEDA 落地页广播后会调 `window.close()`，但浏览器只对脚本打开的窗口放行——直接打开的页签不会自动关闭。辅助页改为以弹窗方式打开它、轮询 `/health`，窗口注册后自动关掉弹窗。
 
 ### 插件被版本校验拒绝
 
