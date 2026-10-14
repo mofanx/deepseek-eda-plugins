@@ -254,6 +254,25 @@ describe('net-naming and format rules', () => {
     expect(conflict?.message).toContain('U1-1@(30, 0)')
   })
 
+  it('does not cascade duplicate pin ids into NET_NAME_CONFLICT', () => {
+    const ir: SchematicIr = {
+      sheets: [{
+        ...emptySheet,
+        components: [
+          part('c1', 'U1', [pin('p1', 'BI', { x: 0, y: 0 }, { net: 'VCC', powerName: 'VCC' })]),
+          part('c2', 'U2', [pin('p1', 'BI', { x: 100, y: 0 }, { net: 'GND', powerName: 'GND' })]),
+        ],
+        wires: [
+          { id: 'w1', kind: 'wire', dots: [[0, 0, 0, 40]], net: 'VCC' },
+          { id: 'w2', kind: 'wire', dots: [[100, 0, 100, 40]], net: 'GND' },
+        ],
+      }],
+    }
+    const report = validateSchematic(ir)
+    expect(report.findings.map(f => f.code)).toContain('FORMAT_DUPLICATE_ID')
+    expect(report.findings.filter(f => f.code === 'NET_NAME_CONFLICT' || f.code === 'POWER_SHORT')).toHaveLength(0)
+  })
+
   it('caps the member list and renders pins without endpoints on NET_NAME_CONFLICT', () => {
     const nc: SchematicIrPin = { id: 'b2', name: 'b2', electric: 'BI' }
     const ir: SchematicIr = {

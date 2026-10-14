@@ -872,6 +872,25 @@ describe('page bounds', () => {
       .find(component => (component.position?.x ?? 0) > 1000)
     expect(flag?.position?.x).toBe(A4.width)
   })
+
+  it('routes an elbow stub when the clamped flag differs from its endpoint on both axes', () => {
+    // u1 sits beyond the top-right corner: its endpoint is out of frame in
+    // both axes, so the flag clamps onto the corner and the stub bends.
+    const doc = ir(sheet({
+      components: [
+        comp('u1', { block: 'a', position: { x: 1200, y: -60 }, pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        comp('u3', { block: 'b', position: { x: 600, y: 400 }, pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+      ],
+    }))
+    const laid = layoutSchematic(doc)
+    const flag = laid.sheets[0]?.components
+      .filter(component => component.netName === 'SIG')
+      .find(component => (component.position?.x ?? 0) > 1000)
+    expect(inPage(flag?.position ?? { x: -1, y: -1 })).toBe(true)
+    const stub = laid.sheets[0]?.wires.find(wire => wire.net === 'SIG')
+    const bent = stub?.dots.some(chain => chain.length > 4)
+    expect(bent).toBe(true)
+  })
 })
 
 describe('golden fixture', () => {

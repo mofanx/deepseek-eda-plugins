@@ -65,7 +65,7 @@ class UnionFind {
 // touches a point on another. Flag/port keys stay name-global — netflags
 // and netports join nets across pages by name, which is their purpose.
 const pointKey = (sheetIndex: number, p: SchematicPoint): string => `pt:${sheetIndex}:${p.x},${p.y}`
-const pinKey = (sheetIndex: number, id: string): string => `pin:${sheetIndex}:${id}`
+const pinKey = (sheetIndex: number, componentId: string, pinId: string): string => `pin:${sheetIndex}:${componentId}:${pinId}`
 const wireKey = (sheetIndex: number, id: string): string => `wire:${sheetIndex}:${id}`
 const busEntryKey = (sheetIndex: number, id: string): string => `busentry:${sheetIndex}:${id}`
 const flagKey = (name: string): string => `flag:${name}`
@@ -367,7 +367,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
               `Move the component or the endpoint inside ${frame}`,
             )
           }
-          uf.union(pinKey(sheetIndex, pin.id), pointKey(sheetIndex, pin.endpoint))
+          uf.union(pinKey(sheetIndex, component.id, pin.id), pointKey(sheetIndex, pin.endpoint))
           taps.push({ point: pin.endpoint, skip: [], sheetIndex })
         }
       }
@@ -504,7 +504,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
       } else if (component.kind === 'short' && component.pins.length === 2) {
         const [first, second] = component.pins
         /* v8 ignore next -- pins.length === 2 guarantees both elements */
-        if (first !== undefined && second !== undefined) uf.union(pinKey(sheetIndex, first.id), pinKey(sheetIndex, second.id))
+        if (first !== undefined && second !== undefined) uf.union(pinKey(sheetIndex, component.id, first.id), pinKey(sheetIndex, component.id, second.id))
       }
     }
   }
@@ -519,7 +519,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
 
   const netPins = new Map<string, PinRef[]>()
   for (const ref of allPins) {
-    const root = uf.find(pinKey(ref.sheetIndex, ref.pin.id))
+    const root = uf.find(pinKey(ref.sheetIndex, ref.component.id, ref.pin.id))
     const list = netPins.get(root) ?? []
     list.push(ref)
     netPins.set(root, list)
@@ -542,7 +542,7 @@ export function validateSchematic(ir: SchematicIr, options: SchematicValidationO
 
   // --- Family: pin connectivity -------------------------------------------------
   for (const ref of allPins) {
-    const root = uf.find(pinKey(ref.sheetIndex, ref.pin.id))
+    const root = uf.find(pinKey(ref.sheetIndex, ref.component.id, ref.pin.id))
     /* v8 ignore next -- the netPins loop above seeds an entry for every pin root */
     const members = netPins.get(root) ?? []
     const connected = members.length > 1 || carrierRoots.has(root)

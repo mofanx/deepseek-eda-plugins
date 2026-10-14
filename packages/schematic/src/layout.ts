@@ -802,11 +802,14 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
         // Flag strategy: every unrouted member gets a short stub and a nearby
         // flag of the same name; flags merge by name, so no trunk is needed.
         // Power nets hang up, ground-family nets hang down, and other nets
-        // reach outward from the pin's side.
+        // reach outward from the pin's side. A stub that passes through a
+        // foreign point merges two nets, so the flag tries the mirrored
+        // direction, then a perpendicular detour, before giving up.
         const flagKind = crossSheet ? 'netport' : 'netflag'
         const stubDots: number[][] = []
         unrouted.forEach((member, index) => {
           const endpoint = member.pin.endpoint
+          const vertical = isGroundNet(net) || powerClass
           const direct: SchematicPoint = isGroundNet(net)
             ? { x: endpoint.x, y: snap(endpoint.y - FLAG_STUB, o.grid) }
             : powerClass
@@ -820,14 +823,36 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
           // onto the frame edge.
           let flagPosition = direct
           if (!inFrame(direct)) {
-            const mirrored: SchematicPoint = isGroundNet(net) || powerClass
+            const mirrored: SchematicPoint = vertical
               ? { x: direct.x, y: snap(2 * endpoint.y - direct.y, o.grid) }
               : { x: snap(2 * endpoint.x - direct.x, o.grid), y: direct.y }
             flagPosition = inFrame(mirrored) ? mirrored : clampFrame(direct)
           }
+          const candidates: SchematicPoint[] = [flagPosition]
+          if (vertical) {
+            candidates.push({ x: direct.x, y: snap(2 * endpoint.y - direct.y, o.grid) })
+            candidates.push(
+              { x: snap(endpoint.x + FLAG_STUB, o.grid), y: endpoint.y },
+              { x: snap(endpoint.x - FLAG_STUB, o.grid), y: endpoint.y },
+            )
+          } else {
+            candidates.push({ x: snap(2 * endpoint.x - direct.x, o.grid), y: direct.y })
+            candidates.push(
+              { x: endpoint.x, y: snap(endpoint.y - FLAG_STUB, o.grid) },
+              { x: endpoint.x, y: snap(endpoint.y + FLAG_STUB, o.grid) },
+            )
+          }
+          const clear = candidates.find(
+            candidate => inFrame(candidate) && !collides([lPath(endpoint, candidate)]),
+          )
+          if (clear !== undefined) flagPosition = clear
           if (endpoint.x !== flagPosition.x || endpoint.y !== flagPosition.y) {
             stubDots.push(lPath(endpoint, flagPosition))
+            if (endpoint.x !== flagPosition.x && endpoint.y !== flagPosition.y) {
+              occupy({ x: flagPosition.x, y: endpoint.y }, net)
+            }
           }
+          occupy(flagPosition, net)
           components.push({
             id: `layout:flag:${idPart(net)}:${index}`,
             kind: flagKind,
