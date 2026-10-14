@@ -2,7 +2,7 @@
 
 Externalized schematic-generation plugin for DeepSeek Harness. The model produces a typed schematic IR (`schematic_generate`), the seam binds it to real library parts, lays it out, statically validates it, and delivers it into EasyEDA — either serialized as a `.epro2` project or built live in the client through the local bridge.
 
-**Status: first migration landed.** Source and tests are imported; `pnpm install`/`tsc -b`/`vitest`/`coverage`/`oxlint` are green, and dsh loads this checkout through the root [`cordis.patch.yml`](cordis.patch.yml). The in-tree copy in [`deepseek-harness`](../deepseek-harness/packages/schematic/) remains authoritative until npm publication — see [docs/migration-plan.md](docs/migration-plan.md).
+**Status: first migration landed.** Source and tests are imported; `pnpm install`/`tsc -b`/`vitest`/`coverage`/`oxlint` are green, and dsh loads this checkout through the root [`cordis.patch.yml`](cordis.patch.yml). This repository is the sole source of truth: the transitional `feat/schematic-generation` branch in `deepseek-harness` has been removed (dsh `master` never contained `packages/schematic`). See [docs/migration-plan.md](docs/migration-plan.md).
 
 ## Layout
 

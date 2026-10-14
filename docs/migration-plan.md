@@ -2,7 +2,7 @@
 
 Scope: `deepseek-harness/packages/schematic/*` → 本仓（`deepseek-eda-plugins`）。依据：`deepseek-harness/packages/schematic/docs/2026-10-13-schematic-flow-and-externalization.md` 第 6 节方案。本文记录 prep 结论与首轮迁移执行结果。
 
-**执行状态（首轮迁移 + 重命名完成）**：4 包代码+测试+fixture+bin/README 已迁入，包名统一为 `@deepseek-ai/dsh-plugin-eda-{sch,easyeda,sch-gen,bundle}`；`pnpm install` / `tsc -b` / `tsdown`（lib/index.js 运行入口）/ `vitest`（352/352）/ coverage 100% / `oxlint` 全绿；dsh headless profile 经 `cordis.patch.yml` 加载本仓完成 mock-LLM validate→generate 回路（跨包名引用经本仓 node_modules → lib 真实解析，非依赖宿主 tsconfig paths）。dsh 仓内嵌包暂保留为过渡期权威源（见 5-R6）。
+**执行状态（首轮迁移 + 重命名完成）**：4 包代码+测试+fixture+bin/README 已迁入，包名统一为 `@deepseek-ai/dsh-plugin-eda-{sch,easyeda,sch-gen,bundle}`；`pnpm install` / `tsc -b` / `tsdown`（lib/index.js 运行入口）/ `vitest`（352/352）/ coverage 100% / `oxlint` 全绿；dsh headless profile 经 `cordis.patch.yml` 加载本仓完成 mock-LLM validate→generate 回路（跨包名引用经本仓 node_modules → lib 真实解析，非依赖宿主 tsconfig paths）。dsh 侧过渡分支 `feat/schematic-generation` 已删除（dsh master 从未包含 `packages/schematic`），本仓为唯一权威源。
 
 ## 1. 包结构决策：保留分包，不合并
 
@@ -67,7 +67,7 @@ Scope: `deepseek-harness/packages/schematic/*` → 本仓（`deepseek-eda-plugin
 | `dsh-plugin-eda-easyeda` | 函数插件：具名导出 `name` / `inject` / `Config` / `apply`，**无 default** | `inject` 声明注入服务；apply 内 `ctx.schematic.registerEngine(...)`/`registerLibrary(...)`，返回值经 `ctx.effect` 管 disposal |
 | `dsh-plugin-eda-sch-gen` | 函数插件：`inject = ['tools', 'schematic', 'systemPrompt']`，具名导出同上 | `ctx.tools.register(defineTool(...))`、`ctx.systemPrompt.section(...)` |
 | `dsh-plugin-eda-bundle` | `package.json` 的 `dsh.bundle.patch` → `cordis.patch.yml` 三行 insert | patch 行以**包名**引用插件（Node 解析），非相对路径 |
-| bridge | 非 cordis：HTTP 契约——端口扫描 49620–49629、`GET /health` `{service:'easyeda-bridge',edaConnected}`、`POST /execute {code}` → `{result}`/`{error}` | 引擎经 `HttpEasyEdaBridge.discover` 探测；契约常量在 `bridge.ts` |
+| bridge | 非 cordis：HTTP 契约——端口扫描 49620–49630（49630 为编辑器内置网关固定端口）、`GET /health` `{service:'easyeda-bridge',edaConnected}`、`POST /execute {code}` → `{result}`/`{error}` | 引擎经 `HttpEasyEdaBridge.discover` 探测；契约常量在 `bridge.ts` |
 
 反向看，dsh 侧需要存在的服务：`tools`、`schematic`（本仓自带）、`systemPrompt`（tool-schematic inject），以及 `dsh-llm`/`dsh-timeout` 的可解析 peer。`dsh plugin add` 安装时 peers 由 dsh 安装的运行时解析提供（publish.md 的祖先解析规则）。
 
@@ -83,11 +83,11 @@ Scope: `deepseek-harness/packages/schematic/*` → 本仓（`deepseek-eda-plugin
 
 ### 4.2 基建与验证
 
-- [x] `pnpm install`：npm rc.1 路径实测失败（`dsh-type-meta` 404）→ devDeps 全改 `link:` sibling 检出，安装通过。
+- [x] `pnpm install`：npm rc.1 路径实测失败（`dsh-type-meta` 404）→ ~~devDeps 全改 `link:` sibling~~ **已解除**（R2）：`0.2.1-alpha.2` 发布线覆盖全部依赖，devDeps 改 registry 版本，干净 clone 无主仓检出可装可测。
 - [x] `pnpm run build`（tsc -b exit 0）、`pnpm run test`（352/352）、`pnpm run test:coverage`（per-file 100 通过，补 association 对象形态用例）、`pnpm run lint`（oxlint exit 0）。
 - [x] **真实组合测试保留**：`loader-composition.spec.ts` 经 linked cordis Loader 通过；另增根级 `cordis.patch.yml` 供 `--patch` 直载 src。
 - [ ] `pnpm publish` 顺序：`dsh-plugin-eda-sch` → `dsh-plugin-eda-easyeda` → `dsh-plugin-eda-sch-gen` → `dsh-plugin-eda-bundle`（内部 `workspace:*` 发布时改写版本号）。
-- [ ] **dsh 仓清理**：从 `packages/schematic/` 摘除、OPTIONAL_BUNDLES/可选 bundle 名册、tool-catalog、profile patch 引用、文档链接改指外部仓。**本轮决定：暂不摘除**——npm 未发版前 in-tree 保留为权威源，本仓为镜像（单向 dsh→外部同步）；发布后同批摘除。
+- [x] **dsh 仓清理**：dsh `master` 从未包含 `packages/schematic`（OPTIONAL_BUNDLES/tool-catalog/profile 引用只存在于该分支），过渡分支 `feat/schematic-generation` 已整体删除；未随包迁移的文档、QA note、headless fixture、`live-relay.patch.yml` 已先迁入本仓（`docs/`、`tests/host-integration/`、根目录）。
 
 ### 4.3 分发验证
 
@@ -104,7 +104,7 @@ Scope: `deepseek-harness/packages/schematic/*` → 本仓（`deepseek-eda-plugin
 | R3 | schemastery 双实例：plugin 的 Config 与 cordis 内部 schemastery 版本不同 | 低 | 已核实 cordis 走 `~standard` 协议无 instanceof（`fiber.ts:53`）；dep `^3.18.4` 即可 |
 | R4 | peer 解析语义：`dsh plugin add` 的祖先解析规则要求 peer 在宿主运行时可见——profile 独立 node_modules 下 `dsh-llm` 等需经 dsh 安装侧解析而非 profile 本地装 | 中 | publish.md 规则已确认该机制；实装验证（4.3）覆盖；不要在 profile 里手动 `add` peer 包以免遮蔽宿主实例 |
 | R5 | live-e2e 依赖实机 EasyEDA 无法进 CI | 中 | 保留 spec 默认 exclude + 人工验证流程；README 标注 |
-| R6 | 双仓过渡期 API 漂移：IR/engine 类型在 dsh 侧仍被 app-boot/system-prompt/tool-catalog 引用 | 中 | 迁出后 dsh 侧引用全部删除（4.2 末项）；过渡期以 dsh 仓为权威源，本仓为镜像，单向同步 |
+| R6 | ~~双仓过渡期 API 漂移~~ **已解除**：过渡分支已删除，dsh master 无任何 schematic 引用；本仓为唯一权威源 | — | 无 |
 | R7 | `schematic-easyeda` peer `dsh-plugin-eda-sch@0.1.0` 锁死版本：seam 演进要同步发版 | 低 | 同仓发版序列固定；semver 宽松化留待 API 稳定后 |
 | R8 | in-box bundle 名册残留：dsh 的 OPTIONAL_BUNDLES/profile 模板若仍引用已迁出的包名会悬空 | 低 | 4.2 末项与名册摘除同 PR；`verify-optional-bundles` 类门禁会捕捉 |
 

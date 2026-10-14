@@ -1,0 +1,21 @@
+# Keyless schematic-model patch over the shipped headless profile.
+- id: agent-default-model
+  config:
+    provider: schematic-mock
+    model: schematic-mock
+
+- id: session-log-deepseek
+  config:
+    enabled: false
+
+# The bundle's EasyEDA library would otherwise scan localhost for a live
+# client; pin it to an unroutable TEST-NET-1 host so the golden exercises the
+# deterministic unreachable-library path on every machine.
+- id: optional-schematic-easyeda
+  config:
+    bridgeHost: '192.0.2.1'
+    bridgeTimeoutMs: 50
+
+- insert:
+    - id: schematic-mock-llm
+      name: './tests/fixtures/schematic-llm.mjs'
