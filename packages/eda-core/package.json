@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-plugin-eda-core",
   "description": "Shared EasyEDA client machinery for the dsh-plugin-eda-* plugins: run-api-gateway bridge client and dsh-eda-bridge bin, workspace library, document-source read-back/netlist diff, and V3 SCH_PAGE/.epro2 serializers",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mofanx/deepseek-eda-plugins.git",
@@ -31,7 +31,7 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-timeout": ">=0.2.1-alpha.2 <0.3.0"
+    "@deepseek-ai/dsh-timeout": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.2 <0.3.0"
   },
   "dependencies": {
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
@@ -41,5 +41,8 @@
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
     "@deepseek-ai/dsh-timeout": "0.2.1-alpha.2",
     "typescript": "^5.9.0"
+  },
+  "engines": {
+    "dsh": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.2 <0.3.0"
   }
 }
