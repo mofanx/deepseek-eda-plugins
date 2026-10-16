@@ -34,7 +34,7 @@ env:
   # 门禁自身也必须可复现：如果它跟着 main 漂移，"同一份插件代码给出不同结论"
   # 会让这个检查失去可信度。升级方式见本文件末尾注释。
   TESTING_REPO: mofanx/dsh-plugin-testing
-  TESTING_REV: 85627186a34c80fd535a4f0fd8e2a7f128a2f436
+  TESTING_REV: ad0d00cfa4323674532bcd0a54a3f92e59aaf2eb
   TESTING_DIR: .dsh-testing
   HOST_DIR: .dsh-host
 
