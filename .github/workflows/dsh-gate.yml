@@ -34,7 +34,7 @@ env:
   # 门禁自身也必须可复现：如果它跟着 main 漂移，"同一份插件代码给出不同结论"
   # 会让这个检查失去可信度。升级方式见本文件末尾注释。
   TESTING_REPO: mofanx/dsh-plugin-testing
-  TESTING_REV: 5d4a93132aa2da81726b2cb1e102b182de777afa
+  TESTING_REV: 90210a1de435238f7d3b7f1943f06b1d00b719a1
   TESTING_DIR: .dsh-testing
   HOST_DIR: .dsh-host
 
@@ -131,6 +131,27 @@ jobs:
             --packages "$PWD/packages/*" \
             --bundle @deepseek-ai/dsh-plugin-eda-bundle \
             --launcher "$PWD/$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js"
+
+      # 车道 C：宿主版本矩阵。**不需要宿主、不需要凭据、不联网**（清单随测试仓库的钉死
+      # revision 一起取来），所以它比 A/B 都便宜。
+      #
+      # 它回答的是 A/B 都回答不了的问题：不是"我手上这个宿主行不行"，而是"我声明的范围
+      # **整体**覆盖了哪些已发布版本"。两类缺陷在单宿主视角下结构性不可见：
+      #   · 空洞（DSH-C068，error）—— 落在被覆盖区间**之内**却不被接纳的已发布版本，
+      #     即"相邻版本都声明支持、中间那版用户却被禁用"；
+      #   · 安装期分歧（DSH-C067，warn）—— 运行时接纳但 npm/pnpm 拒绝（预发布元组未覆盖）。
+      # 后一类正是 2026-10-16 在 `0.2.1-alpha.1` 上抓到的那个：并集第二子句下界写成
+      # alpha.2，静默漏掉 alpha.1，那版用户装不上。加了这条车道，同类问题不会再悄悄回来。
+      #
+      # 刻意**不加** --strict：与车道 A 一致，warn 不阻断（C067 与 C061 同属 warn 级），
+      # 但会打印出来。要让 warn 也阻断，把 --strict 加上即可。
+      # 本步与 matrix.host 无关（不装宿主），因此两条宿主线上结果相同 —— 重复执行无害，
+      # 换取工作流更简单。
+      - name: 车道 C · 宿主版本矩阵（声明覆盖集）
+        run: |
+          node "$TESTING_DIR/packages/conformance/src/cli-host-matrix.mjs" \
+            "$PWD/packages/"* \
+            --candidates "$TESTING_DIR/fixtures/host-versions.published.json"
 
   # ── 金丝雀车道：跟 dist-tag 走，只做预警，不阻塞 PR ──────────────────────
   # 目的：上游发新版时**提前**知道插件会不会被禁用，而不是等用户来报。
