@@ -68,13 +68,18 @@ jobs:
       # 宿主直接取 npm 上发布的 @deepseek-ai/dsh —— 它与桌面打包宿主同源同版本，
       # 且是一个**完整安装**（自带 dsh-base / dsh-headless / dsh-app-boot 与
       # stock headless profile），因此 runner 上不需要准备桌面产物。
+      #
+      # 刻意**不用** `npm init -y`：它从目录名推导包名，而 `.dsh-host` 这种点开头的
+      # 名字是非法包名（npm 报 Invalid name），在 CI 上会直接失败。写死一个合法
+      # package.json 既不依赖目录名，也让这一步没有隐式行为。
       - name: 安装被测宿主 @deepseek-ai/dsh@${{ matrix.host }}
         run: |
           mkdir -p "$HOST_DIR"
-          cd "$HOST_DIR"
-          npm init -y >/dev/null
-          npm install --no-audit --no-fund "@deepseek-ai/dsh@${{ matrix.host }}"
-          node -e "console.log('宿主 dsh-app-boot 版本 =', require('./node_modules/@deepseek-ai/dsh-app-boot/package.json').version)"
+          printf '%s' '{"name":"dsh-host-under-test","private":true,"version":"0.0.0"}' > "$HOST_DIR/package.json"
+          npm install --no-audit --no-fund --prefix "$HOST_DIR" "@deepseek-ai/dsh@${{ matrix.host }}"
+          test -f "$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js" \
+            || { echo "宿主布局不符合预期：缺少 @deepseek-ai/dsh/lib/bin.js"; exit 1; }
+          node -e "const fs=require('fs');console.log('宿主 dsh-app-boot 版本 =', JSON.parse(fs.readFileSync(process.env.HOST_DIR+'/node_modules/@deepseek-ai/dsh-app-boot/package.json','utf8')).version)"
 
       - name: 安装门禁依赖
         working-directory: ${{ env.TESTING_DIR }}/packages/conformance
@@ -129,10 +134,11 @@ jobs:
       - name: 安装被测宿主 @deepseek-ai/dsh@${{ matrix.tag }}
         run: |
           mkdir -p "$HOST_DIR"
-          cd "$HOST_DIR"
-          npm init -y >/dev/null
-          npm install --no-audit --no-fund "@deepseek-ai/dsh@${{ matrix.tag }}"
-          node -e "console.log('宿主 dsh-app-boot 版本 =', require('./node_modules/@deepseek-ai/dsh-app-boot/package.json').version)"
+          printf '%s' '{"name":"dsh-host-canary","private":true,"version":"0.0.0"}' > "$HOST_DIR/package.json"
+          npm install --no-audit --no-fund --prefix "$HOST_DIR" "@deepseek-ai/dsh@${{ matrix.tag }}"
+          test -f "$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js" \
+            || { echo "宿主布局不符合预期：缺少 @deepseek-ai/dsh/lib/bin.js"; exit 1; }
+          node -e "const fs=require('fs');console.log('宿主 dsh-app-boot 版本 =', JSON.parse(fs.readFileSync(process.env.HOST_DIR+'/node_modules/@deepseek-ai/dsh-app-boot/package.json','utf8')).version)"
 
       - name: 运行时激活探针（预警）
         run: |
@@ -149,10 +155,14 @@ jobs:
 # 不要改成浮动分支（如 main）：门禁自身漂移会让"同一份代码给出不同结论"。
 #
 # 本地复跑（不需要 CI）：
-#   mkdir -p .dsh-host && cd .dsh-host && npm init -y && npm i @deepseek-ai/dsh@0.2.0-rc.2
-#   cd .. && node <dsh-plugin-testing>/packages/conformance/src/run-all.mjs \
+#   mkdir -p .dsh-host
+#   printf '%s' '{"name":"dsh-host-under-test","private":true,"version":"0.0.0"}' > .dsh-host/package.json
+#   npm install --no-audit --no-fund --prefix .dsh-host @deepseek-ai/dsh@0.2.0-rc.2
+#   node <dsh-plugin-testing>/packages/conformance/src/run-all.mjs \
 #            --config conformance.json --host "$PWD/.dsh-host/node_modules"
 #   node <dsh-plugin-testing>/packages/testkit/src/activate-cli.mjs \
 #            --packages "$PWD/packages/*" --bundle @deepseek-ai/dsh-plugin-eda-bundle \
 #            --launcher "$PWD/.dsh-host/node_modules/@deepseek-ai/dsh/lib/bin.js"
+# 注意：不要用 `npm init -y` 生成 .dsh-host/package.json —— 它从目录名推导包名，
+# 而点开头的名字是非法包名，npm 会直接报 Invalid name。
 # ─────────────────────────────────────────────────────────────────────────────
