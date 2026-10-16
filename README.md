@@ -52,7 +52,9 @@ Two lanes, neither of which substitutes for the other:
 
 Lane B exists because of a measured fact: `dsh --dump-config` does **not** run the compatibility preflight — an incompatible row appears in the config dump with no `disabled` flag and no diagnostic at all. Only a real boot decides.
 
-The host comes from npm (`@deepseek-ai/dsh@<version>`) — a complete installation with `dsh-base` / `dsh-headless` / `dsh-app-boot`, same source and version as the desktop bundle — so no desktop artifact is needed on the runner. The matrix covers both host lines:
+Both jobs **build before probing** (`pnpm install --frozen-lockfile && pnpm run build`, then an assertion that every declared entry file exists). Lane B verifies the **delivered artifact**, and a plugin's entry (`lib/index.js`) is a `tsc -b` output that is not in the repository: probing an unbuilt checkout makes every row fail with a bare `ERR_MODULE_NOT_FOUND`, which names the symptom rather than the cause. This was discovered the hard way — the first CI runs were red for exactly this reason, and the probe now reports a dedicated "not built" section so the two can be told apart.
+
+The host comes from npm (`@deepseek-ai/dsh@<version>`) — a complete installation with `dsh-base` / `dsh-headless` / `dsh-app-boot`, same source and version as the desktop bundle — so no desktop artifact is needed on the runner, and the lanes run on plain `ubuntu-latest`. The matrix covers both host lines:
 
 | Line | Version | Meaning |
 |---|---|---|
