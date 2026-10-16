@@ -34,7 +34,7 @@ env:
   # 门禁自身也必须可复现：如果它跟着 main 漂移，"同一份插件代码给出不同结论"
   # 会让这个检查失去可信度。升级方式见本文件末尾注释。
   TESTING_REPO: mofanx/dsh-plugin-testing
-  TESTING_REV: ad0d00cfa4323674532bcd0a54a3f92e59aaf2eb
+  TESTING_REV: f0b4eac74eb9e3a7bc9c7c68c7bff90c9688c10d
   TESTING_DIR: .dsh-testing
   HOST_DIR: .dsh-host
 
@@ -64,6 +64,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+
+      # 探针验证的是**交付物**：插件入口 `lib/index.js` 是 tsc -b 的构建产物，不在
+      # 仓库里。不构建就探测针，每一行都会 failed to import 并抛 ERR_MODULE_NOT_FOUND
+      # （那句描述的是症状，原因是没人跑构建）—— 这正是首次接入时踩到的坑。
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.1
+
+      - name: 安装工作区依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建被测插件
+        run: pnpm run build
+
+      - name: 断言构建产物存在（构建失败/漏包时给明确报错）
+        run: |
+          for dir in packages/*/; do
+            node -e "
+              const fs = require('fs'), path = require('path');
+              const pkg = JSON.parse(fs.readFileSync('$dir/package.json', 'utf8'));
+              const entry = (pkg.exports && pkg.exports['.']) ?? pkg.main;
+              if (!entry || typeof entry !== 'string') { console.log('跳过（未声明入口）：' + pkg.name); process.exit(0); }
+              const target = path.join('$dir', entry);
+              if (!fs.existsSync(target)) { console.error('构建产物缺失：' + pkg.name + ' -> ' + target); process.exit(1); }
+              console.log('ok: ' + pkg.name + ' -> ' + entry);
+            "
+          done
 
       # 宿主直接取 npm 上发布的 @deepseek-ai/dsh —— 它与桌面打包宿主同源同版本，
       # 且是一个**完整安装**（自带 dsh-base / dsh-headless / dsh-app-boot 与
@@ -131,6 +158,17 @@ jobs:
         with:
           node-version: '24'
 
+      # 同 dsh-gate：探针验证交付物，入口是构建产物，必须先构建。
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.1
+
+      - name: 安装工作区依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建被测插件
+        run: pnpm run build
+
       - name: 安装被测宿主 @deepseek-ai/dsh@${{ matrix.tag }}
         run: |
           mkdir -p "$HOST_DIR"
@@ -155,6 +193,7 @@ jobs:
 # 不要改成浮动分支（如 main）：门禁自身漂移会让"同一份代码给出不同结论"。
 #
 # 本地复跑（不需要 CI）：
+#   pnpm install --frozen-lockfile && pnpm run build   # 必须先构建：探针验证交付物
 #   mkdir -p .dsh-host
 #   printf '%s' '{"name":"dsh-host-under-test","private":true,"version":"0.0.0"}' > .dsh-host/package.json
 #   npm install --no-audit --no-fund --prefix .dsh-host @deepseek-ai/dsh@0.2.0-rc.2
