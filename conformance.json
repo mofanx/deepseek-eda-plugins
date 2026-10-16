@@ -1,0 +1,19 @@
+{
+  "$comment": [
+    "DSH 插件门禁配置（静态车道）。",
+    "",
+    "宿主刻意不写死在本文件里 —— 由 CI 通过 --host 显式传入，从而对多条宿主线分别判定：",
+    "  桌面线 0.2.0-rc.2（npm dist-tag latest，与桌面打包宿主同版本）",
+    "  源码线 0.2.1-alpha.x（npm dist-tag alpha）",
+    "这样做还有一层保险：门禁把「配置显式声明的路径不存在」判为 DSH-C070（error）。",
+    "若把宿主留空不传，运行时分级规则（C060/C061/C064/C066）会静默无法求值；",
+    "显式传入则「宿主缺失」会硬报错，而不是悄悄少查一片。",
+    "",
+    "profiles 留空：C050–C055 是 profile 级检查，需要一份 DSH profile（含 pnpm-lock.yaml）",
+    "才能求值，而本仓库不携带 profile。这一片覆盖由运行时激活探针接管 ——",
+    "它直接真实启动并挂载，比静态读 profile 更强（见 .github/workflows/dsh-gate.yml）。"
+  ],
+  "packages": ["./packages/*"],
+  "profiles": [],
+  "focusPackages": ["@deepseek-ai/dsh-plugin-eda-*"]
+}

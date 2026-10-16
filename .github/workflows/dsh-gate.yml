@@ -1,0 +1,158 @@
+name: DSH 门禁
+
+# 这个工作流回答一个 CI 里的其他检查回答不了的问题：
+# **在真实 DSH 宿主上，这个插件到底装不装得上、有没有被静默禁用。**
+#
+# 与 `ci.yml`（lint / typecheck / 单测 / 构建）是互补关系，不改动它：
+#   - ci.yml        → 代码本身对不对
+#   - dsh-gate.yml  → 交付物在宿主上能不能用（声明契约 + 真实启动）
+#
+# 两条车道，缺一不可：
+#   A 静态门禁  读 manifest / peer 范围，秒级，不启动宿主
+#   B 激活探针  真实启动一次，看宿主有没有把某一行禁用掉
+# 实测依据：`--dump-config` **不跑**兼容性预检 —— 一个 peer 不兼容的行会原样出现在
+# 配置 dump 里，既没有 disabled 标记也没有诊断。所以 A 不能替代 B。
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    # 每周一 02:00 UTC：上游宿主发新版时，尽早发现"插件在新宿主上被禁用"
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 测试基建仓库（dsh-plugin-testing）**钉死在某个 revision**。
+  # 门禁自身也必须可复现：如果它跟着 main 漂移，"同一份插件代码给出不同结论"
+  # 会让这个检查失去可信度。升级方式见本文件末尾注释。
+  TESTING_REPO: mofanx/dsh-plugin-testing
+  TESTING_REV: 85627186a34c80fd535a4f0fd8e2a7f128a2f436
+  TESTING_DIR: .dsh-testing
+  HOST_DIR: .dsh-host
+
+jobs:
+  # ── 必过车道：两条已知宿主线，固定版本，确定性 ────────────────────────────
+  dsh-gate:
+    name: 宿主 ${{ matrix.host }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host:
+          # 桌面线：与用户实际装到的桌面打包宿主同版本（npm dist-tag latest）
+          - '0.2.0-rc.2'
+          # 源码线：下一版 DSH 的预发布线（npm dist-tag alpha）
+          - '0.2.1-alpha.4'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 取测试基建（钉死 revision）
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TESTING_REPO }}
+          ref: ${{ env.TESTING_REV }}
+          path: ${{ env.TESTING_DIR }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # 宿主直接取 npm 上发布的 @deepseek-ai/dsh —— 它与桌面打包宿主同源同版本，
+      # 且是一个**完整安装**（自带 dsh-base / dsh-headless / dsh-app-boot 与
+      # stock headless profile），因此 runner 上不需要准备桌面产物。
+      - name: 安装被测宿主 @deepseek-ai/dsh@${{ matrix.host }}
+        run: |
+          mkdir -p "$HOST_DIR"
+          cd "$HOST_DIR"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "@deepseek-ai/dsh@${{ matrix.host }}"
+          node -e "console.log('宿主 dsh-app-boot 版本 =', require('./node_modules/@deepseek-ai/dsh-app-boot/package.json').version)"
+
+      - name: 安装门禁依赖
+        working-directory: ${{ env.TESTING_DIR }}/packages/conformance
+        run: npm install --no-audit --no-fund
+
+      # 车道 A：静态门禁。显式传 --host（而不是留空）：门禁把"配置声明的路径不存在"
+      # 判为 DSH-C070 error，于是宿主缺失会**硬报错**，而不是静默少查一片。
+      - name: 车道 A · 静态门禁
+        run: |
+          node "$TESTING_DIR/packages/conformance/src/run-all.mjs" \
+            --config conformance.json \
+            --host "$PWD/$HOST_DIR/node_modules"
+
+      # 车道 B：运行时激活探针。**不需要模型凭据**：兼容性预检在第一次模型调用之前
+      # 执行，隔离 home 会稳定终止于 MISSING_CREDENTIAL —— 走到这一步本身就是
+      # "启动已越过预检"的证据。
+      # 这里刻意**不传** --expect-active：home 是隔离的，所有行都来自本仓库的 bundle
+      # 或宿主自身，因此任何一条禁用都应当归因于本次改动并让 CI 变红。
+      - name: 车道 B · 运行时激活探针
+        run: |
+          node "$TESTING_DIR/packages/testkit/src/activate-cli.mjs" \
+            --packages "$PWD/packages/*" \
+            --bundle @deepseek-ai/dsh-plugin-eda-bundle \
+            --launcher "$PWD/$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js"
+
+  # ── 金丝雀车道：跟 dist-tag 走，只做预警，不阻塞 PR ──────────────────────
+  # 目的：上游发新版时**提前**知道插件会不会被禁用，而不是等用户来报。
+  # 用 dist-tag 意味着结论会随上游变化 —— 所以它允许失败，且只在定时/手动时跑。
+  dsh-canary:
+    name: 金丝雀 ${{ matrix.tag }}
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [latest, alpha]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 取测试基建（钉死 revision）
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TESTING_REPO }}
+          ref: ${{ env.TESTING_REV }}
+          path: ${{ env.TESTING_DIR }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 安装被测宿主 @deepseek-ai/dsh@${{ matrix.tag }}
+        run: |
+          mkdir -p "$HOST_DIR"
+          cd "$HOST_DIR"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "@deepseek-ai/dsh@${{ matrix.tag }}"
+          node -e "console.log('宿主 dsh-app-boot 版本 =', require('./node_modules/@deepseek-ai/dsh-app-boot/package.json').version)"
+
+      - name: 运行时激活探针（预警）
+        run: |
+          node "$TESTING_DIR/packages/testkit/src/activate-cli.mjs" \
+            --packages "$PWD/packages/*" \
+            --bundle @deepseek-ai/dsh-plugin-eda-bundle \
+            --launcher "$PWD/$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 升级 TESTING_REV 的方式（门禁规则变更后同步）：
+#   1. 在 dsh-plugin-testing 仓库确认目标提交已推送到 main；
+#   2. 把上面的 TESTING_REV 换成该提交的完整 SHA；
+#   3. 在本仓库开 PR，确认两条车道仍然全绿后合入。
+# 不要改成浮动分支（如 main）：门禁自身漂移会让"同一份代码给出不同结论"。
+#
+# 本地复跑（不需要 CI）：
+#   mkdir -p .dsh-host && cd .dsh-host && npm init -y && npm i @deepseek-ai/dsh@0.2.0-rc.2
+#   cd .. && node <dsh-plugin-testing>/packages/conformance/src/run-all.mjs \
+#            --config conformance.json --host "$PWD/.dsh-host/node_modules"
+#   node <dsh-plugin-testing>/packages/testkit/src/activate-cli.mjs \
+#            --packages "$PWD/packages/*" --bundle @deepseek-ai/dsh-plugin-eda-bundle \
+#            --launcher "$PWD/.dsh-host/node_modules/@deepseek-ai/dsh/lib/bin.js"
+# ─────────────────────────────────────────────────────────────────────────────
