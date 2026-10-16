@@ -31,7 +31,7 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-timeout": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.2 <0.3.0"
+    "@deepseek-ai/dsh-timeout": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.1 <0.3.0"
   },
   "dependencies": {
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
@@ -43,6 +43,6 @@
     "typescript": "^5.9.0"
   },
   "engines": {
-    "dsh": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.2 <0.3.0"
+    "dsh": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.1 <0.3.0"
   }
 }

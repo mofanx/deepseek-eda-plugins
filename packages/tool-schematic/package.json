@@ -28,9 +28,9 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.4 <4.1.0 || >=4.0.5-alpha.1 <4.1.0",
-    "@deepseek-ai/dsh-llm": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.2 <0.3.0",
-    "@deepseek-ai/dsh-system-prompt": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.2 <0.3.0",
-    "@deepseek-ai/dsh-tools": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.2 <0.3.0"
+    "@deepseek-ai/dsh-llm": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.1 <0.3.0",
+    "@deepseek-ai/dsh-system-prompt": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.1 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.1 <0.3.0"
   },
   "dependencies": {
     "@deepseek-ai/dsh-plugin-eda-sch": "workspace:*",
@@ -49,6 +49,6 @@
     "typescript": "^5.9.0"
   },
   "engines": {
-    "dsh": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.2 <0.3.0"
+    "dsh": ">=0.2.0-rc.2 <0.3.0 || >=0.2.1-alpha.1 <0.3.0"
   }
 }
