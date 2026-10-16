@@ -1,0 +1,325 @@
+# 内网 GitLab 版 CI —— 与 GitHub 侧逐条对应
+# ─────────────────────────────────────────────────────────────────────────────
+# 对应关系：
+#   .github/workflows/ci.yml       → 本文件 `gates`（lint / typecheck / test / build）
+#   .github/workflows/dsh-gate.yml → 本文件 `dsh-gate`（车道 A/B/C）+ `dsh-canary`
+#
+# 两份文件**可以并存**：GitHub 忽略 `.gitlab-ci.yml`，GitLab 忽略 `.github/`。
+# 迁移时不需要删除任何东西。
+#
+# ⚠️ **本文件尚未在真实 GitLab runner 上验证过。** 它是由 GitHub 版逐条搬过来的，
+#    命令本身与平台无关（纯 node/npm/pnpm/git），但以下三点必须由内网环境确认：
+#      ① `image: node:22` / `node:24` 在内网 registry 上是否存在；
+#      ② `npm install @deepseek-ai/dsh@<版本>` 能否从内网 registry 取到宿主
+#         （这是**唯一**需要联网的一步，也是内网唯一真正的技术障碍）；
+#      ③ runner 的 executor 是 docker 还是 shell（本文件按 docker 写）。
+#    完整的迁移清单见测试仓库的 docs/intranet-porting.md。
+#
+# 与 GitHub 版的**平台差异**（都只是写法，不是行为）：
+#   actions/checkout@v4        → GitLab 自动 clone（GIT_STRATEGY 默认就是 clone）
+#   actions/setup-node@v4      → 用 image 指定 node 版本
+#   pnpm/action-setup@v4       → before_script 里显式装同一个 pnpm 版本
+#   ${{ matrix.host }}         → parallel:matrix 的 $HOST
+#   ${{ env.X }}               → variables: 的 $X
+#   continue-on-error: true    → allow_failure: true
+#   if: github.event_name ...  → rules: $CI_PIPELINE_SOURCE ...
+#   working-directory:         → 脚本里 cd
+# ─────────────────────────────────────────────────────────────────────────────
+
+stages:
+  - test
+  - gate
+  - canary
+
+variables:
+  # ── 与 GitHub 版完全一致的三个值 ────────────────────────────────────────────
+  # 测试基建仓库（dsh-plugin-testing）**钉死在某个 revision**。
+  # 门禁自身也必须可复现：如果它跟着 main 漂移，"同一份插件代码给出不同结论"
+  # 会让这个检查失去可信度。升级方式见本文件末尾注释。
+  #
+  # ⚠️ **内网迁移只需要改下面这一行**（换成内网 GitLab 的 clone 地址）。
+  # 取仓库用的是普通 `git clone`，不是 actions/checkout 的 repository:/ref: ——
+  # 后者是 GitHub 专有机制，GitLab 上没有对应物。两个仓库都是公开的，所以不需要凭据。
+  TESTING_REPO_URL: https://github.com/mofanx/dsh-plugin-testing.git
+  TESTING_REV: b22e9d8f3d1cd83cb2e2db0dadf5a7b879af631e
+  TESTING_DIR: .dsh-testing
+  HOST_DIR: .dsh-host
+  # pnpm 版本与 GitHub 版一致（那边由 pnpm/action-setup 指定）。
+  # 本仓库 package.json 没有 `packageManager` 字段，所以 corepack 无法推断版本，
+  # 这里显式装。要跟着升，改这一处即可。
+  PNPM_VERSION: '11.1.1'
+  # pnpm 的 store 默认落在容器 home 下：容器一销毁就没了，而且 home 不在项目目录内，
+  # GitLab 的 cache.paths 缓存不到。所以显式挪进项目目录，由下面的全局 cache 缓存。
+  PNPM_STORE_DIR: '$CI_PROJECT_DIR/.pnpm-store'
+  # GitLab 默认就是 clone，写出来是为了和 GitHub 版对照时一眼看到对应关系
+  GIT_STRATEGY: clone
+
+# 全局默认缓存：三个 job 都用 pnpm，共用同一个 store。
+# key 绑定 pnpm-lock.yaml —— 锁文件不变就复用，变了就重建。
+cache:
+  key:
+    files:
+      - pnpm-lock.yaml
+  paths:
+    - .pnpm-store/
+
+# ── 关于"重复"的两点说明 ──────────────────────────────────────────────────────
+# ① 三个 job 的 before_script、以及两个 job 里的"取测试基建"步骤，都是**逐字重复
+#    写出来的**。这里刻意**不用** YAML 锚点/别名（&anchor / *alias），也不用 GitLab
+#    的 !reference：
+#      · `- *alias` 指向一个序列时，YAML 会把它变成**嵌套数组**（形如 [[a,b,c]]），
+#        能否被当成三条命令执行，取决于 GitLab 的隐式展平行为 —— 任何标准 YAML 或
+#        CI 校验器都没法在本机确认这一点；
+#      · 隐藏 job 里放裸列表（而不是文档中的 `script:` 形式）同样无法本地校验。
+#    这个文件存在的意义就是"可迁移、可校验"，所以宁可重复十行，也不赌一个本机
+#    验不了的语义。
+# ② 被重复的两段如下（要改就两边一起改）：
+#
+#    before_script:
+#      - node --version
+#      - npm install -g "pnpm@$PNPM_VERSION"
+#      - pnpm --version
+#      - pnpm config set store-dir "$PNPM_STORE_DIR"
+#
+#    取测试基建（钉死 revision）—— 平台无关，两个平台上跑的是同一条命令：
+#      - git clone --no-checkout "$TESTING_REPO_URL" "$TESTING_DIR"
+#      - git -C "$TESTING_DIR" checkout --detach "$TESTING_REV"
+#      - echo "测试基建 revision = $(git -C "$TESTING_DIR" rev-parse HEAD)"
+#      - cd "$TESTING_DIR/packages/conformance" && npm install --no-audit --no-fund && cd "$CI_PROJECT_DIR"
+
+# ── 代码本身对不对（对应 .github/workflows/ci.yml）────────────────────────────
+gates:
+  stage: test
+  image: node:24
+  # 本 job 刻意**不**提供真实宿主、不联网取 DSH：只验证代码自身。
+  # 交付物在宿主上能不能用由下面的 `dsh-gate` 负责 —— 拆开是为了让
+  # "我的改动弄坏了逻辑"与"这台 runner 没有宿主"不会混成同一个红。
+  before_script:
+    - node --version
+    - npm install -g "pnpm@$PNPM_VERSION"
+    - pnpm --version
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+  script:
+    - pnpm install --frozen-lockfile
+    - pnpm run lint
+    - pnpm run typecheck
+    - pnpm run test:coverage
+    - pnpm run build
+
+# ── 必过车道：两条已知宿主线，固定版本，确定性 ────────────────────────────────
+# 车道 A 静态门禁  读 manifest / peer 范围，秒级，不启动宿主
+# 车道 B 激活探针  真实启动一次，看宿主有没有把某一行禁用掉
+# 车道 C 宿主版本矩阵  推导声明**整体**覆盖了哪些已发布版本（不装宿主、不联网）
+#
+# 实测依据：`--dump-config` **不跑**兼容性预检 —— 一个 peer 不兼容的行会原样出现在
+# 配置 dump 里，既没有 disabled 标记也没有诊断。所以 A 不能替代 B。
+dsh-gate:
+  stage: gate
+  image: node:24
+  parallel:
+    matrix:
+      # 桌面线：与用户实际装到的桌面打包宿主同版本（npm dist-tag latest）
+      # 源码线：下一版 DSH 的预发布线（npm dist-tag alpha）
+      - HOST: ['0.2.0-rc.2', '0.2.1-alpha.4']
+  before_script:
+    - node --version
+    - npm install -g "pnpm@$PNPM_VERSION"
+    - pnpm --version
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+  script:
+    # 取测试基建（钉死 revision）—— 与 GitHub 版**逐字相同**的命令。
+    # 用普通 git clone，不用 actions/checkout 的 repository:/ref:：后者是 GitHub
+    # 专有机制，GitLab 上没有对应物；两个仓库都公开，所以不需要凭据。
+    - git clone --no-checkout "$TESTING_REPO_URL" "$TESTING_DIR"
+    - git -C "$TESTING_DIR" checkout --detach "$TESTING_REV"
+    # 回显实际取到的提交：钉错了要当场看出来，而不是等到结论不对时再回头查
+    - echo "测试基建 revision = $(git -C "$TESTING_DIR" rev-parse HEAD)"
+    # 测试基建的 conformance 包有自己的依赖，本仓库的 pnpm install 覆盖不到它
+    - cd "$TESTING_DIR/packages/conformance" && npm install --no-audit --no-fund && cd "$CI_PROJECT_DIR"
+    - pnpm install --frozen-lockfile
+    - pnpm run build
+
+    # 断言构建产物存在（构建失败/漏包时给明确报错）
+    # 探针验证的是**交付物**：插件入口 `lib/index.js` 是 tsc -b 的构建产物，不在仓库里。
+    # 不构建就探测针，每一行都会 failed to import 并抛 ERR_MODULE_NOT_FOUND
+    # （那句描述的是症状，原因是没人跑构建）—— 这正是首次接入时踩到的坑。
+    #
+    # ⚠ 2026-10 修正：本仓库 5 个包的 exports["."] 都是**条件对象**
+    #   （形如 {"types":…, "default":"./lib/index.js"}），不是字符串。早先的版本
+    #   一遇到非字符串入口就 `跳过（未声明入口）; exit 0`，于是这条断言对本仓库
+    #   **一个包都没生效** —— 它自述"断言构建产物存在"，实际是空转。
+    #   现在按 Node 的条件解析规则（import > node > default > require；数组取首个
+    #   可解析分支）取出**真正会被加载**的那个文件；取不到入口就**失败**，
+    #   不再静默跳过。"没查"不等于"通过"。
+    #   与 .github/workflows/dsh-gate.yml 里的同名步骤**逐字相同**。
+    - |
+      node -e '
+      const fs = require("fs"), path = require("path");
+
+      function resolveTarget(v) {
+        if (typeof v === "string") return v;
+        if (Array.isArray(v)) {
+          for (const x of v) { const r = resolveTarget(x); if (r) return r; }
+          return null;
+        }
+        if (v && typeof v === "object") {
+          for (const k of ["import", "node", "default", "require"]) {
+            if (k in v) { const r = resolveTarget(v[k]); if (r) return r; }
+          }
+        }
+        return null;
+      }
+
+      const DOT = ".";
+      let bad = 0, ok = 0;
+      for (const dir of fs.readdirSync("packages").sort()) {
+        const pj = path.join("packages", dir, "package.json");
+        if (!fs.existsSync(pj)) continue;
+        const pkg = JSON.parse(fs.readFileSync(pj, "utf8"));
+        const entry = resolveTarget(pkg.exports && pkg.exports[DOT]) || pkg.main;
+        if (typeof entry !== "string" || !entry) {
+          console.error("无法确定入口（exports 与 main 都没给出字符串）: " + pkg.name);
+          bad++;
+          continue;
+        }
+        const target = path.join("packages", dir, entry);
+        if (!fs.existsSync(target)) {
+          console.error("构建产物缺失: " + pkg.name + " -> " + target);
+          bad++;
+          continue;
+        }
+        console.log("ok: " + pkg.name + " -> " + entry);
+        ok++;
+      }
+      console.log("构建产物断言: " + ok + " 个通过" + (bad ? "，" + bad + " 个不通过" : ""));
+      if (bad) process.exit(1);
+      '
+
+    # 宿主直接取 npm 上发布的 @deepseek-ai/dsh —— 它与桌面打包宿主同源同版本，
+    # 且是一个**完整安装**（自带 dsh-base / dsh-headless / dsh-app-boot 与
+    # stock headless profile），因此 runner 上不需要准备桌面产物。
+    #
+    # 刻意**不用** `npm init -y`：它从目录名推导包名，而 `.dsh-host` 这种点开头的
+    # 名字是非法包名（npm 报 Invalid name），在 CI 上会直接失败。写死一个合法
+    # package.json 既不依赖目录名，也让这一步没有隐式行为。
+    - |
+      set -euo pipefail
+      mkdir -p "$HOST_DIR"
+      printf '%s' '{"name":"dsh-host-under-test","private":true,"version":"0.0.0"}' > "$HOST_DIR/package.json"
+      npm install --no-audit --no-fund --prefix "$HOST_DIR" "@deepseek-ai/dsh@$HOST"
+      test -f "$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js" \
+        || { echo "宿主布局不符合预期：缺少 @deepseek-ai/dsh/lib/bin.js"; exit 1; }
+      node -e "const fs=require('fs');console.log('宿主 dsh-app-boot 版本 =', JSON.parse(fs.readFileSync(process.env.HOST_DIR+'/node_modules/@deepseek-ai/dsh-app-boot/package.json','utf8')).version)"
+
+    # 车道 A：静态门禁。显式传 --host（而不是留空）：门禁把"配置声明的路径不存在"
+    # 判为 DSH-C070 error，于是宿主缺失会**硬报错**，而不是静默少查一片。
+    - |
+      node "$TESTING_DIR/packages/conformance/src/run-all.mjs" \
+        --config conformance.json \
+        --host "$PWD/$HOST_DIR/node_modules"
+
+    # 车道 B：运行时激活探针。**不需要模型凭据**：兼容性预检在第一次模型调用之前
+    # 执行，隔离 home 会稳定终止于 MISSING_CREDENTIAL —— 走到这一步本身就是
+    # "启动已越过预检"的证据。
+    # 这里刻意**不传** --expect-active：home 是隔离的，所有行都来自本仓库的 bundle
+    # 或宿主自身，因此任何一条禁用都应当归因于本次改动并让 CI 变红。
+    - |
+      node "$TESTING_DIR/packages/testkit/src/activate-cli.mjs" \
+        --packages "$PWD/packages/*" \
+        --bundle @deepseek-ai/dsh-plugin-eda-bundle \
+        --launcher "$PWD/$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js"
+
+    # 车道 C：宿主版本矩阵。**不需要宿主、不需要凭据、不联网**（清单随测试仓库的钉死
+    # revision 一起取来），所以它比 A/B 都便宜。
+    #
+    # 它回答的是 A/B 都回答不了的问题：不是"我手上这个宿主行不行"，而是"我声明的范围
+    # **整体**覆盖了哪些已发布版本"。两类缺陷在单宿主视角下结构性不可见：
+    #   · 空洞（DSH-C068，error）—— 落在被覆盖区间**之内**却不被接纳的已发布版本，
+    #     即"相邻版本都声明支持、中间那版用户却被禁用"；
+    #   · 安装期分歧（DSH-C067，warn）—— 运行时接纳但 npm/pnpm 拒绝（预发布元组未覆盖）。
+    # 后一类正是 2026-10-16 在 `0.2.1-alpha.1` 上抓到的那个：并集第二子句下界写成
+    # alpha.2，静默漏掉 alpha.1，那版用户装不上。加了这条车道，同类问题不会再悄悄回来。
+    #
+    # 刻意**不加** --strict：与车道 A 一致，warn 不阻断（C067 与 C061 同属 warn 级），
+    # 但会打印出来。要让 warn 也阻断，把 --strict 加上即可。
+    # 本步与 HOST 无关（不装宿主），因此两条宿主线上结果相同 —— 重复执行无害，
+    # 换取工作流更简单。
+    #
+    # --surfaces 追加 T18 交叉核对（DSH-C069，error）：把"声明覆盖了哪些版本"再与
+    # "代码真正 import 的包/子路径/具名符号"求交。peer 范围描述的是**声明**，只有插件
+    # 自己的 import 描述**需要** —— 一个插件可以满足全部 peer，同时 import 一个已不存在的
+    # 符号（0.2.1 线删掉 ./invariant 就是现成的例子）。API 面是随测试仓库提交的静态产物，
+    # 所以这一步**不装宿主、不联网、不启动**，可以在每次 MR 上跑。
+    # 未记录 API 面的版本一律算"未知"，不算通过 —— 当前记录恰好覆盖本仓库声明区间的全部 5 版。
+    - |
+      node "$TESTING_DIR/packages/conformance/src/cli-host-matrix.mjs" \
+        "$PWD/packages/"* \
+        --candidates "$TESTING_DIR/fixtures/host-versions.published.json" \
+        --surfaces "$TESTING_DIR/fixtures/host-surfaces"
+
+# ── 金丝雀车道：跟 dist-tag 走，只做预警，不阻塞 MR ───────────────────────────
+# 目的：上游发新版时**提前**知道插件会不会被禁用，而不是等用户来报。
+# 用 dist-tag 意味着结论会随上游变化 —— 所以它允许失败，且只在定时/手动时跑。
+dsh-canary:
+  stage: canary
+  image: node:24
+  # 与 GitHub 版的 `if: github.event_name == 'schedule' || 'workflow_dispatch'` 对应：
+  # GitLab 的定时流水线是 schedule，网页上手动触发是 web。
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  allow_failure: true
+  parallel:
+    matrix:
+      - TAG: ['latest', 'alpha']
+  before_script:
+    - node --version
+    - npm install -g "pnpm@$PNPM_VERSION"
+    - pnpm --version
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+  script:
+    # 取测试基建（钉死 revision）—— 与 dsh-gate 里那一段逐字相同，改就两边一起改
+    - git clone --no-checkout "$TESTING_REPO_URL" "$TESTING_DIR"
+    - git -C "$TESTING_DIR" checkout --detach "$TESTING_REV"
+    - echo "测试基建 revision = $(git -C "$TESTING_DIR" rev-parse HEAD)"
+    - cd "$TESTING_DIR/packages/conformance" && npm install --no-audit --no-fund && cd "$CI_PROJECT_DIR"
+    - pnpm install --frozen-lockfile
+    - pnpm run build
+    - |
+      set -euo pipefail
+      mkdir -p "$HOST_DIR"
+      printf '%s' '{"name":"dsh-host-canary","private":true,"version":"0.0.0"}' > "$HOST_DIR/package.json"
+      npm install --no-audit --no-fund --prefix "$HOST_DIR" "@deepseek-ai/dsh@$TAG"
+      test -f "$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js" \
+        || { echo "宿主布局不符合预期：缺少 @deepseek-ai/dsh/lib/bin.js"; exit 1; }
+      node -e "const fs=require('fs');console.log('宿主 dsh-app-boot 版本 =', JSON.parse(fs.readFileSync(process.env.HOST_DIR+'/node_modules/@deepseek-ai/dsh-app-boot/package.json','utf8')).version)"
+    # 同 dsh-gate：探针验证交付物，入口是构建产物，必须先构建。
+    - |
+      node "$TESTING_DIR/packages/testkit/src/activate-cli.mjs" \
+        --packages "$PWD/packages/*" \
+        --bundle @deepseek-ai/dsh-plugin-eda-bundle \
+        --launcher "$PWD/$HOST_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 升级 TESTING_REV 的方式（门禁规则变更后同步）：
+#   1. 在 dsh-plugin-testing 仓库确认目标提交已推送到 main；
+#   2. 把上面的 TESTING_REV 换成该提交的完整 SHA（**两个 CI 文件都要改**，
+#      GitHub 的 .github/workflows/dsh-gate.yml 与本文件各有一份）；
+#   3. 开 MR，确认车道仍然全绿后合入。
+# 不要改成浮动分支（如 main）：门禁自身漂移会让"同一份代码给出不同结论"。
+#
+# 本地复跑（不需要 CI）：
+#   pnpm install --frozen-lockfile && pnpm run build   # 必须先构建：探针验证交付物
+#   mkdir -p .dsh-host
+#   printf '%s' '{"name":"dsh-host-under-test","private":true,"version":"0.0.0"}' > .dsh-host/package.json
+#   npm install --no-audit --no-fund --prefix .dsh-host @deepseek-ai/dsh@0.2.0-rc.2
+#   node <dsh-plugin-testing>/packages/conformance/src/run-all.mjs \
+#            --config conformance.json --host "$PWD/.dsh-host/node_modules"
+#   node <dsh-plugin-testing>/packages/testkit/src/activate-cli.mjs \
+#            --packages "$PWD/packages/*" --bundle @deepseek-ai/dsh-plugin-eda-bundle \
+#            --launcher "$PWD/.dsh-host/node_modules/@deepseek-ai/dsh/lib/bin.js"
+# 注意：不要用 `npm init -y` 生成 .dsh-host/package.json —— 它从目录名推导包名，
+# 而点开头的名字是非法包名，npm 会直接报 Invalid name。
+#
+# 迁移到内网 GitLab 时**唯一**需要改的环境相关值：TESTING_REPO_URL（一行）。
+# ─────────────────────────────────────────────────────────────────────────────

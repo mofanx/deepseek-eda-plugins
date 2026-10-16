@@ -70,32 +70,69 @@ jobs:
         with:
           node-version: '24'
 
-      # 探针验证的是**交付物**：插件入口 `lib/index.js` 是 tsc -b 的构建产物，不在
-      # 仓库里。不构建就探测针，每一行都会 failed to import 并抛 ERR_MODULE_NOT_FOUND
-      # （那句描述的是症状，原因是没人跑构建）—— 这正是首次接入时踩到的坑。
       - uses: pnpm/action-setup@v4
         with:
           version: 11.1.1
 
+      # 探针验证的是**交付物**：插件入口 `lib/index.js` 是 tsc -b 的构建产物，不在
+      # 仓库里。不构建就探测针，每一行都会 failed to import 并抛 ERR_MODULE_NOT_FOUND
+      # （那句描述的是症状，原因是没人跑构建）—— 这正是首次接入时踩到的坑。
       - name: 安装工作区依赖
         run: pnpm install --frozen-lockfile
 
       - name: 构建被测插件
         run: pnpm run build
 
+      # ⚠ 2026-10 修正：本仓库 5 个包的 exports["."] 都是**条件对象**
+      #   （形如 {"types":…, "default":"./lib/index.js"}），不是字符串。早先的版本
+      #   一遇到非字符串入口就 `跳过（未声明入口）; exit 0`，于是这条断言对本仓库
+      #   **一个包都没生效** —— 它自述"断言构建产物存在"，实际是空转。
+      #   现在按 Node 的条件解析规则（import > node > default > require；数组取首个
+      #   可解析分支）取出**真正会被加载**的那个文件；取不到入口就**失败**，
+      #   不再静默跳过。"没查"不等于"通过"。
       - name: 断言构建产物存在（构建失败/漏包时给明确报错）
         run: |
-          for dir in packages/*/; do
-            node -e "
-              const fs = require('fs'), path = require('path');
-              const pkg = JSON.parse(fs.readFileSync('$dir/package.json', 'utf8'));
-              const entry = (pkg.exports && pkg.exports['.']) ?? pkg.main;
-              if (!entry || typeof entry !== 'string') { console.log('跳过（未声明入口）：' + pkg.name); process.exit(0); }
-              const target = path.join('$dir', entry);
-              if (!fs.existsSync(target)) { console.error('构建产物缺失：' + pkg.name + ' -> ' + target); process.exit(1); }
-              console.log('ok: ' + pkg.name + ' -> ' + entry);
-            "
-          done
+          node -e '
+          const fs = require("fs"), path = require("path");
+
+          function resolveTarget(v) {
+            if (typeof v === "string") return v;
+            if (Array.isArray(v)) {
+              for (const x of v) { const r = resolveTarget(x); if (r) return r; }
+              return null;
+            }
+            if (v && typeof v === "object") {
+              for (const k of ["import", "node", "default", "require"]) {
+                if (k in v) { const r = resolveTarget(v[k]); if (r) return r; }
+              }
+            }
+            return null;
+          }
+
+          const DOT = ".";
+          let bad = 0, ok = 0;
+          for (const dir of fs.readdirSync("packages").sort()) {
+            const pj = path.join("packages", dir, "package.json");
+            if (!fs.existsSync(pj)) continue;
+            const pkg = JSON.parse(fs.readFileSync(pj, "utf8"));
+            const entry = resolveTarget(pkg.exports && pkg.exports[DOT]) || pkg.main;
+            if (typeof entry !== "string" || !entry) {
+              console.error("无法确定入口（exports 与 main 都没给出字符串）: " + pkg.name);
+              bad++;
+              continue;
+            }
+            const target = path.join("packages", dir, entry);
+            if (!fs.existsSync(target)) {
+              console.error("构建产物缺失: " + pkg.name + " -> " + target);
+              bad++;
+              continue;
+            }
+            console.log("ok: " + pkg.name + " -> " + entry);
+            ok++;
+          }
+          console.log("构建产物断言: " + ok + " 个通过" + (bad ? "，" + bad + " 个不通过" : ""));
+          if (bad) process.exit(1);
+          '
 
       # 宿主直接取 npm 上发布的 @deepseek-ai/dsh —— 它与桌面打包宿主同源同版本，
       # 且是一个**完整安装**（自带 dsh-base / dsh-headless / dsh-app-boot 与
