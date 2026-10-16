@@ -33,7 +33,11 @@ env:
   # 测试基建仓库（dsh-plugin-testing）**钉死在某个 revision**。
   # 门禁自身也必须可复现：如果它跟着 main 漂移，"同一份插件代码给出不同结论"
   # 会让这个检查失去可信度。升级方式见本文件末尾注释。
-  TESTING_REPO: mofanx/dsh-plugin-testing
+  #
+  # ⚠️ **内网迁移只需要改下面这一行**（换成内网 GitLab 的 clone 地址）。
+  # 取仓库用的是普通 `git clone`，不是 actions/checkout 的 repository:/ref: ——
+  # 后者是 GitHub 专有机制，GitLab 上没有对应物。两个仓库都是公开的，所以不需要凭据。
+  TESTING_REPO_URL: https://github.com/mofanx/dsh-plugin-testing.git
   TESTING_REV: b22e9d8f3d1cd83cb2e2db0dadf5a7b879af631e
   TESTING_DIR: .dsh-testing
   HOST_DIR: .dsh-host
@@ -55,11 +59,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 取测试基建（钉死 revision）
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.TESTING_REPO }}
-          ref: ${{ env.TESTING_REV }}
-          path: ${{ env.TESTING_DIR }}
+        run: |
+          set -euo pipefail
+          git clone --no-checkout "$TESTING_REPO_URL" "$TESTING_DIR"
+          git -C "$TESTING_DIR" checkout --detach "$TESTING_REV"
+          # 回显实际取到的提交：钉错了要当场看出来，而不是等到结论不对时再回头查
+          echo "测试基建 revision = $(git -C "$TESTING_DIR" rev-parse HEAD)"
 
       - uses: actions/setup-node@v4
         with:
@@ -177,11 +182,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 取测试基建（钉死 revision）
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.TESTING_REPO }}
-          ref: ${{ env.TESTING_REV }}
-          path: ${{ env.TESTING_DIR }}
+        run: |
+          set -euo pipefail
+          git clone --no-checkout "$TESTING_REPO_URL" "$TESTING_DIR"
+          git -C "$TESTING_DIR" checkout --detach "$TESTING_REV"
+          # 回显实际取到的提交：钉错了要当场看出来，而不是等到结论不对时再回头查
+          echo "测试基建 revision = $(git -C "$TESTING_DIR" rev-parse HEAD)"
 
       - uses: actions/setup-node@v4
         with:
@@ -220,6 +226,12 @@ jobs:
 #   2. 把上面的 TESTING_REV 换成该提交的完整 SHA；
 #   3. 在本仓库开 PR，确认两条车道仍然全绿后合入。
 # 不要改成浮动分支（如 main）：门禁自身漂移会让"同一份代码给出不同结论"。
+#
+# 内网 GitLab 迁移：
+#   本文件里只有 `TESTING_REPO_URL` 那一行是环境相关的 —— 取测试基建用的是普通
+#   `git clone`，两个平台上跑的是同一条命令。GitHub Actions 专有的部分（actions/*、
+#   pnpm/action-setup）需要在 GitLab 上换成对应写法；迁移清单见测试仓库的
+#   docs/intranet-porting.md。
 #
 # 本地复跑（不需要 CI）：
 #   pnpm install --frozen-lockfile && pnpm run build   # 必须先构建：探针验证交付物
