@@ -3,9 +3,12 @@
  * schema carries no pin records, so connectivity is reconstructed from wire
  * `LINE` geometry, `NET` attributes, and flag components (`Global Net Name` /
  * `Name`), then diffed against the pin→net expectations derivable from the IR.
- * Persisted source coordinates negate the client's bottom-left, Y-up API
- * space, so the diff maps every IR point through `y - pageHeight`; they are
- * not a plain `-y` mirror.
+ * Persisted source coordinates have two layouts. A serialized `.epru` page
+ * stores `y - pageHeight` (the emitter places IR content inside a page frame);
+ * a page populated through the `SCH_*` primitive API stores `-y` — the API
+ * takes the IR's top-left, Y-down coordinate and negates it on persist, with no
+ * page height involved (live t21: API `(100, 200)` -> `COMPONENT y=-200`). The
+ * diff takes `ySign` to select the matching projection.
  * @module @deepseek-ai/dsh-plugin-eda-easyeda/readback
  */
 
@@ -286,8 +289,8 @@ const joinNames = (names: ReadonlySet<string>): string => [...names].sort().join
  * @param symbolPins - pin geometry per bound symbol UUID (the `symbolPins`
  * snapshot from `resolveBindings`), in sheet space.
  * @param pageSize - delivered page size for imported `.epru` pages; ignored when `ySign` is `-1`.
- * @param ySign - `1` for persisted `y - pageHeight` (imported pages) or `-1` for
- * the primitive API's `-y` mirror.
+ * @param ySign - `1` for serialized/imported pages (`y - pageHeight`) or `-1` for
+ * pages populated through the `SCH_*` API (plain `-y`; page height is irrelevant).
  * @returns one finding per detected diff; empty when the netlists agree.
  */
 export function diffNetlists(

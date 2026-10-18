@@ -112,12 +112,13 @@ class Emitter {
   private lineSeq = 0
   private drawSeq = 0
   /**
-   * Page height of the document currently being emitted. EasyEDA renders with
-   * a bottom-left, Y-up origin while IR coordinates are top-left, Y-down, so
-   * API-space Y is `pageHeight - y`; the persisted source stores the negation
-   * of that, i.e. `y - pageHeight`. Emitting `-y` (the old code) instead
-   * mirrored the whole drawing — titles landed below their frames and module
-   * order flipped vertically.
+   * Page height of the document currently being emitted. For a serialized
+   * page, EasyEDA's persisted frame is bottom-left, Y-up while IR coordinates
+   * are top-left, Y-down, so the emitted Y is `y - pageHeight`. (The `SCH_*`
+   * primitive API is different: it accepts the IR top-left coordinate and the
+   * client persists `-y`; see `diffNetlists`'s `ySign`.) Emitting plain `-y`
+   * here instead mirrored the whole drawing — titles landed below their frames
+   * and module order flipped vertically.
    */
   pageHeight = 0
   readonly lines: string[] = []

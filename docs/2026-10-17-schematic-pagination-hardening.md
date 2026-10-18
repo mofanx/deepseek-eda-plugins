@@ -1290,8 +1290,8 @@ t15 的未收口项是页名。t16 把 `pageModuleTitle` 从「只有单模块�
 `deliveredPageSize(sheet, requested) => sheet.pageSize ?? requested`，
 **import 调用点**改传它（交付路径就是 `.epru` 导入，页幅面随 `sheet.pageSize` 落盘）。回归用例
 `diffs each imported page against its own delivered height`：两页 IR（尾页 `pageSize 1510×810`）
-逐页序列化回读，旧代码报 dropped、新代码零 error。**verify/primitive 路径不改**：实测 primitive
-建页不按 `sheet.pageSize` 落 `layoutY - pageHeight`（见下方残留），继续用请求幅面才是它原有的坐标系。
+逐页序列化回读，旧代码报 dropped、新代码零 error。**verify/primitive 路径不用 `deliveredPageSize`**：
+它走 `SCH_*` API，持久化是 `-layoutY`（与页高无关），由 `ySign=-1` 投影（§14.17）。
 
 **修复 2（同一轮 live 暴露的第二个误报）**：修复 1 后 error 归零，但剩 10 条 `SCHEMATIC_IMPORT_NET`
 （MEM/CLK 的 A1–A5；消息里的 “page 1” 指第 1 页，也就是含这些声明行的 MCU+POWER+IO 页）。根因：
@@ -1322,13 +1322,16 @@ t18 走默认标题栏），MCU/POWER/IO/MEM/CLK 模块标题两版都在；矩�
 **门禁（独立复跑）**：`pnpm build`（`tsc -b` + tsdown）exit 0；`oxlint packages` 0 warnings / 0 errors
 （42 文件）；`vitest run --coverage` **19 文件 / 563 用例通过，覆盖率 100%**。
 
-**primitive/verify 坐标系已收口（unit-closed, live-blocked）**：`diffNetlists` 新增 `ySign` 参数
-（`1` = 导入路径的 `y - deliveredPageHeight`，`-1` = primitive 路径的 `-layoutY`）；`build.ts` 的
-primitive 调用点改传 `-1`。回归 `projects primitive-path sources through -y instead of the page height`
-用 592×570 拟合页（layoutY=260 → 源 -260）证明旧投影报 2 条 `SCHEMATIC_NETLIST_DROPPED`、新投影零 error。
-live 收口仍受阻：`engine.verify` 走 primitive 建件，6/6 与 1/1 两次实测都返回
-`SCHEMATIC_BUILD_CREATE_TIMEOUT`（新建页已创建、`sch_PrimitiveComponent` 未落件），因此这条路径本轮
-只有单测闭环，不冒充 live 交付；生产交付走 import，不受影响。
+**primitive/verify 坐标系已收口（unit-closed + live projection-verified；建件仍被客户端阻塞）**：
+`diffNetlists` 新增 `ySign` 参数（`1` = 序列化/导入页的 `y - deliveredPageHeight`，`-1` = `SCH_*`
+primitive 页的 `-y`）；`build.ts` 的 primitive 调用点改传 `-1`。回归
+`projects primitive-path sources through -y instead of the page height` 用 592×570 拟合页
+（layoutY=260 → 源 -260）证明旧投影报 2 条 `SCHEMATIC_NETLIST_DROPPED`、新投影零 error。
+**live 投影证据见 §14.17**：真客户端 API 在 (100,200) 建 netflag + wire，回读 COMPONENT/LINE 均为
+`y=-200`，同一份源 `ySign=-1` 零 finding、默认 A4 报 1 条 dropped。仍未 live 收口的是**建件**：
+`buildIntoEasyEda` 的 `sch_PrimitiveComponent.create` 在该导入工程上 6/6、1/1 均
+`SCHEMATIC_BUILD_CREATE_TIMEOUT`（netflag/wire 可落），所以完整 primitive 交付不冒充 live；
+生产交付走 import，不受影响。
 
 **t19 真板 live 闭环**：见 §14.15。t18 依赖本地 bridge/landing，CI 不跑；标题栏文字数随 `frame` 配置
 变化，t18 只断言模块标题存在、不断言总数。
@@ -1393,5 +1396,34 @@ IO 框受下沿让位影响，不在上表那 4 个 1:1 框里：80 时 480×444
 留下这条结论，避免下一轮有人再试一遍。
 
 **仍未收口**（沿用 §14.15）：48-pin IC 逐脚网标在 10 单位引脚间距下垂直重叠（渲染器忽略 overlay ATTR
-的 `fontSize`，网标文本尺寸由符号决定）；`primitive/verify` live 建件被 `SCHEMATIC_BUILD_CREATE_TIMEOUT`
-阻塞（unit-closed / live-blocked，生产 import 路径不受影响）。
+的 `fontSize`，网标文本尺寸由符号决定）；`primitive/verify` 的建件仍被 `SCHEMATIC_BUILD_CREATE_TIMEOUT`
+阻塞（投影已由 §14.17 live 闭合，生产 import 路径不受影响）。
+
+### 14.17 t21：primitive 持久化 Y 的 live 证据（`-y`，不是 `y - pageHeight`）
+
+**背景**：§14.14 把 `ySign=-1` 记为 unit-closed / live-blocked。独立复核提出 blocker：如果客户端新建页
+默认 A4（825），持久化应是 `y - 825`（(100,200) → -625），`-1` 会让所有 built sheet 误报；要求先抓
+live `getDocumentSource()` 再发。本轮按这个要求做了实验。
+
+**实验**：`node docs/evidence/review/t21-primitive-y.mjs`（bridge 49620，当前页；不依赖器件库）。
+脚本先清掉旧 `T21PROBE*` 探针，再用 `SCH_*` API 在 IR `(100,200)` 建 netflag，并建
+`[0,200] → [100,200]` 的 wire；读 `getDocumentSource()` 后删除探针，再回读一次断言源码里没有
+`T21PROBE` 残留。
+
+**结果（PASS）**：
+
+| 量 | live 值 | 若按 `y - pageHeight`（A4 825） |
+|---|---|---|
+| COMPONENT y（API 入参 200） | **-200** | -625 |
+| LINE startY（API 入参 200） | **-200** | -625 |
+| `diffNetlists(..., -1)` | **0 netlist finding** | — |
+| `diffNetlists(...)` 默认 A4 | ≥1 条 `SCHEMATIC_NETLIST_DROPPED`（本次 1 条） | — |
+| 探针清理 / 残留 | netflag=true、wire=true；脚本内 `residue=0` | — |
+
+结论：`SCH_*` primitive API 接受 IR 的 top-left / Y-down 坐标，客户端持久化时直接取反（`-y`），
+**不参与页高**；`ySign=-1` 正确，复核的 blocker 被 live 数据否掉。`y - pageHeight` 只适用于
+serialize/导入的 `.epru` 页（§14.14 修复 1）。`readback.ts`、`serialize.ts`、`build.ts` 的四处注释
+已按这两套约定改写，避免下一轮再把 primitive 页按页高反算。
+
+**仍未收口**：`buildIntoEasyEda` 的器件 `create` 在该导入工程上仍 `CREATE_TIMEOUT`（netflag/wire 正常），
+完整 primitive 交付没有 live 闭环；本条只闭合“回读投影”，不冒充整条链路。

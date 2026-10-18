@@ -1031,10 +1031,11 @@ return sources;`
           })
         }
       }
-      // The primitive build path creates one default page and persists the API
-      // coordinate as `-layoutY`; the imported `.epru` path instead persists
-      // `layoutY - deliveredPageHeight`. Project this path through the `-y`
-      // mirror so a fitted sheet is not diffed against the requested height.
+      // The primitive build path creates one default page (`createSchematicPage`
+      // takes no size) and the SCH_* API persists the IR coordinate as
+      // `-layoutY`; the imported `.epru` path instead persists
+      // `layoutY - deliveredPageHeight`. Project this path through `-y`; live
+      // t21 confirms API (100, 200) -> COMPONENT y=-200 on a real page.
       findings.push(...diffNetlists(sheet, source, sheetIndex, options.symbolPins, options.pageSize, -1))
     }
   } else {
