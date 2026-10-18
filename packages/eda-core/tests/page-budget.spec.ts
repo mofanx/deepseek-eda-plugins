@@ -123,6 +123,27 @@ describe('delivery budget: one metric, one rule', () => {
     expect(SCHEMATIC_PAGE_A3.height - 170).toBe(1024 + 24 - 48)
   })
 
+  it('describes a page with no authored name using a placeholder', () => {
+    // Generated page names are the norm now, but an unnamed authored sheet must
+    // still measure and print without a `null`/`undefined` leaking into the log.
+    const unnamed: SchematicIrSheet = {
+      components: [{
+        id: 'u1',
+        kind: 'part',
+        designator: 'U1',
+        position: { x: 200, y: 200 },
+        pins: [],
+      }],
+      wires: [],
+      busEntries: [],
+      junctions: [],
+      attrs: [],
+    }
+    const report = checkPageBudget([unnamed], SCHEMATIC_PAGE_A4)
+    expect(report.pages[0]?.name).toBe('')
+    expect(describePageBudget(report)).toContain('?:')
+  })
+
   it('keeps the budget numbers in one place and snaps on the grid', () => {
     // The regression reads the budget instead of restating it (t8's drift risk).
     expect(SCHEMATIC_PAGE_BUDGET.fillTarget).toBe(0.35)

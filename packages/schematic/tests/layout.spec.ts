@@ -763,8 +763,13 @@ describe('page bounds', () => {
     }))
     const laid = layoutSchematic(doc, { moduleColumns: 1 })
     expect(laid.sheets.length).toBeGreaterThan(1)
-    expect(laid.sheets[0]?.name).toBe('MAIN')
-    expect(laid.sheets[1]?.name).toBe('MAIN 2')
+    // Each page lists the modules it carries, so the generated `MAIN 2`
+    // continuation name disappears from a fully grouped split.
+    const modulesOf = (page: SchematicIrSheet): string[] =>
+      [...new Set(page.components.filter(component => component.kind === 'part').map(component => component.block))]
+        .filter((block): block is string => block !== undefined)
+    for (const page of laid.sheets) expect(page.name).toBe(modulesOf(page).join('+'))
+    expect(laid.sheets.some(page => page.name === 'MAIN 2')).toBe(false)
     for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
   })
 
@@ -1092,6 +1097,136 @@ describe('pagination of content that cannot fit one page', () => {
       .map(finding => finding.locator?.componentId)).toEqual(['ghost'])
   })
 
+  it('names a paginated page by the modules it carries', () => {
+    // Five six-part modules land 3 + 2 on A3. The reference project names
+    // pages after their modules, so the generated `MAIN 2` becomes the actual
+    // module list instead of an opaque ordinal.
+    const titles = ['MCU', 'POWER', 'IO', 'MEM', 'CLK']
+    const components = titles.flatMap((_, m) => Array.from({ length: 6 }, (_, i) => comp(`u${m}_${i}`, {
+      block: `m${m}`,
+      symbolUuid: 'sym',
+      pins: [
+        pin('p1', { electric: 'BI', net: `M${m}A${i}` }),
+        pin('p2', { electric: 'BI', net: `M${m}B${i}` }),
+      ],
+    })))
+    const laid = layoutSchematic(ir(sheet({
+      name: 'MAIN',
+      blocks: titles.map((title, m) => ({ name: `m${m}`, title })),
+      components,
+    })), {
+      pageSize: SCHEMATIC_PAGE_A3,
+      symbolPins: new Map([['sym', [
+        { number: '1', name: 'P1', x: 20, y: -10 },
+        { number: '2', name: 'P2', x: 20, y: 10 },
+      ]]]),
+    })
+    expect(laid.sheets.map(page => page.name)).toEqual(['MCU+POWER+IO', 'MEM+CLK'])
+    expect(laid.sheets.flatMap(page => page.components.filter(component => component.kind === 'part'))).toHaveLength(30)
+  })
+
+  it('keeps the sheet name when a page carries too many modules to list', () => {
+    // Six one-part modules per page: joining six keys would be unreadable, so
+    // the page keeps the authored name and its ordinal.
+    const components = Array.from({ length: 12 }, (_, i) => comp(`u${i}`, {
+      block: `m${i}`,
+      pins: [pin('p1', { electric: 'BI', net: `N${i}` })],
+    }))
+    const laid = layoutSchematic(ir(sheet({
+      name: 'MAIN',
+      blocks: Array.from({ length: 12 }, (_, i) => ({ name: `m${i}` })),
+      components,
+    })))
+    expect(laid.sheets.length).toBe(2)
+    expect(laid.sheets.map(page => page.name)).toEqual(['MAIN', 'MAIN 2'])
+  })
+
+  it('keeps the sheet name when the module list would be too long', () => {
+    // Two long titles per page exceed the composed-name budget; the authored
+    // sheet name reads better than a 57-character page tab.
+    const titles = Array.from({ length: 9 }, (_, i) => `MODULE-${i}-LONG-NAME-FOR-PAGE`)
+    const components = Array.from({ length: 9 }, (_, i) => comp(`u${i}`, {
+      block: `m${i}`,
+      pins: [pin('p1', { electric: 'BI', net: `N${i}` })],
+    }))
+    const laid = layoutSchematic(ir(sheet({
+      name: 'MAIN',
+      blocks: titles.map((title, i) => ({ name: `m${i}`, title })),
+      components,
+    })), { moduleColumns: 1 })
+    expect(laid.sheets.length).toBeGreaterThan(2)
+    expect(laid.sheets[0]?.name).toBe('MAIN')
+    expect(laid.sheets[1]?.name).toBe('MAIN 2')
+  })
+
+  it('pins an implicit hierarchy binding to a page that got a module name', () => {
+    // A block that resolved its child by the authored sheet name `MAIN` must
+    // keep working after that page is renamed `MCU+POWER+IO`.
+    const titles = ['MCU', 'POWER', 'IO', 'MEM', 'CLK']
+    const main = sheet({
+      name: 'MAIN',
+      blocks: titles.map((title, m) => ({ name: `m${m}`, title })),
+      components: titles.flatMap((_, m) => Array.from({ length: 6 }, (_, i) => comp(`u${m}_${i}`, {
+        block: `m${m}`,
+        symbolUuid: 'sym',
+        pins: [
+          pin('p1', { electric: 'BI', net: `M${m}A${i}` }),
+          pin('p2', { electric: 'BI', net: `M${m}B${i}` }),
+        ],
+      }))),
+    })
+    const top = sheet({
+      name: 'TOP',
+      components: [
+        comp('child', { kind: 'block', designator: 'MAIN' }),
+        comp('unbound', { kind: 'block', designator: 'NOPE' }),
+      ],
+    })
+    const laid = layoutSchematic(ir(main, top), {
+      pageSize: SCHEMATIC_PAGE_A3,
+      symbolPins: new Map([['sym', [
+        { number: '1', name: 'P1', x: 20, y: -10 },
+        { number: '2', name: 'P2', x: 20, y: 10 },
+      ]]]),
+    })
+    const topPage = laid.sheets.find(page => page.name === 'TOP')
+    const block = topPage?.components.find(component => component.id === 'child')
+    expect(block?.sheetIndex).toBe(0)
+    // A block whose name matches nothing is left for the validator to report.
+    expect(topPage?.components.find(component => component.id === 'unbound')?.sheetIndex).toBeUndefined()
+    const hierarchy = validateSchematic(laid).findings.filter(finding => finding.code.startsWith('HIERARCHY'))
+    expect(hierarchy.some(finding => finding.locator?.componentId === 'child')).toBe(false)
+  })
+
+  it('does not pin implicit blocks when two source sheets share a renamed name', () => {
+    const titles = ['MCU', 'POWER', 'IO', 'MEM', 'CLK']
+    const board = (tag: string): SchematicIrSheet => sheet({
+      name: 'MAIN',
+      blocks: titles.map((title, m) => ({ name: `m${m}`, title })),
+      components: titles.flatMap((_, m) => Array.from({ length: 6 }, (_, i) => comp(`${tag}${m}_${i}`, {
+        block: `m${m}`,
+        symbolUuid: 'sym',
+        pins: [
+          pin('p1', { electric: 'BI', net: `${tag}M${m}A${i}` }),
+          pin('p2', { electric: 'BI', net: `${tag}M${m}B${i}` }),
+        ],
+      }))),
+    })
+    const laid = layoutSchematic(ir(board('A'), board('B')), {
+      pageSize: SCHEMATIC_PAGE_A3,
+      symbolPins: new Map([['sym', [
+        { number: '1', name: 'P1', x: 20, y: -10 },
+        { number: '2', name: 'P2', x: 20, y: 10 },
+      ]]]),
+    })
+    const names = laid.sheets.map(page => page.name)
+    // The second source sheet's first page cannot repeat the first sheet's
+    // composed name; it takes an ordinal instead.
+    expect(names[0]).toBe('MCU+POWER+IO')
+    expect(names[2]).toBe('MCU+POWER+IO 2')
+    expect(new Set(names).size).toBe(names.length)
+  })
+
   it('keeps continuation page names unique against authored sheet names', () => {
     // The flat MAIN sheet splits into MAIN, MAIN 3, MAIN 4, MAIN 5: the
     // authored sheet literally named MAIN 2 keeps its name, so a block that
@@ -1204,7 +1339,7 @@ describe('pagination of content that cannot fit one page', () => {
     expect(ghost.sheets[1]?.name).toBe('ghost 2')
   })
 
-  it('leaves pages unnamed when an unnamed sheet mixes modules', () => {
+  it('leaves pages unnamed when an unnamed sheet mixes too many modules', () => {
     const small = (prefix: string) => comp(`${prefix}1`, {
       block: prefix,
       pins: [pin('p', { electric: 'BI', net: `${prefix}N` })],
@@ -1219,8 +1354,8 @@ describe('pagination of content that cannot fit one page', () => {
       components: [small('a'), small('b'), small('c'), small('d'), ...big],
     })), { moduleColumns: 2 })
     expect(laid.sheets.length).toBeGreaterThan(1)
-    // Mixed pages keep the (absent) sheet name; the oversized module page is
-    // named after `e` even though the sheet itself has no name.
+    // Four modules exceed the composed-name budget, and the sheet has no name
+    // to fall back to; the oversized single-module page is still named `e`.
     expect(laid.sheets[0]?.name).toBeUndefined()
     expect(laid.sheets.some(page => page.name === 'e')).toBe(true)
   })

@@ -876,20 +876,35 @@ function shardGroup(
  * is unambiguous.
  */
 /**
- * Title of the single module a paginated page carries, or `undefined` when the
- * page mixes modules (or holds only ungrouped members). The reference project
- * names its pages after the module they carry (`CORE`, `POWER`, `DEVICE`), so a
- * single-module page becomes the page name; a mixed page keeps the sheet name.
+ * Display titles of the modules a paginated page carries, in placement order.
+ * Cells for ungrouped members carry the empty key and contribute nothing.
  */
-function pageModuleTitle(sheet: SchematicIrSheet, cells: readonly PlannedCell[]): string | undefined {
-  let key: string | undefined
+function pageModuleTitles(sheet: SchematicIrSheet, cells: readonly PlannedCell[]): string[] {
+  const titles = new Set<string>()
   for (const cell of cells) {
     if (cell.key === '') continue
-    if (key === undefined) key = cell.key
-    else if (key !== cell.key) return undefined
+    titles.add(sheet.blocks?.find(block => block.name === cell.key)?.title ?? cell.key)
   }
-  if (key === undefined) return undefined
-  return sheet.blocks?.find(block => block.name === key)?.title ?? key
+  return [...titles]
+}
+
+/** Most module names one page name lists before falling back to the sheet name. */
+const MAX_PAGE_NAME_MODULES = 3
+/** Longest composed page name; beyond this the authored sheet name reads better. */
+const MAX_PAGE_NAME_LENGTH = 40
+
+/**
+ * Page name derived from the modules a page carries. The reference project
+ * names its pages after their modules (`CORE`, `POWER`, `DEVICE`), so a
+ * single-module page takes that title and a mixed page lists them
+ * (`MCU+POWER+IO`). A page with too many modules, or one whose composed name
+ * would be unwieldy, returns `undefined` and keeps the sheet's own name.
+ */
+function pageModuleTitle(sheet: SchematicIrSheet, cells: readonly PlannedCell[]): string | undefined {
+  const titles = pageModuleTitles(sheet, cells)
+  if (titles.length === 0 || titles.length > MAX_PAGE_NAME_MODULES) return undefined
+  const name = titles.join('+')
+  return name.length <= MAX_PAGE_NAME_LENGTH ? name : undefined
 }
 
 /**
@@ -1220,21 +1235,40 @@ function planSheet(sheet: SchematicIrSheet, o: ResolvedLayoutOptions): SheetPlan
 }
 
 /**
- * Rewrite explicit `block.sheetIndex` values after pagination. `sheetIndex` is
- * a document-wide ordinal, so a preceding sheet splitting into extra pages
+ * Rewrite `block.sheetIndex` values after pagination. `sheetIndex` is a
+ * document-wide ordinal, so a preceding sheet splitting into extra pages
  * shifts every later child. A block targets the first page a source sheet
  * produced: that page keeps the sheet's authored annotations (including the
  * interface netports), and the continuation pages remain reachable through
- * their numbered frames. Invalid indices are left untouched for the validator.
+ * their numbered frames. An implicit block (no `sheetIndex`) whose designator,
+ * net name, or id matched an authored sheet name is pinned to that sheet's
+ * first page when the page was renamed, so a generated page name cannot break
+ * the hierarchy. Ambiguous matches are left alone for the validator. Invalid
+ * indices are left untouched for the validator.
  */
-function remapBlockTargets(sheet: SchematicIrSheet, firstPageOfSheet: readonly number[]): SchematicIrSheet {
+function remapBlockTargets(
+  sheet: SchematicIrSheet,
+  firstPageOfSheet: readonly number[],
+  renamedTargets: ReadonlyMap<string, number>,
+): SchematicIrSheet {
   let changed = false
   const components = sheet.components.map((component) => {
-    if (component.kind !== 'block' || component.sheetIndex === undefined) return component
-    const target = firstPageOfSheet[component.sheetIndex]
-    if (target === undefined || target === component.sheetIndex) return component
+    if (component.kind !== 'block') return component
+    if (component.sheetIndex !== undefined) {
+      const target = firstPageOfSheet[component.sheetIndex]
+      if (target === undefined || target === component.sheetIndex) return component
+      changed = true
+      return { ...component, sheetIndex: target }
+    }
+    const targets = new Set<number>()
+    for (const name of [component.designator, component.netName, component.id]) {
+      if (name === undefined) continue
+      const target = renamedTargets.get(name)
+      if (target !== undefined) targets.add(target)
+    }
+    if (targets.size !== 1) return component
     changed = true
-    return { ...component, sheetIndex: target }
+    return { ...component, sheetIndex: [...targets][0] as number }
   })
   return changed ? { ...sheet, components } : sheet
 }
@@ -1309,9 +1343,25 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
         assigned.add(name)
         if (sheet.name !== name) sheet = { ...sheet, name }
       }
-      return { ...plan, sheet: remapBlockTargets(sheet, firstPageOfSheet) }
+      return { ...plan, sheet }
     })
   })
+
+  // A generated page name must not break a hierarchy binding that used the
+  // authored name. Record which source sheets were renamed and where their
+  // first page landed; ambiguous authored names stay unresolved so the
+  // validator can still report the ambiguity.
+  const renamedTargets = new Map<string, number>()
+  const duplicatedNames = new Set<string>()
+  for (const [index, source] of ir.sheets.entries()) {
+    const name = source.name
+    if (name === undefined) continue
+    const firstPage = firstPageOfSheet[index] as number
+    if (plans[firstPage]?.sheet.name === name) continue
+    if (renamedTargets.has(name)) duplicatedNames.add(name)
+    else renamedTargets.set(name, firstPage)
+  }
+  for (const name of duplicatedNames) renamedTargets.delete(name)
 
   // Global net census: a net declared on more than one sheet routes through
   // net ports rather than same-sheet flags.
@@ -1327,7 +1377,12 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
     }
   })
 
-  return { sheets: plans.map(plan => layoutSheet(plan, netSheets)) }
+  return {
+    sheets: plans.map(plan => layoutSheet({
+      ...plan,
+      sheet: remapBlockTargets(plan.sheet, firstPageOfSheet, renamedTargets),
+    }, netSheets)),
+  }
 }
 
 /** Place, endpoint, and route one planned sheet. */
