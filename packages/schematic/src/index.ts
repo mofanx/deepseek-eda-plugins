@@ -28,7 +28,7 @@ import type {
 import { layoutSchematic } from './layout.ts'
 import { validateSchematic } from './validate.ts'
 
-export { SCHEMATIC_LOOKUP_FAILED, SCHEMATIC_PAGE_A4, SchematicError } from './types.ts'
+export { SCHEMATIC_LOOKUP_FAILED, SCHEMATIC_PAGE_A3, SCHEMATIC_PAGE_A4, SchematicError } from './types.ts'
 export { transformSymbolPoint } from './geometry.ts'
 export { parseSchematicIr } from './ir.ts'
 export { layoutSchematic } from './layout.ts'
@@ -37,6 +37,7 @@ export type {
   SchematicBindingResolution,
   SchematicComponentKind,
   SchematicEngine,
+  SchematicEngineSerializeOptions,
   SchematicEngineVerifyOptions,
   SchematicFinding,
   SchematicFindingSeverity,
@@ -60,6 +61,7 @@ export type {
   SchematicResolvedFootprint,
   SchematicResolvedPart,
   SchematicSymbolPin,
+  SchematicTitleBlockOptions,
   SchematicValidationOptions,
   SchematicValidationReport,
 } from './types.ts'

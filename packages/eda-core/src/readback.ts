@@ -3,12 +3,14 @@
  * schema carries no pin records, so connectivity is reconstructed from wire
  * `LINE` geometry, `NET` attributes, and flag components (`Global Net Name` /
  * `Name`), then diffed against the pin→net expectations derivable from the IR.
- * Persisted coordinates mirror the IR with `y` negated; the diff works in
- * persisted space.
+ * Persisted source coordinates negate the client's bottom-left, Y-up API
+ * space, so the diff maps every IR point through `y - pageHeight`; they are
+ * not a plain `-y` mirror.
  * @module @deepseek-ai/dsh-plugin-eda-easyeda/readback
  */
 
-import type { SchematicFinding, SchematicIrSheet, SchematicLocator, SchematicSymbolPin } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { SCHEMATIC_PAGE_A4 } from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicFinding, SchematicIrSheet, SchematicLocator, SchematicPageSize, SchematicSymbolPin } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { transformSymbolPoint } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 /** One `head||body|` record of a persisted document source. */
@@ -240,21 +242,21 @@ export function readBackNetRegions(source: string): NetRegion[] {
   return regionsOf(nodes)
 }
 
-/** IR-side net regions of one sheet, projected into persisted space (y negated). */
-function irNetRegions(sheet: SchematicIrSheet): NetRegion[] {
+/** IR-side net regions of one sheet, projected into persisted space (y - pageHeight). */
+function irNetRegions(sheet: SchematicIrSheet, pageHeight: number): NetRegion[] {
   const nodes: NetNode[] = []
   for (const wire of sheet.wires) {
     const segments: Segment[] = []
     for (const dots of wire.dots ?? []) {
       for (let i = 0; i + 3 < dots.length; i += 2) {
-        segments.push([dots[i] as number, -(dots[i + 1] as number), dots[i + 2] as number, -(dots[i + 3] as number)])
+        segments.push([dots[i] as number, (dots[i + 1] as number) - pageHeight, dots[i + 2] as number, (dots[i + 3] as number) - pageHeight])
       }
     }
     nodes.push({ id: wire.id, names: wire.net === undefined ? [] : [wire.net], segments })
   }
   for (const component of sheet.components) {
     if ((component.kind !== 'netflag' && component.kind !== 'netport') || component.netName === undefined || component.position === undefined) continue
-    nodes.push({ names: [component.netName], segments: [], point: { x: component.position.x, y: -component.position.y } })
+    nodes.push({ names: [component.netName], segments: [], point: { x: component.position.x, y: component.position.y - pageHeight } })
   }
   return regionsOf(nodes)
 }
@@ -290,10 +292,12 @@ export function diffNetlists(
   source: string,
   sheetIndex: number,
   symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]>,
+  pageSize?: SchematicPageSize,
 ): SchematicFinding[] {
   const findings: SchematicFinding[] = []
   const observed = readBackNetRegions(source)
-  const expected = irNetRegions(sheet)
+  const pageHeight = (pageSize ?? SCHEMATIC_PAGE_A4).height
+  const expected = irNetRegions(sheet, pageHeight)
   for (const region of observed) {
     if (region.names.size > 1) {
       findings.push({
@@ -335,7 +339,7 @@ export function diffNetlists(
           }
         }
       }
-      const point = { x: pin.endpoint.x, y: -pin.endpoint.y }
+      const point = { x: pin.endpoint.x, y: pin.endpoint.y - pageHeight }
       const want = namesAt(point, expected)
       if (pin.net !== undefined) want.add(pin.net)
       if (want.size === 0) continue

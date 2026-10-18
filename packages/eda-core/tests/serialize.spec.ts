@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { serializeEasyEdaDocument, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
+import { SCHEMATIC_PAGE_A3, layoutSchematic, validateSchematic } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 const ir: SchematicIr = {
@@ -26,11 +27,12 @@ describe('serializeEasyEdaDocument', () => {
     expect(lines[1]).toMatch(/^\{"type":"CANVAS","ticket":\d+,"id":"CANVAS"\}\|\|\{"originX":0,"originY":0\}\|$/)
   })
 
-  it('emits COMPONENT in persisted schema: x/y keys, negated y, attrs map', () => {
+  it('emits COMPONENT in persisted schema: x/y keys, page-height y mapping, attrs map', () => {
     const source = serializeEasyEdaDocument(ir)
     const line = source.split('\n').find(l => l.startsWith('{"type":"COMPONENT"'))
     expect(line).toContain('"id":"c1"')
-    expect(line).toContain('"x":100,"y":-200')
+    // IR y=200 on the A4 page (height 825) with a bottom-left, Y-up origin.
+    expect(line).toContain('"x":100,"y":-625')
     expect(line).toContain('"rotation":0,"isMirror":false,"attrs":{"Footprints":"[]","Devices":"[]","DeviceName":null,"FootprintName":null')
     expect(line).not.toContain('positionX')
   })
@@ -62,7 +64,7 @@ describe('serializeEasyEdaDocument', () => {
     expect(wire).not.toContain('"dots"')
     const seg = source.split('\n').find(l => l.startsWith('{"type":"LINE"'))
     expect(seg).toContain('"lineGroup":"w1"')
-    expect(seg).toContain('"startX":0,"startY":0,"endX":100,"endY":0')
+    expect(seg).toContain('"startX":0,"startY":-825,"endX":100,"endY":-825')
     const netAttr = source.split('\n').find(l => l.includes('"key":"NET"'))
     expect(netAttr).toContain('"parentId":"w1"')
     expect(netAttr).toContain('"value":"SIG"')
@@ -78,8 +80,8 @@ describe('serializeEasyEdaDocument', () => {
     }
     const segs = linesOf(serializeEasyEdaDocument(bent)).filter(l => l.startsWith('{"type":"LINE"'))
     expect(segs).toHaveLength(2)
-    expect(segs[0]).toContain('"startX":0,"startY":0,"endX":10,"endY":0')
-    expect(segs[1]).toContain('"startX":10,"startY":0,"endX":10,"endY":-20')
+    expect(segs[0]).toContain('"startX":0,"startY":-825,"endX":10,"endY":-825')
+    expect(segs[1]).toContain('"startX":10,"startY":-825,"endX":10,"endY":-805')
   })
 
   it('emits BUS type for bus-kind wires', () => {
@@ -137,8 +139,11 @@ describe('serializeEasyEdaDocument', () => {
     expect(source).not.toContain('"key":"Designator"')
     const w2Attrs = source.split('\n').filter(l => l.includes('"parentId":"w2"'))
     expect(w2Attrs).toHaveLength(0)
-    const w3Net = source.split('\n').find(l => l.includes('"parentId":"w3"'))
-    expect(w3Net).toContain('"value":"X"')
+    // w3 declares a net but has no geometry: a declaration-only row (what
+    // pagination leaves behind for ATTR ownership) projects no WIRE and no NET
+    // ATTR at the origin.
+    expect(source.split('\n').some(l => l.includes('"id":"w3"'))).toBe(false)
+    expect(source.split('\n').some(l => l.includes('"parentId":"w3"'))).toBe(false)
   })
 
   it('defaults absent geometry and optional component fields', () => {
@@ -149,19 +154,25 @@ describe('serializeEasyEdaDocument', () => {
           { id: 'c2', kind: 'part', pins: [] },
         ],
         wires: [{ id: 'w1', kind: 'wire', net: 'N' }],
-        busEntries: [], junctions: [], attrs: [],
+        busEntries: [], junctions: [],
+        attrs: [{ id: 'a1', parentId: 'w1', key: 'Name', value: 'gone' }],
       }],
     }
     const lines = linesOf(serializeEasyEdaDocument(sparse))
     const c1 = lines.find(l => l.includes('"id":"c1"'))
     expect(c1).toContain('"partId":"A","groupId":"g"')
-    expect(c1).toContain('"x":0,"y":0')
+    expect(c1).toContain('"x":0,"y":-825')
     expect(c1).toContain('"rotation":90,"isMirror":true')
     const c2 = lines.find(l => l.includes('"id":"c2"'))
     expect(c2).toContain('"partId":"","groupId":""')
     expect(c2).toContain('"rotation":0,"isMirror":false')
-    const net = lines.find(l => l.includes('"parentId":"w1"'))
-    expect(net).toContain('"value":"N"')
+    // A wire with no `dots` at all is geometry-less too: nothing to project, so
+    // neither the WIRE record nor its NET ATTR is emitted (the pre-fix code put
+    // a NET ATTR at the origin, which is a stray net label on the page).
+    expect(lines.some(l => l.includes('"id":"w1"'))).toBe(false)
+    expect(lines.some(l => l.includes('"parentId":"w1"'))).toBe(false)
+    // An ATTR hanging off a geometry-less wire has nothing to describe either.
+    expect(lines.some(l => l.includes('"id":"a1"'))).toBe(false)
   })
 })
 
@@ -209,16 +220,38 @@ describe('module frames', () => {
     expect(rects).toHaveLength(2)
     expect(texts).toHaveLength(2)
     // power box: members at (100..110,200) → x=20,y=60,170×220 in IR space,
-    // persisted with the y axis negated.
-    expect(rects[0]).toContain('"dotX1":20,"dotY1":-60,"dotX2":190,"dotY2":-280')
+    // persisted as y - pageHeight (A4 = 825, bottom-left origin, Y up).
+    expect(rects[0]).toContain('"dotX1":20,"dotY1":-765,"dotX2":190,"dotY2":-545')
     expect(rects[0]).toContain('"strokeStyle":1')
     expect(rects[0]).toContain('"fillStyle":0')
     expect(texts[0]).toContain('"value":"POWER SUPPLY"')
-    expect(texts[0]).toContain('"x":40,"y":-70')
+    expect(texts[0]).toContain('"x":40,"y":-755')
     expect(texts[0]).toContain('"align":"LEFT_TOP"')
     expect(texts[0]).toContain('"fontWeight":true')
     // Undeclared module falls back to its name as the title.
     expect(texts[1]).toContain('"value":"mcu"')
+  })
+
+  it('clamps frames to the page size the layout planned against', () => {
+    // A block member near the A4 edge: its 80-unit frame pad crosses 1170x825.
+    // The default call clamps the frame onto the A4 rectangle, the A3 call lets
+    // it follow the member. Without the pageSize pass-through, A3 frames were cut.
+    const edge: SchematicIr = {
+      sheets: [{
+        blocks: [{ name: 'io', title: 'IO' }],
+        components: [{
+          id: 'u1', kind: 'part', designator: 'U1', block: 'io',
+          position: { x: 1100, y: 800 }, pins: [],
+        }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    }
+    const a4 = serializeEasyEdaDocument(edge)
+    expect(a4).toContain('"dotX2":1170')
+    expect(a4).toContain('"dotY2":0')
+    const a3 = serializeEasyEdaDocument(edge, { pageSize: SCHEMATIC_PAGE_A3 })
+    expect(a3).toContain('"dotX2":1180')
+    expect(a3).toContain('"dotY2":-290')
   })
 
   it('emits no frame records for an ungrouped sheet', () => {
@@ -275,5 +308,40 @@ describe('layout golden', () => {
     const laid = JSON.parse(readFileSync(new URL('./fixtures/layout-golden.json', import.meta.url), 'utf8')) as SchematicIr
     const expected = readFileSync(new URL('./fixtures/layout-golden.eeda', import.meta.url), 'utf8')
     expect(serializeEasyEdaDocument(laid, { docUuid: 'layoutgolden', clientId: 'test' })).toBe(expected)
+  })
+})
+
+describe('paginated layout projection', () => {
+  it('serializes every generated page with a unique title and no blocking geometry', () => {
+    const components = Array.from({ length: 30 }, (_, i) => ({
+      id: `u${i}`,
+      kind: 'part' as const,
+      designator: `U${i}`,
+      deviceUuid: `dev-${i}`,
+      block: ['power', 'mcu', 'io', 'clock', 'reset'][i % 5],
+      pins: [
+        { id: `in${i}`, name: 'IN', number: '1', electric: 'INPUT' as const, net: `N${i}` },
+        { id: `out${i}`, name: 'OUT', number: '2', electric: 'OUTPUT' as const, net: `N${i + 1}` },
+        { id: `v${i}`, name: 'VCC', number: '3', electric: 'INPUT' as const, net: 'VCC', powerName: 'VCC' },
+        { id: `g${i}`, name: 'GND', number: '4', electric: 'INPUT' as const, net: 'GND', powerName: 'GND' },
+      ],
+    }))
+    const laid = layoutSchematic({
+      sheets: [{
+        name: 'MAIN',
+        blocks: ['power', 'mcu', 'io', 'clock', 'reset'].map(name => ({ name, title: name.toUpperCase() })),
+        components,
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    })
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    expect(validateSchematic(laid).findings.filter(finding => finding.severity === 'error')).toEqual([])
+    const pkg = serializeEasyEdaProject(laid)
+    expect(pkg.pageUuids).toHaveLength(laid.sheets.length)
+    const titles = pkg.epru.split('\n')
+      .filter(line => line.startsWith('{"type":"META"') && line.includes('"schematic"'))
+      .map(line => JSON.parse(line.slice(line.indexOf('||') + 2).replace(/\|$/, '')).title as string)
+    expect(titles).toHaveLength(laid.sheets.length)
+    expect(new Set(titles).size).toBe(titles.length)
   })
 })

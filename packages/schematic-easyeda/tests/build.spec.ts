@@ -17,7 +17,8 @@ import {
   type EasyEdaEmbeddedDoc,
 } from '@deepseek-ai/dsh-plugin-eda-easyeda'
 import type { SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
-import { SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { SCHEMATIC_PAGE_A3, SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
+
 
 const ir: SchematicIr = {
   sheets: [{
@@ -64,7 +65,7 @@ function scriptedBridge(responses: unknown[]): { bridge: EasyEdaBridge; calls: s
 const prepareOk = { status: 'OK', failures: [], pageUuids: ['page-1'] }
 const chunkOk = (created: number): { status: string; failures: never[]; created: number } => ({ status: 'OK', failures: [], created })
 /** Oracle payload matching the fixture IR so no count/net findings arise. */
-const oracleOk = { counts: [{ components: 5, wires: 2 }], nets: ['SIG', 'A[1:2]', 'GND'], drc: [] }
+const oracleOk = { counts: [{ components: 5, wires: 3 }], nets: ['SIG', 'A[1:2]', 'GND'], drc: [] }
 
 /**
  * Responses for the standard five-stage build of the fixture IR:
@@ -82,7 +83,7 @@ function standardQueue(overrides: Partial<{
     overrides.prepare ?? prepareOk,
     overrides.partChunk ?? chunkOk(1),
     overrides.markerChunk ?? chunkOk(4),
-    overrides.wireChunk ?? chunkOk(2),
+    overrides.wireChunk ?? chunkOk(3),
     overrides.readback ?? [null],
     overrides.oracle ?? oracleOk,
   ]
@@ -150,6 +151,15 @@ describe('renderWireChunkScript', () => {
     }
     expect(code).toContain('getState_Net')
     expect(code).toContain("'WRONG_PAGE'")
+  })
+
+  it('creates every chain of a multi-chain wire as its own primitive', () => {
+    const code = renderWireChunkScript([
+      { irId: 'w1', kind: 'wire', dots: [[0, 0, 10, 0], [20, 0, 30, 0]], net: 'N' },
+    ], 'page-1', 0)
+    expect(code).toContain('const chains =')
+    expect(code).toContain('for (const line of chains)')
+    expect(code).toContain('created += 1')
   })
 })
 
@@ -247,7 +257,7 @@ describe('buildIntoEasyEda chunked placement', () => {
     expect(calls[4]).toBe('return true')
     expect(calls[5]).toContain('getDocumentSource')
     expect(calls[6]).toContain('counts')
-    expect(report.created).toBe(7)
+    expect(report.created).toBe(8)
     expect(report.pageUuids).toEqual(['page-1'])
   })
 
@@ -264,7 +274,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       prepareOk,
       chunkOk(1),
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       { status: 'OK', failures: [], created: 0 },
       [null],
       oracleOk,
@@ -274,7 +284,7 @@ describe('buildIntoEasyEda chunked placement', () => {
     expect(calls[4]).toContain('sch_PrimitiveRectangle.create(')
     expect(calls[4]).toContain('sch_PrimitiveText.create(')
     expect(calls[4]).toContain('"title":"PWR"')
-    expect(report.created).toBe(7)
+    expect(report.created).toBe(8)
     expect(report.findings.filter(f => f.severity === 'error')).toEqual([])
   })
 
@@ -298,7 +308,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       prepareOk,
       chunkOk(1),
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       { status: 'OK', failures: [], created: 0 },
       [null],
       oracleOk,
@@ -314,7 +324,7 @@ describe('buildIntoEasyEda chunked placement', () => {
     expect(calls[4]).toContain('"name":"VIN"')
     // The oracle's component count (5) matches the fixture without the block.
     expect(report.findings.filter(f => f.severity === 'error')).toEqual([])
-    expect(report.created).toBe(7)
+    expect(report.created).toBe(8)
   })
 
   it('accepts the sheet-symbol title TEXT as the block designator evidence', async () => {
@@ -322,7 +332,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       prepareOk,
       chunkOk(1),
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       { status: 'OK', failures: [], created: 0 },
       ['{"type":"TEXT","id":"t1","ticket":9}||{"x":298,"y":-310,"value":"POWER"}|'],
       oracleOk,
@@ -336,7 +346,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       prepareOk,
       chunkOk(1),
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       { status: 'OK', failures: [], created: 0 },
       ['{"type":"TEXT","id":"t1","ticket":9}||{"x":298,"y":-310,"value":"OTHER"}|'],
       oracleOk,
@@ -353,7 +363,7 @@ describe('buildIntoEasyEda chunked placement', () => {
         prepareOk,
         chunkOk(1),
         chunkOk(4),
-        chunkOk(2),
+        chunkOk(3),
         { reject: thrown },
         [null],
         oracleOk,
@@ -371,7 +381,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       prepareOk,
       chunkOk(1),
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       { status: 'OK', failures: [{ code: 'FRAME_FAILED', irId: 'block:pwr', sheetIndex: 0 }], created: 0 },
       [null],
       oracleOk,
@@ -387,7 +397,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       prepareOk,
       chunkOk(1),
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       { reject: new Error('wedged') },
       { reject: new Error('wedged') },
       [null],
@@ -404,7 +414,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       prepareOk,
       chunkOk(1),
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       { reject: 'socket gone' },
       [null],
       oracleOk,
@@ -420,13 +430,13 @@ describe('buildIntoEasyEda chunked placement', () => {
       { reject: new SchematicError('timed out', 'SCHEMATIC_BRIDGE_TIMEOUT') },
       chunkOk(1),
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       [null],
       oracleOk,
     ])
     const report = await buildIntoEasyEda(ir, { bridge, retryBackoffMs: 0 })
     expect(calls).toHaveLength(8)
-    expect(report.created).toBe(7)
+    expect(report.created).toBe(8)
     expect(report.findings.filter(f => f.severity === 'error')).toEqual([])
   })
 
@@ -437,7 +447,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       { reject: new SchematicError('t', 'SCHEMATIC_BRIDGE_TIMEOUT') },
       { reject: new SchematicError('t', 'SCHEMATIC_BRIDGE_TIMEOUT') },
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       [null],
       oracleOk,
     ])
@@ -454,7 +464,7 @@ describe('buildIntoEasyEda chunked placement', () => {
       prepareOk,
       { reject: new SchematicError('open', 'SCHEMATIC_BRIDGE_CIRCUIT_OPEN') },
       chunkOk(4),
-      chunkOk(2),
+      chunkOk(3),
       [null],
       oracleOk,
     ])
@@ -492,7 +502,7 @@ describe('buildIntoEasyEda chunked placement', () => {
     const fail = (): { reject: Error } => ({ reject: new Error('down') })
     const { bridge, calls } = scriptedBridge([
       prepareOk, fail(), fail(), fail(),
-      [null], { counts: [{ components: 6, wires: 2 }], nets: ['SIG', 'A[1:2]', 'GND'], drc: [] },
+      [null], { counts: [{ components: 6, wires: 3 }], nets: ['SIG', 'A[1:2]', 'GND'], drc: [] },
     ])
     const report = await buildIntoEasyEda(twoParts, { bridge, retries: 0 })
     // 4 chunks exist but the 4th is skipped once the streak hits 3.
@@ -519,7 +529,7 @@ describe('buildIntoEasyEda chunked placement', () => {
     const wrong = { status: 'WRONG_PAGE', failures: [], created: 0 }
     const { bridge } = scriptedBridge([
       prepareOk, wrong, wrong, wrong,
-      chunkOk(4), chunkOk(2), [null], oracleOk,
+      chunkOk(4), chunkOk(3), [null], oracleOk,
     ])
     const report = await buildIntoEasyEda(ir, { bridge, retryBackoffMs: 0 })
     expect(report.findings.some(f => f.message.includes('could not be re-activated'))).toBe(true)
@@ -544,7 +554,7 @@ describe('buildIntoEasyEda chunked placement', () => {
     const report = await buildIntoEasyEda(ir, { bridge, retryBackoffMs: 0 })
     expect(calls.filter(c => c === 'return true')).toHaveLength(2)
     expect(calls.some(c => c.includes('getDocumentSource'))).toBe(true)
-    expect(report.created).toBe(7)
+    expect(report.created).toBe(8)
   })
 
   it('reports chunk failures when a non-positive retry budget throws the last error', async () => {
@@ -553,8 +563,8 @@ describe('buildIntoEasyEda chunked placement', () => {
     // prepare + drain probe + read-back + oracle; no chunk ever reaches execute.
     expect(calls).toHaveLength(4)
     const failed = report.findings.filter(f => f.message.includes('failed after retries'))
-    // One finding per irId in each failed chunk: 1 part + 4 markers + 2 wires.
-    expect(failed).toHaveLength(7)
+    // One finding per irId in each failed chunk: 1 part + 4 markers + 3 wires 2 wires.
+    expect(failed).toHaveLength(8)
     expect(failed.some(f => f.message.includes('(undefined)'))).toBe(true)
     expect(report.findings.find(f => f.code === 'SCHEMATIC_BUILD_ABORTED')).toBeDefined()
   })
@@ -670,6 +680,64 @@ describe('buildIntoEasyEda findings', () => {
     expect(payload.sheets[0]!.wires[0]!.dots).toEqual([])
   })
 
+  it('splits a multi-chain wire into one payload entry per polyline', async () => {
+    const multi: SchematicIr = {
+      sheets: [{
+        components: [{ id: 'cx', kind: 'part', deviceUuid: 'd', pins: [] }],
+        wires: [{ id: 'wx', kind: 'wire', dots: [[0, 0, 10, 0], [20, 0, 30, 0]], net: 'N' }],
+        busEntries: [], junctions: [], attrs: [],
+      }],
+    }
+    const { bridge, calls } = scriptedBridge([{ status: 'NO_PROJECT', failures: [], pageUuids: [] }])
+    await expect(buildIntoEasyEda(multi, { bridge })).rejects.toThrow()
+    const payload = JSON.parse(calls[0]!.match(/const doc = (.*);/)?.[1] ?? '{}') as {
+      sheets: { wires: { irId: string; dots: number[][] }[] }[]
+    }
+    expect(payload.sheets[0]!.wires.map(w => w.irId)).toEqual(['wx:0', 'wx:1'])
+    expect(payload.sheets[0]!.wires.map(w => w.dots)).toEqual([[[0, 0, 10, 0]], [[20, 0, 30, 0]]])
+  })
+
+  it('keeps an empty wire as one payload entry and preserves its net', async () => {
+    const empty: SchematicIr = {
+      sheets: [{
+        components: [{ id: 'cx', kind: 'part', deviceUuid: 'd', pins: [] }],
+        wires: [{ id: 'wx', kind: 'wire', dots: [], net: 'N' }],
+        busEntries: [], junctions: [], attrs: [],
+      }],
+    }
+    const { bridge, calls } = scriptedBridge([{ status: 'NO_PROJECT', failures: [], pageUuids: [] }])
+    await expect(buildIntoEasyEda(empty, { bridge })).rejects.toThrow()
+    const payload = JSON.parse(calls[0]!.match(/const doc = (.*);/)?.[1] ?? '{}') as {
+      sheets: { wires: { irId: string; dots: number[][]; net?: string }[] }[]
+    }
+    expect(payload.sheets[0]!.wires[0]).toEqual({ irId: 'wx', kind: 'wire', dots: [], net: 'N' })
+  })
+
+  it('skips a geometry-less wire row instead of reporting a create failure', async () => {
+    // Pagination keeps an authored wire row without its dots so ATTRs survive.
+    // Such a row declares a net but has nothing to draw: it must not surface as
+    // SCHEMATIC_BUILD_PRIMITIVE_FAILED, and it must not inflate the expected
+    // primitive count (checked through the report's count invariant).
+    const withEmptyRow: SchematicIr = {
+      sheets: [{
+        components: ir.sheets[0]!.components,
+        wires: [
+          ...ir.sheets[0]!.wires,
+          { id: 'w-empty', kind: 'wire', dots: [], net: 'DECL' },
+        ],
+        busEntries: ir.sheets[0]!.busEntries,
+        junctions: [],
+        attrs: [],
+      }],
+    }
+    const { bridge, calls } = scriptedBridge(standardQueue())
+    const report = await buildIntoEasyEda(withEmptyRow, { bridge })
+    expect(report.findings.some(finding => finding.code === 'SCHEMATIC_BUILD_PRIMITIVE_FAILED')).toBe(false)
+    expect(report.findings.some(finding => finding.code === 'SCHEMATIC_EDA_COUNT_MISMATCH')).toBe(false)
+    expect(report.created).toBe(8)
+    expect(calls.some(code => code.includes('w-empty'))).toBe(true)
+  })
+
   it('skips sheets whose page uuid the prepare stage did not return', async () => {
     const twoSheets: SchematicIr = {
       sheets: [
@@ -679,9 +747,9 @@ describe('buildIntoEasyEda findings', () => {
     }
     const { bridge, calls } = scriptedBridge([
       { status: 'OK', failures: [], pageUuids: ['page-1'] },
-      chunkOk(1), chunkOk(4), chunkOk(2),
+      chunkOk(1), chunkOk(4), chunkOk(3),
       [null],
-      { counts: [{ components: 5, wires: 2 }], nets: ['SIG', 'A[1:2]', 'GND'], drc: [] },
+      { counts: [{ components: 5, wires: 3 }], nets: ['SIG', 'A[1:2]', 'GND'], drc: [] },
     ])
     const report = await buildIntoEasyEda(twoSheets, { bridge })
     expect(report.pageUuids).toEqual(['page-1'])
@@ -764,7 +832,7 @@ describe('buildIntoEasyEda read-back diff', () => {
   it('degrades a read-back bridge failure to SCHEMATIC_ROUNDTRIP_UNAVAILABLE, not a thrown build', async () => {
     const { bridge } = scriptedBridge(standardQueue({ readback: { reject: new SchematicError('timed out', 'SCHEMATIC_BRIDGE_TIMEOUT') } }))
     const report = await buildIntoEasyEda(ir, { bridge })
-    expect(report.created).toBe(7)
+    expect(report.created).toBe(8)
     expect(report.pageUuids).toEqual(['page-1'])
     const finding = report.findings.find(f => f.code === 'SCHEMATIC_ROUNDTRIP_UNAVAILABLE')
     expect(finding?.message).toContain('timed out')
@@ -780,7 +848,7 @@ describe('buildIntoEasyEda read-back diff', () => {
   it('tolerates read-back entries beyond the built page list', async () => {
     const { bridge } = scriptedBridge([
       { status: 'OK', failures: [], pageUuids: ['page-1', 'page-x'] },
-      chunkOk(1), chunkOk(4), chunkOk(2),
+      chunkOk(1), chunkOk(4), chunkOk(3),
       [null, null, null],
       oracleOk,
     ])
@@ -822,7 +890,7 @@ describe('buildIntoEasyEda read-back diff', () => {
 
 describe('buildIntoEasyEda client oracle', () => {
   it('errors on count mismatches', async () => {
-    const { bridge } = scriptedBridge(standardQueue({ oracle: { counts: [{ components: 4, wires: 2 }], nets: ['SIG', 'A[1:2]', 'GND'], drc: [] } }))
+    const { bridge } = scriptedBridge(standardQueue({ oracle: { counts: [{ components: 4, wires: 3 }], nets: ['SIG', 'A[1:2]', 'GND'], drc: [] } }))
     const report = await buildIntoEasyEda(ir, { bridge })
     const finding = report.findings.find(f => f.code === 'SCHEMATIC_EDA_COUNT_MISMATCH')
     expect(finding?.severity).toBe('error')
@@ -830,7 +898,7 @@ describe('buildIntoEasyEda client oracle', () => {
   })
 
   it('errors on missing client nets', async () => {
-    const { bridge } = scriptedBridge(standardQueue({ oracle: { counts: [{ components: 5, wires: 2 }], nets: ['SIG'], drc: [] } }))
+    const { bridge } = scriptedBridge(standardQueue({ oracle: { counts: [{ components: 5, wires: 3 }], nets: ['SIG'], drc: [] } }))
     const report = await buildIntoEasyEda(ir, { bridge })
     const finding = report.findings.find(f => f.code === 'SCHEMATIC_EDA_NET_MISMATCH')
     expect(finding?.severity).toBe('error')
@@ -838,7 +906,7 @@ describe('buildIntoEasyEda client oracle', () => {
   })
 
   it('warns when the client netlist cannot be read', async () => {
-    const { bridge } = scriptedBridge(standardQueue({ oracle: { counts: [{ components: 5, wires: 2 }], netsError: 'nope', drc: [] } }))
+    const { bridge } = scriptedBridge(standardQueue({ oracle: { counts: [{ components: 5, wires: 3 }], netsError: 'nope', drc: [] } }))
     const report = await buildIntoEasyEda(ir, { bridge })
     const finding = report.findings.find(f => f.code === 'SCHEMATIC_EDA_NETLIST_UNAVAILABLE')
     expect(finding?.severity).toBe('warning')
@@ -897,6 +965,39 @@ describe('buildIntoEasyEda client oracle', () => {
     const { bridge } = scriptedBridge([
       prepareOk, chunkOk(1), chunkOk(1), [null],
       { counts: [{ components: 1, wires: 1 }], nets: ['RAIL'], netPads: { RAIL: ['U1-4', 'R7-1'] }, drc: [] },
+    ])
+    const report = await buildIntoEasyEda(mapped, { bridge })
+    expect(report.findings.filter(f => f.code === 'SCHEMATIC_EDA_NET_PAD_MISMATCH')).toHaveLength(0)
+  })
+
+  it('scopes pad ownership to the page when sibling pages use other designators', async () => {
+    const mapped: SchematicIr = {
+      sheets: [
+        {
+          components: [{
+            id: 'c1', kind: 'part', designator: 'U1', position: { x: 100, y: 200 },
+            pins: [{ id: 'p1', name: 'D', number: '4', electric: 'BI', net: 'RAIL', endpoint: { x: 110, y: 200 } }],
+          }],
+          wires: [{ id: 'w1', kind: 'wire', dots: [[0, 0, 100, 0]], net: 'RAIL' }],
+          busEntries: [], junctions: [], attrs: [],
+        },
+        {
+          components: [{
+            id: 'c2', kind: 'part', designator: 'U2', position: { x: 100, y: 200 },
+            pins: [{ id: 'p2', name: 'D', number: '4', electric: 'BI', net: 'RAIL', endpoint: { x: 110, y: 200 } }],
+          }],
+          wires: [{ id: 'w2', kind: 'wire', dots: [[0, 0, 100, 0]], net: 'RAIL' }],
+          busEntries: [], junctions: [], attrs: [],
+        },
+      ],
+    }
+    // The project netlist merges RAIL across both pages; U2-4 belongs to page 2
+    // and must not be treated as an extra pad on page 1.
+    const { bridge } = scriptedBridge([
+      { status: 'OK', failures: [], pageUuids: ['page-1', 'page-2'] },
+      chunkOk(1), chunkOk(1), chunkOk(1), chunkOk(1),
+      [null, null],
+      { counts: [{ components: 1, wires: 1 }, { components: 1, wires: 1 }], nets: ['RAIL'], netPads: { RAIL: ['U1-4', 'U2-4'] }, drc: [] },
     ])
     const report = await buildIntoEasyEda(mapped, { bridge })
     expect(report.findings.filter(f => f.code === 'SCHEMATIC_EDA_NET_PAD_MISMATCH')).toHaveLength(0)
@@ -1009,7 +1110,7 @@ describe('buildIntoEasyEda client oracle', () => {
   })
 
   it('degrades a thrown DRC call to SCHEMATIC_EDA_DRC_UNAVAILABLE', async () => {
-    const { bridge } = scriptedBridge(standardQueue({ oracle: { counts: [{ components: 5, wires: 2 }], nets: ['SIG', 'A[1:2]', 'GND'], drcError: 'beta moved' } }))
+    const { bridge } = scriptedBridge(standardQueue({ oracle: { counts: [{ components: 5, wires: 3 }], nets: ['SIG', 'A[1:2]', 'GND'], drcError: 'beta moved' } }))
     const report = await buildIntoEasyEda(ir, { bridge, advisoryDrc: true })
     const finding = report.findings.find(f => f.code === 'SCHEMATIC_EDA_DRC_UNAVAILABLE')
     expect(finding?.severity).toBe('warning')
@@ -1115,7 +1216,7 @@ describe('EasyEdaSchematicEngine.build', () => {
   it('builds through an injected bridge and returns the report', async () => {
     const { bridge } = scriptedBridge(standardQueue())
     const report = await engine.build(ir, { bridge })
-    expect(report.created).toBe(7)
+    expect(report.created).toBe(8)
     expect(report.pageUuids).toEqual(['page-1'])
   })
 
@@ -1136,6 +1237,28 @@ describe('EasyEdaSchematicEngine.build', () => {
     await engine.build(ir, { bridge, advisoryDrc: false })
     expect(calls).toHaveLength(7)
     expect(calls[6]).toContain('if (false)')
+  })
+})
+
+describe('EasyEdaSchematicEngine.serialize', () => {
+  const engine = new EasyEdaSchematicEngine({
+    clientId: 't', bridgeHost: '127.0.0.1', bridgeTimeoutMs: 100,
+    bridgeQueryTimeoutMs: 100, bridgeTimeoutStreakLimit: 3, bridgeCircuitCooldownMs: 100,
+    advisoryDrc: true, libraryUuid: 'lib-1',
+  })
+  const seamIr: SchematicIr = {
+    sheets: [{
+      components: [{ id: 'u', kind: 'part', position: { x: 0, y: 0 }, pins: [] }],
+      wires: [], busEntries: [], junctions: [], attrs: [],
+    }],
+  }
+
+  it('defaults to the A4 page height the layout stage defaults to', () => {
+    expect(engine.serialize(seamIr)).toContain('"y":-825')
+  })
+
+  it('maps persisted Y through the caller-supplied page size', () => {
+    expect(engine.serialize(seamIr, { pageSize: SCHEMATIC_PAGE_A3 })).toContain('"y":-1170')
   })
 })
 
@@ -1165,6 +1288,21 @@ describe('renderImportScript', () => {
     // confirmation and page read-back run in the separate request.
     expect(code).not.toContain('openProject')
     expect(code).not.toContain('getAllSchematicPagesInfo')
+  })
+
+  it('guards a null team entry before reading its uuid', () => {
+    const pkg = serializeEasyEdaProject(ir, { title: 'T' })
+    const code = renderImportScript(pkg, 'T')
+    // A logged-out client can return [null] or a proxy whose uuid getter
+    // throws; either must surface as NO_TEAM, not an opaque TypeError.
+    expect(code).toContain('let team;')
+    expect(code).toContain('catch (e) { team = undefined }')
+    // The active-team probe is bounded and rejects a null/malformed answer,
+    // not just a throw (a hung or logged-out client must not stall the import).
+    expect(code).toContain('raced(eda.dmt_Team.getCurrentTeamInfo(), 3000)')
+    expect(code).toContain('if (!active || typeof active.uuid')
+    expect(code).toContain("status: 'NO_TEAM'")
+    expect(code).not.toContain('teams[0].uuid')
   })
 
   it('scopes the read-back stage to the archive page uuids', () => {
@@ -1517,10 +1655,28 @@ describe('importIntoEasyEda', () => {
   it('maps NO_TEAM and import rejection to typed errors', async () => {
     const { bridge: noTeam } = scriptedBridge([emptyLibrary, { status: 'NO_TEAM' }])
     await expect(importIntoEasyEda(ir, { bridge: noTeam }))
-      .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_IMPORT_NO_TEAM' }))
+      .rejects.toThrow(expect.objectContaining({
+        code: 'SCHEMATIC_IMPORT_NO_TEAM',
+        message: expect.stringContaining('sign in, select a team'),
+      }))
     const { bridge: rejected } = scriptedBridge([emptyLibrary, { status: 'IMPORT_REJECTED' }])
     await expect(importIntoEasyEda(ir, { bridge: rejected }))
       .rejects.toThrow(expect.objectContaining({ code: 'SCHEMATIC_IMPORT_REJECTED' }))
+  })
+
+  it('turns a client-side import throw into an actionable login/team error', async () => {
+    const { bridge } = scriptedBridge([emptyLibrary,
+      { status: 'IMPORT_THROWN', detail: "TypeError: Cannot read properties of null (reading 'uuid')" },
+    ])
+    await expect(importIntoEasyEda(ir, { bridge })).rejects.toThrow(expect.objectContaining({
+      code: 'SCHEMATIC_IMPORT_FAILED',
+      message: expect.stringContaining('sign in, select a team'),
+    }))
+    const { bridge: noDetail } = scriptedBridge([emptyLibrary, { status: 'IMPORT_THROWN' }])
+    await expect(importIntoEasyEda(ir, { bridge: noDetail })).rejects.toThrow(expect.objectContaining({
+      code: 'SCHEMATIC_IMPORT_FAILED',
+      message: expect.stringContaining('client error'),
+    }))
   })
 
   it('fails the report explicitly when the client refuses to open the imported project', async () => {
@@ -1699,5 +1855,59 @@ describe('EasyEdaSchematicEngine.verify', () => {
     const { bridge: manual, calls: manualCalls } = scriptedBridge(standardQueue())
     await engine.verify(ir, { bridge: manual, createDocument: false })
     expect(manualCalls[0]).toContain('"createDocument":false')
+  })
+})
+
+describe('page chrome failure handling', () => {
+  it('degrades a chrome chunk rejection to a FRAME_FAILED warning', async () => {
+    const queue: unknown[] = [prepareOk, chunkOk(1), chunkOk(4), chunkOk(3), [null], oracleOk]
+    const bridge: EasyEdaBridge = {
+      async execute(code: string) {
+        if (code === 'return true') return true
+        // The chrome chunk is the only script carrying the chrome payload;
+        // fail it so the border/title-block catch path runs.
+        if (code.includes('doc.chrome.rects')) throw new Error('chrome wedged')
+        return queue.shift()
+      },
+    }
+    const report = await buildIntoEasyEda(ir, { bridge, frame: { projectTitle: 'Board' }, retries: 0 })
+    const finding = report.findings.find(candidate => candidate.code === 'SCHEMATIC_BUILD_FRAME_FAILED')
+    expect(finding?.severity).toBe('warning')
+    expect(finding?.message).toContain('chrome wedged')
+  })
+
+  it('defaults the title block and renders a non-Error rejection verbatim', async () => {
+    const queue: unknown[] = [prepareOk, chunkOk(1), chunkOk(4), chunkOk(3), [null], oracleOk]
+    const bridge: EasyEdaBridge = {
+      async execute(code: string) {
+        if (code === 'return true') return true
+        if (code.includes('doc.chrome.rects')) throw 'chrome wedged'
+        return queue.shift()
+      },
+    }
+    // An empty frame still draws chrome (default title), and a non-Error
+    // rejection must still reach the finding text.
+    const report = await buildIntoEasyEda(ir, { bridge, frame: {}, retries: 0 })
+    const finding = report.findings.find(candidate => candidate.code === 'SCHEMATIC_BUILD_FRAME_FAILED')
+    expect(finding?.message).toContain('chrome wedged')
+  })
+})
+
+describe('seam titleBlock alias', () => {
+  it('maps the seam titleBlock alias onto the frame for serialize and the live path', async () => {
+    const engine = new EasyEdaSchematicEngine({ clientId: 'dsh' } as never)
+    const source = engine.serialize(ir, { pageSize: SCHEMATIC_PAGE_A3, titleBlock: { projectTitle: 'Alias Board' } })
+    expect(source).toContain('Alias Board')
+    const { bridge, calls } = scriptedBridge([
+      prepareOk,
+      chunkOk(1),
+      chunkOk(4),
+      chunkOk(3),
+      { status: 'OK', failures: [], created: 0 },
+      [null],
+      oracleOk,
+    ])
+    await engine.verify(ir, { bridge, titleBlock: { projectTitle: 'Alias Board' } })
+    expect(calls.some(c => c.includes('Alias Board'))).toBe(true)
   })
 })

@@ -25,7 +25,7 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-plugin-eda-bundle
 dsh --profile <name>
 ```
 
-Live delivery additionally needs the EasyEDA client running the run-api-gateway extension plus `dsh-eda-bridge` (the bin shipped inside `@deepseek-ai/dsh-plugin-eda-core`). A first live call auto-spawns the relay when nothing answers on localhost — `dsh-eda-bridge --check` reports the connection state and the next action without serving.
+Live delivery additionally needs a running EasyEDA client and `dsh-eda-bridge` (the bin shipped inside `@deepseek-ai/dsh-plugin-eda-core`). A first live call auto-spawns the relay when nothing answers on localhost. The client side registers either through the community `run-api-gateway` extension or, with no extension installed, through EasyEDA's built-in gateway: open `https://pro.lceda.cn/api/landing?port=49620` (or the bridge's `http://127.0.0.1:49620/landing` helper) in the logged-in editor. `dsh-eda-bridge --check` reports the connection state and the next action without serving.
 
 ## Commands
 

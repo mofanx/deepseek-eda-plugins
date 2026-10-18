@@ -56,15 +56,19 @@ const PAGE_EDGE_FRAMED = 150
 /** Edge allowance for flat sheets: pin stub plus generated flag stub. */
 const PAGE_EDGE_FLAT = 80
 /**
- * Spacing compression ladder applied to module gap / column pitch / row gap
- * when the module grid overflows the page; each level retries the single-page
- * pack before layout falls back to pagination.
+ * Spacing compression ladder applied to column pitch and row gap when the
+ * module grid overflows the page; each level retries the single-page pack
+ * before layout falls back to pagination. The module gap is not part of the
+ * ladder: the serializer pads each module frame by 80 units horizontally and
+ * by 80 + 60 units vertically (body/stub + title headroom), so a gap below
+ * 200 would make neighbouring dashed frames overlap — exactly the unreadable
+ * result pagination exists to avoid. Overflow that would have needed a
+ * tighter gap paginates instead.
  */
 const SPACING_SCALES = [1, 0.6, 0.3]
 /** Compression floors: below these, bodies/pin stubs would overlap. */
 const MIN_COLUMN_PITCH = 160
 const MIN_ROW_GAP = 30
-const MIN_MODULE_GAP = 60
 const MIN_PIN_PITCH = 10
 
 const GROUND_NET_RE = /^(GND|AGND|DGND|PGND|GNDA|VSS|GROUND)/i
@@ -83,7 +87,7 @@ interface ResolvedLayoutOptions {
   moduleColumns: number | undefined
   symbolPins: ReadonlyMap<string, readonly SchematicSymbolPin[]>
   pageSize: SchematicPageSize
-  /** Effective module gap after spacing compression. */
+  /** Frame-safe gap between module cells (never compressed). */
   moduleGap: number
 }
 
@@ -104,9 +108,11 @@ function resolveOptions(options: SchematicLayoutOptions): ResolvedLayoutOptions 
 }
 
 /**
- * Apply one rung of the spacing-compression ladder: module gap, column pitch,
- * and row gap shrink toward their floors so a slightly oversized module grid
- * still fits the page without splitting sheets.
+ * Apply one rung of the spacing-compression ladder: column pitch and row gap
+ * shrink toward their floors so a slightly oversized module grid still fits
+ * the page without splitting sheets. The module gap stays fixed so the drawn
+ * module frames never overlap; a grid that only fits by shrinking that gap is
+ * paginated instead.
  */
 function compressSpacing(o: ResolvedLayoutOptions, scale: number): ResolvedLayoutOptions {
   if (scale === 1) return o
@@ -114,7 +120,6 @@ function compressSpacing(o: ResolvedLayoutOptions, scale: number): ResolvedLayou
     ...o,
     columnPitch: Math.max(MIN_COLUMN_PITCH, o.columnPitch * scale),
     rowGap: Math.max(MIN_ROW_GAP, o.rowGap * scale),
-    moduleGap: Math.max(MIN_MODULE_GAP, o.moduleGap * scale),
     pinPitch: Math.max(MIN_PIN_PITCH, o.pinPitch * scale),
   }
 }
@@ -158,6 +163,21 @@ interface LaidComponent {
   readonly position: SchematicPoint
   readonly pins: readonly PlacedPin[]
   readonly sides: readonly PinSide[]
+}
+
+/** One net member: a placed pin plus the side it was assigned for routing. */
+interface NetMember {
+  readonly component: LaidComponent
+  readonly pin: PlacedPin
+  readonly side: PinSide
+}
+
+/** Approximate symbol outline used to keep wires and flags off component bodies. */
+interface BodyRect {
+  readonly left: number
+  readonly right: number
+  readonly top: number
+  readonly bottom: number
 }
 
 /**
@@ -236,6 +256,49 @@ function onWire(p: SchematicPoint, wire: SchematicIrWire): boolean {
     }
   }
   return false
+}
+
+/** Twice the signed area of triangle (a, b, c); zero means collinear. */
+const crossOf = (a: SchematicPoint, b: SchematicPoint, c: SchematicPoint): number =>
+  (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+
+/**
+ * Whether two segments touch or cross. A shared endpoint, a T-tap, and a
+ * four-way crossing all count: a routed wire that ends on another net's wire
+ * merges the nets in EasyEDA, and a crossing is visually ambiguous even when
+ * the client does not join it.
+ */
+export function segmentsTouch(a: SchematicPoint, b: SchematicPoint, c: SchematicPoint, d: SchematicPoint): boolean {
+  const d1 = crossOf(c, d, a)
+  const d2 = crossOf(c, d, b)
+  const d3 = crossOf(a, b, c)
+  const d4 = crossOf(a, b, d)
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true
+  if (d1 === 0 && onSegment(a, c.x, c.y, d.x, d.y)) return true
+  if (d2 === 0 && onSegment(b, c.x, c.y, d.x, d.y)) return true
+  if (d3 === 0 && onSegment(c, a.x, a.y, b.x, b.y)) return true
+  if (d4 === 0 && onSegment(d, a.x, a.y, b.x, b.y)) return true
+  return false
+}
+
+/**
+ * Whether segment `a`–`b` crosses through `rect` shrunk by `pad`. A segment
+ * with an endpoint inside the rect is not a crossing: symbol pin geometry may
+ * sit inside the estimated outline, and a stub that starts at a pin must stay
+ * legal. Only a wire that passes clean through the body counts.
+ */
+export function segmentCrossesRect(a: SchematicPoint, b: SchematicPoint, rect: BodyRect, pad: number): boolean {
+  const left = rect.left + pad
+  const right = rect.right - pad
+  const top = rect.top + pad
+  const bottom = rect.bottom - pad
+  if (right <= left || bottom <= top) return false
+  const inside = (p: SchematicPoint): boolean => p.x > left && p.x < right && p.y > top && p.y < bottom
+  if (inside(a) || inside(b)) return false
+  return segmentsTouch(a, b, { x: left, y: top }, { x: right, y: top })
+    || segmentsTouch(a, b, { x: right, y: top }, { x: right, y: bottom })
+    || segmentsTouch(a, b, { x: right, y: bottom }, { x: left, y: bottom })
+    || segmentsTouch(a, b, { x: left, y: bottom }, { x: left, y: top })
 }
 
 const isGroundNet = (net: string): boolean => GROUND_NET_RE.test(net)
@@ -461,53 +524,407 @@ function packPages(
 }
 
 
-/** Derived sheet for one pagination page: members of its groups plus (on the
+/** Derived sheet for one pagination page: members of its cells plus (on the
  * first page only) the source sheet's authored wires and annotations. */
-function splitSheet(sheet: SchematicIrSheet, rows: readonly PackedRow[], index: number): SchematicIrSheet {
-  const memberIds = new Set(rows.flatMap(row => row.groups.flatMap(([, members]) => members.map(component => component.id))))
-  const groupNames = new Set(rows.flatMap(row => row.groups.map(([key]) => key)).filter(key => key !== ''))
-  const blocks = sheet.blocks?.filter(block => groupNames.has(block.name))
+function splitSheet(
+  sheet: SchematicIrSheet,
+  cells: readonly PlannedCell[],
+  index: number,
+  blockTitles: ReadonlyMap<string, string>,
+  allOwners: ReadonlySet<string>,
+): SchematicIrSheet {
+  const memberIds = new Set(cells.flatMap(cell => cell.members.map(component => component.id)))
+  const groupNames = new Set(cells.map(cell => cell.key).filter(key => key !== ''))
+  const blocks = sheet.blocks
+    ?.filter(block => groupNames.has(block.name))
+    .map(block => blockTitles.has(block.name) ? { ...block, title: blockTitles.get(block.name) as string } : block)
+  const components = index === 0
+    ? sheet.components.filter(component => memberIds.has(component.id) || ANNOTATION_KINDS.has(component.kind))
+    : sheet.components.filter(component => memberIds.has(component.id))
+  // Attributes are sheet-scoped rows in the serializer; an ATTR left on page 1
+  // while its parent moved to page 3 becomes ORPHAN_ATTR and blocks delivery.
+  // Keep each ATTR on the page that owns its component, pin-composite parent,
+  // wire, or bus entry. An ATTR whose parent is nowhere stays on page 1 so the
+  // validator still reports it instead of silently dropping the declaration.
+  const owners = new Set<string>()
+  for (const component of components) {
+    owners.add(component.id)
+    for (const pin of component.pins) owners.add(`${component.id}${pin.id}`)
+  }
+  // A paginated source sheet has no authored component positions (any authored
+  // position keeps the sheet whole), so authored wire geometry and junctions
+  // are unanchored: the members were re-placed elsewhere. Drop the geometry but
+  // keep the wire rows: their ATTRs stay attached, the declared net keeps its
+  // name, and the router emits fresh layout wires for the same net.
+  const wires = index === 0
+    ? sheet.wires.map(wire => wire.dots === undefined ? wire : { ...wire, dots: undefined })
+    : []
+  for (const wire of wires) owners.add(wire.id)
+  // Bus entries reference a coordinate and a bus name, not a wire id, and carry
+  // no net of their own. They stay on page 1 with their ATTRs (dropping them
+  // would silently delete author data); a leaked entry can only show up as a
+  // NET_NAME_CONFLICT error, which blocks delivery instead of shipping wrong.
+  const busEntries = index === 0 ? sheet.busEntries : []
+  for (const entry of busEntries) owners.add(entry.id)
+  const attrs = sheet.attrs.filter(attr =>
+    owners.has(attr.parentId) || (index === 0 && !allOwners.has(attr.parentId)))
   if (index === 0) {
-    return {
-      ...sheet,
-      blocks,
-      components: sheet.components.filter(component => memberIds.has(component.id) || ANNOTATION_KINDS.has(component.kind)),
-    }
+    return { ...sheet, blocks, components, wires, busEntries, junctions: [], attrs }
   }
   return {
     name: sheet.name === undefined ? undefined : `${sheet.name} ${index + 1}`,
     blocks,
-    components: sheet.components.filter(component => memberIds.has(component.id)),
+    components,
     wires: [],
     busEntries: [],
     junctions: [],
-    attrs: [],
+    attrs,
   }
 }
 
+/** One placed unit of a page plan: a module (or a page-sized shard of one)
+ * together with the exact positions every member was planned at. */
+interface PlannedCell {
+  /** Module key (`component.block`), or `''` for the ungrouped remainder. */
+  readonly key: string
+  readonly members: readonly SchematicIrComponent[]
+  readonly positions: ReadonlyMap<string, SchematicPoint>
+  readonly width: number
+  readonly height: number
+}
+
 /** Per-source-sheet placement decision: the (possibly split) sheets plus the
- * spacing rung and row packing each produced sheet was planned with. */
+ * exact cell placement each produced sheet was planned with. Carrying the
+ * planned positions (instead of re-running placement at delivery time) keeps
+ * planning and delivery identical. */
 interface SheetPlan {
   readonly sheet: SchematicIrSheet
   readonly options: ResolvedLayoutOptions
-  readonly rows?: readonly PackedRow[]
+  readonly cells: readonly PlannedCell[]
+}
+
+/** Snapshot one cell's member positions out of the shared placement map. */
+function cellPositions(
+  members: readonly SchematicIrComponent[],
+  positions: ReadonlyMap<string, SchematicPoint>,
+): ReadonlyMap<string, SchematicPoint> {
+  const own = new Map<string, SchematicPoint>()
+  for (const member of members) {
+    const point = positions.get(member.id)
+    if (point !== undefined) own.set(member.id, point)
+  }
+  return own
+}
+
+/** Whether every planned cell stays inside the usable page rect. */
+function cellsFit(cells: readonly PlannedCell[], usable: PageRect): boolean {
+  for (const cell of cells) {
+    for (const point of cell.positions.values()) {
+      /* v8 ignore start -- defensive: rows are measured against this same rect, so a planned cell only overflows through a planner bug */
+      if (point.x < 0 || point.y < 0 || point.x > usable.right || point.y > usable.bottom) return false
+      /* v8 ignore stop */
+    }
+  }
+  return true
+}
+
+/** Chunk module groups into rows of at most `columns` groups each. */
+function chunkGroups(groups: readonly ModuleGroup[], columns: number): PackedRow[] {
+  const rows: PackedRow[] = []
+  for (let index = 0; index < groups.length; index += columns) {
+    rows.push({ groups: groups.slice(index, index + columns), height: 0 })
+  }
+  return rows
+}
+
+/**
+ * Place the rows of a one-page plan and return their cells. Placement is the
+ * same routine the delivery pass uses, so the planned coordinates are final.
+ * Components carrying authored positions keep them.
+ */
+function planCells(
+  sheet: SchematicIrSheet,
+  zone: SheetZone,
+  options: ResolvedLayoutOptions,
+  usable: PageRect,
+  rows: readonly PackedRow[],
+): PlannedCell[] {
+  const halfHeightOf = halfHeightsOf(sheet.components, zone.sidesOf, options.pinPitch, options.grid)
+  const positions = new Map<string, SchematicPoint>()
+  for (const component of sheet.components) {
+    if (component.position !== undefined) positions.set(component.id, component.position)
+  }
+  const cells: PlannedCell[] = []
+  let rowY = usable.top
+  for (const row of rows) {
+    let cellX = usable.left
+    let rowHeight = 0
+    for (const [key, members] of row.groups) {
+      const box = placeGroup(members, { x: cellX, y: rowY }, positions, halfHeightOf, options, usable.bottom - rowY)
+      cells.push({ key, members, positions: cellPositions(members, positions), width: box.width, height: box.height })
+      cellX += box.width + options.moduleGap
+      rowHeight = Math.max(rowHeight, box.height)
+    }
+    rowY += rowHeight + options.moduleGap
+  }
+  return cells
+}
+
+/** One page-sized shard of a module group: the members and their positions
+ * relative to the shard origin (the shard is offset when packed onto a page). */
+interface Shard {
+  readonly key: string
+  readonly members: readonly SchematicIrComponent[]
+  readonly positions: ReadonlyMap<string, SchematicPoint>
+  readonly width: number
+  readonly height: number
+}
+
+/**
+ * Split one module group into page-sized shards. The group's signal-flow
+ * columns are laid out left to right, wrapped into a new band when the usable
+ * width is reached, and cut into a new shard when the usable height is
+ * reached. A single column taller than a page is cut into consecutive member
+ * chunks first, so a wide or tall module paginates instead of running off the
+ * frame. A component larger than the page remains its own oversize shard —
+ * the validator owns that irreducible case.
+ */
+function shardGroup(
+  key: string,
+  members: readonly SchematicIrComponent[],
+  o: ResolvedLayoutOptions,
+  halfHeightOf: ReadonlyMap<string, number>,
+  usableWidth: number,
+  usableHeight: number,
+): Shard[] {
+  const layers = layerOf([...members])
+  const columns = new Map<number, SchematicIrComponent[]>()
+  for (const component of members) {
+    const layer = layers.get(component.id) as number
+    const column = columns.get(layer) ?? []
+    column.push(component)
+    columns.set(layer, column)
+  }
+  for (const column of columns.values()) column.sort((a, b) => componentKey(a).localeCompare(componentKey(b)))
+
+  // Cut columns into chunks that each fit one page height. A column whose
+  // members fit stays a single chunk.
+  const chunks: SchematicIrComponent[][] = []
+  for (const layer of [...columns.keys()].sort((a, b) => a - b)) {
+    const column = columns.get(layer) as SchematicIrComponent[]
+    let chunk: SchematicIrComponent[] = []
+    let chunkHeight = 0
+    for (const component of column) {
+      const memberHeight = 2 * (halfHeightOf.get(component.id) as number)
+      if (chunk.length > 0 && chunkHeight + memberHeight > usableHeight) {
+        chunks.push(chunk)
+        chunk = []
+        chunkHeight = 0
+      }
+      chunk.push(component)
+      chunkHeight += memberHeight + o.rowGap
+    }
+    if (chunk.length > 0) chunks.push(chunk)
+  }
+
+  const shards: Shard[] = []
+  let placed: SchematicIrComponent[] = []
+  let positions = new Map<string, SchematicPoint>()
+  let width = 0
+  let height = 0
+  const flush = (): void => {
+    /* v8 ignore next -- groups are never empty, so a shard always has members */
+    if (placed.length === 0) return
+    shards.push({ key, members: placed, positions, width, height })
+    placed = []
+    positions = new Map()
+    width = 0
+    height = 0
+  }
+  const columnWidth = 2 * BODY_HALF_WIDTH
+  let x = 0
+  let y = 0
+  let bandHeight = 0
+  for (const chunk of chunks) {
+    const columnHeight = chunk.reduce((sum, component) =>
+      sum + 2 * (halfHeightOf.get(component.id) as number) + o.rowGap, 0) - o.rowGap
+    if (x > 0 && x + columnWidth > usableWidth) {
+      x = 0
+      y += bandHeight + o.rowGap * 2
+      bandHeight = 0
+    }
+    if (placed.length > 0 && y + columnHeight > usableHeight) {
+      flush()
+      x = 0
+      y = 0
+      bandHeight = 0
+    }
+    let cursor = y
+    for (const component of chunk) {
+      const half = halfHeightOf.get(component.id) as number
+      positions.set(component.id, { x: snap(x + BODY_HALF_WIDTH, o.grid), y: snap(cursor + half, o.grid) })
+      placed.push(component)
+      cursor += 2 * half + o.rowGap
+    }
+    width = Math.max(width, x + columnWidth)
+    height = Math.max(height, y + columnHeight)
+    bandHeight = Math.max(bandHeight, columnHeight)
+    x += o.columnPitch
+  }
+  flush()
+  return shards
+}
+
+/**
+ * Paginate a sheet that no spacing rung can fit on one page. Groups are laid
+ * out at default (readable) spacing and split into page-sized shards; shards
+ * then shelf-pack onto pages, so a single oversized module, a flat sheet, or a
+ * module grid all paginate instead of overflowing the frame. Continuation
+ * pages of a split module carry an `(n/m)` title suffix so the repeated frame
+ * is unambiguous.
+ */
+/**
+ * Title of the single module a paginated page carries, or `undefined` when the
+ * page mixes modules (or holds only ungrouped members). The reference project
+ * names its pages after the module they carry (`CORE`, `POWER`, `DEVICE`), so a
+ * single-module page becomes the page name; a mixed page keeps the sheet name.
+ */
+function pageModuleTitle(sheet: SchematicIrSheet, cells: readonly PlannedCell[]): string | undefined {
+  let key: string | undefined
+  for (const cell of cells) {
+    if (cell.key === '') continue
+    if (key === undefined) key = cell.key
+    else if (key !== cell.key) return undefined
+  }
+  if (key === undefined) return undefined
+  return sheet.blocks?.find(block => block.name === key)?.title ?? key
+}
+
+function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayoutOptions, usable: PageRect): SheetPlan[] {
+  // Pagination may use a tighter column pitch than the one-page ladder: pages
+  // exist to be readable, and 300 units still leaves 180 between symbol
+  // bodies. Pin pitch is deliberately untouched so symbols keep their size.
+  const pag: ResolvedLayoutOptions = {
+    ...o,
+    columnPitch: Math.max(MIN_COLUMN_PITCH, snap(o.columnPitch * 0.75, o.grid)),
+  }
+  const halfHeightOf = halfHeightsOf(sheet.components, zone.sidesOf, pag.pinPitch, pag.grid)
+  const usableWidth = usable.right - usable.left
+  const usableHeight = usable.bottom - usable.top
+  const shards: Shard[] = []
+  for (const [key, members] of zone.orderedGroups) {
+    shards.push(...shardGroup(key, members, pag, halfHeightOf, usableWidth, usableHeight))
+  }
+
+  const pages: PlannedCell[][] = []
+  let cells: PlannedCell[] = []
+  let x = usable.left
+  let y = usable.top
+  let bandHeight = 0
+  let inBand = 0
+  for (const shard of shards) {
+    const wrapsBand = x > usable.left && (x + shard.width > usable.right
+      || (o.moduleColumns !== undefined && inBand >= o.moduleColumns))
+    if (wrapsBand) {
+      x = usable.left
+      y += bandHeight + o.moduleGap
+      bandHeight = 0
+      inBand = 0
+    }
+    if (cells.length > 0 && y + shard.height > usable.bottom) {
+      pages.push(cells)
+      cells = []
+      x = usable.left
+      y = usable.top
+      bandHeight = 0
+      inBand = 0
+    }
+    const placed = new Map<string, SchematicPoint>()
+    for (const [id, point] of shard.positions) placed.set(id, { x: snap(point.x + x, o.grid), y: snap(point.y + y, o.grid) })
+    cells.push({ key: shard.key, members: shard.members, positions: placed, width: shard.width, height: shard.height })
+    x += shard.width + o.moduleGap
+    bandHeight = Math.max(bandHeight, shard.height)
+    inBand += 1
+  }
+  pages.push(cells)
+
+  // Centre each page's content inside the usable rect. A page that carries a
+  // single module on a wide A3 sheet otherwise hugs the top-left corner, while
+  // the reference project keeps its modules near the page centre. Only planned
+  // cell positions move: routing, module frames, and pin endpoints are derived
+  // from them afterwards, so the whole page shifts together.
+  for (const [index, pageCells] of pages.entries()) {
+    let minX = Number.POSITIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+    for (const cell of pageCells) {
+      for (const point of cell.positions.values()) {
+        minX = Math.min(minX, point.x)
+        maxX = Math.max(maxX, point.x)
+        minY = Math.min(minY, point.y)
+        maxY = Math.max(maxY, point.y)
+      }
+    }
+    const dx = snap((usable.left + usable.right - minX - maxX) / 2, o.grid)
+    const dy = snap((usable.top + usable.bottom - minY - maxY) / 2, o.grid)
+    pages[index] = pageCells.map(cell => ({
+      ...cell,
+      positions: new Map([...cell.positions].map(([id, point]) => [id, { x: point.x + dx, y: point.y + dy }])),
+    }))
+  }
+
+  // Count the pages each module appears on so a split frame is numbered.
+  const pageCount = new Map<string, number>()
+  for (const pageCells of pages) {
+    for (const key of new Set(pageCells.map(cell => cell.key))) {
+      if (key !== '') pageCount.set(key, (pageCount.get(key) ?? 0) + 1)
+    }
+  }
+  const allOwners = new Set<string>()
+  for (const pageCells of pages) {
+    for (const cell of pageCells) {
+      for (const member of cell.members) {
+        allOwners.add(member.id)
+        for (const pin of member.pins) allOwners.add(`${member.id}${pin.id}`)
+      }
+    }
+  }
+  const seen = new Map<string, number>()
+  return pages.map((pageCells, index) => {
+    const titles = new Map<string, string>()
+    for (const key of new Set(pageCells.map(cell => cell.key))) {
+      if (key === '') continue
+      const total = pageCount.get(key) as number
+      if (total <= 1) continue
+      const ordinal = (seen.get(key) ?? 0) + 1
+      seen.set(key, ordinal)
+      const base = sheet.blocks?.find(block => block.name === key)?.title ?? key
+      titles.set(key, `${base} (${ordinal}/${total})`)
+    }
+    const single = pages.length === 1
+    return {
+      sheet: single ? sheet : splitSheet(sheet, pageCells, index, titles, allOwners),
+      options: o,
+      cells: pageCells,
+    }
+  })
 }
 
 /**
  * Plan one source sheet against the page frame: measure every module group's
  * span, then walk the degradation ladder — compress module/column spacing
- * until the grid fits one page; if it still overflows, paginate the groups
- * onto additional sheets at default spacing. Sheets carrying authored
- * geometry (explicit positions) or hierarchy primitives (block/sheet
- * components) keep their geometry and rely on `OBJECT_OUT_OF_SHEET` instead.
+ * until the grid fits one page; if it still overflows, paginate at default
+ * spacing. Pagination shards each module into page-sized pieces, so a flat
+ * sheet or a single oversized module no longer runs off the frame. Sheets
+ * carrying authored geometry (explicit positions) or hierarchy primitives
+ * (block/sheet components) keep their geometry and rely on
+ * `OBJECT_OUT_OF_SHEET` instead.
  */
 function planSheet(sheet: SchematicIrSheet, o: ResolvedLayoutOptions): SheetPlan[] {
   const authored = sheet.components.some(component =>
     component.position !== undefined || component.kind === 'block' || component.kind === 'sheet')
-  if (authored) return [{ sheet, options: o }]
-
   const zone = zoneSheet(sheet)
-  if (zone.orderedGroups.length === 0) return [{ sheet, options: o }]
   const framed = (sheet.blocks?.length ?? 0) > 0 || sheet.components.some(component => component.block !== undefined)
   const edgePad = framed ? PAGE_EDGE_FRAMED : PAGE_EDGE_FLAT
   const usable: PageRect = {
@@ -516,7 +933,19 @@ function planSheet(sheet: SchematicIrSheet, o: ResolvedLayoutOptions): SheetPlan
     right: o.pageSize.width - edgePad,
     bottom: o.pageSize.height - edgePad,
   }
-  const columns = o.moduleColumns ?? Math.ceil(Math.sqrt(zone.orderedGroups.length))
+  const columns = o.moduleColumns ?? Math.max(1, Math.ceil(Math.sqrt(Math.max(zone.orderedGroups.length, 1))))
+
+  if (authored) {
+    // Authored geometry is the caller's intent: keep the sheet together and
+    // only fill the members that arrived without a position.
+    return [{
+      sheet,
+      options: o,
+      cells: planCells(sheet, zone, o, usable, chunkGroups(zone.orderedGroups, columns)),
+    }]
+  }
+  if (zone.orderedGroups.length === 0) return [{ sheet, options: o, cells: [] }]
+
   const usableHeight = usable.bottom - usable.top
   const measure = (options: ResolvedLayoutOptions): { pages: PackedRow[][]; fits: boolean } => {
     const halfHeightOf = halfHeightsOf(sheet.components, zone.sidesOf, options.pinPitch, options.grid)
@@ -530,30 +959,46 @@ function planSheet(sheet: SchematicIrSheet, o: ResolvedLayoutOptions): SheetPlan
   for (const scale of SPACING_SCALES) {
     const options = compressSpacing(o, scale)
     const { pages, fits } = measure(options)
-    if (fits && pages.length === 1) {
-      return [{ sheet, options, rows: pages[0] as PackedRow[] }]
-    }
+    if (!fits || pages.length !== 1) continue
+    // Re-place with the real row offset so the delivered coordinates match the
+    // plan; a row placed below the margin has less vertical room than the
+    // single-page measurement assumed.
+    const cells = planCells(sheet, zone, options, usable, pages[0] as PackedRow[])
+    if (cellsFit(cells, usable)) return [{ sheet, options, cells }]
   }
-  // Still overflowing: a single group cannot split — keep the tightest
-  // spacing so the violation stays minimal; multiple groups paginate at
-  // default spacing so each delivered page stays readable.
-  if (zone.orderedGroups.length === 1) {
-    const options = compressSpacing(o, SPACING_SCALES[SPACING_SCALES.length - 1] as number)
-    return [{ sheet, options, rows: measure(options).pages[0] as PackedRow[] }]
-  }
-  return measure(o).pages.map((pageRows, index) => ({
-    sheet: splitSheet(sheet, pageRows, index),
-    options: o,
-    rows: pageRows,
-  }))
+  return planPaginated(sheet, zone, o, usable)
+}
+
+/**
+ * Rewrite explicit `block.sheetIndex` values after pagination. `sheetIndex` is
+ * a document-wide ordinal, so a preceding sheet splitting into extra pages
+ * shifts every later child. A block targets the first page a source sheet
+ * produced: that page keeps the sheet's authored annotations (including the
+ * interface netports), and the continuation pages remain reachable through
+ * their numbered frames. Invalid indices are left untouched for the validator.
+ */
+function remapBlockTargets(sheet: SchematicIrSheet, firstPageOfSheet: readonly number[]): SchematicIrSheet {
+  let changed = false
+  const components = sheet.components.map((component) => {
+    if (component.kind !== 'block' || component.sheetIndex === undefined) return component
+    const target = firstPageOfSheet[component.sheetIndex]
+    if (target === undefined || target === component.sheetIndex) return component
+    changed = true
+    return { ...component, sheetIndex: target }
+  })
+  return changed ? { ...sheet, components } : sheet
 }
 
 /**
  * Lay out one IR document. The pass is pure and deterministic: identical input
  * produces identical output, and re-running on the result is a no-op. Each
  * source sheet is first planned against the page frame (`pageSize`, default
- * A4): the module grid compresses spacing before overflowing groups spill
- * onto additional sheets, so generated geometry stays inside the frame.
+ * A4): the module grid compresses spacing before a page-sized split is
+ * attempted; content that still does not fit is sharded along signal-flow
+ * columns and packed onto additional sheets, so generated geometry stays
+ * inside the frame even for a flat sheet or a single oversized module. A
+ * module split across pages keeps its member `block` tags and numbers its
+ * frame title `(n/m)`. Sheets with authored geometry keep it untouched.
  * @param ir - the parsed IR; geometry fields may be absent.
  * @param options - grid, spacing, page-size, and strategy tunables.
  * @returns the IR with positions, pin endpoints, and routing filled in.
@@ -562,7 +1007,57 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
   const o = resolveOptions(options)
   // Pagination runs before the net census so a net crossing a pagination
   // split is seen as multi-sheet and routes through net ports.
-  const plans = ir.sheets.flatMap(sheet => planSheet(sheet, o))
+  const perSheet = ir.sheets.map(sheet => planSheet(sheet, o))
+  const firstPageOfSheet: number[] = []
+  let pageCount = 0
+  for (const plans of perSheet) {
+    firstPageOfSheet.push(pageCount)
+    pageCount += plans.length
+  }
+  // Name every page. A page that carries exactly one module takes that module's
+  // title (the reference project names pages CORE/POWER/DEVICE); a mixed or
+  // ungrouped page keeps the authored sheet name and numbers its continuations.
+  // Page-zero names are reserved up front so a continuation cannot steal the
+  // name of another source sheet that is literally named `MAIN 2`.
+  const pageZero: (string | undefined)[] = perSheet.map((plans, index) => {
+    const authored = ir.sheets[index]?.name
+    if (plans.length <= 1) return authored
+    return pageModuleTitle(ir.sheets[index] as SchematicIrSheet, (plans[0] as SheetPlan).cells) ?? authored
+  })
+  // Names already claimed by an emitted page, plus the authored names of every
+  // source sheet. No two pages may share a name, and a continuation must not
+  // steal an authored name (a sheet literally named `MAIN 2`).
+  const assigned = new Set<string>()
+  const reserved = new Set<string>()
+  for (const source of ir.sheets) if (source.name !== undefined) reserved.add(source.name)
+  const plans = perSheet.flatMap((plansForSheet, sheetIndex) => {
+    const authored = ir.sheets[sheetIndex]?.name
+    return plansForSheet.map((plan, page) => {
+      let name = page === 0 ? pageZero[sheetIndex] : undefined
+      if (page === 0) {
+        const base = name
+        let ordinal = 2
+        while (name !== undefined && assigned.has(name)) name = `${base} ${ordinal++}`
+      } else {
+        const module = pageModuleTitle(ir.sheets[sheetIndex] as SchematicIrSheet, plan.cells)
+        if (module !== undefined) {
+          name = module
+          let ordinal = 2
+          while (assigned.has(name)) name = `${module} ${ordinal++}`
+        } else if (authored !== undefined) {
+          let ordinal = page + 1
+          while (assigned.has(`${authored} ${ordinal}`) || reserved.has(`${authored} ${ordinal}`)) ordinal += 1
+          name = `${authored} ${ordinal}`
+        }
+      }
+      let sheet = plan.sheet
+      if (name !== undefined) {
+        assigned.add(name)
+        if (sheet.name !== name) sheet = { ...sheet, name }
+      }
+      return { ...plan, sheet: remapBlockTargets(sheet, firstPageOfSheet) }
+    })
+  })
 
   // Global net census: a net declared on more than one sheet routes through
   // net ports rather than same-sheet flags.
@@ -586,22 +1081,22 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
     const { sheet } = plan
     const o = plan.options
     const zone = zoneSheet(sheet)
-    const { annotation, groups, orderedGroups, blockOf, sidesOf } = zone
+    const { annotation, groups, blockOf, sidesOf } = zone
     const halfHeightOf = halfHeightsOf(sheet.components, sidesOf, o.pinPitch, o.grid)
 
+    // Planned cells are authoritative: the coordinates computed while sizing
+    // the page are the coordinates delivered, so planning and emission cannot
+    // drift apart. Authored positions win over planned ones.
     const positions = new Map<string, SchematicPoint>()
     for (const component of sheet.components) {
       if (component.position !== undefined) positions.set(component.id, component.position)
     }
-
-    const moduleColumns = o.moduleColumns ?? Math.ceil(Math.sqrt(Math.max(orderedGroups.length, 1)))
-    const rows: readonly PackedRow[] = plan.rows ?? (() => {
-      const chunked: PackedRow[] = []
-      for (let i = 0; i < orderedGroups.length; i += moduleColumns) {
-        chunked.push({ groups: orderedGroups.slice(i, i + moduleColumns), height: 0 })
+    for (const cell of plan.cells) {
+      for (const [id, point] of cell.positions) {
+        if (!positions.has(id)) positions.set(id, point)
       }
-      return chunked
-    })()
+    }
+
     const framed = (sheet.blocks?.length ?? 0) > 0 || sheet.components.some(component => component.block !== undefined)
     const edgePad = framed ? PAGE_EDGE_FRAMED : PAGE_EDGE_FLAT
     const rightEdge = o.pageSize.width - edgePad
@@ -614,17 +1109,8 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
     })
 
     let annotationX = o.margin.x
-    let rowY = o.margin.y
-    for (const row of rows) {
-      let cellX = o.margin.x
-      let rowHeight = 0
-      for (const group of row.groups) {
-        const box = placeGroup(group[1], { x: cellX, y: rowY }, positions, halfHeightOf, o, bottomEdge - rowY)
-        cellX += box.width + o.moduleGap
-        rowHeight = Math.max(rowHeight, box.height)
-        annotationX = Math.max(annotationX, cellX - o.moduleGap)
-      }
-      rowY += rowHeight + o.moduleGap
+    for (const cell of plan.cells) {
+      for (const point of cell.positions.values()) annotationX = Math.max(annotationX, point.x + BODY_HALF_WIDTH)
     }
     // The annotation margin stacks beside the main zone; when a column
     // reaches the usable bottom it wraps right, and columns that would pass
@@ -732,7 +1218,7 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
     }
 
     // --- Nets: `pin.net` is the logical connectivity declaration.
-    const nets = new Map<string, { component: LaidComponent; pin: PlacedPin; side: PinSide }[]>()
+    const nets = new Map<string, NetMember[]>()
     for (const component of laid) {
       component.pins.forEach((pin, index) => {
         if (pin.net === undefined) return
@@ -751,6 +1237,15 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
     const wireCarries = (wire: SchematicIrWire, net: string, flags: readonly SchematicPoint[]): boolean =>
       wire.net === net || flags.some(point => onWire(point, wire))
 
+    /**
+     * A declaration-only row of wire kind: an authored wire whose geometry
+     * pagination stripped (or that never had any). Only such a row may be
+     * refilled with regenerated geometry; rewriting a `kind: 'bus'` row into a
+     * wire would change what the builder creates.
+     */
+    const isDeclarableWire = (wire: SchematicIrWire): boolean =>
+      wire.kind === 'wire' && (wire.dots === undefined || wire.dots.length === 0)
+
     // Points a routed segment may not pass through: every pin endpoint, flag
     // position, and junction point, keyed to the net that owns it (or '' when
     // the point is unowned). A segment touching a foreign point would merge
@@ -768,9 +1263,51 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
       }
     }
     for (const junction of junctions) occupy(junction.point, undefined)
+    // A bus entry is a wiring primitive too: the validator unions its point
+    // with whatever it touches, so a generated segment through it would merge
+    // the segment's net with the bus. Own it as a bus-scoped point (never equal
+    // to a member net) so it always counts as foreign.
+    for (const entry of sheet.busEntries) occupy(entry.point, `bus:${entry.id}`)
+
+    // Approximate symbol bodies. The library exposes no body geometry, so the
+    // declared pin count and the fixed outline width bound it; a generated
+    // flag may not land inside a body (routing only checks foreign points, and
+    // a flag dropped into a neighbouring symbol is visually unreadable even
+    // when it is electrically legal).
+    const bodyRects = laid
+      .filter(component => component.source.kind === 'part')
+      .map(component => {
+        const half = halfHeightOf.get(component.source.id) as number
+        return {
+          left: component.position.x - BODY_HALF_WIDTH,
+          right: component.position.x + BODY_HALF_WIDTH,
+          top: component.position.y - half,
+          bottom: component.position.y + half,
+        }
+      })
+    const insideBody = (point: SchematicPoint): boolean =>
+      bodyRects.some(body =>
+        point.x > body.left + 10 && point.x < body.right - 10
+        && point.y > body.top + 10 && point.y < body.bottom - 10)
+
+    // Two power/ground nets whose pins share a column compete for the same
+    // routing lane: a bus for one would cut the other's only way out (its pins
+    // face the same side, and going the other way crosses the symbol). Only
+    // aggregate a run when its column belongs to a single power net.
+    const powerNetByX = new Map<string, string>()
+    const contendedX = new Set<string>()
+    for (const [name, members] of nets) {
+      if (!isPowerNet(name) && !isGroundNet(name) && !members.some(member => member.pin.powerName !== undefined)) continue
+      for (const member of members) {
+        const key = `${member.pin.endpoint.x}`
+        const owner = powerNetByX.get(key)
+        if (owner === undefined) powerNetByX.set(key, name)
+        else if (owner !== name) contendedX.add(key)
+      }
+    }
 
     for (const net of [...nets.keys()].sort()) {
-      const members = nets.get(net) as { component: LaidComponent; pin: PlacedPin; side: PinSide }[]
+      const members = nets.get(net) as NetMember[]
       const flags = flagPositions(net).sort((a, b) => a.x - b.x || a.y - b.y)
       const carrying = wires.filter(wire => wireCarries(wire, net, flags))
       const unrouted = members.filter(member => !carrying.some(wire => onWire(member.pin.endpoint, wire)))
@@ -786,7 +1323,9 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
           const [x, y] = key.split(',')
           return { x: Number(x), y: Number(y) }
         })
-      /** Whether any generated segment passes through a point owned by another net. */
+      /** Existing wires of other nets: a new segment must not touch or cross them. */
+      const foreignWires = wires.filter(wire => wire.net !== net && wire.dots !== undefined)
+      /** Whether any generated segment touches another net's point or wire. */
       const collides = (dots: number[][]): boolean =>
         foreign.some(point =>
           dots.some((seg) => {
@@ -797,19 +1336,125 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
             }
             return false
           }))
+        || foreignWires.some((wire) => {
+          for (const chain of wire.dots as readonly (readonly number[])[]) {
+            for (let j = 0; j + 3 < chain.length; j += 2) {
+              const c: SchematicPoint = { x: chain[j] as number, y: chain[j + 1] as number }
+              const d: SchematicPoint = { x: chain[j + 2] as number, y: chain[j + 3] as number }
+              for (const seg of dots) {
+                for (let i = 0; i + 3 < seg.length; i += 2) {
+                  const a: SchematicPoint = { x: seg[i] as number, y: seg[i + 1] as number }
+                  const b: SchematicPoint = { x: seg[i + 2] as number, y: seg[i + 3] as number }
+                  if (segmentsTouch(a, b, c, d)) return true
+                }
+              }
+            }
+          }
+          return false
+        })
+        || dots.some((seg) => {
+          for (let i = 0; i + 3 < seg.length; i += 2) {
+            const a: SchematicPoint = { x: seg[i] as number, y: seg[i + 1] as number }
+            const b: SchematicPoint = { x: seg[i + 2] as number, y: seg[i + 3] as number }
+            if (bodyRects.some(body => segmentCrossesRect(a, b, body, o.pinStub))) return true
+          }
+          return false
+        })
 
       const routeWithFlags = (): void => {
-        // Flag strategy: every unrouted member gets a short stub and a nearby
-        // flag of the same name; flags merge by name, so no trunk is needed.
-        // Power nets hang up, ground-family nets hang down, and other nets
-        // reach outward from the pin's side. A stub that passes through a
-        // foreign point merges two nets, so the flag tries the mirrored
-        // direction, then a perpendicular detour, before giving up.
+        // Flag strategy: every unrouted member gets a short stub and a flag of
+        // the same name; flags merge by name, so no trunk is needed. Members
+        // that line up on one axis (a column of power pins, a row of signal
+        // pins) share one bus and one flag instead of one flag each. Ground
+        // hangs above its pin, power below it, and other nets reach outward
+        // from the pin's side. A stub that passes through a foreign point, a
+        // foreign wire, or a symbol body would merge or hide a net, so the flag
+        // tries the mirrored direction, then an elbow, before giving up.
         const flagKind = crossSheet ? 'netport' : 'netflag'
         const stubDots: number[][] = []
-        unrouted.forEach((member, index) => {
+        const vertical = isGroundNet(net) || powerClass
+        const ground = isGroundNet(net)
+        const pending: NetMember[] = []
+        // A high-fanout signal net (a clock or reset reaching many receivers on
+        // the same side) shares a tapped bus and one flag just like a power
+        // column; that is where per-pin flags hurt most. A low-fanout signal
+        // keeps one flag per pin: a bus would trade a flag for wire without
+        // meaningfully reducing the count.
+        const aggregateSignals = !vertical && unrouted.length >= o.flagFanout
+        if (vertical || aggregateSignals) {
+          // Members stacked in one column share one bus and one flag. The bus
+          // runs outside the pin column and every member taps it with a short
+          // stub, so the bus never crosses the symbol's other pins. The
+          // immediate flag lane may already hold single-pin stubs or signal
+          // flags, so the bus steps outward one lane at a time until a clear
+          // lane is found.
+          const runs = new Map<string, NetMember[]>()
+          for (const member of unrouted) {
+            const key = `${member.pin.endpoint.x}`
+            const run = runs.get(key) ?? []
+            run.push(member)
+            runs.set(key, run)
+          }
+          for (const key of [...runs.keys()].sort((a, b) => Number(a) - Number(b))) {
+            // Members in a run share their x, so y alone orders the taps.
+            const run = (runs.get(key) as NetMember[]).sort((a, b) => a.pin.endpoint.y - b.pin.endpoint.y)
+            const first = run[0] as NetMember
+            if (run.length < 2 || contendedX.has(key)) {
+              pending.push(...run)
+              continue
+            }
+            const outward = first.side === 'left' ? -1 : 1
+            let minY = Infinity
+            let maxY = -Infinity
+            for (const member of run) {
+              minY = Math.min(minY, member.pin.endpoint.y)
+              maxY = Math.max(maxY, member.pin.endpoint.y)
+            }
+            let chosen: { dots: number[][]; flagPosition: SchematicPoint } | undefined
+            // Coarse grids can map two nominal lanes onto one coordinate; keep
+            // the first occurrence so the outward search stays monotone.
+            const laneXs = new Set([1, 2, 3].map(lane =>
+              snap(first.pin.endpoint.x + outward * lane * FLAG_STUB, o.grid)))
+            for (const busX of laneXs) {
+              const snapped = snap(ground ? minY - FLAG_STUB : maxY + FLAG_STUB, o.grid)
+              const flagPosition: SchematicPoint = {
+                x: busX,
+                // The bus must reach past the outermost tap. A coarse grid can
+                // round the offset flag end back inside the run, which would
+                // leave that member's stub floating while a junction is still
+                // emitted; clamp the flag end to the tap extreme.
+                y: ground ? Math.min(snapped, minY) : Math.max(snapped, maxY),
+              }
+              const dots: number[][] = run.map(member =>
+                [member.pin.endpoint.x, member.pin.endpoint.y, busX, member.pin.endpoint.y])
+              dots.push([busX, ground ? flagPosition.y : minY, busX, ground ? maxY : flagPosition.y])
+              if (inFrame(flagPosition) && !insideBody(flagPosition) && !collides(dots)) {
+                chosen = { dots, flagPosition }
+                break
+              }
+            }
+            if (chosen === undefined) {
+              pending.push(...run)
+              continue
+            }
+            for (const member of run) {
+              addJunction({ x: chosen.flagPosition.x, y: member.pin.endpoint.y })
+            }
+            stubDots.push(...chosen.dots)
+            occupy(chosen.flagPosition, net)
+            components.push({
+              id: `layout:flag:${idPart(net)}:bus:${key}`,
+              kind: flagKind,
+              netName: net,
+              position: chosen.flagPosition,
+              pins: [],
+            })
+          }
+        } else {
+          pending.push(...unrouted)
+        }
+        pending.forEach((member, index) => {
           const endpoint = member.pin.endpoint
-          const vertical = isGroundNet(net) || powerClass
           const direct: SchematicPoint = isGroundNet(net)
             ? { x: endpoint.x, y: snap(endpoint.y - FLAG_STUB, o.grid) }
             : powerClass
@@ -829,23 +1474,53 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
             flagPosition = inFrame(mirrored) ? mirrored : clampFrame(direct)
           }
           const candidates: SchematicPoint[] = [flagPosition]
+          const outward = member.side === 'left' ? -1 : 1
           if (vertical) {
+            // The straight mirror is the cleanest fallback. When sibling pins
+            // stacked on the same side block both straight directions, step
+            // outward first and then up/down: the stub becomes an elbow that
+            // clears the pin column instead of pushing a perpendicular flag
+            // through the symbol body.
             candidates.push({ x: direct.x, y: snap(2 * endpoint.y - direct.y, o.grid) })
+            const outwardX = snap(endpoint.x + outward * FLAG_STUB, o.grid)
+            candidates.push(
+              { x: outwardX, y: flagPosition.y },
+              { x: outwardX, y: snap(2 * endpoint.y - flagPosition.y, o.grid) },
+            )
             candidates.push(
               { x: snap(endpoint.x + FLAG_STUB, o.grid), y: endpoint.y },
               { x: snap(endpoint.x - FLAG_STUB, o.grid), y: endpoint.y },
             )
           } else {
             candidates.push({ x: snap(2 * endpoint.x - direct.x, o.grid), y: direct.y })
+            // Same elbow idea for a horizontal flag: stay on the outward
+            // column, then offset vertically instead of pushing the flag
+            // through the symbol.
+            candidates.push(
+              { x: direct.x, y: snap(endpoint.y - FLAG_STUB, o.grid) },
+              { x: direct.x, y: snap(endpoint.y + FLAG_STUB, o.grid) },
+            )
             candidates.push(
               { x: endpoint.x, y: snap(endpoint.y - FLAG_STUB, o.grid) },
               { x: endpoint.x, y: snap(endpoint.y + FLAG_STUB, o.grid) },
             )
           }
-          const clear = candidates.find(
-            candidate => inFrame(candidate) && !collides([lPath(endpoint, candidate)]),
-          )
-          if (clear !== undefined) flagPosition = clear
+          const fits = (candidate: SchematicPoint, bodyFree: boolean): boolean =>
+            inFrame(candidate)
+            && (!bodyFree || !insideBody(candidate))
+            && !collides([lPath(endpoint, candidate)])
+          // First choice clears the body too. Only a pin that is itself out of
+          // frame may overlap a body estimate (its symbol is clipped by the page
+          // edge, so a body-free spot can be unreachable); an in-frame pin falls
+          // through to the no-stub fallback below instead of hiding a flag
+          // inside a symbol.
+          const clear = candidates.find(candidate => fits(candidate, true))
+            ?? (inFrame(endpoint) ? undefined : candidates.find(candidate => fits(candidate, false)))
+          // Last resort: the flag sits on the pin itself with no stub. A stub
+          // into a blocked lane would merge two nets, and clamping onto an
+          // unchecked frame coordinate can land on a foreign flag: a crowded
+          // flag is the only safe outcome left.
+          flagPosition = clear ?? endpoint
           if (endpoint.x !== flagPosition.x || endpoint.y !== flagPosition.y) {
             stubDots.push(lPath(endpoint, flagPosition))
             if (endpoint.x !== flagPosition.x && endpoint.y !== flagPosition.y) {
@@ -862,7 +1537,16 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
           })
         })
         if (stubDots.length > 0) {
-          wires.push({ id: `layout:wire:${idPart(net)}:flags`, kind: 'wire', dots: stubDots, net })
+          // Prefer the page's declared net-only row (an authored wire whose
+          // geometry pagination stripped): filling it keeps the wire id, its
+          // ATTR, and its net in one primitive instead of leaving an empty row
+          // the builder would have to skip.
+          const declared = carrying.find(isDeclarableWire)
+          if (declared !== undefined) {
+            wires[wires.indexOf(declared)] = { ...declared, dots: stubDots }
+          } else {
+            wires.push({ id: `layout:wire:${idPart(net)}:flags`, kind: 'wire', dots: stubDots, net })
+          }
         }
       }
 
@@ -871,7 +1555,12 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
         continue
       }
 
-      const carrier = carrying.find(wire => wire.dots !== undefined && wire.dots.length > 0)
+      // A declared bus row is not a wire carrier: appending L-stubs to it would
+      // ship a BUS primitive while the validator sees connected wires (the
+      // client draws a bus, the pins never join it). Fall through to a fresh
+      // wire row instead.
+      const carrier = carrying.find(wire =>
+        wire.kind === 'wire' && wire.dots !== undefined && wire.dots.length > 0)
       if (carrier !== undefined) {
         // Route unrouted members onto the named carrier as L-stubs ending on
         // its first vertex.
@@ -918,7 +1607,7 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
         continue
       }
       for (const point of newJunctions) addJunction(point)
-      const declared = carrying[0]
+      const declared = carrying.find(isDeclarableWire)
       if (declared !== undefined) {
         wires[wires.indexOf(declared)] = { ...declared, dots }
       } else {

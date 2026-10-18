@@ -222,6 +222,16 @@ export interface SchematicPageSize {
  */
 export const SCHEMATIC_PAGE_A4: SchematicPageSize = { width: 1170, height: 825 }
 
+/**
+ * The EasyEDA A3 landscape page frame (420 × 297 mm at 0.01-inch units).
+ * Production preset for dense module boards: A3 fits ~2× the A4 area, so a
+ * multi-module board needs fewer split pages. Like every custom size it plans
+ * against a virtual frame — the drawn sheet frame stays a client-side page
+ * setting — while validation, pagination, module frames, and sheet-symbol
+ * boxes all use these bounds.
+ */
+export const SCHEMATIC_PAGE_A3: SchematicPageSize = { width: 1655, height: 1170 }
+
 /** Whether a finding blocks delivery (`error`) or only reports (`warning`). */
 export type SchematicFindingSeverity = 'error' | 'warning'
 
@@ -432,6 +442,47 @@ export interface SchematicEngineVerifyOptions {
    * endpoint-level check stays out.
    */
   readonly symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]> | undefined
+  /**
+   * Page frame the layout stage planned against; the live delivery path must
+   * use the same size or the placed geometry lands on the wrong page.
+   */
+  readonly pageSize?: SchematicPageSize | undefined
+  /**
+   * Title-block fields for the drawn page frame on the live path; see
+   * {@link SchematicEngineSerializeOptions.titleBlock}.
+   */
+  readonly titleBlock?: SchematicTitleBlockOptions | undefined
+}
+
+/**
+ * Title-block fields an engine may print on each page frame. Engines that draw
+ * no frame ignore them; the field names stay engine-agnostic so the seam does
+ * not leak one client's document schema. A frame is drawn per page, so the
+ * page name, page number, and page count are supplied by the engine, not here.
+ */
+export interface SchematicTitleBlockOptions {
+  /** Project/document title printed in the title block. */
+  readonly projectTitle?: string | undefined
+  /** Revision label, e.g. `V1.0`. */
+  readonly version?: string | undefined
+  /** Company/owner cell; may be empty. */
+  readonly company?: string | undefined
+  /** Drawing date (`YYYY-MM-DD`); may be empty. */
+  readonly date?: string | undefined
+}
+
+/** Per-call inputs for {@link SchematicEngine.serialize}. */
+export interface SchematicEngineSerializeOptions {
+  /**
+   * Page frame the layout stage planned against; defaults to
+   * {@link SCHEMATIC_PAGE_A4}. Persisted coordinates depend on it.
+   */
+  readonly pageSize?: SchematicPageSize | undefined
+  /**
+   * Title-block fields for the drawn page frame; omitted, the engine falls back
+   * to its own document title. Engines that draw no frame ignore this.
+   */
+  readonly titleBlock?: SchematicTitleBlockOptions | undefined
 }
 
 /**
@@ -447,9 +498,12 @@ export interface SchematicEngine {
   /**
    * Project the IR to document source.
    * @param ir - the validated schematic IR.
+   * @param options - per-call inputs such as the page frame the layout planned
+   * against; engines that persist coordinates must use the same size the
+   * layout stage used or the emitted Y values land on the wrong page.
    * @returns the emitted document source text.
    */
-  serialize(ir: SchematicIr): string | Promise<string>
+  serialize(ir: SchematicIr, options?: SchematicEngineSerializeOptions): string | Promise<string>
   /**
    * Live read-back verification: deliver the IR through the engine's client
    * path and diff the persisted result against the IR, returning structural

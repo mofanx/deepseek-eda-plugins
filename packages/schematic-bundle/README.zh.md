@@ -69,7 +69,7 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-plugin-eda-bundle
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 随附引擎只输出 EasyEDA V3 文档源。向运行中的 EasyEDA Pro 客户端在线放置图元需要 run-api-gateway bridge 扩展；没有它时，生成仍返回文档源，但不会写入客户端。
+- 随附引擎只输出 EasyEDA V3 文档源。向运行中的 EasyEDA Pro 客户端在线放置图元需要 `dsh-eda-bridge` 与已注册的编辑器窗口；注册可走社区 `run-api-gateway` 扩展，也可在**不安装扩展**的情况下走编辑器内置 landing 页（`https://pro.lceda.cn/api/landing?port=49620`）。没有已注册窗口时，生成仍返回文档源，但不会写入客户端。
 
 -----
 

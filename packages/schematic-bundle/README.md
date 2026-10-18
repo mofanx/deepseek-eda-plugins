@@ -69,7 +69,7 @@ The layer adds no request content directly; the tool implementation owns cache e
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- The shipped engine emits EasyEDA V3 document source only. Live placement into a running EasyEDA Pro client requires the run-api-gateway bridge extension; without it, generation still returns document source but nothing is placed in the client.
+- The shipped engine emits EasyEDA V3 document source only. Live placement into a running EasyEDA Pro client requires `dsh-eda-bridge` and a registered editor window; registration works through the community `run-api-gateway` extension or, with no extension installed, through the editor's built-in landing page (`https://pro.lceda.cn/api/landing?port=49620`). Without a registered window, generation still returns document source but nothing is placed in the client.
 
 -----
 

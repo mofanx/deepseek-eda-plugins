@@ -528,3 +528,87 @@ describe('model prompt section', () => {
     }
   })
 })
+
+describe('page frame and title block', () => {
+  /** Engine that records the serialize/verify options the tool passes down. */
+  function recordingEngine(): { engine: SchematicEngine; serialize: Record<string, unknown>[]; verify: Record<string, unknown>[] } {
+    const serialize: Record<string, unknown>[] = []
+    const verify: Record<string, unknown>[] = []
+    const engine: SchematicEngine = {
+      id: 'recording',
+      available: () => true,
+      serialize: (ir, options) => {
+        serialize.push((options ?? {}) as Record<string, unknown>)
+        return `EMITTED(${ir.sheets.length})`
+      },
+      verify: async (_ir, options) => {
+        verify.push((options ?? {}) as Record<string, unknown>)
+        return []
+      },
+    }
+    return { engine, serialize, verify }
+  }
+
+  it('defaults to the A3 production frame and forwards it to layout and the serializer', async () => {
+    const recorder = recordingEngine()
+    const { call } = await mountTools({ engine: recorder.engine })
+    await call('schematic_generate', { document: validDoc })
+    expect(recorder.serialize[0]?.pageSize).toEqual({ width: 1655, height: 1170 })
+    // No title block requested and no configured title: the engine's own
+    // defaults stand, so the tool passes an empty title block.
+    expect(recorder.serialize[0]?.titleBlock).toEqual({})
+  })
+
+  it('honors an explicit A4 page size and a per-call title block', async () => {
+    const recorder = recordingEngine()
+    const { call } = await mountTools({ engine: recorder.engine })
+    await call('schematic_generate', {
+      document: validDoc,
+      pageSize: 'A4',
+      titleBlock: { projectTitle: 'Demo Board', version: 'V2', company: 'ACME', date: '2026-10-17' },
+    })
+    expect(recorder.serialize[0]?.pageSize).toEqual({ width: 1170, height: 825 })
+    expect(recorder.serialize[0]?.titleBlock).toEqual({
+      projectTitle: 'Demo Board', version: 'V2', company: 'ACME', date: '2026-10-17',
+    })
+  })
+
+  it('falls back to the configured page size and title when a call omits them', async () => {
+    const recorder = recordingEngine()
+    const { call } = await mountTools({
+      engine: recorder.engine,
+      config: { pageSize: 'A4', projectTitle: 'Configured Board', company: 'Configured Co' },
+    })
+    await call('schematic_generate', { document: validDoc })
+    expect(recorder.serialize[0]?.pageSize).toEqual({ width: 1170, height: 825 })
+    expect(recorder.serialize[0]?.titleBlock).toEqual({ projectTitle: 'Configured Board', company: 'Configured Co' })
+  })
+
+  it('ignores an unknown page size and non-string title-block fields', async () => {
+    const recorder = recordingEngine()
+    const { call } = await mountTools({ engine: recorder.engine, config: { pageSize: 'A4' } })
+    await call('schematic_generate', {
+      document: validDoc,
+      pageSize: 'A2',
+      titleBlock: { projectTitle: 42, version: '', company: 'ACME' },
+    })
+    // A2 is not offered: the configured A4 stands. Empty/non-string fields are
+    // dropped rather than printed as "42" or an empty cell.
+    expect(recorder.serialize[0]?.pageSize).toEqual({ width: 1170, height: 825 })
+    expect(recorder.serialize[0]?.titleBlock).toEqual({ company: 'ACME' })
+  })
+
+  it('passes the frame to the live verification path too', async () => {
+    const recorder = recordingEngine()
+    const { call } = await mountTools({ engine: recorder.engine })
+    await call('schematic_generate', { document: validDoc, verify: true, pageSize: 'A4', titleBlock: { company: 'ACME' } })
+    expect(recorder.verify[0]?.pageSize).toEqual({ width: 1170, height: 825 })
+    expect(recorder.verify[0]?.titleBlock).toEqual({ company: 'ACME' })
+  })
+
+  it('plans validation against the selected frame', async () => {
+    const { call } = await mountTools()
+    const out = await call('schematic_validate', { document: validDoc, pageSize: 'A3' })
+    expect(out.isError).toBe(false)
+  })
+})

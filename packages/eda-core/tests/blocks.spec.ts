@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeBlockFrames } from '@deepseek-ai/dsh-plugin-eda-core'
+import { layoutSchematic } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { SchematicIrComponent, SchematicIrSheet } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 const sheet = (over: Partial<SchematicIrSheet> = {}): SchematicIrSheet => ({
@@ -96,6 +97,16 @@ describe('computeBlockFrames', () => {
     expect(frameA3).toMatchObject({ x: 1020, y: 660, width: 160, height: 220 })
   })
 
+  it('keeps the frame off the title block when only the padding would overlap it', () => {
+    const [frame] = computeBlockFrames(sheet({
+      components: [part('u1', 'io', 100, 640)],
+    }))
+    // Content at y=640 is above the A4 title-block top (705), but the 80-unit
+    // pad would reach 720; the frame bottom stops at the block instead.
+    expect(frame?.y).toBe(500)
+    expect((frame?.y ?? 0) + (frame?.height ?? 0)).toBe(705)
+  })
+
   it('mixes declared, titleless declared, and free-form names in stable order', () => {
     const frames = computeBlockFrames(sheet({
       blocks: [{ name: 'd1', title: 'D1' }, { name: 'd2' }],
@@ -114,5 +125,38 @@ describe('computeBlockFrames', () => {
       ['alpha', 'alpha'],
       ['omega', 'omega'],
     ])
+  })
+
+  it('keeps module frames disjoint when a vertical stack has to paginate', () => {
+    // Four one-component modules in one column overflow the 675-unit usable
+    // height at the frame-safe 200 gap. The layout must paginate rather than
+    // compress the gap until the dashed frames (80 pad + 60 title headroom)
+    // overlap and the next module's title lands inside the previous frame.
+    const components: SchematicIrComponent[] = [1, 2, 3, 4].map(i => ({
+      id: `u${i}`,
+      kind: 'part',
+      designator: `U${i}`,
+      deviceUuid: `dev-${i}`,
+      block: `m${i}`,
+      pins: [],
+    }))
+    const laid = layoutSchematic({
+      sheets: [{
+        blocks: [1, 2, 3, 4].map(i => ({ name: `m${i}` })),
+        components,
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    }, { moduleColumns: 1 })
+    expect(laid.sheets).toHaveLength(2)
+    const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a): boolean =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+    for (const page of laid.sheets) {
+      const frames = computeBlockFrames(page)
+      for (let i = 0; i < frames.length; i++) {
+        for (let j = i + 1; j < frames.length; j++) {
+          expect(overlaps(frames[i]!, frames[j]!)).toBe(false)
+        }
+      }
+    }
   })
 })

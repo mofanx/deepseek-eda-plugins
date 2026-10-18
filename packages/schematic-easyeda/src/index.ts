@@ -11,12 +11,12 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type { SchematicEngine, SchematicFinding, SchematicIr, SchematicSymbolPin } from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicEngine, SchematicEngineSerializeOptions, SchematicFinding, SchematicIr, SchematicPageSize, SchematicSymbolPin, SchematicTitleBlockOptions } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { serializeEasyEdaDocument } from '@deepseek-ai/dsh-plugin-eda-core'
 import { HttpEasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
 import { buildIntoEasyEda, importIntoEasyEda } from './build.ts'
 import { EasyEdaLibrary } from '@deepseek-ai/dsh-plugin-eda-core'
-import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
+import type { EasyEdaBridge, EasyEdaSheetFrameOptions } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { EasyEdaBuildReport, EasyEdaImportReport } from './build.ts'
 
 export { serializeEasyEdaDocument, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
@@ -43,6 +43,7 @@ export {
   renderComponentChunkScript,
   renderWireChunkScript,
   renderBlockChunkScript,
+  renderChromeChunkScript,
   renderSheetSymbolChunkScript,
   renderOracleScript,
   renderImportScript,
@@ -127,6 +128,20 @@ export interface EasyEdaEngineBuildOptions {
    * the real symbol pins when present.
    */
   readonly symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]> | undefined
+  /**
+   * Page frame the layout stage planned against; forwarded so decoration
+   * clamps and the persisted Y mapping match the laid-out geometry.
+   */
+  readonly pageSize?: SchematicPageSize | undefined
+  /** Sheet chrome (border + title block) drawn on the built page; omitted, the
+   * primitive path draws no chrome. */
+  readonly frame?: EasyEdaSheetFrameOptions | undefined
+  /**
+   * Seam-level alias for {@link EasyEdaEngineBuildOptions.frame}: the field
+   * names the seam's `SchematicEngineVerifyOptions` uses, so callers that never
+   * import this engine's option types can still request a title block.
+   */
+  readonly titleBlock?: SchematicTitleBlockOptions | undefined
 }
 
 /** Overrides for one {@link EasyEdaSchematicEngine.importProject} call. */
@@ -144,6 +159,11 @@ export interface EasyEdaEngineImportOptions {
   readonly timeoutMs?: number | undefined
   /** See {@link EasyEdaEngineBuildOptions.symbolPins}. */
   readonly symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]> | undefined
+  /** See {@link EasyEdaEngineBuildOptions.pageSize}. */
+  readonly pageSize?: SchematicPageSize | undefined
+  /** Sheet chrome (border + title block) drawn on every imported page;
+   * defaults to the project title. */
+  readonly frame?: EasyEdaSheetFrameOptions | undefined
 }
 
 /**
@@ -165,10 +185,21 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
   /**
    * Project the IR to EasyEDA V3 document source.
    * @param ir - the schematic IR.
+   * @param options - page frame the layout planned against; must match the
+   * layout stage or the persisted Y values land on the wrong page.
    * @returns the `||`-joined document-source text.
    */
-  serialize(ir: SchematicIr): string {
-    return serializeEasyEdaDocument(ir, { clientId: this.config.clientId })
+  serialize(ir: SchematicIr, options: SchematicEngineSerializeOptions = {}): string {
+    // The seam speaks `titleBlock` (engine-agnostic); the EasyEDA document
+    // source calls the same fields a `frame`. Map across so callers such as the
+    // tools can request a populated title block without importing this engine's
+    // option types.
+    const frame = options.titleBlock
+    return serializeEasyEdaDocument(ir, {
+      clientId: this.config.clientId,
+      ...(options.pageSize === undefined ? {} : { pageSize: options.pageSize }),
+      ...(frame === undefined ? {} : { frame }),
+    })
   }
 
   /**
@@ -195,6 +226,8 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
       advisoryDrc: options.advisoryDrc ?? this.config.advisoryDrc,
       timeoutMs: options.timeoutMs,
       symbolPins: options.symbolPins,
+      pageSize: options.pageSize,
+      frame: options.frame ?? options.titleBlock,
     })
   }
 
@@ -246,6 +279,8 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
       clientId: this.config.clientId,
       timeoutMs: options.timeoutMs,
       symbolPins: options.symbolPins,
+      pageSize: options.pageSize,
+      frame: options.frame,
     })
   }
 }

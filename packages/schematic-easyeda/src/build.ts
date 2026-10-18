@@ -9,16 +9,19 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { SCHEMATIC_PAGE_A4, SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type {
   SchematicComponentKind,
   SchematicFinding,
   SchematicIr,
   SchematicLocator,
+  SchematicPageSize,
+  SchematicIrSheet,
   SchematicSymbolPin,
 } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
-import { computeBlockFrames, computeSheetSymbolBoxes, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
+import type { EasyEdaSheetFrameOptions, SheetChromeRect, SheetChromeText } from '@deepseek-ai/dsh-plugin-eda-core'
+import { computeBlockFrames, computeSheetChrome, computeSheetSymbolBoxes, pageSizeLabel, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { EasyEdaEmbeddedDoc, EasyEdaProjectLibrary, EasyEdaProjectPackage } from '@deepseek-ai/dsh-plugin-eda-core'
 import { diffNetlists, parseDocumentSource, readBackAttrs } from '@deepseek-ai/dsh-plugin-eda-core'
 
@@ -32,6 +35,17 @@ export interface EasyEdaBuildOptions {
   readonly createDocument?: boolean | undefined
   /** Collect the BETA `sch_Drc` detail as advisory findings after the build. */
   readonly advisoryDrc?: boolean | undefined
+  /**
+   * Page frame the module frames and sheet-symbol boxes clamp into. Default
+   * {@link SCHEMATIC_PAGE_A4}; pass the size the layout stage planned against
+   * (e.g. `SCHEMATIC_PAGE_A3`) or decoration clamps to the A4 rectangle.
+   */
+  readonly pageSize?: SchematicPageSize | undefined
+  /**
+   * Page border and title block drawn on each built page; omitted, the
+   * primitive path draws no chrome. The import path takes the same fields.
+   */
+  readonly frame?: EasyEdaSheetFrameOptions | undefined
   /** Per-call timeout override for the bridge executions, in milliseconds. */
   readonly timeoutMs?: number | undefined
   /**
@@ -121,6 +135,8 @@ interface BuildSheet {
   wires: BuildWire[]
   blocks: BuildBlock[]
   sheetSymbols: BuildSheetSymbol[]
+  /** Page border and title block; empty when no frame was requested. */
+  chrome: { rects: SheetChromeRect[]; texts: SheetChromeText[] }
   busEntryIds: string[]
   attrIds: string[]
 }
@@ -130,10 +146,16 @@ interface BuildPayload {
   sheets: BuildSheet[]
 }
 
-function toBuildPayload(ir: SchematicIr, createDocument: boolean): BuildPayload {
+function toBuildPayload(
+  ir: SchematicIr,
+  createDocument: boolean,
+  pageSize: SchematicPageSize,
+  frame?: EasyEdaSheetFrameOptions,
+): BuildPayload {
+  const pageCount = ir.sheets.length
   return {
     createDocument,
-    sheets: ir.sheets.map(sheet => ({
+    sheets: ir.sheets.map((sheet, sheetIndex) => ({
       components: sheet.components.map(c => ({
         irId: c.id,
         kind: c.kind,
@@ -149,14 +171,22 @@ function toBuildPayload(ir: SchematicIr, createDocument: boolean): BuildPayload 
         addIntoBom: c.addIntoBom ?? true,
         addIntoPcb: c.addIntoPcb ?? true,
       })),
-      wires: sheet.wires.map(w => ({
-        irId: w.id,
-        kind: w.kind,
-        dots: (w.dots ?? []).map(line => [...line]),
-        ...w.net !== undefined ? { net: w.net } : {},
-      })),
-      blocks: computeBlockFrames(sheet).map(frame => ({ ...frame })),
-      sheetSymbols: computeSheetSymbolBoxes(sheet).map(box => ({
+      wires: sheet.wires.flatMap(w => {
+        const chains = w.dots ?? []
+        // A `dots` array is a list of polylines, not one polyline. EasyEDA's
+        // incremental wire create does not persist a nested array reliably
+        // (live: only the first chain lands), so split the chains: each becomes
+        // its own create call and its own count.
+        if (chains.length === 0) return [{ irId: w.id, kind: w.kind, dots: [], ...w.net !== undefined ? { net: w.net } : {} }]
+        return chains.map((chain, index) => ({
+          irId: chains.length === 1 ? w.id : `${w.id}:${index}`,
+          kind: w.kind,
+          dots: [chain.map(value => value)],
+          ...w.net !== undefined ? { net: w.net } : {},
+        }))
+      }),
+      blocks: computeBlockFrames(sheet, pageSize).map(frame => ({ ...frame })),
+      sheetSymbols: computeSheetSymbolBoxes(sheet, pageSize).map(box => ({
         irId: box.componentId,
         title: box.title,
         x: box.x,
@@ -167,10 +197,45 @@ function toBuildPayload(ir: SchematicIr, createDocument: boolean): BuildPayload 
         titleY: box.titleY,
         pins: box.pins.map(pin => ({ pinId: pin.pinId, name: pin.name, x: pin.x, y: pin.y })),
       })),
+      chrome: chromeFor(sheet, sheetIndex, pageSize, pageCount, frame),
       busEntryIds: sheet.busEntries.map(entry => entry.id),
       attrIds: sheet.attrs.map(attr => attr.id),
     })),
   }
+}
+
+/**
+ * Compute one page's border and title-block primitives. The chrome is drawn in
+ * IR coordinates like every other decoration (the SCH_* primitive API shares
+ * the IR's top-left, Y-down space; only the persisted source negates Y), so the
+ * serializer and the primitive path print the same page.
+ * @param sheet - the sheet being built.
+ * @param sheetIndex - zero-based page index printed in the title block.
+ * @param pageSize - page frame the layout planned against.
+ * @param pageCount - total pages in the document, printed as `n/m`.
+ * @param frame - title-block fields; omitted, no chrome is drawn.
+ * @returns the page's rectangle and text primitives.
+ */
+function chromeFor(
+  sheet: SchematicIrSheet,
+  sheetIndex: number,
+  pageSize: SchematicPageSize,
+  pageCount: number,
+  frame?: EasyEdaSheetFrameOptions,
+): { rects: SheetChromeRect[]; texts: SheetChromeText[] } {
+  if (frame === undefined) return { rects: [], texts: [] }
+  const chrome = computeSheetChrome({
+    pageSize,
+    projectTitle: frame.projectTitle ?? 'DSH Schematic',
+    pageName: sheet.name ?? `P${sheetIndex + 1}`,
+    pageIndex: sheetIndex,
+    pageCount,
+    sizeLabel: pageSizeLabel(pageSize),
+    version: frame.version ?? 'V0.1',
+    company: frame.company ?? '',
+    date: frame.date ?? '',
+  })
+  return { rects: chrome.rects.map(rect => ({ ...rect })), texts: chrome.texts.map(text => ({ ...text })) }
 }
 
 const THROWN_DETAIL = `const thrownDetail = (e) => {
@@ -332,12 +397,22 @@ try {
 for (const w of doc.wires) {
   try {
     if (w.net === undefined) { failures.push({ code: 'MISSING_NET', irId: w.irId, sheetIndex: doc.sheetIndex }); continue; }
-    const line = w.dots.length === 1 ? w.dots[0] : w.dots;
-    if (w.kind !== 'bus' && seen.has(w.net + '|' + JSON.stringify(line))) { created += 1; continue; }
-    const placed = w.kind === 'bus'
-      ? await placeOnce(() => eda.sch_PrimitiveBus.create(w.net, line))
-      : await placeOnce(() => eda.sch_PrimitiveWire.create(line, w.net));
-    if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: w.irId, sheetIndex: doc.sheetIndex }); else created += 1;
+    // One entry can carry several disjoint polylines. Create and count each
+    // chain separately; passing the nested array as one line drops every chain
+    // after the first (observed live: multi-chain nets vanish from the netlist).
+    const chains = w.dots.length === 0 ? [] : (Array.isArray(w.dots[0]) ? w.dots : [w.dots]);
+    // A row with no geometry is a net declaration, not a primitive: pagination
+    // keeps authored wire rows without their (unanchored) dots so ATTRs survive.
+    // There is nothing to draw, and reporting CREATE_FAILED would block delivery
+    // of a document the layout produced on purpose.
+    if (chains.length === 0) continue;
+    for (const line of chains) {
+      if (w.kind !== 'bus' && seen.has(w.net + '|' + JSON.stringify(line))) { created += 1; continue; }
+      const placed = w.kind === 'bus'
+        ? await placeOnce(() => eda.sch_PrimitiveBus.create(w.net, line))
+        : await placeOnce(() => eda.sch_PrimitiveWire.create(line, w.net));
+      if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: w.irId, sheetIndex: doc.sheetIndex }); else created += 1;
+    }
   } catch (e) {
     failures.push({ code: 'CREATE_THROWN', irId: w.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
   }
@@ -379,6 +454,56 @@ for (const b of doc.blocks) {
     }
   } catch (e) {
     failures.push({ code: 'FRAME_FAILED', irId: 'block:' + b.name, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
+  }
+}
+return { status: 'OK', failures, created: 0 };`
+}
+
+/**
+ * Render one placement chunk for the page border and title block: the frame
+ * rules plus their text runs. The chrome is non-electrical, so the chunk
+ * reports `created: 0` and failures arrive as warnings; retries dedupe against
+ * the primitives already on the page (a rect by geometry, a text by content).
+ * @param chrome - the page's rectangle and text primitives.
+ * @param pageUuid - target page uuid from the preparation stage.
+ * @param sheetIndex - sheet index reported back on failures.
+ * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
+ */
+export function renderChromeChunkScript(
+  chrome: { rects: readonly SheetChromeRect[]; texts: readonly SheetChromeText[] },
+  pageUuid: string,
+  sheetIndex: number,
+): string {
+  return `${THROWN_DETAIL}const doc = { pageUuid: ${JSON.stringify(pageUuid)}, sheetIndex: ${sheetIndex}, chrome: ${JSON.stringify(chrome)} };
+const failures = [];
+await eda.dmt_EditorControl.openDocument(doc.pageUuid);
+const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!active || active.uuid !== doc.pageUuid) return { status: 'WRONG_PAGE', failures, created: 0 };
+const rects = [];
+try { rects.push(...(await eda.sch_PrimitiveRectangle.getAll() || [])) } catch (e) {}
+const texts = [];
+try { texts.push(...(await eda.sch_PrimitiveText.getAll() || [])) } catch (e) {}
+for (const r of doc.chrome.rects) {
+  try {
+    const haveRect = rects.some((o) => { try { return Math.abs(o.getState_TopLeftX() - r.x1) < 0.5 && Math.abs(o.getState_TopLeftY() - r.y1) < 0.5 && Math.abs(o.getState_Width() - (r.x2 - r.x1)) < 0.5 && Math.abs(o.getState_Height() - (r.y2 - r.y1)) < 0.5 } catch (e) { return false } });
+    if (!haveRect) {
+      const rect = await placeOnce(() => eda.sch_PrimitiveRectangle.create(r.x1, r.y1, r.x2 - r.x1, r.y2 - r.y1, 0, 0, null, '', null, 1, 'None'));
+      if (rect === undefined) failures.push({ code: 'FRAME_FAILED', irId: 'chrome:rect', sheetIndex: doc.sheetIndex });
+    }
+  } catch (e) {
+    failures.push({ code: 'FRAME_FAILED', irId: 'chrome:rect', sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
+  }
+}
+for (const t of doc.chrome.texts) {
+  try {
+    const haveText = texts.some((o) => { try { return o.getState_Content() === t.value && Math.abs(o.getState_X() - t.x) < 0.5 && Math.abs(o.getState_Y() - t.y) < 0.5 } catch (e) { return false } });
+    if (!haveText) {
+      const align = t.align === 'RIGHT_TOP' ? 2 : 1;
+      const text = await placeOnce(() => eda.sch_PrimitiveText.create(t.x, t.y, t.value, 0, '#000088', null, t.fontSize, false, false, false, align));
+      if (text === undefined) failures.push({ code: 'FRAME_FAILED', irId: 'chrome:text', sheetIndex: doc.sheetIndex });
+    }
+  } catch (e) {
+    failures.push({ code: 'FRAME_FAILED', irId: 'chrome:text', sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
   }
 }
 return { status: 'OK', failures, created: 0 };`
@@ -649,7 +774,7 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
   const retries = options.retries ?? 2
   const backoffMs = options.retryBackoffMs ?? 500
   const batchSize = Math.max(1, options.batchSize ?? 4)
-  const payload = toBuildPayload(ir, options.createDocument ?? false)
+  const payload = toBuildPayload(ir, options.createDocument ?? false, options.pageSize ?? SCHEMATIC_PAGE_A4, options.frame)
 
   // Stage 1: preconditions and fresh activated pages. One execution only — it
   // performs no primitive placement.
@@ -745,6 +870,18 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
         pushFailures(sheet.blocks.map(block => ({ code: 'FRAME_FAILED', irId: `block:${block.name}`, sheetIndex, detail })))
+      }
+    }
+    // Page border and title block: decoration like the module frames, so a
+    // failure is a warning. Drawn before the module frames so the border never
+    // shadows a module box.
+    if (sheet.chrome.rects.length > 0 || sheet.chrome.texts.length > 0) {
+      try {
+        const raw = await executeChunk(bridge, renderChromeChunkScript(sheet.chrome, pageUuid, sheetIndex), executeOptions, retries, backoffMs)
+        pushFailures(raw.failures)
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error)
+        pushFailures([{ code: 'FRAME_FAILED', irId: 'chrome', sheetIndex, detail }])
       }
     }
     // Hierarchy blocks draw as labelled sheet-symbol boxes — non-electrical,
@@ -876,7 +1013,7 @@ return sources;`
           })
         }
       }
-      findings.push(...diffNetlists(sheet, source, sheetIndex, options.symbolPins))
+      findings.push(...diffNetlists(sheet, source, sheetIndex, options.symbolPins, options.pageSize))
     }
   } else {
     findings.push({
@@ -910,8 +1047,9 @@ return sources;`
     // dropped wire would hide behind the same symptom.
     // `kind: 'block'` components project to drawn sheet-symbol graphics, so
     // they are not part of the component-primitive count invariant.
-    const expectedTotal = ir.sheets.reduce((total, sheet) =>
-      total + sheet.components.filter(c => c.kind !== 'block').length + sheet.wires.length, 0)
+    const expectedTotal = payload.sheets.reduce((total, sheet) =>
+      total + sheet.components.filter(c => c.kind !== 'block').length
+      + sheet.wires.filter(wire => wire.dots.length > 0).length, 0)
     const placementComplete = created >= expectedTotal
     const unready = new Set<number>()
     for (const [index, count] of counts.entries()) {
@@ -920,7 +1058,7 @@ return sources;`
       if (sheet === undefined || sheetIndex === undefined) continue
       const actual = typeof count === 'object' && count !== null ? count as { components?: unknown; wires?: unknown } : undefined
       const expectedComponents = sheet.components.filter(c => c.kind !== 'block').length
-      const expectedWires = sheet.wires.length
+      const expectedWires = payload.sheets[sheetIndex]!.wires.filter(wire => wire.dots.length > 0).length
       if (placementComplete && actual !== undefined && expectedWires > 0 && actual.wires === 0) {
         unready.add(sheetIndex)
         findings.push({
@@ -975,12 +1113,15 @@ return sources;`
       ? oracleRecord.netPads as Record<string, unknown>
       : undefined
     if (padMap !== undefined) {
-      const designatorsInSheet = new Set<string>()
-      for (const component of ir.sheets.flatMap(sheet => sheet.components)) {
-        if (component.designator !== undefined) designatorsInSheet.add(component.designator)
-      }
       for (const [sheetIndex, sheet] of ir.sheets.entries()) {
         if (unready.has(sheetIndex)) continue
+        // Scope the designator filter to this sheet. Designators can repeat
+        // across pages, so a project-wide set would accept a pad from a sibling
+        // page as "belonging" here and report a false mismatch.
+        const designatorsInSheet = new Set<string>()
+        for (const component of sheet.components) {
+          if (component.designator !== undefined) designatorsInSheet.add(component.designator)
+        }
         const expected = new Map<string, Set<string>>()
         for (const component of sheet.components) {
           for (const pin of component.pins) {
@@ -1111,7 +1252,6 @@ function localizeLibraryDoc(source: string, localUuid: string, meta: Record<stri
   const metaLine = `{"type":"META","ticket":${maxTicket(source) + 1},"id":"META"}||${JSON.stringify(meta)}|`
   return [rewritten, ...lines.slice(1), metaLine].join('\n')
 }
-
 /**
  * Fetch every distinct component binding's `DEVICE`/`SYMBOL`/`FOOTPRINT`
  * document through the bridge and localize the copies for embedding. Device
@@ -1222,7 +1362,9 @@ return out
   const localFootprint = new Map<string, EasyEdaEmbeddedDoc>()
   const partIdOf = (info: Record<string, unknown> | undefined, source: string): string | undefined => {
     const names = info?.subPartNames
-    if (Array.isArray(names) && typeof names[0] === 'string') return names[0]
+    // Frame symbols report an empty first sub-part name but still carry a real
+    // `PART` id in their source; an empty name must not win over that id.
+    if (Array.isArray(names) && typeof names[0] === 'string' && names[0] !== '') return names[0]
     return source.match(/"type":"PART"[^|]*"id":"([^"]+)"/)?.[1]
   }
   const meta = (info: Record<string, unknown> | undefined) => ({
@@ -1233,14 +1375,14 @@ return out
   for (const [uuid, entry] of Object.entries(raw.symbols ?? {})) {
     if (typeof entry.source !== 'string') continue
     const localUuid = hex16()
+    // Symbol kinds are typed in the library (2 part, 18 netflag, 19 netport);
+    // the embedded META must mirror the real type or the client reports invalid
+    // symbol data on annotation primitives.
     const doc: EasyEdaEmbeddedDoc = {
       sourceUuid: uuid,
       localUuid,
       source: localizeLibraryDoc(entry.source, localUuid, {
         ...meta(entry.info),
-        // Symbol kinds are typed in the library (2 part, 18 netflag, 19
-        // netport); the embedded META must mirror the real type or the
-        // client reports invalid symbol data on annotation primitives.
         docType: typeof entry.info?.type === 'number' ? entry.info.type : 2,
         source: `${uuid}|${entry.scope ?? ''}`,
       }),
@@ -1336,6 +1478,16 @@ export interface EasyEdaImportOptions {
    * during the read-back diff — see {@link EasyEdaBuildOptions.symbolPins}.
    */
   readonly symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]> | undefined
+  /**
+   * Page frame the serialized module frames clamp into. Defaults to A4; pass
+   * the size the layout stage planned against (e.g. `SCHEMATIC_PAGE_A3`).
+   */
+  readonly pageSize?: SchematicPageSize | undefined
+  /**
+   * Sheet border/title-block metadata. Defaults to a frame titled with the
+   * project name; pass custom fields (version/company/date) to override.
+   */
+  readonly frame?: EasyEdaSheetFrameOptions | undefined
   /** Per-call timeout override for the bridge execution, in milliseconds. */
   readonly timeoutMs?: number | undefined
 }
@@ -1392,8 +1544,26 @@ const eo = new DataView(new ArrayBuffer(22));
 eo.setUint32(0, 0x06054b50, true); eo.setUint16(8, zipEntries.length, true); eo.setUint16(10, zipEntries.length, true);
 eo.setUint32(12, cdBytes, true); eo.setUint32(16, cdStart, true);
 chunks.push(...central, new Uint8Array(eo.buffer));
-const teams = await eda.dmt_Team.getAllTeamsInfo();
-if (!teams || !teams.length) return { status: 'NO_TEAM' };
+let team;
+try {
+  const teams = (await eda.dmt_Team.getAllTeamsInfo()) || [];
+  // A logged-out client can answer with a non-empty array whose first slot is
+  // null (or a team proxy whose uuid getter itself dereferences null). Guard
+  // the element access, not just the array length, so the caller gets the
+  // actionable NO_TEAM status instead of an opaque TypeError.
+  team = teams.find(entry => {
+    try { return entry && typeof entry.uuid === 'string' } catch (e) { return false }
+  });
+} catch (e) { team = undefined }
+// A logged-out client can still expose a syntactically valid team entry while
+// its current-team state is null; the import API then dereferences that null
+// internally. Probe the active team too, inside the same bounded race used by
+// every other client call in this script, and reject a null/malformed answer.
+try {
+  const active = await raced(eda.dmt_Team.getCurrentTeamInfo(), 3000)
+  if (!active || typeof active.uuid !== 'string') team = undefined
+} catch (e) { team = undefined }
+if (!team) return { status: 'NO_TEAM' };
 // Same-name projects collide in the workspace; pick a free suffix upfront.
 // The scan reads every workspace project name serially — unbounded, that
 // alone outlives the request budget on a large workspace (or wedges the
@@ -1402,7 +1572,7 @@ if (!teams || !teams.length) return { status: 'NO_TEAM' };
 // since the import itself is uuid-keyed.
 let projectName = ${JSON.stringify(projectName)};
 try {
-  const uuids = await raced(eda.dmt_Project.getAllProjectsUuid(teams[0].uuid), 5000) || [];
+  const uuids = await raced(eda.dmt_Project.getAllProjectsUuid(team.uuid), 5000) || [];
   const names = new Set();
   const deadline = Date.now() + 6000;
   for (let i = 0; i < uuids.length && Date.now() < deadline; i += 8) {
@@ -1420,12 +1590,20 @@ try {
   }
 } catch (e) {}
 const file = new File([new Blob(chunks)], 'dsh-import.epro2', { type: 'application/octet-stream' });
-const project = await raced(eda.sys_FileManager.importProjectByProjectFile(file, 'JLCEDA Pro', undefined, {
-  operation: 'New Project',
-  newProjectOwnerTeamUuid: teams[0].uuid,
-  newProjectName: projectName,
-  newProjectFriendlyName: projectName,
-}), 20000);
+let project;
+try {
+  project = await raced(eda.sys_FileManager.importProjectByProjectFile(file, 'JLCEDA Pro', undefined, {
+    operation: 'New Project',
+    newProjectOwnerTeamUuid: team.uuid,
+    newProjectName: projectName,
+    newProjectFriendlyName: projectName,
+  }), 20000);
+} catch (e) {
+  // A logged-out client can throw inside the import API while it dereferences
+  // its missing team/project state. Return it as data so the host can turn an
+  // opaque gateway 500 into an actionable sign-in/select-team message.
+  return { status: 'IMPORT_THROWN', detail: String(e && e.message ? e.message : e) };
+}
 if (!project) return { status: 'IMPORT_REJECTED' };
 // The client auto-opens the freshly imported project, and while that switch
 // is in flight every eda.* call serializes behind it — on a slow client the
@@ -1526,6 +1704,7 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
   const IMPORT_DRAIN_PROBE = 'return true'
   const { bridge } = options
   const projectName = options.projectName ?? 'DSH Schematic'
+  const pageSize = options.pageSize ?? SCHEMATIC_PAGE_A4
   const collected = await collectProjectLibrary(ir, bridge, options.timeoutMs)
     .catch((error: unknown) => ({
       library: { devices: [], symbols: [], footprints: [] },
@@ -1535,13 +1714,28 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
         message: `project-library collection failed (${error instanceof Error ? error.message : String(error)}); components render as unresolved boxes`,
       }],
     }))
-  const pkg = serializeEasyEdaProject(ir, { clientId: options.clientId, title: projectName, library: collected.library })
+  const pkg = serializeEasyEdaProject(ir, {
+    clientId: options.clientId,
+    title: projectName,
+    library: collected.library,
+    pageSize,
+    frame: options.frame ?? { projectTitle: projectName },
+  })
   const raw = await bridge.execute(
     renderImportScript(pkg, projectName),
     { timeoutMs: options.timeoutMs },
-  ) as { status?: string, projectUuid?: string | null, projectName?: string }
+  ) as { status?: string, detail?: string, projectUuid?: string | null, projectName?: string }
   if (raw.status === 'NO_TEAM') {
-    throw new SchematicError('no team resolved for the import destination', 'SCHEMATIC_IMPORT_NO_TEAM')
+    throw new SchematicError(
+      'no team resolved for the import destination — if the editor is logged out or has no active team, sign in, select a team, and retry',
+      'SCHEMATIC_IMPORT_NO_TEAM',
+    )
+  }
+  if (raw.status === 'IMPORT_THROWN') {
+    throw new SchematicError(
+      `EasyEDA import failed before creating the project: ${raw.detail ?? 'client error'} — if the editor is logged out or has no active team, sign in, select a team, and retry`,
+      'SCHEMATIC_IMPORT_FAILED',
+    )
   }
   if (raw.status !== 'OK') {
     throw new SchematicError('the client rejected the generated project package', 'SCHEMATIC_IMPORT_REJECTED')
@@ -1651,7 +1845,7 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
         })
       }
     }
-    findings.push(...diffNetlists(sheet, source, index, options.symbolPins))
+    findings.push(...diffNetlists(sheet, source, index, options.symbolPins, options.pageSize))
   }
 
   return { projectUuid: projectUuid ?? readBack.projectUuid ?? '', pageUuids, findings }

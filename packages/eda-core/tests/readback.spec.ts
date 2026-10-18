@@ -30,6 +30,14 @@ describe('diffNetlists', () => {
     expect(findings.filter(f => f.code.startsWith('SCHEMATIC_NETLIST_'))).toEqual([])
   })
 
+  it('maps IR Y through the supplied page size', () => {
+    const doc = sheet()
+    const a3 = { width: 1655, height: 1170 }
+    const src = serializeEasyEdaDocument({ sheets: [doc] }, { pageSize: a3 })
+    expect(src).toContain('"startY":-1170')
+    expect(diffNetlists(doc, src, 0, undefined, a3).filter(f => f.code.startsWith('SCHEMATIC_NETLIST_'))).toEqual([])
+  })
+
   it('ignores non-electrical RECT/TEXT frame records in the netlist diff', () => {
     const doc = sheet()
     const framed: SchematicIrSheet = {
@@ -68,9 +76,10 @@ describe('diffNetlists', () => {
         { id: 'w2', kind: 'wire', dots: [[0, 100, 100, 100]], net: 'AUX' },
       ],
     })
-    // Bridge the two nets with an extra segment inside w1's group.
+    // Bridge the two nets with an extra segment inside w1's group. IR y=0/100
+    // maps to persisted -825/-725 on the A4 page.
     const src = source({ sheets: [doc] }) +
-      '{"type":"LINE","id":"leak","ticket":99}||{"lineGroup":"w1","startX":50,"startY":0,"endX":50,"endY":-100,"strokeColor":null,"strokeStyle":null,"fillColor":null,"strokeWidth":null,"fillStyle":null}|\n'
+      '{"type":"LINE","id":"leak","ticket":99}||{"lineGroup":"w1","startX":50,"startY":-825,"endX":50,"endY":-725,"strokeColor":null,"strokeStyle":null,"fillColor":null,"strokeWidth":null,"fillStyle":null}|\n'
     const merged = diff(doc, src).filter(f => f.code === 'SCHEMATIC_NETLIST_MERGED')
     expect(merged).toHaveLength(1)
     expect(merged[0]?.locator?.net).toBe('AUX/SIG')

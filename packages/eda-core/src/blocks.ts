@@ -8,6 +8,7 @@
 
 import { SCHEMATIC_PAGE_A4 } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { SchematicIrSheet, SchematicPageSize } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { titleBlockTop } from './sheet-chrome.ts'
 
 /** One module frame in IR sheet coordinates (top-left origin). */
 export interface EasyEdaBlockFrame {
@@ -87,7 +88,12 @@ export function computeBlockFrames(
     const x = Math.max(0, Math.floor((box.minX - FRAME_PAD) / GRID) * GRID)
     const y = Math.max(0, Math.floor((box.minY - FRAME_PAD - TITLE_HEADROOM) / GRID) * GRID)
     const right = Math.min(pageSize.width, Math.ceil((box.maxX + FRAME_PAD) / GRID) * GRID)
-    const bottom = Math.min(pageSize.height, Math.ceil((box.maxY + FRAME_PAD) / GRID) * GRID)
+    const computedBottom = Math.min(pageSize.height, Math.ceil((box.maxY + FRAME_PAD) / GRID) * GRID)
+    // Keep the frame off the title block: the pad can push a frame bottom into
+    // the block even when the content clears it. Content that itself reaches
+    // below the block top (authored geometry) keeps its frame.
+    const blockTop = titleBlockTop(pageSize)
+    const bottom = computedBottom > blockTop && box.maxY <= blockTop ? blockTop : computedBottom
     return {
       name,
       title: titleOf.get(name) ?? name,

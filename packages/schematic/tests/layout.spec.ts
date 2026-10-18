@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { layoutSchematic } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { SCHEMATIC_PAGE_A3, layoutSchematic, validateSchematic } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { segmentsTouch, segmentCrossesRect } from '../src/layout.ts'
 import type {
   SchematicIr,
   SchematicIrComponent,
@@ -211,11 +212,62 @@ describe('layoutSchematic routing', () => {
 
   it('uses flags for high-fanout nets', () => {
     const members = Array.from({ length: 6 }, (_, index) =>
-      comp(`u${index}`, { pins: [pin('p1', { electric: 'INPUT', net: 'WIDE' })] }))
+      comp(`u${index}`, {
+        position: { x: 300, y: 200 + index * 100 },
+        pins: [pin(`p${index}`, { electric: 'INPUT', net: 'WIDE' })],
+      }))
     const laid = layoutSchematic(ir(sheet({ components: members })))
     const flags = laid.sheets[0]?.components.filter(component => component.id.startsWith('layout:flag:'))
-    expect(flags?.length).toBe(6)
-    expect(laid.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:WIDE')).toBe(false)
+    // One tapped bus + one flag for the whole receiver column.
+    expect(flags?.length).toBe(1)
+    expect(flags?.[0]?.id).toContain(':bus:')
+    const bus = laid.sheets[0]?.wires.find(wire => wire.id === 'layout:wire:WIDE:flags')
+    expect(bus?.net).toBe('WIDE')
+    expect(bus?.dots?.length).toBeGreaterThan(0)
+  })
+
+  it('extends a tapped bus past an off-grid outermost tap', () => {
+    const members = Array.from({ length: 6 }, (_, index) =>
+      comp(`u${index}`, {
+        position: { x: 300, y: 105 + index * 100 },
+        pins: [pin(`p${index}`, {
+          electric: 'INPUT',
+          net: 'WIDE',
+          endpoint: { x: 220, y: 105 + index * 100 },
+        })],
+      }))
+    const laid = layoutSchematic(ir(sheet({ components: members })), { grid: 100 })
+    const flags = laid.sheets[0]?.components.filter(component => component.id.startsWith('layout:flag:'))
+    expect(flags).toHaveLength(1)
+    const wire = laid.sheets[0]?.wires.find(item => item.id === 'layout:wire:WIDE:flags')
+    const vertical = (wire?.dots ?? []).find(chain => chain[0] === chain[2] && chain[1] !== chain[3])
+    expect(vertical).toBeDefined()
+    const [x1, y1, x2, y2] = vertical as number[]
+    expect(x1).toBe(x2)
+    // The bus must reach the y=605 tap; snap(645,100) alone would stop at 600.
+    expect(Math.min(y1 as number, y2 as number)).toBeLessThanOrEqual(105)
+    expect(Math.max(y1 as number, y2 as number)).toBeGreaterThanOrEqual(605)
+  })
+
+  it('shares one flag across a high-fanout signal column and keeps the driver separate', () => {
+    const receivers = Array.from({ length: 7 }, (_, index) =>
+      comp(`u${index}`, {
+        position: { x: 300, y: 200 + index * 80 },
+        pins: [pin(`p${index}`, { electric: 'INPUT', net: 'CLK' })],
+      }))
+    const driver = comp('src', {
+      position: { x: 600, y: 400 },
+      pins: [pin('ps', { electric: 'OUTPUT', net: 'CLK' })],
+    })
+    const laid = layoutSchematic(ir(sheet({ components: [driver, ...receivers] })))
+    const flags = laid.sheets[0]?.components.filter(component =>
+      component.kind === 'netflag' && component.netName === 'CLK') ?? []
+    // 8 receiver/driver pins would be 8 flags; the receiver column aggregates
+    // to one bus flag and the lone driver keeps one flag.
+    expect(flags).toHaveLength(2)
+    expect(flags.some(flag => flag.id.includes(':bus:'))).toBe(true)
+    const errors = validateSchematic(laid).findings.filter(finding => finding.severity === 'error')
+    expect(errors).toEqual([])
   })
 
   it('falls back to flags when a trunk would touch a foreign pin endpoint', () => {
@@ -377,8 +429,15 @@ describe('layoutSchematic options', () => {
   it('honors the flag fanout threshold', () => {
     const members = Array.from({ length: 3 }, (_, index) =>
       comp(`u${index}`, { pins: [pin('p1', { electric: 'INPUT', net: 'N' })] }))
-    const laid = layoutSchematic(ir(sheet({ components: members })), { flagFanout: 3 })
-    expect(laid.sheets[0]?.components.filter(component => component.id.startsWith('layout:flag:')).length).toBe(3)
+    // Below the threshold the net routes as a trunk, not flags.
+    const trunk = layoutSchematic(ir(sheet({ components: members })), { flagFanout: 4 })
+    expect(trunk.sheets[0]?.components.filter(component => component.id.startsWith('layout:flag:'))).toHaveLength(0)
+    expect(trunk.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:N')).toBe(true)
+    // At the threshold it flags; a same-column run then aggregates to one bus flag.
+    const flagged = layoutSchematic(ir(sheet({ components: members })), { flagFanout: 3 })
+    const flags = flagged.sheets[0]?.components.filter(component => component.id.startsWith('layout:flag:')) ?? []
+    expect(flags).toHaveLength(1)
+    expect(flags[0]?.id).toContain(':bus:')
   })
 })
 
@@ -661,18 +720,20 @@ describe('page bounds', () => {
     for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
   })
 
-  it('compresses module spacing to keep a borderline grid on one page', () => {
-    // Four one-component modules in a single column overflow A4 height at
-    // the default 200-unit gap (780 > 675 usable); the 0.3 rung fits.
+  it('paginates a vertical module stack instead of shrinking the module gap', () => {
+    // Four one-component modules in a single column overflow A4 height at the
+    // frame-safe 200-unit gap (4*60 + 3*200 = 840 > 675 usable). Shrinking
+    // that gap would make the dashed module frames (80 pad + 60 title
+    // headroom) overlap, so the planner paginates instead.
     const doc = ir(sheet({
       blocks: [1, 2, 3, 4].map(i => ({ name: `m${i}` })),
       components: [1, 2, 3, 4].map(i => comp(`u${i}`, { block: `m${i}` })),
     }))
     const laid = layoutSchematic(doc, { moduleColumns: 1 })
-    expect(laid.sheets).toHaveLength(1)
+    expect(laid.sheets).toHaveLength(2)
     const placed = new Map(laid.sheets[0]?.components.map(component => [component.id, component]))
     expect((placed.get('u2')?.position?.y ?? 0) - (placed.get('u1')?.position?.y ?? 0))
-      .toBeLessThan(200 + 60)
+      .toBeGreaterThanOrEqual(260)
     for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
   })
 
@@ -706,8 +767,8 @@ describe('page bounds', () => {
 
   it('honours a custom pageSize bound', () => {
     const doc = ir(sheet({
-      blocks: Array.from({ length: 9 }, (_, i) => ({ name: `m${i}` })),
-      components: Array.from({ length: 9 }, (_, i) => comp(`u${i}`, { block: `m${i}` })),
+      blocks: Array.from({ length: 6 }, (_, i) => ({ name: `m${i}` })),
+      components: Array.from({ length: 6 }, (_, i) => comp(`u${i}`, { block: `m${i}` })),
     }))
     const laid = layoutSchematic(doc, { moduleColumns: 1, pageSize: { width: 3000, height: 2000 } })
     expect(laid.sheets).toHaveLength(1)
@@ -716,17 +777,26 @@ describe('page bounds', () => {
     }
   })
 
-  it('fits more module groups on the taller A3 frame', () => {
-    // A3 landscape in 0.01-inch units — the six-module column that paginates
-    // on A4 stays on one page here.
-    const A3 = { width: 1654, height: 1169 }
-    const doc = ir(sheet({
-      blocks: Array.from({ length: 6 }, (_, i) => ({ name: `m${i}` })),
-      components: Array.from({ length: 6 }, (_, i) => comp(`u${i}`, { block: `m${i}` })),
+  it('uses the taller A3 frame to fit a module row that A4 must paginate', () => {
+    // Four 40-pin modules cannot share A4's 820-unit usable width, so they
+    // wrap into two rows whose combined height exceeds A4; A3 fits the same
+    // row on one page. Module height is fixed by the pin pitch floor, so the
+    // compression ladder cannot hide the width difference.
+    // The exported production preset, not a hand-rolled size: A3 is the dense
+    // module-board page, so a wrong constant must fail here.
+    expect(SCHEMATIC_PAGE_A3).toEqual({ width: 1655, height: 1170 })
+    const A3 = SCHEMATIC_PAGE_A3
+    const components = Array.from({ length: 4 }, (_, i) => comp(`u${i}`, {
+      block: `m${i}`,
+      pins: Array.from({ length: 40 }, (_, p) => pin(`p${p}`)),
     }))
-    const a4 = layoutSchematic(structuredClone(doc), { moduleColumns: 1 })
+    const doc = ir(sheet({
+      blocks: Array.from({ length: 4 }, (_, i) => ({ name: `m${i}` })),
+      components,
+    }))
+    const a4 = layoutSchematic(structuredClone(doc), { moduleColumns: 4 })
     expect(a4.sheets.length).toBeGreaterThan(1)
-    const a3 = layoutSchematic(structuredClone(doc), { moduleColumns: 1, pageSize: A3 })
+    const a3 = layoutSchematic(structuredClone(doc), { moduleColumns: 4, pageSize: A3 })
     expect(a3.sheets).toHaveLength(1)
     for (const point of allGeometry(a3)) expect(inPage(point, A3)).toBe(true)
   })
@@ -907,5 +977,576 @@ describe('golden fixture', () => {
     // The committed module document keeps SIG on flags across the block
     // boundary: no cross-cell trunk wire exists.
     expect(laid.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:SIG')).toBe(false)
+  })
+})
+
+describe('pagination of content that cannot fit one page', () => {
+  const A4 = { width: 1170, height: 825 }
+  const inPage = (p: { x: number; y: number }, page = A4): boolean =>
+    p.x >= 0 && p.x <= page.width && p.y >= 0 && p.y <= page.height
+  const points = (laid: SchematicIr): { x: number; y: number }[] =>
+    laid.sheets.flatMap(page => [
+      ...page.components.flatMap(component => [
+        ...component.position === undefined ? [] : [component.position],
+        ...component.pins.flatMap(pin => pin.endpoint === undefined ? [] : [pin.endpoint]),
+      ]),
+      ...page.junctions.map(junction => junction.point),
+      ...page.wires.flatMap(wire => (wire.dots ?? []).flatMap(chain => {
+        const vertices: { x: number; y: number }[] = []
+        for (let i = 0; i + 1 < chain.length; i += 2) vertices.push({ x: chain[i] as number, y: chain[i + 1] as number })
+        return vertices
+      })),
+    ])
+
+  /** A flat chain too wide and too tall for any spacing rung to fit. */
+  const flatChain = (count: number): SchematicIr => ir(sheet({
+    name: 'MAIN',
+    components: Array.from({ length: count }, (_, i) => comp(`u${i}`, {
+      pins: [
+        pin(`in${i}`, { electric: 'INPUT', net: `N${i}` }),
+        pin(`out${i}`, { electric: 'OUTPUT', net: `N${i + 1}` }),
+        pin(`v${i}`, { electric: 'INPUT', net: 'VCC', powerName: 'VCC' }),
+        pin(`g${i}`, { electric: 'INPUT', net: 'GND', powerName: 'GND' }),
+      ],
+    })),
+  }))
+
+  it('rewrites explicit block sheetIndex targets when pagination shifts the document', () => {
+    // The flat first sheet splits into four pages, so the originally-index-2
+    // child sheet becomes page 5. A block that still said `sheetIndex: 2`
+    // would bind to a page of the flat sheet and break the hierarchy.
+    const top = sheet({
+      name: 'TOP',
+      components: [comp('b1', {
+        kind: 'block',
+        designator: 'CHILD',
+        sheetIndex: 2,
+        pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })],
+      })],
+    })
+    const child = sheet({
+      name: 'CHILD',
+      components: [
+        comp('c1', { pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+        comp('port1', { kind: 'netport', designator: undefined, netName: 'SIG' }),
+      ],
+    })
+    const laid = layoutSchematic({ sheets: [...flatChain(30).sheets, top, child] })
+    expect(laid.sheets.length).toBeGreaterThan(3)
+    const topPage = laid.sheets.findIndex(page => page.components.some(component => component.id === 'b1'))
+    const childPage = laid.sheets.findIndex(page => page.components.some(component => component.id === 'c1'))
+    expect(topPage).toBeGreaterThan(0)
+    expect(childPage).toBeGreaterThan(topPage)
+    const block = laid.sheets[topPage]?.components.find(component => component.id === 'b1')
+    expect(block?.sheetIndex).toBe(childPage)
+    expect(validateSchematic(laid).findings.filter(finding => finding.code.startsWith('HIERARCHY_'))).toEqual([])
+  })
+
+  it('keeps ATTR rows with their owning primitives across a page split', () => {
+    // ATTR is sheet-scoped in the serializer: leaving a component's ATTR on
+    // page 1 after the component moved to page 4 raises ORPHAN_ATTR and blocks
+    // delivery. Component, pin-composite, wire, and bus-entry owners must all
+    // follow their primitive; a truly orphaned ATTR stays on page 1 so the
+    // validator still reports it.
+    const base = flatChain(30).sheets[0] as SchematicIrSheet
+    const laid = layoutSchematic(ir(sheet({
+      ...base,
+      wires: [{ id: 'w1', kind: 'wire', net: 'LINK', dots: [[100, 100, 200, 100]] }],
+      busEntries: [{ id: 'be1', busNet: 'A[1:2]', order: 0, point: { x: 100, y: 100 } }],
+      attrs: [
+        { id: 'a-part', parentId: 'u29', key: 'Note', value: 'part' },
+        { id: 'a-pin', parentId: 'u29in29', key: 'Note', value: 'pin' },
+        { id: 'a-wire', parentId: 'w1', key: 'Note', value: 'wire' },
+        { id: 'a-bus', parentId: 'be1', key: 'Note', value: 'bus' },
+        { id: 'a-ghost', parentId: 'ghost', key: 'Note', value: 'ghost' },
+      ],
+    })))
+    const pageOf = (id: string): number =>
+      laid.sheets.findIndex(page => page.attrs.some(attr => attr.id === id))
+    const partPage = laid.sheets.findIndex(page => page.components.some(component => component.id === 'u29'))
+    expect(partPage).toBeGreaterThan(0)
+    expect(pageOf('a-part')).toBe(partPage)
+    expect(pageOf('a-pin')).toBe(partPage)
+    expect(pageOf('a-wire')).toBe(0)
+    expect(pageOf('a-bus')).toBe(0)
+    expect(pageOf('a-ghost')).toBe(0)
+    expect(validateSchematic(laid).findings
+      .filter(finding => finding.code === 'ORPHAN_ATTR')
+      .map(finding => finding.locator?.componentId)).toEqual(['ghost'])
+  })
+
+  it('keeps continuation page names unique against authored sheet names', () => {
+    // The flat MAIN sheet splits into MAIN, MAIN 3, MAIN 4, MAIN 5: the
+    // authored sheet literally named MAIN 2 keeps its name, so a block that
+    // resolves by name is not made ambiguous by a generated duplicate.
+    const flat = flatChain(30).sheets[0] as SchematicIrSheet
+    const other = sheet({ name: 'MAIN 2', components: [comp('x1')] })
+    const laid = layoutSchematic(ir(flat, other))
+    const names = laid.sheets.map(page => page.name)
+    expect(names[0]).toBe('MAIN')
+    expect(names[1]).toBe('MAIN 3')
+    expect(names[names.length - 1]).toBe('MAIN 2')
+    expect(names.filter(name => name === 'MAIN 2')).toHaveLength(1)
+    expect(new Set(names).size).toBe(names.length)
+  })
+
+  it('paginates a flat sheet instead of letting it overflow the frame', () => {
+    // Previously a single ungrouped group was kept on one sheet at the
+    // tightest rung, producing 5000-unit-wide geometry and 143
+    // OBJECT_OUT_OF_SHEET errors that blocked delivery.
+    const laid = layoutSchematic(flatChain(30))
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    expect(laid.sheets.flatMap(page => page.components.filter(component => component.kind === 'part'))).toHaveLength(30)
+    for (const point of points(laid)) expect(inPage(point)).toBe(true)
+    expect(validateSchematic(laid).findings.some(finding => finding.code === 'OBJECT_OUT_OF_SHEET')).toBe(false)
+  })
+
+  it('paginates an oversized module, keeps its membership, and numbers continued frames', () => {
+    // A single 24-part module cannot split into smaller modules, so the
+    // planner shards it by page while every member keeps its block tag.
+    const components = Array.from({ length: 24 }, (_, i) => comp(`m${i}`, {
+      block: 'mcu',
+      pins: [
+        pin(`in${i}`, { electric: 'INPUT', net: `N${i}` }),
+        pin(`out${i}`, { electric: 'OUTPUT', net: `N${i + 1}` }),
+      ],
+    }))
+    const laid = layoutSchematic(ir(sheet({
+      name: 'CORE',
+      blocks: [{ name: 'mcu', title: 'MCU CORE' }],
+      components,
+    })))
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    expect(laid.sheets.every(page => page.components.every(component =>
+      component.kind !== 'part' || component.block === 'mcu'))).toBe(true)
+    const titles = laid.sheets.map(page => page.blocks?.[0]?.title)
+    expect(titles.every(title => title !== undefined && /^MCU CORE \(\d+\/\d+\)$/.test(title))).toBe(true)
+    expect(new Set(titles).size).toBe(titles.length)
+    // A split frame continues on later pages and the page titles stay ordered.
+    expect(titles[0]).toBe(`MCU CORE (1/${laid.sheets.length})`)
+    // The page is named after the module it carries, and the continuation
+    // takes the module title plus an ordinal (reference: CORE/POWER/DEVICE).
+    expect(laid.sheets[0]?.name).toBe('MCU CORE')
+    expect(laid.sheets[1]?.name).toBe('MCU CORE 2')
+    for (const point of points(laid)) expect(inPage(point)).toBe(true)
+  })
+
+  it('is deterministic and idempotent across pagination', () => {
+    const doc = flatChain(30)
+    const once = layoutSchematic(doc)
+    expect(layoutSchematic(doc)).toEqual(once)
+    expect(layoutSchematic(once)).toEqual(once)
+  })
+
+  it('keeps an atomic component taller than the page on one sheet', () => {
+    // 240 pins make the symbol body taller than any page; splitting cannot
+    // help, so the planner still emits the single shard for the validator.
+    const doc = ir(sheet({
+      components: [comp('u1', { pins: Array.from({ length: 240 }, (_, p) => pin(`p${p}`)) })],
+    }))
+    const laid = layoutSchematic(doc)
+    expect(laid.sheets).toHaveLength(1)
+    expect(laid.sheets[0]?.components.filter(component => component.kind === 'part')).toHaveLength(1)
+  })
+
+  it('splits a same-layer column across pages and numbers its repeated frame', () => {
+    // 24 parts on one net layer form a single column far taller than a page.
+    // The shard cut must chunk that column instead of emitting one huge page.
+    const components = Array.from({ length: 24 }, (_, i) => comp(`w${i}`, {
+      block: 'logic',
+      pins: Array.from({ length: 6 }, (_, p) => pin(`p${p}`, { electric: 'BI', net: `L${i}_${p}` })),
+    }))
+    const laid = layoutSchematic(ir(sheet({
+      name: 'BUS',
+      blocks: [{ name: 'logic' }],
+      components,
+    })))
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    expect(laid.sheets.flatMap(page => page.components.filter(component => component.kind === 'part'))).toHaveLength(24)
+    expect(laid.sheets.map(page => page.name)).toEqual(laid.sheets.map((_, i) => i === 0 ? 'logic' : `logic ${i + 1}`))
+    const titles = laid.sheets.map(page => page.blocks?.[0]?.title)
+    expect(titles.every(title => /^logic \(\d+\/\d+\)$/.test(title ?? ''))).toBe(true)
+    for (const point of points(laid)) expect(inPage(point)).toBe(true)
+  })
+
+  it('names a page by its module key when the sheet declares no block title', () => {
+    // `ghost` has no matching `blocks` entry: the page still takes the key.
+    const ghost = layoutSchematic(ir(sheet({
+      name: 'GHOSTS',
+      blocks: [{ name: 'other' }],
+      components: Array.from({ length: 60 }, (_, i) => comp(`g${i}`, {
+        block: 'ghost',
+        pins: [
+          pin(`in${i}`, { electric: 'INPUT', net: `G${i}` }),
+          pin(`out${i}`, { electric: 'OUTPUT', net: `H${i}` }),
+        ],
+      })),
+    })))
+    expect(ghost.sheets.length).toBeGreaterThan(1)
+    expect(ghost.sheets[0]?.name).toBe('ghost')
+    expect(ghost.sheets[1]?.name).toBe('ghost 2')
+  })
+
+  it('leaves pages unnamed when an unnamed sheet mixes modules', () => {
+    const small = (prefix: string) => comp(`${prefix}1`, {
+      block: prefix,
+      pins: [pin('p', { electric: 'BI', net: `${prefix}N` })],
+    })
+    const big = Array.from({ length: 30 }, (_, i) => comp(`e${i}`, {
+      block: 'e',
+      pins: [pin(`p${i}`, { electric: 'BI', net: `E${i}` })],
+    }))
+    const laid = layoutSchematic(ir(sheet({
+      name: undefined,
+      blocks: [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }, { name: 'e' }],
+      components: [small('a'), small('b'), small('c'), small('d'), ...big],
+    })), { moduleColumns: 2 })
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    // Mixed pages keep the (absent) sheet name; the oversized module page is
+    // named after `e` even though the sheet itself has no name.
+    expect(laid.sheets[0]?.name).toBeUndefined()
+    expect(laid.sheets.some(page => page.name === 'e')).toBe(true)
+  })
+
+  it('keeps module-driven page names unique across source sheets', () => {
+    // Two source sheets whose single module shares a title: page-zero names
+    // must not collide, and the second sheet continues the numbering.
+    const big = (prefix: string) => Array.from({ length: 60 }, (_, i) => comp(`${prefix}${i}`, {
+      block: 'mcu',
+      pins: [
+        pin(`a${i}`, { electric: 'BI', net: `${prefix}${i}A` }),
+        pin(`b${i}`, { electric: 'BI', net: `${prefix}${i}B` }),
+      ],
+    }))
+    const laid = layoutSchematic(ir(
+      sheet({ name: 'A', blocks: [{ name: 'mcu', title: 'MCU CORE' }], components: big('a') }),
+      sheet({ name: 'B', blocks: [{ name: 'mcu', title: 'MCU CORE' }], components: big('b') }),
+    ))
+    const names = laid.sheets.map(page => page.name)
+    expect(names.length).toBeGreaterThan(2)
+    expect(new Set(names).size).toBe(names.length)
+    expect(names[0]).toBe('MCU CORE')
+  })
+
+  it("routes a net around another net's wire instead of tapping it", () => {
+    // A trunk between the two pins would cross the authored guard wire at
+    // (400, 200). A crossing/tap merges nets in the client, so the planner
+    // must fall back to named flags for SIG.
+    const laid = layoutSchematic(ir(sheet({
+      name: 'MAIN',
+      components: [
+        comp('u1', { pins: [pin('p1', { electric: 'OUTPUT', net: 'SIG' })] }),
+        comp('u2', { pins: [pin('p1', { electric: 'INPUT', net: 'SIG' })] }),
+      ],
+      wires: [{ id: 'guard', kind: 'wire', net: 'VCC', dots: [[400, 100, 400, 700]] }],
+    })))
+    expect(laid.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:SIG')).toBe(false)
+    expect(laid.sheets[0]?.components.filter(component => component.netName === 'SIG')).toHaveLength(2)
+    expect(validateSchematic(laid).findings.some(finding => finding.code === 'NET_NAME_CONFLICT')).toBe(false)
+  })
+})
+
+describe('segment collision predicate', () => {
+  const p = (x: number, y: number) => ({ x, y })
+
+  it('detects crossings, taps, shared endpoints, and collinear overlap', () => {
+    // Proper crossing.
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(5, -5), p(5, 5))).toBe(true)
+    // a lies on c-d and b lies on c-d (two collinear containment directions).
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(-5, 0), p(15, 0))).toBe(true)
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(5, 0), p(15, 0))).toBe(true)
+    // T taps: c or d lands on a-b.
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(5, 0), p(5, 5))).toBe(true)
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(5, 5), p(5, 0))).toBe(true)
+    // Shared endpoint and collinear overlap.
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(10, 0), p(20, 0))).toBe(true)
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(2, 0), p(8, 0))).toBe(true)
+    // Disjoint collinear and disjoint parallel segments.
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(20, 0), p(30, 0))).toBe(false)
+    expect(segmentsTouch(p(0, 0), p(10, 0), p(20, 10), p(30, 10))).toBe(false)
+  })
+})
+
+describe('segment body-crossing predicate', () => {
+  const p = (x: number, y: number) => ({ x, y })
+  const rect = { left: 0, right: 100, top: 0, bottom: 100 }
+
+  it('counts a clean crossing but not a segment that starts inside', () => {
+    expect(segmentCrossesRect(p(-10, 50), p(110, 50), rect, 0)).toBe(true)
+    expect(segmentCrossesRect(p(-10, -10), p(110, 110), rect, 0)).toBe(true)
+    // An endpoint inside the outline is a pin stub, not a crossing.
+    expect(segmentCrossesRect(p(20, 20), p(110, 20), rect, 0)).toBe(false)
+    expect(segmentCrossesRect(p(-10, 50), p(10, 50), rect, 0)).toBe(false)
+    // Missing the body entirely, and a pad that collapses the rect.
+    expect(segmentCrossesRect(p(-10, -10), p(-10, 110), rect, 0)).toBe(false)
+    expect(segmentCrossesRect(p(-10, 150), p(110, 150), rect, 0)).toBe(false)
+    expect(segmentCrossesRect(p(-10, 50), p(110, 50), rect, 60)).toBe(false)
+  })
+})
+
+describe('authored geometry on a paginated sheet', () => {
+  it('drops stale wire geometry but keeps the wire row and its ATTR', () => {
+    // 24 parts on one layer overflow the page, so the sheet paginates. The
+    // authored wire sits far outside the frame; if its dots survived, the
+    // validator would report OBJECT_OUT_OF_SHEET.
+    const components = Array.from({ length: 24 }, (_, i) => comp(`w${i}`, {
+      block: 'logic',
+      pins: [
+        pin(`p${i}a`, { electric: 'BI', net: `N${i}` }),
+        pin(`p${i}b`, { electric: 'BI', net: 'SIG' }),
+        ...Array.from({ length: 4 }, (_, k) => pin(`p${i}x${k}`, { electric: 'BI', net: `M${i}_${k}` })),
+      ],
+    }))
+    const laid = layoutSchematic(ir(sheet({
+      name: 'BUS',
+      blocks: [{ name: 'logic' }],
+      components,
+      wires: [
+        { id: 'w-dots', kind: 'wire', net: 'SIG', dots: [[9000, 9000, 9100, 9000]] },
+        { id: 'w-bare', kind: 'wire', net: 'OTHER' },
+      ],
+      attrs: [{ id: 'a1', key: 'Name', value: 'kept', parentId: 'w-dots' }],
+    })))
+    expect(laid.sheets.length).toBeGreaterThan(1)
+    const page0 = laid.sheets[0] as SchematicIrSheet
+    const wire = page0.wires.find(candidate => candidate.id === 'w-dots')
+    expect(wire?.net).toBe('SIG')
+    // The stale geometry is gone and the row itself became the carrier of the
+    // regenerated flag bundle: one primitive keeps the id, the net, and the ATTR
+    // instead of an empty row the builder would have to skip.
+    expect(wire?.dots?.length).toBeGreaterThan(0)
+    expect(page0.wires.some(candidate => candidate.id === 'layout:wire:SIG:flags')).toBe(false)
+    expect(page0.wires.some(candidate => candidate.id === 'w-bare')).toBe(true)
+    expect(page0.attrs.some(attr => attr.id === 'a1')).toBe(true)
+    const findings = validateSchematic(laid).findings
+    expect(findings.some(finding => finding.code === 'OBJECT_OUT_OF_SHEET')).toBe(false)
+    expect(findings.some(finding => finding.code === 'ORPHAN_ATTR')).toBe(false)
+    for (const page of laid.sheets.slice(1)) {
+      expect(page.wires.some(candidate => candidate.id === 'w-dots' || candidate.id === 'w-bare')).toBe(false)
+      expect(page.attrs).toHaveLength(0)
+    }
+    // No page kept a vertex from the stale authored geometry.
+    for (const page of laid.sheets) {
+      for (const wire of page.wires) {
+        for (const chain of wire.dots ?? []) {
+          expect(chain).not.toContain(9000)
+          expect(chain).not.toContain(9100)
+        }
+      }
+    }
+  })
+})
+
+describe('power and ground bus aggregation', () => {
+  const stacked = (count: number) => Array.from({ length: count }, (_, i) => comp(`u${i}`, {
+    position: { x: 200, y: 200 + i * 100 },
+    pins: [
+      pin('v', { electric: 'POWER_IN', net: 'VCC' }),
+      pin('g', { electric: 'POWER_IN', net: 'GND' }),
+    ],
+  }))
+  const flag = (laid: SchematicIr, net: string) =>
+    laid.sheets[0]?.components.filter(component => component.netName === net && component.kind === 'netflag')
+
+  it('shares one flag and one tapped bus across a stacked power column', () => {
+    const laid = layoutSchematic(ir(sheet({ components: stacked(4) })))
+    const page = laid.sheets[0] as SchematicIrSheet
+    expect(flag(laid, 'VCC')).toHaveLength(1)
+    expect(flag(laid, 'GND')).toHaveLength(1)
+    // VCC pins sit left of the body at x=120, GND right at x=280; each bus
+    // steps one flag stub outward and gets a junction at every tap.
+    expect(flag(laid, 'VCC')?.[0]?.position).toEqual({ x: 80, y: 540 })
+    expect(flag(laid, 'GND')?.[0]?.position).toEqual({ x: 320, y: 160 })
+    expect(page.wires.filter(wire => wire.net === 'VCC')).toHaveLength(1)
+    expect(page.wires.filter(wire => wire.net === 'GND')).toHaveLength(1)
+    expect(page.junctions).toHaveLength(8)
+    for (const wire of page.wires) {
+      for (const chain of wire.dots ?? []) {
+        for (let i = 0; i < chain.length; i += 2) {
+          expect(chain[i]).toBeGreaterThanOrEqual(0)
+          expect(chain[i + 1]).toBeGreaterThanOrEqual(0)
+        }
+      }
+    }
+  })
+
+  it('refills an authored empty-dots row instead of adding a flag carrier', () => {
+    const laid = layoutSchematic(ir(sheet({
+      components: stacked(4),
+      wires: [{ id: 'w-decl', kind: 'wire', dots: [], net: 'VCC' }],
+    })))
+    const page = laid.sheets[0] as SchematicIrSheet
+    const declared = page.wires.find(wire => wire.id === 'w-decl')
+    expect(declared?.dots?.length).toBeGreaterThan(0)
+    expect(page.wires.some(wire => wire.id === 'layout:wire:VCC:flags')).toBe(false)
+    expect(page.wires.filter(wire => wire.net === 'VCC')).toHaveLength(1)
+  })
+
+  it('does not rewrite a declared bus row into a wire', () => {
+    const laid = layoutSchematic(ir(sheet({
+      components: stacked(4),
+      wires: [{ id: 'bus-decl', kind: 'bus', dots: [], net: 'VCC' }],
+    })))
+    const page = laid.sheets[0] as SchematicIrSheet
+    // Same net, but a bus primitive must never be given wire geometry: the
+    // carrier is generated alongside it and the declaration row stays as is.
+    expect(page.wires.find(wire => wire.id === 'bus-decl')?.dots).toEqual([])
+    expect(page.wires.some(wire => wire.id === 'layout:wire:VCC:flags')).toBe(true)
+    expect(page.wires.filter(wire => wire.net === 'VCC')).toHaveLength(2)
+  })
+
+  it('does not stack a trunk onto a declared bus row', () => {
+    const laid = layoutSchematic(ir(sheet({
+      components: [
+        comp('u1', { position: { x: 200, y: 200 }, pins: [pin('p1', { electric: 'BI', net: 'N', endpoint: { x: 300, y: 200 } })] }),
+        comp('u2', { position: { x: 200, y: 400 }, pins: [pin('p1', { electric: 'BI', net: 'N', endpoint: { x: 300, y: 400 } })] }),
+      ],
+      // Same net, but a bus primitive: appending wire segments here would ship a
+      // BUS the client never joins, while the offline validator sees a wire.
+      wires: [{ id: 'bus-row', kind: 'bus', dots: [[600, 600, 700, 600]], net: 'N' }],
+    })))
+    const page = laid.sheets[0] as SchematicIrSheet
+    expect(page.wires.find(wire => wire.id === 'bus-row')?.dots).toEqual([[600, 600, 700, 600]])
+    expect(page.wires.some(wire => wire.id === 'layout:wire:N')).toBe(true)
+  })
+
+  it('steps the bus outward past a blocked lane and falls back when all lanes are blocked', () => {
+    const blocker = (x: number, y: number): SchematicIrComponent => ({
+      id: `f${x}`, kind: 'netflag', netName: 'X', position: { x, y }, pins: [],
+    })
+    // A foreign flag on the near lane blocks it without crossing the tap stubs
+    // (the flag sits between two pin rows), so the bus moves one lane out.
+    const near = layoutSchematic(ir(sheet({
+      components: [...stacked(4), blocker(80, 250)],
+    })))
+    expect(flag(near, 'VCC')?.[0]?.position?.x).toBe(40)
+    const far = layoutSchematic(ir(sheet({
+      components: [...stacked(4), blocker(80, 250), blocker(40, 250)],
+    })))
+    expect(flag(far, 'VCC')?.[0]?.position?.x).toBe(0)
+    const blocked = layoutSchematic(ir(sheet({
+      components: [...stacked(4), blocker(80, 250), blocker(40, 250), blocker(0, 250)],
+    })))
+    // Every VCC lane is occupied: the four pins fall back to their own flags.
+    expect(flag(blocked, 'VCC')).toHaveLength(4)
+    expect(blocked.sheets[0]?.components.some(component => component.netName === 'VCC' && component.id.includes(':bus:'))).toBe(false)
+  })
+})
+
+describe('generated wires avoid symbol bodies', () => {
+  it('falls back to flags when a trunk would cross a symbol', () => {
+    // Both parts sit in one column. u1's pin leaves the body on the right at
+    // (280, 200) and u2's on the left at (120, 400); the median trunk would run
+    // straight through u1's outline.
+    const laid = layoutSchematic(ir(sheet({
+      components: [
+        comp('u1', {
+          position: { x: 200, y: 200 },
+          pins: [pin('p1', { electric: 'BI', net: 'N', endpoint: { x: 280, y: 200 } })],
+        }),
+        comp('u2', {
+          position: { x: 200, y: 400 },
+          pins: [pin('p1', { electric: 'BI', net: 'N', endpoint: { x: 120, y: 400 } })],
+        }),
+      ],
+    })))
+    const page = laid.sheets[0] as SchematicIrSheet
+    expect(page.wires.some(wire => wire.id === 'layout:wire:N')).toBe(false)
+    expect(page.components.filter(component => component.netName === 'N')).toHaveLength(2)
+    // The fallback flags stay outside both outlines (x 140..260, y 170..230 and
+    // y 370..430, minus the pin stub inset).
+    for (const component of page.components.filter(candidate => candidate.netName === 'N')) {
+      const { x, y } = component.position ?? { x: -1, y: -1 }
+      const inUpper = x > 150 && x < 250 && y > 180 && y < 220
+      const inLower = x > 150 && x < 250 && y > 380 && y < 420
+      expect(inUpper || inLower).toBe(false)
+    }
+  })
+})
+
+describe('power lane contention and saturated flag fallback', () => {
+  const blocker = (id: string, x: number, y: number): SchematicIrComponent =>
+    ({ id, kind: 'netflag', netName: 'X', position: { x, y }, pins: [] })
+
+  it('keeps per-pin flags when two power nets share a pin column', () => {
+    // Both VCC and GND pins face left at x=120. A bus for either net would cut
+    // the other's only lane, so both must stay on per-pin flags.
+    const components = Array.from({ length: 3 }, (_, i) => comp(`u${i}`, {
+      position: { x: 200, y: 200 + i * 100 },
+      pins: [
+        pin(`v${i}`, { electric: 'INPUT', net: 'VCC', powerName: 'VCC' }),
+        pin(`g${i}`, { electric: 'INPUT', net: 'GND', powerName: 'GND' }),
+      ],
+    }))
+    const laid = layoutSchematic(ir(sheet({ components })))
+    const flags = laid.sheets[0]?.components.filter(component => component.kind === 'netflag') ?? []
+    expect(flags.filter(component => component.netName === 'VCC')).toHaveLength(3)
+    expect(flags.filter(component => component.netName === 'GND')).toHaveLength(3)
+    expect(flags.some(component => component.id.includes(':bus:'))).toBe(false)
+    const errors = validateSchematic(laid).findings.filter(finding => finding.severity === 'error')
+    expect(errors.map(finding => finding.code)).toEqual([])
+  })
+
+  it('sits the flag on the pin when every direction is blocked', () => {
+    const laid = layoutSchematic(ir(sheet({
+      components: [
+        comp('u1', {
+          position: { x: 200, y: 250 },
+          pins: [pin('p1', { electric: 'POWER_IN', net: 'VCC' })],
+        }),
+        // Every candidate the power flag would try is occupied by a foreign flag.
+        blocker('b1', 120, 290),
+        blocker('b2', 120, 210),
+        blocker('b3', 80, 290),
+        blocker('b4', 80, 210),
+        blocker('b5', 80, 250),
+        blocker('b6', 160, 250),
+      ],
+    })))
+    const flag = laid.sheets[0]?.components.find(component => component.netName === 'VCC')
+    expect(flag?.position).toEqual({ x: 120, y: 250 })
+    expect(laid.sheets[0]?.wires.some(wire => wire.net === 'VCC')).toBe(false)
+  })
+
+  it('sits the flag on an out-of-frame pin instead of clamping onto a foreign flag', () => {
+    const laid = layoutSchematic(ir(sheet({
+      components: [
+        comp('u1', {
+          position: { x: 1260, y: 400 },
+          pins: [pin('p1', { electric: 'POWER_IN', net: 'VCC' })],
+        }),
+        blocker('b1', 1170, 440),
+        blocker('b2', 1180, 360),
+        blocker('b3', 1140, 400),
+        blocker('b4', 1220, 400),
+      ],
+    })))
+    const flag = laid.sheets[0]?.components.find(component => component.netName === 'VCC')
+    // The clamped coordinate (1170, 440) is exactly b1: taking it would merge
+    // VCC with X. The pin itself is the only safe spot left, even though it is
+    // out of frame (OBJECT_OUT_OF_SHEET is the honest error).
+    expect(flag?.position).toEqual({ x: 1180, y: 400 })
+    expect(laid.sheets[0]?.wires.some(wire => wire.net === 'VCC')).toBe(false)
+    const codes = validateSchematic(laid).findings.map(finding => finding.code)
+    expect(codes).not.toContain('NET_NAME_CONFLICT')
+    expect(codes).not.toContain('POWER_SHORT')
+    expect(codes).toContain('OBJECT_OUT_OF_SHEET')
+  })
+
+  it('keeps a generated trunk off a bus-entry point', () => {
+    // Net N runs from (300,200) to (300,600); a straight trunk would pass
+    // through the authored bus entry at (300,400), which the validator unions
+    // with the bus. The planner must see it as a foreign point and fall back.
+    const laid = layoutSchematic(ir(sheet({
+      components: [
+        comp('u1', { position: { x: 200, y: 200 }, pins: [pin('p1', { electric: 'BI', net: 'N', endpoint: { x: 300, y: 200 } })] }),
+        comp('u2', { position: { x: 200, y: 600 }, pins: [pin('p1', { electric: 'BI', net: 'N', endpoint: { x: 300, y: 600 } })] }),
+      ],
+      busEntries: [{ id: 'be1', busNet: 'BUS[1:2]', order: 0, point: { x: 300, y: 400 } }],
+    })))
+    expect(laid.sheets[0]?.wires.some(wire => wire.id === 'layout:wire:N')).toBe(false)
+    expect(laid.sheets[0]?.components.filter(component => component.netName === 'N')).toHaveLength(2)
+    const codes = validateSchematic(laid).findings.map(finding => finding.code)
+    expect(codes).not.toContain('NET_NAME_CONFLICT')
   })
 })
