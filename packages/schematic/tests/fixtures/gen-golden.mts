@@ -7,23 +7,23 @@ const doc = {
       {
         id: 'u1', kind: 'part', designator: 'U1', lcsc: 'C25804',
         pins: [
-          { id: 'p1', name: 'OUT', number: '3', electric: 'OUTPUT', net: 'SIG' },
-          { id: 'p2', name: 'VCC', number: '8', electric: 'BI', net: 'VCC', powerName: 'VCC' },
-          { id: 'p3', name: 'GND', number: '4', electric: 'BI', net: 'GND', powerName: 'GND' },
+          { id: 'u1-p1', name: 'OUT', number: '3', electric: 'OUTPUT', net: 'SIG' },
+          { id: 'u1-p2', name: 'VCC', number: '8', electric: 'BI', net: 'VCC', powerName: 'VCC' },
+          { id: 'u1-p3', name: 'GND', number: '4', electric: 'BI', net: 'GND', powerName: 'GND' },
         ],
       },
       {
         id: 'r1', kind: 'part', designator: 'R1', lcsc: 'C25804',
         pins: [
-          { id: 'p1', name: '1', number: '1', electric: 'BI', net: 'SIG' },
-          { id: 'p2', name: '2', number: '2', electric: 'BI', net: 'VCC', powerName: 'VCC' },
+          { id: 'r1-p1', name: '1', number: '1', electric: 'BI', net: 'SIG' },
+          { id: 'r1-p2', name: '2', number: '2', electric: 'BI', net: 'VCC', powerName: 'VCC' },
         ],
       },
       {
         id: 'u2', kind: 'part', designator: 'U2', lcsc: 'C25804',
         pins: [
-          { id: 'p1', name: 'IN', number: '1', electric: 'INPUT', net: 'SIG' },
-          { id: 'p2', name: 'GND', number: '2', electric: 'BI', net: 'GND', powerName: 'GND' },
+          { id: 'u2-p1', name: 'IN', number: '1', electric: 'INPUT', net: 'SIG' },
+          { id: 'u2-p2', name: 'GND', number: '2', electric: 'BI', net: 'GND', powerName: 'GND' },
         ],
       },
     ],
@@ -52,23 +52,23 @@ const moduleDoc = {
       {
         id: 'u1', kind: 'part', designator: 'U1', lcsc: 'C25804', block: 'driver',
         pins: [
-          { id: 'p1', name: 'OUT', number: '3', electric: 'OUTPUT', net: 'SIG' },
-          { id: 'p2', name: 'VCC', number: '8', electric: 'BI', net: 'VCC', powerName: 'VCC' },
-          { id: 'p3', name: 'GND', number: '4', electric: 'BI', net: 'GND', powerName: 'GND' },
+          { id: 'u1-p1', name: 'OUT', number: '3', electric: 'OUTPUT', net: 'SIG' },
+          { id: 'u1-p2', name: 'VCC', number: '8', electric: 'BI', net: 'VCC', powerName: 'VCC' },
+          { id: 'u1-p3', name: 'GND', number: '4', electric: 'BI', net: 'GND', powerName: 'GND' },
         ],
       },
       {
         id: 'r1', kind: 'part', designator: 'R1', lcsc: 'C25804', block: 'driver',
         pins: [
-          { id: 'p1', name: '1', number: '1', electric: 'BI', net: 'SIG' },
-          { id: 'p2', name: '2', number: '2', electric: 'BI', net: 'VCC', powerName: 'VCC' },
+          { id: 'r1-p1', name: '1', number: '1', electric: 'BI', net: 'SIG' },
+          { id: 'r1-p2', name: '2', number: '2', electric: 'BI', net: 'VCC', powerName: 'VCC' },
         ],
       },
       {
         id: 'u2', kind: 'part', designator: 'U2', lcsc: 'C25804', block: 'load',
         pins: [
-          { id: 'p1', name: 'IN', number: '1', electric: 'INPUT', net: 'SIG' },
-          { id: 'p2', name: 'GND', number: '2', electric: 'BI', net: 'GND', powerName: 'GND' },
+          { id: 'u2-p1', name: 'IN', number: '1', electric: 'INPUT', net: 'SIG' },
+          { id: 'u2-p2', name: 'GND', number: '2', electric: 'BI', net: 'GND', powerName: 'GND' },
         ],
       },
     ],

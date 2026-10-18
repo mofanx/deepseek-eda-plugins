@@ -954,6 +954,73 @@ function fitPageSize(
   return fittedPageSize(outwardBox, o.pageSize, o.grid, edgePad)
 }
 
+/**
+ * Fit every underfilled page to its content and centre it on its own sheet.
+ * A page that carries a single module on a wide A3 sheet otherwise hugs the
+ * top-left corner of a large empty frame, while the reference project keeps its
+ * modules near the page centre. Only planned cell positions move: routing,
+ * module frames, and pin endpoints are derived from them afterwards, so the
+ * whole page shifts together.
+ *
+ * This runs for the single-page plan as well as for paginated output: a board
+ * that fits one planned sheet was the one case that could never converge, so a
+ * lone module was delivered on the full planned frame at ~30% fill while the
+ * very same page shrank to its content on the paginated path (t17).
+ * @returns the delivered size of every page, in page order.
+ */
+function fitAndCentre(
+  pages: PlannedCell[][],
+  o: ResolvedLayoutOptions,
+  framed: boolean,
+  edgePad: number,
+  recentrePlanned = true,
+): SchematicPageSize[] {
+  const boxes = pages.map(pageCells => pageContentBox(pageCells, framed))
+  const tightBoxes = pages.map(pageCells => pageContentBox(pageCells, framed, true))
+  // Only module-grouped sheets are fitted: a flat sheet is a simple drawing
+  // that keeps the frame its caller asked for (A4 for small sheets). The
+  // decision uses the tight (symbol) box, which is the density the delivered
+  // drawing is judged on, while the size uses the outward box so the frame and
+  // its routing still fit on the converged sheet.
+  const fittedSizes = boxes.map((box, index) =>
+    framed ? fitPageSize(tightBoxes[index]!, box, o, edgePad) : o.pageSize)
+  for (const [index, pageCells] of pages.entries()) {
+    const size = fittedSizes[index] as SchematicPageSize
+    const box = boxes[index]
+    // A planned page already sits where the packer put it: re-centring it would
+    // shift every single-page board for no reason, so only converged pages move
+    // when the caller asks for that.
+    if (size === o.pageSize && !recentrePlanned) continue
+    let minX = Number.POSITIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+    for (const cell of pageCells) {
+      for (const point of cell.positions.values()) {
+        minX = Math.min(minX, point.x)
+        maxX = Math.max(maxX, point.x)
+        minY = Math.min(minY, point.y)
+        maxY = Math.max(maxY, point.y)
+      }
+    }
+    // A fitted sheet keeps the drawing margin at the top but centres its outward
+    // box across the delivered width: the box already carries the frame padding,
+    // so equal side margins are what the reference sheet looks like. A planned
+    // sheet centres the content inside the usable rect.
+    const dx = box === undefined || size === o.pageSize
+      ? snap((o.margin.x + size.width - edgePad - minX - maxX) / 2, o.grid)
+      : snap((size.width - (box.x2 - box.x1)) / 2 - box.x1, o.grid)
+    const dy = box === undefined || size === o.pageSize
+      ? snap((o.margin.y + size.height - edgePad - minY - maxY) / 2, o.grid)
+      : snap(FITTED_MARGIN - box.y1, o.grid)
+    pages[index] = pageCells.map(cell => ({
+      ...cell,
+      positions: new Map([...cell.positions].map(([id, point]) => [id, { x: point.x + dx, y: point.y + dy }])),
+    }))
+  }
+  return fittedSizes
+}
+
 /** Shards that fit side by side in one band before the width wraps. */
 function bandCapacity(shards: readonly Shard[], usable: PageRect, gap: number): number {
   let count = 0
@@ -1099,45 +1166,7 @@ function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayo
   // afterwards, so the whole page shifts together.
   const framed = (sheet.blocks?.length ?? 0) > 0 || sheet.components.some(component => component.block !== undefined)
   const edgePad = o.pageSize.width - usable.right
-  const boxes = pages.map(pageCells => pageContentBox(pageCells, framed))
-  const tightBoxes = pages.map(pageCells => pageContentBox(pageCells, framed, true))
-  // Only module-grouped sheets are fitted: a flat sheet is a simple drawing
-  // that keeps the frame its caller asked for (A4 for small sheets). The
-  // decision uses the tight (symbol) box, which is the density the delivered
-  // drawing is judged on, while the size uses the outward box so the frame and
-  // its routing still fit on the converged sheet.
-  const fittedSizes = boxes.map((box, index) =>
-    framed ? fitPageSize(tightBoxes[index]!, box, o, edgePad) : o.pageSize)
-  for (const [index, pageCells] of pages.entries()) {
-    const size = fittedSizes[index] as SchematicPageSize
-    const box = boxes[index]
-    let minX = Number.POSITIVE_INFINITY
-    let minY = Number.POSITIVE_INFINITY
-    let maxX = Number.NEGATIVE_INFINITY
-    let maxY = Number.NEGATIVE_INFINITY
-    for (const cell of pageCells) {
-      for (const point of cell.positions.values()) {
-        minX = Math.min(minX, point.x)
-        maxX = Math.max(maxX, point.x)
-        minY = Math.min(minY, point.y)
-        maxY = Math.max(maxY, point.y)
-      }
-    }
-    // A fitted sheet keeps the drawing margin at the top but centres its outward
-    // box across the delivered width: the box already carries the frame padding,
-    // so equal side margins are what the reference sheet looks like. A planned
-    // sheet centres the content inside the usable rect.
-    const dx = box === undefined || size === o.pageSize
-      ? snap((o.margin.x + size.width - edgePad - minX - maxX) / 2, o.grid)
-      : snap((size.width - (box.x2 - box.x1)) / 2 - box.x1, o.grid)
-    const dy = box === undefined || size === o.pageSize
-      ? snap((o.margin.y + size.height - edgePad - minY - maxY) / 2, o.grid)
-      : snap(FITTED_MARGIN - box.y1, o.grid)
-    pages[index] = pageCells.map(cell => ({
-      ...cell,
-      positions: new Map([...cell.positions].map(([id, point]) => [id, { x: point.x + dx, y: point.y + dy }])),
-    }))
-  }
+  const fittedSizes = fitAndCentre(pages, o, framed, edgePad)
 
   // Count the pages each module appears on so a split frame is numbered.
   const pageCount = new Map<string, number>()
@@ -1229,7 +1258,19 @@ function planSheet(sheet: SchematicIrSheet, o: ResolvedLayoutOptions): SheetPlan
     // plan; a row placed below the margin has less vertical room than the
     // single-page measurement assumed.
     const cells = planCells(sheet, zone, options, usable, pages[0] as PackedRow[])
-    if (cellsFit(cells, usable)) return [{ sheet, options, cells }]
+    if (cellsFit(cells, usable)) {
+      // Same convergence as the paginated path: a board that fits one planned
+      // sheet still shrinks to its content when that content covers less than
+      // the fill target, instead of shipping a near-empty planned frame (t17).
+      const onePage = [cells]
+      const sizes = fitAndCentre(onePage, options, framed, edgePad, false)
+      const fitted = sizes[0] as SchematicPageSize
+      return [{
+        sheet,
+        options: fitted === options.pageSize ? options : { ...options, pageSize: fitted },
+        cells: onePage[0] as PlannedCell[],
+      }]
+    }
   }
   return planPaginated(sheet, zone, o, usable)
 }
