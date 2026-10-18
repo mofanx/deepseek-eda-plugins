@@ -1322,8 +1322,45 @@ t18 走默认标题栏），MCU/POWER/IO/MEM/CLK 模块标题两版都在；矩�
 **门禁（独立复跑）**：`pnpm build`（`tsc -b` + tsdown）exit 0；`oxlint packages` 0 warnings / 0 errors
 （42 文件）；`vitest run --coverage` **19 文件 / 563 用例通过，覆盖率 100%**。
 
-**仍未收口**：primitive/verify 路径（`engine.verify`）仍用请求幅面；实测新建 primitive 页的持久化 Y
-是 `-layoutY`（592×570 拟合页、导线 y=260 → 源 -260），不是 `layoutY - pageHeight`，这条路径的坐标系
-要单独收口（生产交付走 import，不受影响）；live 证据只覆盖 t5 夹具（2 引脚占位符号），真实 IC 符号的
-观感与引脚密度需下一块真板；t18 依赖本地 bridge/landing，CI 不跑；标题栏文字数随 `frame` 配置变化，
-t18 只断言模块标题存在、不断言总数。
+**primitive/verify 坐标系已收口（unit-closed, live-blocked）**：`diffNetlists` 新增 `ySign` 参数
+（`1` = 导入路径的 `y - deliveredPageHeight`，`-1` = primitive 路径的 `-layoutY`）；`build.ts` 的
+primitive 调用点改传 `-1`。回归 `projects primitive-path sources through -y instead of the page height`
+用 592×570 拟合页（layoutY=260 → 源 -260）证明旧投影报 2 条 `SCHEMATIC_NETLIST_DROPPED`、新投影零 error。
+live 收口仍受阻：`engine.verify` 走 primitive 建件，6/6 与 1/1 两次实测都返回
+`SCHEMATIC_BUILD_CREATE_TIMEOUT`（新建页已创建、`sch_PrimitiveComponent` 未落件），因此这条路径本轮
+只有单测闭环，不冒充 live 交付；生产交付走 import，不受影响。
+
+**t19 真板 live 闭环**：见 §14.15。t18 依赖本地 bridge/landing，CI 不跑；标题栏文字数随 `frame` 配置
+变化，t18 只断言模块标题存在、不断言总数。
+
+### 14.15 t19：真实 48-pin IC 的 live 交付与引脚密度限制
+
+**脚本**：`node docs/evidence/review/t19-real-ic.mjs`（bridge 49620，真实窗口；需要联网解析 LCSC 库）。
+它用真实 `C23922 STM32F030C8T6`（48 脚）加 6 颗 `C25804` 0603 电阻，铺成 `MCU/POWER/IO/CLK` 四模块，
+`layoutSchematic` A3 后走生产 import 路径，最后在客户端逐页回读。
+
+**交付结果（PASS）**：
+
+| 项 | 值 |
+|---|---|
+| 预算 | `MAIN:910x1170* parts=7 fill=46.5% min=1010x1170` OK |
+| import findings | 0 error，0 `SCHEMATIC_NETLIST_*` |
+| live 页 | `MAIN 910x1170`，21 components（7 器件 + 14 网络旗标），39 texts |
+| 截图 | `docs/evidence/current/t19-real-ic-page1.png` |
+
+脚本断言页名、交付幅面、21 components 与零 error；它证明真实 IC 的**布局→序列化→导入→回读**链路
+（含 `-layoutY` 之外的 `layoutY - deliveredPageHeight` 导入坐标系）在 48 脚符号上闭环。
+
+**同轮抓到的视觉限制（未修，已定性）**：截图里 MCU 每个引脚的网标 `MCU-nn` 在 10 单位引脚间距下
+垂直重叠，网络旗标文本约 40 单位高。两条候选修复都在 live 上被否掉：
+
+1. **按真实符号外框缩放高度**（`symbolHalfHeight` 实验）：只把器件框收紧，标签仍按引脚间距排，
+   重叠未解，且 8 脚 LM393 板反而更挤；已完整 revert。
+2. **压 ATTR `fontSize`**：先对 netflag 的 `Global Net Name` 试 12/6，再对 wire `NET` 试 8；
+   源码确认 `fontSize` 已落盘，但客户端截图里的标签高度不变——**渲染器忽略 overlay ATTR 的
+   `fontSize`**。该实验已 revert。
+
+交叉复核（独立 subagent）先判断重叠来自 wire `NET` ATTR，据此建议把 `NET` 的 `fontSize` 压到 8；
+live A/B 直接把这一假设否掉（48 脚的 `MCU-nn` 实为 `layout:flag:MCU_nn` 旗标，且 `fontSize` 不生效），
+复核结论随后修正为：**不要上 fanout/stagger 大改**；要么换引脚间距更大的符号，要么接受限制并归档。
+本轮采纳归档，不把无效的字号改动混进交付。
