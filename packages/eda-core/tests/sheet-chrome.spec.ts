@@ -41,19 +41,38 @@ const ir = (name: string): SchematicIr => ({
 }) as unknown as SchematicIr
 
 describe('sheet chrome', () => {
-  it('draws a double border and a four-row title block below the content edge', () => {
+  it('draws a double border and an 11-cell title block below the content edge', () => {
     const chrome = computeSheetChrome(base)
     expect(chrome.rects[0]).toEqual({ x1: 8, y1: 8, x2: 1162, y2: 817 })
     expect(chrome.rects[1]).toEqual({ x1: 16, y1: 16, x2: 1154, y2: 809 })
     const block = chrome.rects[2]
-    expect(block).toEqual({ x1: 724, y1: 705, x2: 1154, y2: 809 })
-    // Framed pages allow content down to height-150 = 675; the block starts lower.
-    expect(block!.y1).toBeGreaterThan(675)
-    expect(chrome.texts).toContainEqual({ x: 730, y: 709, value: 'Project', fontSize: 16 })
-    expect(chrome.texts).toContainEqual({ x: 800, y: 709, value: 'Demo Board', fontSize: 20 })
-    expect(chrome.texts).toContainEqual({ x: 1148, y: 735, value: '1/2', fontSize: 16, align: 'RIGHT_TOP' })
-    expect(chrome.texts).toContainEqual({ x: 1148, y: 787, value: 'ACME', fontSize: 16, align: 'RIGHT_TOP' })
-    expect(chrome.texts.map(run => run.value)).toContain('A4')
+    // Five 26-unit rows put the block top at 825-16-130 = 679.
+    expect(block).toEqual({ x1: 594, y1: 679, x2: 1154, y2: 809 })
+    // Framed pages allow content down to height-170 = 655, leaving the block
+    // 24 units of clearance instead of the 4 the four-row block used to leave.
+    expect(block!.y1).toBeGreaterThan(655)
+    // label | value | label | value | page column separators.
+    for (const x of [658, 844, 908, 1094]) {
+      expect(chrome.rects).toContainEqual({ x1: x, y1: 679, x2: x, y2: 809 })
+    }
+    for (const y of [705, 731, 757, 783]) {
+      expect(chrome.rects).toContainEqual({ x1: 594, y1: y, x2: 1154, y2: y })
+    }
+    // Ten labelled cells plus the page counter make the eleven cells.
+    const values = chrome.texts.map(run => run.value)
+    for (const label of ['图样名称', '图号', '项目', '图幅', '版本', '日期', '设计', '审核', '批准', '单位']) {
+      expect(values).toContain(label)
+    }
+    expect(chrome.texts).toContainEqual({ x: 664, y: 683, value: 'CORE', fontSize: 16 })
+    expect(chrome.texts).toContainEqual({ x: 664, y: 709, value: 'Demo Board', fontSize: 16 })
+    expect(chrome.texts).toContainEqual({ x: 914, y: 709, value: 'A4', fontSize: 16 })
+    expect(chrome.texts).toContainEqual({ x: 664, y: 735, value: 'V0.1', fontSize: 16 })
+    expect(chrome.texts).toContainEqual({ x: 914, y: 735, value: '2026-10-17', fontSize: 16 })
+    expect(chrome.texts).toContainEqual({ x: 914, y: 787, value: 'ACME', fontSize: 16 })
+    expect(chrome.texts).toContainEqual({ x: 1148, y: 683, value: '1/2', fontSize: 14, align: 'RIGHT_TOP' })
+    // An electrical drawing carries no scale cell (the reference has none either).
+    expect(values).not.toContain('比例')
+    expect(values.some(value => value.includes('Scale'))).toBe(false)
     // Region markers: five column ticks on the top and bottom bands, three row
     // ticks on the sides, labelled 1-6 and A-D like the platform's frame.
     expect(chrome.texts.map(run => run.value)).toEqual(expect.arrayContaining(['1', '2', '3', '4', '5', '6', 'A', 'B', 'C', 'D']))
@@ -61,20 +80,34 @@ describe('sheet chrome', () => {
     expect(chrome.rects.filter(rect => rect.x1 === 8 && rect.x2 === 16)).toHaveLength(3)
   })
 
-  it('clips overlong titles, page names, and companies and keeps short values intact', () => {
+  it('leaves missing cells blank, defaults the sheet name to the page name, and clips long values', () => {
     const chrome = computeSheetChrome({
       ...base,
       projectTitle: 'X'.repeat(50),
-      pageName: 'Y'.repeat(50),
+      schematicName: 'Y'.repeat(50),
+      drawingNumber: 'D'.repeat(40),
       company: 'Z'.repeat(40),
+      drawnBy: 'Q'.repeat(40),
     })
-    expect(chrome.texts.find(run => run.value.startsWith('X'))?.value).toBe(`${'X'.repeat(27)}…`)
-    expect(chrome.texts.find(run => run.value.startsWith('Y'))?.value).toBe(`${'Y'.repeat(27)}…`)
-    expect(chrome.texts.find(run => run.value.startsWith('Z'))?.value).toBe(`${'Z'.repeat(25)}…`)
-    const short = computeSheetChrome({ ...base, projectTitle: 'A', pageName: 'B', company: 'C' })
-    expect(short.texts).toContainEqual({ x: 800, y: 709, value: 'A', fontSize: 20 })
-    expect(short.texts).toContainEqual({ x: 800, y: 735, value: 'B', fontSize: 20 })
-    expect(short.texts).toContainEqual({ x: 1148, y: 787, value: 'C', fontSize: 16, align: 'RIGHT_TOP' })
+    expect(chrome.texts.find(run => run.value.startsWith('X'))?.value).toBe(`${'X'.repeat(29)}…`)
+    expect(chrome.texts.find(run => run.value.startsWith('Y'))?.value).toBe(`${'Y'.repeat(23)}…`)
+    expect(chrome.texts.find(run => run.value.startsWith('D'))?.value).toBe(`${'D'.repeat(23)}…`)
+    expect(chrome.texts.find(run => run.value.startsWith('Z'))?.value).toBe(`${'Z'.repeat(23)}…`)
+    expect(chrome.texts.find(run => run.value.startsWith('Q'))?.value).toBe(`${'Q'.repeat(23)}…`)
+    // The sheet-name cell falls back to the page name when schematicName is absent.
+    expect(computeSheetChrome(base).texts).toContainEqual({ x: 664, y: 683, value: 'CORE', fontSize: 16 })
+    const short = computeSheetChrome({ ...base, schematicName: 'SHEET', projectTitle: 'A', company: 'C' })
+    expect(short.texts).toContainEqual({ x: 664, y: 683, value: 'SHEET', fontSize: 16 })
+    expect(short.texts).toContainEqual({ x: 664, y: 709, value: 'A', fontSize: 16 })
+    expect(short.texts).toContainEqual({ x: 914, y: 787, value: 'C', fontSize: 16 })
+    // A cell with no value emits no text run, but its rules stay in place.
+    const blank = computeSheetChrome(base)
+    const at = (x: number, y: number): boolean => blank.texts.some(run => run.x === x && run.y === y)
+    expect(at(914, 683)).toBe(false)
+    expect(at(664, 761)).toBe(false)
+    expect(at(914, 761)).toBe(false)
+    expect(at(664, 787)).toBe(false)
+    expect(blank.rects).toContainEqual({ x1: 908, y1: 679, x2: 908, y2: 809 })
   })
 
   it('labels A4, A3, and custom page frames', () => {
@@ -121,6 +154,35 @@ describe('frame option defaults', () => {
     // (serialize.ts falls back to 'DSH Schematic').
     const source = serializeEasyEdaDocument(ir('P1'), { frame: {} })
     expect(source).toContain('DSH Schematic')
+  })
+
+  it('prints every supplied title-block cell and blanks the missing ones', () => {
+    const source = serializeEasyEdaDocument(ir('CORE'), {
+      pageSize: A3,
+      frame: {
+        projectTitle: 'Board',
+        drawingNumber: 'DSH-001',
+        schematicName: 'SHEET A',
+        version: 'V9',
+        company: 'ACME',
+        date: '2026-10-18',
+        drawnBy: 'j2',
+        checkedBy: 'j3',
+        approvedBy: 'j1',
+      },
+    })
+    for (const value of ['Board', 'DSH-001', 'SHEET A', 'V9', 'ACME', '2026-10-18', 'j2', 'j3', 'j1']) {
+      expect(source).toContain(`"value":${JSON.stringify(value)}`)
+    }
+    for (const label of ['图样名称', '图号', '项目', '图幅', '版本', '日期', '设计', '审核', '批准', '单位']) {
+      expect(source).toContain(`"value":${JSON.stringify(label)}`)
+    }
+    // The sheet name falls back to the page name; a missing value leaves its
+    // cell blank while the label row is still drawn.
+    const bare = serializeEasyEdaDocument(ir('CORE'), { frame: { projectTitle: 'Board' } })
+    expect(bare).toContain('"value":"CORE"')
+    expect(bare).toContain('"value":"图号"')
+    expect(bare).not.toContain('"value":"DSH-001"')
   })
 })
 

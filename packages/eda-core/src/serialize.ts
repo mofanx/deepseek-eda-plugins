@@ -206,7 +206,11 @@ function emitSheet(
   frame?: EasyEdaSheetFrameOptions,
   pageCount = 1,
 ): void {
-  emit.pageHeight = pageSize.height
+  // A page the layout fitted to its content (幅面收敛) is delivered on that
+  // smaller sheet; the frame, its title block, and the module-frame clamp all
+  // follow the delivered size rather than the planned one.
+  const size = sheet.pageSize ?? pageSize
+  emit.pageHeight = size.height
   emit.lines.push(`{"type":"DOCHEAD","ticket":${emit.nextTicket()}}||{"docType":"SCH_PAGE","client":"${clientId}","uuid":"${docUuid}","updateTime":1,"version":"1","user":{"uuid":"${docUuid}"}}|`)
   if (schematicUuid !== undefined) {
     emit.lines.push(`{"type":"META","ticket":${emit.nextTicket()},"id":"META"}||{"title":${JSON.stringify(sheet.name ?? `P${sheetIndex + 1}`)},"schematic":"${schematicUuid}","source":"","zIndex":${sheetIndex}}|`)
@@ -214,15 +218,20 @@ function emitSheet(
   emit.lines.push(`{"type":"CANVAS","ticket":${emit.nextTicket()},"id":"CANVAS"}||{"originX":0,"originY":0}|`)
   if (frame !== undefined) {
     const chrome = computeSheetChrome({
-      pageSize,
+      pageSize: size,
       projectTitle: frame.projectTitle ?? 'DSH Schematic',
       pageName: sheet.name ?? `P${sheetIndex + 1}`,
       pageIndex: sheetIndex,
       pageCount,
-      sizeLabel: pageSizeLabel(pageSize),
+      sizeLabel: pageSizeLabel(size),
       version: frame.version ?? 'V0.1',
       company: frame.company ?? '',
       date: frame.date ?? '',
+      drawingNumber: frame.drawingNumber,
+      schematicName: frame.schematicName,
+      drawnBy: frame.drawnBy,
+      checkedBy: frame.checkedBy,
+      approvedBy: frame.approvedBy,
     })
     for (const rule of chrome.rects) emit.rect(rule.x1, rule.y1, rule.x2, rule.y2, { solid: true, color: '#000000' })
     for (const run of chrome.texts) emit.text(run.x, run.y, run.value, run.fontSize, run.align ?? 'LEFT_TOP', '#000000')
@@ -266,7 +275,7 @@ function emitSheet(
   // Module frames are non-electrical RECT/TEXT records; read-back and the
   // netlist diff only consume ATTR/COMPONENT/WIRE/LINE, so they never join
   // the connectivity comparison.
-  for (const frame of computeBlockFrames(sheet, pageSize)) {
+  for (const frame of computeBlockFrames(sheet, size)) {
     emit.rect(frame.x, frame.y, frame.x + frame.width, frame.y + frame.height)
     emit.text(frame.titleX, frame.titleY, frame.title)
   }

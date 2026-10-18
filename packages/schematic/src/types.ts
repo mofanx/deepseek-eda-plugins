@@ -189,6 +189,12 @@ export interface SchematicIrSheet {
    * order); a sheet without any `block` membership lays out flat as before.
    */
   readonly blocks?: readonly SchematicIrBlock[] | undefined
+  /**
+   * Page frame this sheet is delivered on, when the layout fitted it to its
+   * content (幅面收敛) instead of the frame the caller planned against. Absent
+   * on sheets that keep the planned size.
+   */
+  readonly pageSize?: SchematicPageSize | undefined
   readonly components: readonly SchematicIrComponent[]
   readonly wires: readonly SchematicIrWire[]
   readonly busEntries: readonly SchematicIrBusEntry[]
@@ -463,12 +469,22 @@ export interface SchematicEngineVerifyOptions {
 export interface SchematicTitleBlockOptions {
   /** Project/document title printed in the title block. */
   readonly projectTitle?: string | undefined
+  /** Drawing/sheet number printed beside the sheet name. */
+  readonly drawingNumber?: string | undefined
+  /** Sheet name printed in the title block; defaults to the page name. */
+  readonly schematicName?: string | undefined
   /** Revision label, e.g. `V1.0`. */
   readonly version?: string | undefined
   /** Company/owner cell; may be empty. */
   readonly company?: string | undefined
   /** Drawing date (`YYYY-MM-DD`); may be empty. */
   readonly date?: string | undefined
+  /** Designer signature cell; may be empty. */
+  readonly drawnBy?: string | undefined
+  /** Reviewer signature cell; may be empty. */
+  readonly checkedBy?: string | undefined
+  /** Approver signature cell; may be empty. */
+  readonly approvedBy?: string | undefined
 }
 
 /** Per-call inputs for {@link SchematicEngine.serialize}. */

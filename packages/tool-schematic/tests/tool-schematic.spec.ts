@@ -573,6 +573,44 @@ describe('page frame and title block', () => {
     })
   })
 
+  it('forwards the drawing-number, sheet-name, and signature cells', async () => {
+    const recorder = recordingEngine()
+    const { call } = await mountTools({ engine: recorder.engine })
+    await call('schematic_generate', {
+      document: validDoc,
+      titleBlock: {
+        drawingNumber: 'DSH-001',
+        schematicName: 'SHEET A',
+        drawnBy: 'j2',
+        checkedBy: 'j3',
+        approvedBy: 'j1',
+      },
+    })
+    expect(recorder.serialize[0]?.titleBlock).toEqual({
+      drawingNumber: 'DSH-001',
+      schematicName: 'SHEET A',
+      drawnBy: 'j2',
+      checkedBy: 'j3',
+      approvedBy: 'j1',
+    })
+  })
+
+  it('falls back to the configured drawing cells and lets a call override them', async () => {
+    const recorder = recordingEngine()
+    const { call } = await mountTools({
+      engine: recorder.engine,
+      config: { drawingNumber: 'CFG-7', schematicName: 'CFG SHEET', drawnBy: 'd', checkedBy: 'c', approvedBy: 'a' },
+    })
+    await call('schematic_generate', { document: validDoc })
+    expect(recorder.serialize[0]?.titleBlock).toEqual({
+      drawingNumber: 'CFG-7', schematicName: 'CFG SHEET', drawnBy: 'd', checkedBy: 'c', approvedBy: 'a',
+    })
+    await call('schematic_generate', { document: validDoc, titleBlock: { drawingNumber: 'CALL-9' } })
+    expect(recorder.serialize[1]?.titleBlock).toEqual({
+      drawingNumber: 'CALL-9', schematicName: 'CFG SHEET', drawnBy: 'd', checkedBy: 'c', approvedBy: 'a',
+    })
+  })
+
   it('falls back to the configured page size and title when a call omits them', async () => {
     const recorder = recordingEngine()
     const { call } = await mountTools({

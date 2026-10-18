@@ -13,6 +13,7 @@
  */
 
 import { transformSymbolPoint } from './geometry.ts'
+import { SCHEMATIC_PAGE_BUDGET, fittedPageSize, snapToGrid } from './budget.ts'
 import { SCHEMATIC_PAGE_A4 } from './types.ts'
 import type {
   SchematicIr,
@@ -39,7 +40,7 @@ const FLAG_STUB = 40
 /** Horizontal gap between the main zone and the annotation margin. */
 const ANNOTATION_GAP = 120
 /** Gap between functional-module cells in the placement grid. */
-const MODULE_GAP = 200
+const MODULE_GAP = SCHEMATIC_PAGE_BUDGET.moduleGap
 /**
  * Body half-width for the placement outline; the library APIs expose no
  * symbol geometry, so occupancy derives from the declared pin counts.
@@ -50,11 +51,46 @@ const BODY_HALF_PADDING = 20
 /**
  * Edge allowance inside the page frame for sheets carrying module frames —
  * covers the pin stub + flag stub plus the frame padding and title headroom
- * the serializer adds around module members.
+ * the serializer adds around module members. The title block is five rows
+ * (130 units) tall, so on A4 it reaches up to y=679 and the framed content
+ * bound sits at 825−170=655, leaving 24 units of clearance under the block.
  */
-const PAGE_EDGE_FRAMED = 150
+const PAGE_EDGE_FRAMED = SCHEMATIC_PAGE_BUDGET.edgePadFramed
 /** Edge allowance for flat sheets: pin stub plus generated flag stub. */
-const PAGE_EDGE_FLAT = 80
+const PAGE_EDGE_FLAT = SCHEMATIC_PAGE_BUDGET.edgePadFlat
+/**
+ * Module-frame padding the serializer draws around grouped members, plus the
+ * headroom its title band takes above them. Exported so the serializer and the
+ * page fit below cannot drift apart: the fit box must cover the drawn frame,
+ * or a fitted sheet would let the frame reach into the title block.
+ */
+export const SCHEMATIC_FRAME_PAD = 80
+export const SCHEMATIC_FRAME_HEADROOM = 60
+/**
+ * Content coverage below which a planned page is fitted down to its content
+ * instead of delivering a large empty sheet around a small cluster.
+ */
+const PAGE_FILL_TARGET = SCHEMATIC_PAGE_BUDGET.fillTarget
+/** Narrowest/ shortest fitted sheet: the title block is 560 wide and 146 tall. */
+/**
+ * Margin a fitted sheet keeps above and left of its content. The framed edge
+ * allowance (170) is only needed on the right and bottom, where the title block
+ * sits and where the framed clearance of 24 must hold; the top and left edges
+ * only carry the drawing border, so a small drawing margin keeps the fitted
+ * sheet dense instead of padding it symmetrically.
+ */
+/**
+ * Outward extent of everything the serializer draws around a planned cell: the
+ * symbol body plus pin stub, then the module frame pad, then the net port or
+ * flag routed past the pin endpoint. The fit box below has to cover all of it,
+ * or a fitted sheet clips its own routing (and a page whose height is already
+ * at the planned maximum would push its frame into the title block).
+ */
+const FITTED_OUTWARD_X = SCHEMATIC_PAGE_BUDGET.outwardX
+const FITTED_OUTWARD_TOP = SCHEMATIC_PAGE_BUDGET.outwardTop
+const FITTED_OUTWARD_BOTTOM = SCHEMATIC_PAGE_BUDGET.outwardBottom
+/** Drawing margin a fitted sheet keeps above its content (the title block owns the bottom). */
+const FITTED_MARGIN = SCHEMATIC_PAGE_BUDGET.fittedMargin
 /**
  * Spacing compression ladder applied to column pitch and row gap when the
  * module grid overflows the page; each level retries the single-page pack
@@ -124,7 +160,7 @@ function compressSpacing(o: ResolvedLayoutOptions, scale: number): ResolvedLayou
   }
 }
 
-const snap = (value: number, grid: number): number => Math.round(value / grid) * grid
+const snap = snapToGrid
 
 const componentKey = (component: SchematicIrComponent): string => component.designator ?? component.id
 
@@ -800,6 +836,65 @@ function pageModuleTitle(sheet: SchematicIrSheet, cells: readonly PlannedCell[])
   return sheet.blocks?.find(block => block.name === key)?.title ?? key
 }
 
+/**
+ * Content box of one planned page, padded to the frame the serializer draws
+ * around grouped members (or to the symbol body model on flat sheets).
+ */
+function pageContentBox(
+  cells: readonly PlannedCell[],
+  framed: boolean,
+  tight = false,
+): { x1: number; y1: number; x2: number; y2: number } {
+  const padX = framed && !tight ? FITTED_OUTWARD_X : BODY_HALF_WIDTH
+  const padTop = framed && !tight ? FITTED_OUTWARD_TOP : BODY_HALF_PADDING * 2
+  const padBottom = framed && !tight ? FITTED_OUTWARD_BOTTOM : BODY_HALF_PADDING * 2
+  let x1 = Number.POSITIVE_INFINITY
+  let y1 = Number.POSITIVE_INFINITY
+  let x2 = Number.NEGATIVE_INFINITY
+  let y2 = Number.NEGATIVE_INFINITY
+  for (const cell of cells) {
+    for (const point of cell.positions.values()) {
+      x1 = Math.min(x1, point.x - padX)
+      x2 = Math.max(x2, point.x + padX)
+      y1 = Math.min(y1, point.y - padTop)
+      y2 = Math.max(y2, point.y + padBottom)
+    }
+  }
+  return { x1, y1, x2, y2 }
+}
+
+/**
+ * Page size for one planned page: the planned frame, or — when the content
+ * covers less than {@link PAGE_FILL_TARGET} of it — a sheet fitted to the
+ * content box plus the layout margin and the framed edge allowance. The fitted
+ * size is never larger than the planned frame and never narrower than the
+ * title block, and the returned object is the planned size itself when no fit
+ * applies so callers can keep reference equality.
+ */
+function fitPageSize(
+  tightBox: { x1: number; y1: number; x2: number; y2: number },
+  outwardBox: { x1: number; y1: number; x2: number; y2: number },
+  o: ResolvedLayoutOptions,
+  edgePad: number,
+): SchematicPageSize {
+
+  const tightArea = (tightBox.x2 - tightBox.x1) * (tightBox.y2 - tightBox.y1)
+  if (tightArea >= PAGE_FILL_TARGET * o.pageSize.width * o.pageSize.height) return o.pageSize
+  return fittedPageSize(outwardBox, o.pageSize, o.grid, edgePad)
+}
+
+/** Shards that fit side by side in one band before the width wraps. */
+function bandCapacity(shards: readonly Shard[], usable: PageRect, gap: number): number {
+  let count = 0
+  let x = usable.left
+  for (const shard of shards) {
+    if (count > 0 && x + shard.width > usable.right) break
+    x += shard.width + gap
+    count += 1
+  }
+  return Math.max(1, count)
+}
+
 function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayoutOptions, usable: PageRect): SheetPlan[] {
   // Pagination may use a tighter column pitch than the one-page ladder: pages
   // exist to be readable, and 300 units still leaves 180 between symbol
@@ -816,6 +911,14 @@ function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayo
     shards.push(...shardGroup(key, members, pag, halfHeightOf, usableWidth, usableHeight))
   }
 
+  // Rebalance the bands before placing: a width-greedy pack puts four modules
+  // on the first A3 band and leaves the fifth alone on a nearly empty sheet.
+  // Spreading them over the same number of bands (ceil(N / capacity)) keeps the
+  // page count and gives every page a usable share of the content.
+  const capacity = bandCapacity(shards, usable, o.moduleGap)
+  const bandCount = Math.max(1, Math.ceil(shards.length / capacity))
+  const bandLimit = o.moduleColumns ?? Math.max(1, Math.ceil(shards.length / bandCount))
+
   const pages: PlannedCell[][] = []
   let cells: PlannedCell[] = []
   let x = usable.left
@@ -823,8 +926,7 @@ function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayo
   let bandHeight = 0
   let inBand = 0
   for (const shard of shards) {
-    const wrapsBand = x > usable.left && (x + shard.width > usable.right
-      || (o.moduleColumns !== undefined && inBand >= o.moduleColumns))
+    const wrapsBand = x > usable.left && (x + shard.width > usable.right || inBand >= bandLimit)
     if (wrapsBand) {
       x = usable.left
       y += bandHeight + o.moduleGap
@@ -848,12 +950,26 @@ function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayo
   }
   pages.push(cells)
 
-  // Centre each page's content inside the usable rect. A page that carries a
-  // single module on a wide A3 sheet otherwise hugs the top-left corner, while
-  // the reference project keeps its modules near the page centre. Only planned
-  // cell positions move: routing, module frames, and pin endpoints are derived
-  // from them afterwards, so the whole page shifts together.
+  // Fit underfilled pages to their content, then centre each page inside its
+  // own sheet. A page that carries a single module on a wide A3 sheet otherwise
+  // hugs the top-left corner of a large empty frame, while the reference
+  // project keeps its modules near the page centre. Only planned cell positions
+  // move: routing, module frames, and pin endpoints are derived from them
+  // afterwards, so the whole page shifts together.
+  const framed = (sheet.blocks?.length ?? 0) > 0 || sheet.components.some(component => component.block !== undefined)
+  const edgePad = o.pageSize.width - usable.right
+  const boxes = pages.map(pageCells => pageContentBox(pageCells, framed))
+  const tightBoxes = pages.map(pageCells => pageContentBox(pageCells, framed, true))
+  // Only module-grouped sheets are fitted: a flat sheet is a simple drawing
+  // that keeps the frame its caller asked for (A4 for small sheets). The
+  // decision uses the tight (symbol) box, which is the density the delivered
+  // drawing is judged on, while the size uses the outward box so the frame and
+  // its routing still fit on the converged sheet.
+  const fittedSizes = boxes.map((box, index) =>
+    framed ? fitPageSize(tightBoxes[index]!, box, o, edgePad) : o.pageSize)
   for (const [index, pageCells] of pages.entries()) {
+    const size = fittedSizes[index] as SchematicPageSize
+    const box = boxes[index]
     let minX = Number.POSITIVE_INFINITY
     let minY = Number.POSITIVE_INFINITY
     let maxX = Number.NEGATIVE_INFINITY
@@ -866,8 +982,16 @@ function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayo
         maxY = Math.max(maxY, point.y)
       }
     }
-    const dx = snap((usable.left + usable.right - minX - maxX) / 2, o.grid)
-    const dy = snap((usable.top + usable.bottom - minY - maxY) / 2, o.grid)
+    // A fitted sheet keeps the drawing margin at the top but centres its outward
+    // box across the delivered width: the box already carries the frame padding,
+    // so equal side margins are what the reference sheet looks like. A planned
+    // sheet centres the content inside the usable rect.
+    const dx = box === undefined || size === o.pageSize
+      ? snap((o.margin.x + size.width - edgePad - minX - maxX) / 2, o.grid)
+      : snap((size.width - (box.x2 - box.x1)) / 2 - box.x1, o.grid)
+    const dy = box === undefined || size === o.pageSize
+      ? snap((o.margin.y + size.height - edgePad - minY - maxY) / 2, o.grid)
+      : snap(FITTED_MARGIN - box.y1, o.grid)
     pages[index] = pageCells.map(cell => ({
       ...cell,
       positions: new Map([...cell.positions].map(([id, point]) => [id, { x: point.x + dx, y: point.y + dy }])),
@@ -905,7 +1029,7 @@ function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayo
     const single = pages.length === 1
     return {
       sheet: single ? sheet : splitSheet(sheet, pageCells, index, titles, allOwners),
-      options: o,
+      options: fittedSizes[index] === o.pageSize ? o : { ...o, pageSize: fittedSizes[index] as SchematicPageSize },
       cells: pageCells,
     }
   })
@@ -1051,6 +1175,10 @@ export function layoutSchematic(ir: SchematicIr, options: SchematicLayoutOptions
         }
       }
       let sheet = plan.sheet
+      const fitted = plan.options.pageSize
+      if (fitted.width !== o.pageSize.width || fitted.height !== o.pageSize.height) {
+        sheet = { ...sheet, pageSize: fitted }
+      }
       if (name !== undefined) {
         assigned.add(name)
         if (sheet.name !== name) sheet = { ...sheet, name }
@@ -1099,13 +1227,17 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
 
     const framed = (sheet.blocks?.length ?? 0) > 0 || sheet.components.some(component => component.block !== undefined)
     const edgePad = framed ? PAGE_EDGE_FRAMED : PAGE_EDGE_FLAT
-    const rightEdge = o.pageSize.width - edgePad
-    const bottomEdge = o.pageSize.height - edgePad
+    // Flags, ports, and annotations are placed after pagination, so they clamp
+    // to the sheet this page is actually delivered on — a fitted sheet is
+    // smaller than the planned frame and would otherwise let them spill off it.
+    const pageSize = plan.options.pageSize
+    const rightEdge = pageSize.width - edgePad
+    const bottomEdge = pageSize.height - edgePad
     const inFrame = (p: SchematicPoint): boolean =>
-      p.x >= 0 && p.x <= o.pageSize.width && p.y >= 0 && p.y <= o.pageSize.height
+      p.x >= 0 && p.x <= pageSize.width && p.y >= 0 && p.y <= pageSize.height
     const clampFrame = (p: SchematicPoint): SchematicPoint => ({
-      x: Math.min(Math.max(p.x, 0), o.pageSize.width),
-      y: Math.min(Math.max(p.y, 0), o.pageSize.height),
+      x: Math.min(Math.max(p.x, 0), pageSize.width),
+      y: Math.min(Math.max(p.y, 0), pageSize.height),
     })
 
     let annotationX = o.margin.x

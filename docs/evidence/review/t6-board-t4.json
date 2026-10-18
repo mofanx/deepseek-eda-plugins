@@ -1,0 +1,37 @@
+{
+ "note": "t5-shaped board (5 modules x 6 parts, 2 pins) through the current src tree",
+ "rows": [
+  {
+   "index": 0,
+   "name": "MAIN",
+   "parts": 18,
+   "blocks": 3,
+   "pageSize": "1230x1170",
+   "fitted": true,
+   "box": {
+    "x1": 180,
+    "y1": 220,
+    "x2": 940,
+    "y2": 900
+   },
+   "fill": 35.9,
+   "withinSheet": true
+  },
+  {
+   "index": 1,
+   "name": "MAIN 2",
+   "parts": 12,
+   "blocks": 2,
+   "pageSize": "910x1170",
+   "fitted": true,
+   "box": {
+    "x1": 180,
+    "y1": 220,
+    "x2": 620,
+    "y2": 900
+   },
+   "fill": 28.1,
+   "withinSheet": true
+  }
+ ]
+}

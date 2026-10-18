@@ -1,0 +1,100 @@
+{
+ "rule": "fill >= 35% OR (ceiling < 35% AND fill >= 90% of ceiling AND size <= minSize + 1 grid)",
+ "note": "same five-module board as page-budget.spec.ts; moduleColumns:1 reproduces the old one-module-per-page pagination",
+ "results": [
+  {
+   "variant": "production (default)",
+   "pages": [
+    {
+     "index": 0,
+     "name": "MAIN",
+     "parts": 54,
+     "blocks": 3,
+     "size": "1230x1170",
+     "fitted": true,
+     "fill": 37.9,
+     "ceiling": 37.3,
+     "minSize": "1250x1170",
+     "verdict": "PASS (>=35%)"
+    },
+    {
+     "index": 1,
+     "name": "MAIN 2",
+     "parts": 36,
+     "blocks": 2,
+     "size": "910x1170",
+     "fitted": true,
+     "fill": 30.2,
+     "ceiling": 29.6,
+     "minSize": "930x1170",
+     "verdict": "PASS (ceiling clause)"
+    }
+   ]
+  },
+  {
+   "variant": "moduleColumns: 1",
+   "pages": [
+    {
+     "index": 0,
+     "name": "MCU",
+     "parts": 18,
+     "blocks": 1,
+     "size": "592x1170",
+     "fitted": true,
+     "fill": 14.1,
+     "ceiling": 13.7,
+     "minSize": "610x1170",
+     "verdict": "PASS (ceiling clause)"
+    },
+    {
+     "index": 1,
+     "name": "POWER",
+     "parts": 18,
+     "blocks": 1,
+     "size": "592x1170",
+     "fitted": true,
+     "fill": 14.1,
+     "ceiling": 13.7,
+     "minSize": "610x1170",
+     "verdict": "PASS (ceiling clause)"
+    },
+    {
+     "index": 2,
+     "name": "IO",
+     "parts": 18,
+     "blocks": 1,
+     "size": "592x1170",
+     "fitted": true,
+     "fill": 14.1,
+     "ceiling": 13.7,
+     "minSize": "610x1170",
+     "verdict": "PASS (ceiling clause)"
+    },
+    {
+     "index": 3,
+     "name": "MEM",
+     "parts": 18,
+     "blocks": 1,
+     "size": "592x1170",
+     "fitted": true,
+     "fill": 14.1,
+     "ceiling": 13.7,
+     "minSize": "610x1170",
+     "verdict": "PASS (ceiling clause)"
+    },
+    {
+     "index": 4,
+     "name": "CLK",
+     "parts": 18,
+     "blocks": 1,
+     "size": "592x1170",
+     "fitted": true,
+     "fill": 14.1,
+     "ceiling": 13.7,
+     "minSize": "610x1170",
+     "verdict": "PASS (ceiling clause)"
+    }
+   ]
+  }
+ ]
+}

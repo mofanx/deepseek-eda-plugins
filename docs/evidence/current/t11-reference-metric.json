@@ -1,0 +1,92 @@
+{
+ "method": "content geometry (components that carry a designator, plus primitives) / A3 page area; the native frame component (origin, no designator) is excluded so this is the same kind of box as measurePageFill, which excludes the sheet frame by construction",
+ "pages": [
+  {
+   "name": "CORE",
+   "uuid": "deb3b77e1dfc4422b6532f4d8e689a38",
+   "components": 183,
+   "frameComponents": 140,
+   "designatedComponents": 43,
+   "rects": 7,
+   "rectBox": {
+    "x1": 150,
+    "y1": 360,
+    "x2": 1200,
+    "y2": 1120
+   },
+   "componentBox": {
+    "x1": 185,
+    "y1": 130,
+    "x2": 1540,
+    "y2": 1095
+   },
+   "contentBox": {
+    "x1": 150,
+    "y1": 130,
+    "x2": 1540,
+    "y2": 1120
+   },
+   "fillComponentsOnly": 67.5,
+   "fillWithPrimitives": 71.1,
+   "pageArea": 1936350
+  },
+  {
+   "name": "POWER",
+   "uuid": "1a5f58b0016c4ffda3c7ec658568ab92",
+   "components": 78,
+   "frameComponents": 44,
+   "designatedComponents": 34,
+   "rects": 2,
+   "rectBox": {
+    "x1": 220,
+    "y1": 780,
+    "x2": 760,
+    "y2": 1090
+   },
+   "componentBox": {
+    "x1": 130,
+    "y1": 620,
+    "x2": 1465,
+    "y2": 1088
+   },
+   "contentBox": {
+    "x1": 130,
+    "y1": 620,
+    "x2": 1465,
+    "y2": 1090
+   },
+   "fillComponentsOnly": 32.3,
+   "fillWithPrimitives": 32.4,
+   "pageArea": 1936350
+  },
+  {
+   "name": "DEVICE",
+   "uuid": "d39dc4a4e6c44465b80588bfe06123a8",
+   "components": 133,
+   "frameComponents": 75,
+   "designatedComponents": 58,
+   "rects": 6,
+   "rectBox": {
+    "x1": 195,
+    "y1": 212,
+    "x2": 1609,
+    "y2": 1130
+   },
+   "componentBox": {
+    "x1": 55,
+    "y1": 310,
+    "x2": 1516,
+    "y2": 1070
+   },
+   "contentBox": {
+    "x1": 55,
+    "y1": 212,
+    "x2": 1609,
+    "y2": 1130
+   },
+   "fillComponentsOnly": 57.3,
+   "fillWithPrimitives": 73.7,
+   "pageArea": 1936350
+  }
+ ]
+}

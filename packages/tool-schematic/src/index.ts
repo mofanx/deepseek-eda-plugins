@@ -43,6 +43,16 @@ export interface Config {
   projectTitle?: string
   /** Default company/owner cell of the title block. */
   company?: string
+  /** Default drawing/sheet number cell. */
+  drawingNumber?: string
+  /** Default sheet name cell; empty means "use the page name". */
+  schematicName?: string
+  /** Default designer signature cell. */
+  drawnBy?: string
+  /** Default reviewer signature cell. */
+  checkedBy?: string
+  /** Default approver signature cell. */
+  approvedBy?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -52,6 +62,11 @@ export const Config: z<Config> = z.object({
   pageSize: z.union(['A3', 'A4']).default('A3'),
   projectTitle: z.string().default(''),
   company: z.string().default(''),
+  drawingNumber: z.string().default(''),
+  schematicName: z.string().default(''),
+  drawnBy: z.string().default(''),
+  checkedBy: z.string().default(''),
+  approvedBy: z.string().default(''),
 })
 
 /** Complete config after schemastery applies every field default. */
@@ -95,9 +110,14 @@ function titleBlockFor(requested: unknown, config: ResolvedConfig): SchematicTit
   const source = typeof requested === 'object' && requested !== null ? requested as Record<string, unknown> : {}
   return {
     projectTitle: textField(source, 'projectTitle') ?? (config.projectTitle === '' ? undefined : config.projectTitle),
+    drawingNumber: textField(source, 'drawingNumber') ?? (config.drawingNumber === '' ? undefined : config.drawingNumber),
+    schematicName: textField(source, 'schematicName') ?? (config.schematicName === '' ? undefined : config.schematicName),
     version: textField(source, 'version'),
     company: textField(source, 'company') ?? (config.company === '' ? undefined : config.company),
     date: textField(source, 'date'),
+    drawnBy: textField(source, 'drawnBy') ?? (config.drawnBy === '' ? undefined : config.drawnBy),
+    checkedBy: textField(source, 'checkedBy') ?? (config.checkedBy === '' ? undefined : config.checkedBy),
+    approvedBy: textField(source, 'approvedBy') ?? (config.approvedBy === '' ? undefined : config.approvedBy),
   }
 }
 
@@ -106,8 +126,9 @@ const PAGE_SIZE_PARAM_DESCRIPTION =
   'Defaults to the configured size. Geometry is placed and validated against this frame, so it must match the sheet the design targets.'
 
 const TITLE_BLOCK_PARAM_DESCRIPTION =
-  'Title-block fields printed in each page\'s border: { projectTitle?, version?, company?, date? }. ' +
-  'The page name, page number, and page count are filled in per page automatically.'
+  'Title-block fields printed in each page\'s border: { projectTitle?, drawingNumber?, schematicName?, version?, company?, date?, drawnBy?, checkedBy?, approvedBy? }. ' +
+  'The border prints an 11-cell block (sheet name/number, project/size, version/date, designer/reviewer, approver/company) plus the page number; ' +
+  'schematicName defaults to the page name and the page number/count are filled in per page automatically.'
 
 /** JSON-canonical projection of one validator finding, matching `FINDINGS_SCHEMA`. */
 interface FindingJson {

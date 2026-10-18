@@ -32,6 +32,8 @@ export { SCHEMATIC_LOOKUP_FAILED, SCHEMATIC_PAGE_A3, SCHEMATIC_PAGE_A4, Schemati
 export { transformSymbolPoint } from './geometry.ts'
 export { parseSchematicIr } from './ir.ts'
 export { layoutSchematic } from './layout.ts'
+export { SCHEMATIC_PAGE_BUDGET, contentCoverage, fittedPageSize, outwardContentBox, snapToGrid } from './budget.ts'
+export type { SchematicContentBox } from './budget.ts'
 export { expandBusName, validateSchematic } from './validate.ts'
 export type {
   SchematicBindingResolution,

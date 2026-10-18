@@ -1,0 +1,95 @@
+{
+ "method": "page = largest A3-aspect rectangle bounded by long dark runs; content region = page inset 4% with the bottom-right title block (45% x 22%) masked out; fillRatio = content ink bbox area / page area",
+ "caveats": [
+  "bbox-based: one stray mark (or a UI overlay inside the page) inflates the box",
+  "screenshots are IDE windows, so the page rectangle is detected, not given",
+  "the reference title block is the native Sheet-Symbol block, whose exact extent is assumed to be the bottom-right 45% x 22%"
+ ],
+ "samples": [
+  {
+   "file": "t8-00-MAIN.png",
+   "image": "1612x750",
+   "pageRect": "670x483 @ 468,82 (aspect 1.387)",
+   "contentBox": "501x430 @ 564,109",
+   "fillRatio": 0.6657,
+   "fillStrict": 0.6617,
+   "fillNoTitleBlockMask": 0.6657,
+   "inkDensity": 0.0359,
+   "inkPixels": 8360,
+   "touchesRegionEdge": {
+    "left": false,
+    "top": true,
+    "right": false,
+    "bottom": true
+   }
+  },
+  {
+   "file": "t8-01-MAIN 2.png",
+   "image": "1612x750",
+   "pageRect": "670x483 @ 468,82 (aspect 1.387)",
+   "contentBox": "371x430 @ 629,109",
+   "fillRatio": 0.493,
+   "fillStrict": 0.489,
+   "fillNoTitleBlockMask": 0.493,
+   "inkDensity": 0.0427,
+   "inkPixels": 9936,
+   "touchesRegionEdge": {
+    "left": false,
+    "top": true,
+    "right": false,
+    "bottom": true
+   }
+  },
+  {
+   "file": "00-CORE.png",
+   "image": "1612x750",
+   "pageRect": "671x490 @ 480,74 (aspect 1.369)",
+   "contentBox": "587x434 @ 538,104",
+   "fillRatio": 0.7748,
+   "fillStrict": 0.7396,
+   "fillNoTitleBlockMask": 0.7748,
+   "inkDensity": 0.1275,
+   "inkPixels": 30214,
+   "touchesRegionEdge": {
+    "left": false,
+    "top": false,
+    "right": true,
+    "bottom": true
+   }
+  },
+  {
+   "file": "01-POWER.png",
+   "image": "1612x750",
+   "pageRect": "670x482 @ 480,82 (aspect 1.390)",
+   "contentBox": "583x247 @ 507,113",
+   "fillRatio": 0.4459,
+   "fillStrict": 0.4367,
+   "fillNoTitleBlockMask": 0.812,
+   "inkDensity": 0.047,
+   "inkPixels": 10927,
+   "touchesRegionEdge": {
+    "left": true,
+    "top": false,
+    "right": false,
+    "bottom": false
+   }
+  },
+  {
+   "file": "02-DEVICE.png",
+   "image": "1612x750",
+   "pageRect": "671x482 @ 480,82 (aspect 1.392)",
+   "contentBox": "618x370 @ 507,109",
+   "fillRatio": 0.707,
+   "fillStrict": 0.6974,
+   "fillNoTitleBlockMask": 0.8197,
+   "inkDensity": 0.1072,
+   "inkPixels": 24941,
+   "touchesRegionEdge": {
+    "left": true,
+    "top": true,
+    "right": true,
+    "bottom": false
+   }
+  }
+ ]
+}

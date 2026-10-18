@@ -42,12 +42,22 @@ export interface SheetChrome {
 export interface EasyEdaSheetFrameOptions {
   /** Project/document title in the `Project` row; defaults to the import name. */
   readonly projectTitle?: string | undefined
+  /** Drawing/sheet number printed beside the sheet name. */
+  readonly drawingNumber?: string | undefined
+  /** Sheet name printed in the title block; defaults to the page name. */
+  readonly schematicName?: string | undefined
   /** Revision label; defaults to `V0.1`. */
   readonly version?: string | undefined
   /** Company/owner printed in the bottom-right cell; may be empty. */
   readonly company?: string | undefined
   /** Drawing date (`YYYY-MM-DD`); may be empty. */
   readonly date?: string | undefined
+  /** Designer signature cell; may be empty. */
+  readonly drawnBy?: string | undefined
+  /** Reviewer signature cell; may be empty. */
+  readonly checkedBy?: string | undefined
+  /** Approver signature cell; may be empty. */
+  readonly approvedBy?: string | undefined
 }
 
 /** Everything the title block prints; supplied by the serializer per page. */
@@ -56,7 +66,7 @@ export interface SheetChromeOptions {
   readonly pageSize: SchematicPageSize
   /** Project/document title shown in the `Project` row. */
   readonly projectTitle: string
-  /** Sheet/page name shown in the `Page` row. */
+  /** Sheet/page name shown in the `Sheet` row. */
   readonly pageName: string
   /** Zero-based page index; printed as `1-based/pageCount`. */
   readonly pageIndex: number
@@ -66,21 +76,39 @@ export interface SheetChromeOptions {
   readonly sizeLabel: string
   /** Drawing revision printed in the `Rev` row. */
   readonly version: string
-  /** Company/owner printed in the bottom row; may be empty. */
+  /** Company/owner printed in the `Unit` cell; may be empty. */
   readonly company: string
   /** Drawing date (`YYYY-MM-DD`); may be empty. */
   readonly date: string
+  /** Drawing/sheet number; may be empty. */
+  readonly drawingNumber?: string | undefined
+  /** Sheet name printed in the title block; defaults to `pageName`. */
+  readonly schematicName?: string | undefined
+  /** Designer signature; may be empty. */
+  readonly drawnBy?: string | undefined
+  /** Reviewer signature; may be empty. */
+  readonly checkedBy?: string | undefined
+  /** Approver signature; may be empty. */
+  readonly approvedBy?: string | undefined
 }
 
 const BORDER_INSET = 8
 const INNER_INSET = 16
-const TITLE_BLOCK_WIDTH = 430
+/**
+ * Title block width: two label+value groups plus the page-number corner cell.
+ * Kept as a sum so the column constants and the block width cannot drift.
+ */
+const LABEL_COLUMN = 64
+const VALUE_COLUMN = 186
+/** Corner cell holding `n/N`, used only by the first row. */
+const PAGE_COLUMN = 60
+const TITLE_BLOCK_WIDTH = LABEL_COLUMN * 2 + VALUE_COLUMN * 2 + PAGE_COLUMN
 const ROW_HEIGHT = 26
-const ROW_COUNT = 4
-const LABEL_WIDTH = 70
+/** Five rows: sheet+number, project+size, version+date, drawn+checked, approved+unit. */
+const ROW_COUNT = 5
 const TEXT_PAD = 6
-const VALUE_MAX = 28
-const COMPANY_MAX = 26
+const VALUE_MAX = 24
+const COMPANY_MAX = 24
 /** Sheet region grid printed in the border band: 6 columns × 4 rows. */
 const REGION_COLUMNS = 6
 const REGION_ROWS = 4
@@ -207,32 +235,50 @@ export function computeSheetChrome(options: SheetChromeOptions): SheetChrome {
   const y1 = height - INNER_INSET
   const blockX = x1 - TITLE_BLOCK_WIDTH
   const blockY = y1 - ROW_HEIGHT * ROW_COUNT
+  // Column edges: label1 | value1 | label2 | value2 | page. The page column is
+  // only labelled on the first row; the rest of the grid stays blank there.
+  const label1X = blockX
+  const value1X = label1X + LABEL_COLUMN
+  const label2X = value1X + VALUE_COLUMN
+  const value2X = label2X + LABEL_COLUMN
+  const pageX = x1 - PAGE_COLUMN
   const rects: SheetChromeRect[] = [
     { x1: BORDER_INSET, y1: BORDER_INSET, x2: width - BORDER_INSET, y2: height - BORDER_INSET },
     { x1: INNER_INSET, y1: INNER_INSET, x2: x1, y2: y1 },
     { x1: blockX, y1: blockY, x2: x1, y2: y1 },
-    { x1: blockX + LABEL_WIDTH, y1: blockY, x2: blockX + LABEL_WIDTH, y2: y1 },
   ]
+  // The two label columns and the page column run the full block height; the
+  // row rules split the five rows so every field keeps its own cell.
+  for (const x of [value1X, label2X, value2X, pageX]) rects.push({ x1: x, y1: blockY, x2: x, y2: y1 })
   for (let row = 1; row < ROW_COUNT; row++) {
     const y = blockY + row * ROW_HEIGHT
     rects.push({ x1: blockX, y1: y, x2: x1, y2: y })
   }
   const rowTextY = (row: number): number => blockY + row * ROW_HEIGHT + 4
-  const labelX = blockX + TEXT_PAD
-  const valueX = blockX + LABEL_WIDTH + TEXT_PAD
-  const texts: SheetChromeText[] = [
-    { x: labelX, y: rowTextY(0), value: 'Project', fontSize: 16 },
-    { x: valueX, y: rowTextY(0), value: clip(options.projectTitle, VALUE_MAX), fontSize: 20 },
-    { x: labelX, y: rowTextY(1), value: 'Page', fontSize: 16 },
-    { x: valueX, y: rowTextY(1), value: clip(options.pageName, VALUE_MAX), fontSize: 20 },
-    { x: x1 - TEXT_PAD, y: rowTextY(1), value: `${options.pageIndex + 1}/${options.pageCount}`, fontSize: 16, align: 'RIGHT_TOP' },
-    { x: labelX, y: rowTextY(2), value: 'Size', fontSize: 16 },
-    { x: valueX, y: rowTextY(2), value: options.sizeLabel, fontSize: 16 },
-    { x: labelX, y: rowTextY(3), value: 'Rev', fontSize: 16 },
-    { x: valueX, y: rowTextY(3), value: options.version, fontSize: 16 },
-    { x: x1 - TEXT_PAD, y: rowTextY(3), value: clip(options.company, COMPANY_MAX), fontSize: 16, align: 'RIGHT_TOP' },
-    { x: x1 - TEXT_PAD, y: rowTextY(2), value: options.date, fontSize: 16, align: 'RIGHT_TOP' },
-  ]
+  const texts: SheetChromeText[] = []
+  /** One label+value cell; an empty value leaves the cell blank. */
+  const cell = (row: number, labelX: number, valueX: number, label: string, value: string, max = VALUE_MAX): void => {
+    texts.push({ x: labelX + TEXT_PAD, y: rowTextY(row), value: label, fontSize: 14 })
+    if (value.length > 0) texts.push({ x: valueX + TEXT_PAD, y: rowTextY(row), value: clip(value, max), fontSize: 16 })
+  }
+  cell(0, label1X, value1X, '图样名称', options.schematicName ?? options.pageName)
+  cell(0, label2X, value2X, '图号', options.drawingNumber ?? '')
+  cell(1, label1X, value1X, '项目', options.projectTitle, 30)
+  cell(1, label2X, value2X, '图幅', options.sizeLabel)
+  cell(2, label1X, value1X, '版本', options.version)
+  cell(2, label2X, value2X, '日期', options.date)
+  cell(3, label1X, value1X, '设计', options.drawnBy ?? '')
+  cell(3, label2X, value2X, '审核', options.checkedBy ?? '')
+  cell(4, label1X, value1X, '批准', options.approvedBy ?? '')
+  cell(4, label2X, value2X, '单位', options.company, COMPANY_MAX)
+  // Page counter rides the first row's corner cell, right-aligned.
+  texts.push({
+    x: x1 - TEXT_PAD,
+    y: rowTextY(0),
+    value: `${options.pageIndex + 1}/${options.pageCount}`,
+    fontSize: 14,
+    align: 'RIGHT_TOP',
+  })
   // Sheet region markers: the drawing frame divides into six columns and four
   // rows, each ticked across the band between the outer and inner border and
   // labelled (1–6 top/bottom, A–D left/right) like the platform's frame.

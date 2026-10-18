@@ -101,10 +101,10 @@ describe('computeBlockFrames', () => {
     const [frame] = computeBlockFrames(sheet({
       components: [part('u1', 'io', 100, 640)],
     }))
-    // Content at y=640 is above the A4 title-block top (705), but the 80-unit
+    // Content at y=640 is above the A4 title-block top (679), but the 80-unit
     // pad would reach 720; the frame bottom stops at the block instead.
     expect(frame?.y).toBe(500)
-    expect((frame?.y ?? 0) + (frame?.height ?? 0)).toBe(705)
+    expect((frame?.y ?? 0) + (frame?.height ?? 0)).toBe(679)
   })
 
   it('mixes declared, titleless declared, and free-form names in stable order', () => {

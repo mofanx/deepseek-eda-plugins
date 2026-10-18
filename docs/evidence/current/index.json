@@ -1,0 +1,232 @@
+{
+ "generatedAt": "2026-10-18T06:25:11.482Z",
+ "purpose": "t13 independent review of t12: rule enforcement, adversarial attempts, live re-verification",
+ "source": {
+  "gitHead": "4eff4016e20850719f9f1d2c4c046da5307a200d",
+  "workingTreeDirty": true,
+  "note": "HEAD is still 4eff401; the t2/t4/t7/t10/t12 changes are uncommitted, so mtimes identify the code",
+  "keyFiles": [
+   {
+    "path": "packages/schematic/src/layout.ts",
+    "mtime": "2026-10-18T06:14:55.551Z"
+   },
+   {
+    "path": "packages/schematic/src/budget.ts",
+    "mtime": "2026-10-18T06:14:55.543Z"
+   },
+   {
+    "path": "packages/eda-core/src/measure.ts",
+    "mtime": "2026-10-18T06:06:53.063Z"
+   },
+   {
+    "path": "packages/eda-core/src/page-budget.ts",
+    "mtime": "2026-10-18T06:14:46.452Z"
+   },
+   {
+    "path": "packages/eda-core/tests/page-budget.spec.ts",
+    "mtime": "2026-10-18T06:19:49.220Z"
+   },
+   {
+    "path": "packages/eda-core/src/sheet-chrome.ts",
+    "mtime": "2026-10-18T03:36:02.074Z"
+   },
+   {
+    "path": "packages/schematic-easyeda/src/build.ts",
+    "mtime": "2026-10-18T03:52:28.693Z"
+   }
+  ],
+  "gates": {
+   "tsc": "clean (exit 0)",
+   "oxlint": "0 warnings / 0 errors, 42 files",
+   "vitest": "19 files / 553 tests passed",
+   "coverage": "reported 100% by t12; this review ran the suite without --coverage"
+  },
+  "libRebuilt": "tsdown rebuilt in this run before any measurement (5 packages)"
+ },
+ "metric": {
+  "definition": "measurePageFill(sheet, planned): ink bbox of module frames (computeBlockFrames) + component positions + pin endpoints, over the delivered sheet (sheet.pageSize when fitted)",
+  "rule": "checkPageBudget(sheets, planned) -> {ok, pages, violations}; per page target/minimum/ceiling/floor, board-level distribution/pagination",
+  "composability": "page-budget.ts:82 fits the OUTWARD box (outwardContentBox(anchors)), not the ink box, which is the t11 defect fix. Independently confirmed: on every delivered page minSize equals the delivered size and atMinimum is true (1230x1170, 910x1170, 890x825)."
+ },
+ "liveImport": {
+  "projectName": "dsh-t13-1792304650699",
+  "projectUuid": "baedc6c82a494709ba14cdfe466916b1",
+  "validateErrors": 0,
+  "budgetOk": true,
+  "budgetRules": [],
+  "pageCount": 2
+ },
+ "pages": [
+  {
+   "name": "MAIN",
+   "uuid": "519d826d0c2643c29747705328672b1e",
+   "pageSizePx": {
+    "width": 1230,
+    "height": 1170
+   },
+   "parts": 18,
+   "moduleFrames": 3,
+   "fitted": true,
+   "rects": 30,
+   "texts": 44,
+   "components": 18,
+   "expectedRects": 30,
+   "expectedTexts": 44,
+   "rectsMatch": true,
+   "textsMatch": true,
+   "titleBlockDataFieldCount": 0,
+   "showTitleBlock": true,
+   "drcStrict": "true",
+   "drcUi": "[]",
+   "liveMargins": {
+    "left": 192,
+    "right": 182
+   },
+   "irMargins": {
+    "left": 200,
+    "right": 190
+   },
+   "contentBottomY": 230,
+   "titleBlockTopY": 146,
+   "clearance": 84,
+   "fillPercent": 47.9,
+   "cells": {
+    "图样名称": "MAIN CONTROL",
+    "图号": "DSH-013",
+    "项目": "DSH T13 LIVE",
+    "图幅": "1230×1170",
+    "版本": "V1.0",
+    "日期": "2026-10-18",
+    "设计": "j3",
+    "审核": "j1",
+    "批准": "j2",
+    "单位": "DSH EDA"
+   },
+   "pageCounter": "1/2"
+  },
+  {
+   "name": "MAIN 2",
+   "uuid": "195149d702c84ac2ae1f62f754d993a0",
+   "pageSizePx": {
+    "width": 910,
+    "height": 1170
+   },
+   "parts": 12,
+   "moduleFrames": 2,
+   "fitted": true,
+   "rects": 29,
+   "texts": 43,
+   "components": 12,
+   "expectedRects": 29,
+   "expectedTexts": 43,
+   "rectsMatch": true,
+   "textsMatch": true,
+   "titleBlockDataFieldCount": 0,
+   "showTitleBlock": true,
+   "drcStrict": "true",
+   "drcUi": "[]",
+   "liveMargins": {
+    "left": 192,
+    "right": 182
+   },
+   "irMargins": {
+    "left": 200,
+    "right": 190
+   },
+   "contentBottomY": 230,
+   "titleBlockTopY": 146,
+   "clearance": 84,
+   "fillPercent": 40,
+   "cells": {
+    "图样名称": "MAIN CONTROL",
+    "图号": "DSH-013",
+    "项目": "DSH T13 LIVE",
+    "图幅": "910×1170",
+    "版本": "V1.0",
+    "日期": "2026-10-18",
+    "设计": "j3",
+    "审核": "j1",
+    "批准": "j2",
+    "单位": "DSH EDA"
+   },
+   "pageCounter": "2/2"
+  }
+ ],
+ "adversarial": {
+  "note": "run by this review against the rebuilt bundle, not taken from the report",
+  "cases": [
+   {
+    "case": "delivered A3 (5x6)",
+    "verdict": "PASS",
+    "detail": "MAIN 1230x1170 fill 47.9% atMin=true; MAIN 2 910x1170 fill 40.0% atMin=true"
+   },
+   {
+    "case": "delivered A4 (5x6)",
+    "verdict": "PASS",
+    "detail": "5 pages 890x825, fill 38.1% each, atMin=true"
+   },
+   {
+    "case": "moduleColumns:1 on A3",
+    "verdict": "FAIL",
+    "rules": [
+     "pagination x4",
+     "floor x5"
+    ],
+    "detail": "5 pages 592x1170 at 23.7% each; floor (25%) and pagination both fire, so this bypass is closed"
+   },
+   {
+    "case": "single module on A3",
+    "verdict": "FAIL",
+    "rules": [
+     "minimum",
+     "floor"
+    ],
+    "detail": "1655x1170 at 8.5%, min 650x1170, atMin=false"
+   },
+   {
+    "case": "single part on A3",
+    "verdict": "FAIL",
+    "rules": [
+     "minimum",
+     "floor"
+    ],
+    "detail": "1655x1170 at 2.3%, min 592x570, atMin=false"
+   },
+   {
+    "case": "10 modules x 1 part on A3",
+    "verdict": "PASS",
+    "detail": "1655x1170 at 44.3% - legitimately above target, not a bypass"
+   },
+   {
+    "case": "control: tail shipped on the planned A3 instead of converging",
+    "verdict": "FAIL",
+    "rules": [
+     "minimum",
+     "ceiling",
+     "floor"
+    ],
+    "detail": "tail 1655x1170 at 22.0% vs min 910x1170"
+   }
+  ],
+  "bypassConclusion": "no bypass found: every below-target page is caught either by minimum (not delivered on its smallest sheet), ceiling (the shape could reach the target) or floor (below 25%)",
+  "specEnforcement": "page-budget.spec.ts asserts the rule verdict and the rule NAMES (rules(report) toEqual [] / [floor, minimum] / [ceiling, floor, minimum] / distribution / pagination), so the rule is executed in the gate; the parts==[18,12] assertion is a shape guard alongside the rule assertion, not the enforcement"
+ },
+ "centering": {
+  "live": "L=192 R=182 on both pages (delta 10 = one grid)",
+  "ir": "L=200 R=190",
+  "note": "t12 rewrote centering to snap((size.width - boxWidth)/2 - box.x1). The delivered geometry is unchanged from the post-t10 measurement in t11 (same 192/182 live, 200/190 IR), so t12 centering baseline (left 140 / right 250) does not reproduce against the t10 tree; it may describe the pre-t10 state."
+ },
+ "referenceComparison": {
+  "carriedOver": "see t11-reference-metric.json (reference-side measurement does not depend on our code revision)",
+  "limitation": "the same metric cannot be computed on the reference: it has no IR, and the client API cannot cleanly separate the native frame from net flags/labels"
+ },
+ "retired": [
+  "t11-00-MAIN.png",
+  "t11-01-MAIN 2.png",
+  "t11-compare-0.png",
+  "t11-compare-1.png",
+  "t11-readback.json",
+  "index.json"
+ ],
+ "retiredReason": "t11 images and readback were captured before t12 (no page-budget.ts rule, spec still t7 version)"
+}

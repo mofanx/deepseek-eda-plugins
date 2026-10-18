@@ -1,0 +1,23 @@
+{
+ "page": "CORE",
+ "uuid": "deb3b77e1dfc4422b6532f4d8e689a38",
+ "components": 183,
+ "sampleKeys": "async,primitiveType,primitiveId,componentType,x,y,subPartName,rotation,mirror,addIntoBom,addIntoPcb,net,component,symbol,footprint,designator,name,uniqueId,manufacturer,manufacturerId,supplier,supplierId,otherProperty",
+ "sampleProto": "getState_PrimitiveType,getState_ComponentType,getState_PrimitiveId,getState_Component,getState_X,getState_Y,getState_SubPartName,getState_Rotation,getState_Mirror,getState_AddIntoBom,getState_AddIntoPcb,getState_Net,getState_Symbol,getState_Footprint",
+ "sampled": 183,
+ "rawBox": {
+  "x1": 0,
+  "y1": 0,
+  "x2": 1575,
+  "y2": 1095
+ },
+ "paddedBox": {
+  "x1": -60,
+  "y1": -40,
+  "x2": 1635,
+  "y2": 1135
+ },
+ "fillPadded": 102.9,
+ "fillRaw": 89.1,
+ "points": "455,740 ; 0,0 ; 985,1055 ; 1420,985 ; 1280,1045 ; 280,1045 ; 165,785 ; 220,780 ; 840,1050 ; 1100,1075 ; 960,885 ; 1035,915 ; 1190,915 ; 355,310 ; 775,905 ; 325,810 ; 1265,980 ; 1575,990 ; 700,1095 ; 700,965 ; 700,865 ; 700,735 ; 700,605 ; 700,495 ; 235,1045 ; 215,970 ; 225,830 ; 210,935 ; 275,795 ; 210,585 ; 210,485 ; 210,385 ; 530,110 ; 490,110 ; 610,110 ; 855,1040 ; 1150,1070 ; 775,885 ; 1035,905 ; 635,215"
+}

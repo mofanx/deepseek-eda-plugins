@@ -1,0 +1,22 @@
+[
+  {
+    "page": "MAIN",
+    "size": "1230x1170",
+    "frames": 3,
+    "frameX": "140,460,780",
+    "frameAreaPct": 34.2,
+    "frameUnionPct": 47.9,
+    "anchorBoxPct": 39.7,
+    "pageArea": 1439100
+  },
+  {
+    "page": "MAIN 2",
+    "size": "910x1170",
+    "frames": 2,
+    "frameX": "140,460",
+    "frameAreaPct": 30.8,
+    "frameUnionPct": 40.0,
+    "anchorBoxPct": 33.2,
+    "pageArea": 1064700
+  }
+]

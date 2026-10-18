@@ -197,7 +197,7 @@ function toBuildPayload(
         titleY: box.titleY,
         pins: box.pins.map(pin => ({ pinId: pin.pinId, name: pin.name, x: pin.x, y: pin.y })),
       })),
-      chrome: chromeFor(sheet, sheetIndex, pageSize, pageCount, frame),
+      chrome: chromeFor(sheet, sheetIndex, sheet.pageSize ?? pageSize, pageCount, frame),
       busEntryIds: sheet.busEntries.map(entry => entry.id),
       attrIds: sheet.attrs.map(attr => attr.id),
     })),
@@ -234,6 +234,11 @@ function chromeFor(
     version: frame.version ?? 'V0.1',
     company: frame.company ?? '',
     date: frame.date ?? '',
+    drawingNumber: frame.drawingNumber,
+    schematicName: frame.schematicName,
+    drawnBy: frame.drawnBy,
+    checkedBy: frame.checkedBy,
+    approvedBy: frame.approvedBy,
   })
   return { rects: chrome.rects.map(rect => ({ ...rect })), texts: chrome.texts.map(text => ({ ...text })) }
 }

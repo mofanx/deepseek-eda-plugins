@@ -685,19 +685,35 @@ validate errors (0): []   import: project 6af6c41fa4804d35a7295d98904256bc (3 pa
    `sch_PrimitiveComponent.getAll()` 里图框元件存在但 `componentType` 不是 sheet；
    截图无边框/标题栏。补发 `Symbol` 绑定 ATTR、或去掉合成 META（让符号文档与系统库原件
    一致）都不改变结果。
-4. **替代路径也不可用**：`eda.dmt_Schematic.modifySchematicPageTitleBlock(showTitleBlock,
-   titleBlockData)` 确实存在（在 prototype 上，`Object.keys` 看不到，需
-   `Object.getOwnPropertyNames(Object.getPrototypeOf(...))` 才能发现），但它**只能改已有图框**：
-   传入完整 `{showTitle, showValue, value}` 结构（`@Page No`/`@Page Count` 为数字）后，
-   在 `titleBlockData` 为 `{}` 的页面上仍抛 `TypeError: Cannot convert undefined or null to object`，
-   A3/A4 符号都一样。客户端自己（API）建的页面 `titleBlockData` 同样是 `{}`。
+4. **替代路径「现造」不可用，但证据不闭环**：`eda.dmt_Schematic.modifySchematicPageTitleBlock(
+   showTitleBlock, titleBlockData)` 确实存在（在 prototype 上，`Object.keys` 看不到，需
+   `Object.getOwnPropertyNames(Object.getPrototypeOf(...))` 才能发现）。传入完整
+   `{showTitle, showValue, value}` 结构（`@Page No`/`@Page Count` 为数字）后，在 `titleBlockData`
+   为 `{}` 的页面上抛 `TypeError: Cannot convert undefined or null to object`，A3/A4 符号都一样；
+   客户端自己（API）建的页面 `titleBlockData` 同样是 `{}`。
+   **⚠️ t6 对抗性审查的修正**：`TypeError` 同样可以由「调用签名/参数结构不对」解释，因此它只
+   证明「这个调用在空标题栏页上不工作」，**不证明**「该 API 只能改已有图框」。决定性对照是：
+   在**参考工程已有原生图框的页面**上调用它并成功——该实验**尚未做**。
+   **另有一条未稳定的事实**：`copySchematicPage`（页级复制）在同一个工程上两次调用
+   **一次成功、一次返回 `undefined`**（j3 live 侧记录，本轮离线未复现）。所以「页级复制」这条路
+   **存在但不可靠**，不能当交付路径依赖。
 5. **库层不可读**：`lib_Device` **没有** `getDocumentSource`（只有 `get`），DEVICE 文档由
    `info.association`/`info.property` 合成；`sys_FileManager.getProjectFile/getSchematicFile`
    是「按文件名读盘」的导入接口，不能读当前工程的页元数据。
 
-因此：**原生图框只存在于手工/UI 创建的工程里；没有任何受支持的方式把它装进 API 导入或
-API 建页的工程**。`sheet-chrome.ts` 里保留参考图框的 uuid/字段表（含 `frameSymbolFor`）作为
-实测数据，供客户端后续版本支持时重新接线；生产路径只发自绘图框，且不再向页面写入无效元件。
+因此，按**证据强度分三层**表述（t6 对抗性审查后修正）：
+
+- **程序化「现造」不可行（已证，范围限 V4.1.78）**：把 `Sheet-Symbol` 作为 COMPONENT 写进页面
+  源码、或用 `modifySchematicPageTitleBlock` 在 `titleBlockData={}` 的页面上现造标题栏，在
+  EasyEDA Pro V4.1.78 上都不成立（§11.10.1–11.10.4）。
+- **页级「复制」有条件可用（未证稳）**：`copySchematicPage` 一次成功、一次 `undefined`（§11.10.4）。
+- **不再声称「平台不可能」**：上述否证只覆盖单一客户端版本与单一发射方式，且缺两个对照实验
+  （把**参考工程自己的页面源码**原样回灌看是否渲染；在**已有图框**的页面上调用
+  `modifySchematicPageTitleBlock`），也从未走完 `sch_PrimitiveComponent.create`（「挂起 20s」
+  ≠ 失败）。正确读法是：**当前版本、当前发射方式下不可行**。
+
+`sheet-chrome.ts` 里保留参考图框的 uuid/字段表（含 `frameSymbolFor`）作为实测数据，供客户端
+后续版本支持时重新接线；生产路径只发自绘图框，且不再向页面写入无效元件。
 
 
 ### 11.11 自绘图框对齐参考观感：双边框 + 分区刻度 + 标题栏（j3，本轮 live 实测）
@@ -707,8 +723,10 @@ API 建页的工程**。`sheet-chrome.ts` 里保留参考图框的 uuid/字段�
 - **双边框**：外框 inset 8、内框 inset 16，与参考帧的边框带一致。
 - **分区刻度**：按参考帧把图幅分成 6 列 × 4 行，在边框带内画短刻度线（上下 5 条、左右 3 条）
   并标注 `1–6` / `A–D`（字号 12，落在带内居中）。
-- **标题栏**：右下角 4 行（Project / Page / Size / Rev），右侧带 `n/m` 页码、日期与公司名，
-  整块位于内容下边界（`height-150`）之下，不压模块内容。
+- **标题栏**：右下角 4 行（Project / Page / Size / Rev），右侧带 `n/m` 页码、日期与公司名。
+  ⚠️ **此行已被 §13.1 / §13.3 取代**：现为 5 行 × 两组 = 11 格、宽 560、`titleBlockTop =
+  height-16-130`（A3 1024 / A4 679），framed 内容下界 `height-170`（clearance 24），
+  不再是「4 行」与 `height-150`。
 - **实测**（本轮 live 导入，A3 单页 4 器件）：页面矩形 24（8 标题栏 + 1 模块框 + 16 刻度），
   文本 31，读回值依次为 `Project, DSH BOARD, Page, MAIN, 1/1, Size, A3, Rev, V1.0, DSH,
   1,1,…,6,6, A,A,…,D,D, MCU CORE`；截图中边框、刻度、标题栏均可见，值正确。
@@ -720,6 +738,26 @@ API 建页的工程**。`sheet-chrome.ts` 里保留参考图框的 uuid/字段�
 **结论**：在 EasyEDA Pro V4.1.78 上，「平台原生图框」只能由客户端 UI 创建；我们能交付的是
 **与参考工程同构的自绘图框**（双边框 + 分区刻度 + 标题栏），它随页导入、可打印、可读回，
 且不会在页面里留下无效元件。
+
+
+### 11.12 交叉复核结论（独立子代理对抗审查）
+
+审查覆盖 sheet-chrome/serialize/build/tool-schematic/types，8 条发现，处置如下：
+
+- 已修：**标题栏值溢出页外**（`VALUE_MAX` 42→28，42 个 20 号字在 354 单位单元格内必越界）；
+  **分区列号未在边框带内垂直居中**（改为 `(8+16)/2-MARK_FONT/2`、`(y1+height-8)/2-MARK_FONT/2`）。
+- **已修（原记为「留待下一轮」的那条）**：按是否画框收紧可用区。`layout.ts` 现在两处都用
+  `edgePad = framed ? PAGE_EDGE_FRAMED(170) : PAGE_EDGE_FLAT(80)`（单页规划与分页规划各一处），
+  framed 页的内容下界因此自动跟着 `titleBlockTop` 收；原句「正确修法…留待下一轮」**已过期，
+  删除**。
+- **仍开（与原残余不是同一件事，范围已缩小）**：扁平页（`framed=false`，无模块分组）在配置了
+  `frame` 时**也会画 chrome**（`serialize.ts` 只判 `frame !== undefined`），而它的 `edgePad`
+  仍是 80，故内容理论上仍可进入标题栏右下角；把 `PAGE_EDGE_FLAT` 提到 150 会让「超大单组保持
+  单页」用例 1 页变 3 页。当前交付的板都是模块分组（`framed=true`），扁平页压字**没有实测
+  样例**，列为残余跟踪（收紧项见 §14.5）。
+- 其他残余：极小自定义页 `blockY<0`；`frameSymbolFor` 等参考常量仍在包入口公开导出（应标
+  `@internal`）；`tool-schematic` validate 分支重复调用 `pageSizeFor` 且未透传 `titleBlock`。
+- Y 轴与透传链路：复核未发现缺陷。
 
 
 ## 12. 生产交付路径接通 A3 与图纸边框/标题栏（j2，2026-10-17）
@@ -771,16 +809,341 @@ live 复核（§11.10）证否后**已整体回退**：两条交付路径统一�
 - j3 live 复核已完成（§11.11）：导入后每页矩形 24、文本 31，`Page Size`/`@Page Name` 等
   标题栏值由自绘文本正确打印；原生 `titleBlockData` 仍为空（客户端限制，§11.10）。
 
-### 11.12 交叉复核结论（本轮，独立子代理对抗审查）
 
-审查覆盖 sheet-chrome/serialize/build/tool-schematic/types，8 条发现，本轮处置：
+## 13. 11 格标题栏 + 边距同步调整（j2，子任务 t2，2026-10-18）
 
-- 已修：**标题栏值溢出页外**（`VALUE_MAX` 42→28，42 个 20 号字在 354 单位单元格内必越界）；
-  **分区列号未在边框带内垂直居中**（改为 `(8+16)/2-MARK_FONT/2`、`(y1+height-8)/2-MARK_FONT/2`）。
-- 未修（记为残余）：扁平页（非模块分组，`framed=false`）右下角内容可到 `height-80`，与标题栏
-  顶边 `height-120` 在 x∈[724,1154] 区间重叠；把 `PAGE_EDGE_FLAT` 提到 150 会让「超大单组保持
-  单页」的布局用例失败（1 页变 3 页），正确修法是在 `planSheet/planPaginated` 里按是否画框
-  收紧 `usable.bottom`，留待下一轮。另有：极小自定义页 `blockY<0`、`frameSymbolFor` 等参考
-  常量仍在包入口公开导出（应标 `@internal`）、`tool-schematic` validate 分支重复调用
-  `pageSizeFor` 且未透传 `titleBlock`。
-- Y 轴与透传链路：复核未发现缺陷。
+> 本节取代 §12 里关于标题栏的描述；§12 提到的「4 行 / 宽 430 / 内容下边界 `height-150`」
+> 均已过期（见 13.1、13.3）。
+
+### 13.1 标题栏：5 行 × 两组「标签+值」= 11 格
+
+`computeSheetChrome` 的右下标题栏由 4 行英文格改为 5 行中文格，宽度 430 → **560**
+（`LABEL_COLUMN 64 + VALUE_COLUMN 186` 两组 + `PAGE_COLUMN 60` 页码角格，常量求和得出
+`TITLE_BLOCK_WIDTH`，避免列宽与总宽漂移）：
+
+| 行 | 左组 | 右组 |
+|---|---|---|
+| 1 | 图样名称 = `schematicName`（缺省取页名） | 图号 = `drawingNumber` |
+| 2 | 项目 = `projectTitle` | 图幅 = 页幅标签（A3/A4/`w×h`） |
+| 3 | 版本 = `version` | 日期 = `date` |
+| 4 | 设计 = `drawnBy` | 审核 = `checkedBy` |
+| 5 | 批准 = `approvedBy` | 单位 = `company` |
+
+外加**页次 `n/N` 右对齐挂在第 1 行右端**（`x = x1-6`，`RIGHT_TOP`），共 11 格。
+**明确不设比例格**：电气图样不注比例，参考工程的图框里也没有该格。
+缺值行为：标签行始终画出（格子有线有标签），**值为空则该格不产生文字图元**，留白。
+A4 实测渲染（`rects=27 texts=41`）：
+
+```
+y=683: 图样名称@600 | MCU CORE@664 | 图号@850 | DSH-SCH-001@914 | >2/3@1148
+y=709: 项目@600 | DSH Control Board@664 | 图幅@850 | A4@914
+y=735: 版本@600 | V1.0@664 | 日期@850 | 2026-10-18@914
+y=761: 设计@600 | j2@664 | 审核@850 | j3@914
+y=787: 批准@600 | j1@664 | 单位@850 | DeepSeek@914
+```
+
+### 13.2 字段透传链路
+
+- seam：`SchematicTitleBlockOptions` 新增 `drawingNumber / schematicName / drawnBy / checkedBy / approvedBy`；
+- 引擎：`serialize` 与图元 `build` 路径都把 9 个字段透传进 `computeSheetChrome`；
+- 工具：`schematic_generate` / `schematic_validate` 的 `titleBlock` 参数接受全部 9 个字段
+  （参数本身是自由 JSON，无需改 schema），`Config` 新增同名字段做兜底，**单次调用优先于配置**。
+
+### 13.3 边距 150 → 170（必须同步，否则压字）
+
+5 行 × `ROW_HEIGHT 26` = 130，`titleBlockTop = height-16-130`：
+
+| 页面 | 标题栏顶边 | framed 内容下界（`height-170`） | clearance |
+|---|---|---|---|
+| A4 825 | **679**（原 705） | **655**（原 675） | 24（原 4） |
+| A3 1170 | **1024** | **1000** | 24 |
+
+若不改边距，内容下界 675 与标题栏顶边 679 只差 4，模块框/文字会压到标题栏上。
+`PAGE_EDGE_FRAMED` 因此 150 → 170；`computeBlockFrames` 的夹取上限自动跟着 `titleBlockTop` 走。
+
+### 13.4 分页容量与填充率复测（30 器件 / 5 模块，A3 与 A4）
+
+同一 IR、同一布局，只改 `PAGE_EDGE_FRAMED` 做 A/B：
+
+> ⚠️ **口径提示**：下表填充率是 t2 期的**锚点口径**（符号 ±60/±40），已在 §14.2 被**交付口径**取代，
+> 两者不可比。本文件当前的填充率数字**只在 §14.5**，且全部是交付口径。
+
+| | 页数 | 器件/页 | 内容包围盒填充率（锚点口径，**已作废**） | 与标题栏重叠 | 越界 |
+|---|---|---|---|---|---|
+| A3 @170 | 2 | 24 + 6 | 46.4% / 12.6% | 0 | 0 |
+| A3 @150 | 2 | 24 + 6 | 46.4% / 12.6% | 0 | 0 |
+| A4 @170 | 5 | 6 × 5 | 30.1% | 0 | 0 |
+| A4 @150 | 5 | 6 × 5 | 30.1% | 0 | 0 |
+
+结论：
+
+1. **边距改动零容量代价**：页数、每页器件数、填充率完全一致，只有居中内容整体平移 10 单位
+   （可用区右下各收 20，居中后内容向左上偏 10），且包围盒下沿始终在标题栏顶边之上。
+2. **无越界、无压标题栏**：7 页全部 0 overlap / 0 out-of-bounds（回归用例
+   `packages/eda-core/tests/page-budget.spec.ts` 固化该不变量 + A3 满页 ≥35%）。
+3. **≥35% 当时未全页达标**（锚点口径下的历史状态）：A3 满页 46.4% 达标；A3 尾页 12.6%、
+   A4 单模块页 30.1% 不达标。根因是**按模块贪心分页、不做尾页再平衡**，与边距无关
+   （150/170 两版数字相同）。该问题已由 §14 的再平衡 + 幅面收敛解决：交付口径下当前为
+   A3 两页 **47.9% / 39.4%**、A4 五页 **47.2% ×5**（§14.5）。
+
+### 13.5 验收
+
+`tsc -b` 通过；`oxlint` 0/0；**19 文件 / 541 用例全绿；覆盖率 100%**。
+新增回归：11 格几何与分隔线、缺值留白、无比例格、页名回退、9 字段透传（serialize + 工具）、
+`Config` 兜底与单次覆盖、`titleBlockTop` 679/1024、A3/A4 分页容量与「不压标题栏」不变量。
+
+
+## 14. 填充率收口：唯一口径 + 可自足的验收规则（j2，子任务 t4/t7/t10/t12，2026-10-18）
+
+### 14.1 策略（三条，均已落地）
+
+1. **band 容量均分再平衡**：先算一条 band 能横排几个 shard（`bandCapacity`，与放置循环同一判定），
+   再 `bandCount = ceil(N/capacity)`、`bandLimit = ceil(N/bandCount)`。宽度贪心的 **4+1** 因此变成 **3+2**。
+2. **欠满页幅面收敛**：每页两个盒——**紧盒**（符号 ±60/±40，只用于判定是否收敛）与**外扩盒**
+   （左右 ±180、上 200、下 140，用于定尺寸，覆盖模块框与旗标/端口走线）。紧盒面积 < 35% 计划面积时，
+   交付幅面收敛到 `外扩盒 + FITTED_MARGIN(60) + edgePad(170)`，下限 `592×300`、上限计划幅面；
+   `sheet.pageSize` 随之落地，序列化器按**交付幅面**出图框（`serialize.ts` 的 `size = sheet.pageSize ?? pageSize`）。
+3. **收敛页按交付宽度重新居中**（**t10 落地；t12 未改几何**）：原实现把外扩盒钉在固定 60 边距上；
+   t9 在 **t8 时代 live 回读**上量到左 140 / 右 250（源 `docs/evidence/review/t9-cross-review.md:97`：
+   框 x=140/460/780 与 140/460；该 t8 回读文件已随 t13 退休）。t10 改为
+   `dx = snap((交付宽 − 外扩盒宽)/2 − 外扩盒.x1)`，t13 实测 live 边距 **192 / 182**（差 10 = 1 格）、
+   IR 框并集边距 **200 / 190**，即已居中。
+   ⚠️ **t14 订正**：t12 本身**没有**改动居中数学（只把常量搬进 `budget.ts` 并补回归断言），
+   t13 独立复核确认「交付几何与 t10 之后一致（live 192/182、IR 200/190，两次相同）」；
+   所以「左 140 / 右 250 是 t12 修好的」不成立——那是 **t8 时代**数据，修它的是 **t10**，
+   且 t12 的居中重写在本板上**无可测变化**。回归断言用的是**模块件外扩盒**
+   （离线 MAIN L=120 / R=110、MAIN 2 L=120 / R=90），与 live 的 192/182 是不同盒
+   （外扩盒 vs 图元框），两者都 ≤ 1 格。
+
+预算常量集中在 `packages/schematic/src/budget.ts` 的 `SCHEMATIC_PAGE_BUDGET`（`fillTarget 0.35`、
+`fillFloor 0.25`、`moduleGap 200`、`fittedMargin 60`、`outwardX 180`…），布局与判定都读它，
+测试不再重复声明常量（t8 指出的漂移风险）。
+
+### 14.2 唯一口径：交付口径（`measurePageFill`）
+
+**定义**（唯一实现：`packages/eda-core/src/measure.ts`）：
+
+> 分子 = 该页**实际画出内容的包围盒**：模块框（`computeBlockFrames`：成员位置 ∪ 引脚端点，±80 外扩、
+> 顶部再留 60 标题位）∪ 器件位置 ∪ 引脚端点；分母 = **交付幅面** `sheet.pageSize ?? planned`。
+
+**为什么选它**：参考侧 `docs/evidence/current/t11-reference-metric.json` 用「内容几何（带位号元件 +
+图元，排除原生图框）÷ A3 面积」量参考工程——与交付口径是**同一种量**（都是内容包围盒 ÷ 页面面积），
+因此双方数字可比：我方 47.9% / 39.4% vs 参考 CORE 67.5%、DEVICE 57.3%、POWER 32.3%（§14.5）。
+另外两种盒只作诊断，不作验收。
+⚠️ **t14 订正**：本节旧版把 `docs/evidence/review/fill-measure.json` 的 **像素口径** 77.5 / 70.7 / 44.6
+当成「同口径」，那其实是另一种量（像素墨迹），已不再作为同口径对照。
+
+同一对页在三种盒下的数字（离线树内实测，`docs/evidence/review/t12-metrics.mjs`）：
+
+| 口径 | 盒定义 | MAIN（3 模块 / 18 器件） | MAIN 2（2 模块 / 12 器件） |
+|---|---|---|---|
+| **交付口径（本文件唯一采用）** | 内容包围盒 ÷ 交付幅面 | **47.9%** | **39.4%** |
+| 锚点盒（t2/t7 旧口径，**已作废**） | 锚点 ±60/±40 ÷ 交付幅面 | 37.9% | 30.2% |
+| 框面积和（诊断） | Σ 模块框面积 ÷ 交付幅面 | 31.5% | 28.4% |
+
+35% 线**正好横跨**这三种口径（尾页 28.4 / 30.2 / 39.4），所以「达标 / 不达标」若不标注口径就没有意义。
+**本文件此后所有填充率均为交付口径**，逐页数字只在 §14.5；§13.4 的旧数字已就地标注作废。
+
+live 回读（t8/t11）在交付口径下给同一尾页 40.0%，离线树内为 39.4%（差 0.6pt）：live 抓到的框高 820、
+离线框高 840，差在离线框含顶部 60 标题位。两者同口径同结论，本文表格一律用**离线树内**数字。
+
+### 14.3 验收规则：唯一实现 `checkPageBudget`（t12）
+
+规则不再是测试里重写的一段代码，而是 `packages/eda-core/src/page-budget.ts` 的
+`checkPageBudget(sheets, planned)`：测试只喂布局结果、断言判定，因此**不可能出现「测试比实现宽松」**。
+
+> **单页**：`fill ≥ 35%` **或** 同时满足
+> ① `atMinimum`：该页已交付在**它自己内容的**最小可行幅面上（`pageSize === fittedPageSize(外扩盒)`）；
+> ② `ceiling < 35%`：该形状即便收到最小幅面也够不到目标；
+> ③ `fill ≥ 25%`：绝对下限。
+>
+> **板块**：④ 每页器件数极差 ≤ 最大模块器件数（不许把某个模块孤立成一页）；
+> ⑤ 相邻两页不得「合并后仍放得下一张计划幅面」（分页必须是最小的）。
+
+`atMinimum` 必须由 `fittedPageSize(outwardContentBox(锚点))` 算出——**不能**用交付口径的墨迹盒去算：
+墨迹盒比外扩盒小，用它算出的「最小幅面」会小于实现真正能交付的幅面（t11 实测：A4 页交付 890 宽，
+用墨迹盒算出来只有 730 宽），于是收敛页会被误判成「没收敛」。这两个函数现在**可组合**，
+A4 页实测 `minSize === pageSize === 890×825`（§14.5）。
+
+**被删掉的旧条款**（t9 控制实验证明系统性恒真）：
+
+| 旧条款 | 为什么恒真 |
+|---|---|
+| `fill ≥ 0.9 × 上限` | 测试用 `ceil` 算最小幅面、实现用 `snap`（四舍五入），于是 `最小幅面 ≥ 交付幅面` ⇒ `上限 ≤ fill` ⇒ 90% 恒成立 |
+| 「交付幅面 ≤ 最小可行幅面 + 1 格」 | 同上，`ceil` 版最小幅面恒 ≥ 交付幅面 |
+
+t9 的旁路证据：`moduleColumns: 1` 会产出 5 页、每页一个模块，旧规则**全部判 PASS**（实际靠
+`parts == [18,12]` 这种硬断言兜底）；新规则判 **FAIL(minimum, floor)**，且没有任何器件数断言参与（§14.4 用例 3）。
+
+### 14.4 控制实验（已固化为回归用例，`packages/eda-core/tests/page-budget.spec.ts`）
+
+| # | 控制用例 | 实测输出（`describePageBudget` 原文） | 判定 |
+|---|---|---|---|
+| 1 | 交付（t5 收敛页，基准） | `OK MAIN:1230x1170* parts=18 fill=47.9% min=1250x1170 \| MAIN 2:910x1170* parts=12 fill=39.4% min=930x1170` | **PASS**（两页都 ≥35%，未用豁免） |
+| 2 | 不收敛，直接交付整张 A3 | `FAIL(minimum,ceiling,floor) MAIN:1655x1170 parts=18 fill=35.6% min=1250x1170 \| MAIN 2:1655x1170 parts=12 fill=21.7% min=930x1170` | **FAIL** |
+| 3 | `moduleColumns:1`（t9 旁路） | `FAIL(minimum,floor ×5) MCU:592x1170* parts=6 fill=21.8% min=610x1170 \| …` | **FAIL** |
+| 4 | 宽度贪心 4+1（t7 修掉的） | `FAIL(distribution) ?:1655x1170 parts=24 fill=54.2% \| CLK:592x1170* parts=6 fill=37.9%` | **FAIL** |
+| 5 | 可合并的分页（5×5，一页一模块） | `FAIL(pagination ×4) MCU:592x1050* parts=5 fill=36.0% min=592x1050=min \| …` | **FAIL** |
+| 6 | 真被形状卡住的页（手搓） | `OK CAPPED:592x1170* parts=2 fill=34.0% min=592x1170=min` | **PASS**（走豁免，证明该分支可达、非死代码） |
+
+用例 3 的断言代码（判定只看 `report.ok` 与触发的规则名，`page.parts` 那行只是**记录**布局产出）：
+
+```ts
+const report = judge(ir, SCHEMATIC_PAGE_A3, { symbolPins: new Map([['sym', pins]]), moduleColumns: 1 })
+expect(report.pages.length).toBe(5)
+expect(report.pages.map(page => page.parts)).toEqual([6, 6, 6, 6, 6])
+for (const page of report.pages) {
+  expect(page.fill).toBeLessThan(SCHEMATIC_PAGE_BUDGET.fillTarget)
+  expect(page.fill).toBeLessThan(SCHEMATIC_PAGE_BUDGET.fillFloor)
+}
+expect(report.ok).toBe(false)
+expect(rules(report)).toEqual(['floor', 'minimum'])
+```
+
+用例 5 特别值得记：**每页 36.0% 都过了 35%**，板块仍因 `pagination` 判 FAIL——规则不是只看填充率。
+
+#### 跨复核数值对照（t14 订正①：不得只留单一未复现数值）
+
+同一形态（`moduleColumns:1`，5 页）在不同几何来源下有三个数，**判定全部是 ok=false**：
+
+| 来源 | 口径 / 几何来源 | 数值 | 判定 | 复现 |
+|---|---|---|---|---|
+| 本表用例 3（t12，离线） | 交付口径 ÷ `computeBlockFrames`（IR） | **21.8%** ×5 | FAIL(minimum,floor) | `node node_modules/vitest/vitest.mjs run packages/eda-core/tests/page-budget.spec.ts --reporter=basic` |
+| t13 独立复核（j3，live） | 交付口径 ÷ live `rectBox` 框 | **23.7%** ×5 | FAIL(pagination×4, floor×5) | `docs/evidence/current/index.json` → `adversarial.cases["moduleColumns:1 on A3"]` |
+| t9 控制实验（旧规则，旁路） | t9 当时的盒（**非**交付口径） | **14.1%** ×5 | 旧规则 **PASS**（旁路） | `docs/evidence/review/t9-cross-review.md:132` + `t9-rule-audit.mjs` |
+
+同一形态的不收敛尾页：离线 **21.7%**（本表用例 2）vs t13 live **22.0%**。A4 收敛页：本文件离线夹具
+**47.2% ×5**（§14.5）vs t13 夹具 **38.1% ×5**——两者都 ≥35%、都 PASS，差在夹具器件数与符号几何。
+
+**差异来源**：① **几何来源**——IR 的 `computeBlockFrames` 框（离线 180×840）vs live `rectBox` 框
+（t13 实测 200×820），同页同器件、框尺寸不同；② **夹具**——模块器件数/符号几何不同。
+**不是规则差异**：三种来源对同一形态都判 ok=false。
+
+⚠️ 交付文档里曾出现的 **14.4%** 与复核方复现的 **15.0%**，在本树任何文件中都检索不到
+（全树检索只命中 t9 的 **14.1%** 与章节号「§14.4」），故**不保留任何单一数值**：上表三个可复现数值并列，
+其中**同口径**的两个是 **21.8%（离线）/ 23.7%（live）**，14.1% 是旧规则口径下的历史旁路记录。
+
+### 14.5 实测表（交付口径，离线树内；`*` = 幅面已收敛）
+
+| 板 | 页 | 交付幅面 | 器件 | 交付口径填充 | 最小可行幅面 | `atMinimum` | 判定 |
+|---|---|---|---|---|---|---|---|
+| t5 形状（5×6 窄高模块） | MAIN | 1230×1170* | 18 | **47.9%** | 1250×1170 | 否 | ✅ ≥35% |
+| t5 形状 | MAIN 2 | 910×1170* | 12 | **39.4%** | 930×1170 | 否 | ✅ ≥35% |
+| 宽模块夹具（5×6） | 0 / 1 | 1230×1170* / 910×1170* | 18 / 12 | **54.7% / 49.3%** | 同交付 | 是 | ✅ ≥35% |
+| A4 夹具（5×6） | 0–4 | 890×825* ×5 | 6 | **47.2% ×5** | 890×825 | 是 | ✅ ≥35% |
+| 单模块 1×12（A3） | MAIN | 1655×1170（未收敛） | 12 | **34.7%** | 1110×1170 | 否 | ❌ `minimum,ceiling` |
+
+越界 0、压标题栏 0（逐页断言）。最后一行是 t12 的**真实发现**：收敛触发用**紧盒**、验收用**交付口径**，
+两把尺子在边界上会打架——该页紧盒 ≥35% 故不收敛，交付口径只有 34.7%，而它本可以收到 1110 宽（→51.8%）。
+规则判 FAIL 是**对的**（这是漏收敛，不是「形状不可达」）；要修需把收敛触发改成同一把尺子，
+属布局行为改动 + 黄金样例重生成，本轮不做，登记为遗留项。
+
+**参考侧（同口径，可比；t14 订正来源）**：`docs/evidence/current/t11-reference-metric.json` 用
+「内容几何（带位号元件 + 图元，排除原生图框）÷ A3 面积」测得 **CORE 67.5%（含图元 71.1%）、
+DEVICE 57.3%（73.7%）、POWER 32.3%（32.4%）**。我方 47.9% / 39.4% 落在 POWER 与 DEVICE/CORE 之间：
+**参考 POWER 页比我们更空**，CORE/DEVICE 更密。参考侧**带位号器件**是我方的 1.9–3.2 倍
+（43/34/58 vs 18/12），不是旧文写的 4–10 倍（那个倍数把原生图框自带的 140/75/44 个子元件也算进去了）。
+⚠️ 旧版引用的 77.5% / 70.7% / 44.6%（`docs/evidence/review/fill-measure.json`，**像素口径**）
+是另一种量，不再作为同口径对照（j1 亦指出过像素口径不可比）。
+
+**未收口项（如实记录）**：页名仍是 `MAIN` / `MAIN 2` 而非模块名（多模块页无法等于三个模块名），
+「页名 = 模块名」这条验收仍未满足，建议改为 `MCU+POWER+IO` 形式，需改 `pageModuleTitle` 并重生成黄金样例。
+
+### 14.6 密度差距：刻意取舍 vs 还可收紧（结论保留，数字口径已作废）
+
+**刻意保留（不收紧，有理由）**
+
+1. 模块框留白（`FRAME_PAD 80` + 顶部标题位 60）：给模块名/引脚名留位，收紧会压标签。
+2. 标题栏 11 格 560×130（占 A3 4.1%）与 24 单位 clearance：有规格含义，不动。
+3. `edgePad 170` / `FITTED_MARGIN 60`：安全区，避免与边框、刻度、标题栏打架。
+
+**曾评估的收紧**：t7 做过一次灵敏度实验（`FITTED_MARGIN 60→40`、`OUTWARD_X 180→140`、
+`OUTWARD_TOP 200→160`），当时结论是尾页可由 30.2% 提到 35.8%（**锚点口径，已作废**），
+数字不再在本文件重复（原始记录见 git 历史与 `docs/evidence/review/t9-*.json`）。在**交付口径**下
+尾页已是 39.4%，**不再需要**这组收紧；且 `OUT_X 140` 只比模块框半宽 + 旗标略宽，有旗标/端口越界风险，
+故不采用。
+
+### 14.7 复现
+
+```bash
+node node_modules/typescript/bin/tsc -b
+node node_modules/oxlint/bin/oxlint packages
+node node_modules/vitest/vitest.mjs run --coverage --reporter=dot
+# 规则判定 + 控制实验的原始输出（每条用例都会打印 describePageBudget）：
+node node_modules/vitest/vitest.mjs run packages/eda-core/tests/page-budget.spec.ts --reporter=basic
+# 三种盒口径对照表（需先 pnpm build）：
+node docs/evidence/review/t12-metrics.mjs
+```
+
+⚠️ **不要**用 `node docs/evidence/tools/t5-board.mjs` 复核：它 import `packages/*/lib/`，而该目录由
+`tsdown` 产出、`tsc -b` 只写 `lib/types`；未跑 `pnpm build` 时读到旧 bundle（t7 踩过：旧 bundle 给出
+4+1 页 / 37.9% / 4.2%）。从 `src` 直跑（vitest）才反映当前实现。
+
+
+### 14.8 门禁（t12 收口）
+
+```bash
+node node_modules/typescript/bin/tsc -b          # exit 0
+node node_modules/oxlint/bin/oxlint packages     # Found 0 warnings and 0 errors. (42 files, 16 rules)
+node node_modules/vitest/vitest.mjs run --coverage --reporter=dot
+#   Test Files  19 passed (19)
+#        Tests  553 passed (553)
+#   All files  | 100 | 100 | 100 | 100
+#   measure.ts | 100 | 100 | 100 | 100     page-budget.ts | 100 | 100 | 100 | 100
+#   budget.ts  | 100 | 100 | 100 | 100     layout.ts      | 100 | 100 | 100 | 100
+```
+
+黄金样例 `layout-golden.json`（`packages/schematic/tests/fixtures` 与 `packages/eda-core/tests/fixtures`）
+**不含任何收敛页**——两个 fixture 里 `pageSize` 出现 **0** 次——所以 t10 的居中改动它们发现不了。
+这正是「左 140 / 右 250」能活到 t9 的原因：收敛页几何当时**没有任何黄金样例或断言覆盖**。
+现在由 `page-budget.spec.ts` 的 `centres a converged page on the sheet it converges to` 锁定。
+
+**t14 复核运行**（本轮只改文档与证据文字，未动布局算法与规则实现）：`tsc -b` exit 0、
+`oxlint` 0 warnings / 0 errors（42 文件）、**19 文件 / 553 用例通过**、覆盖率 **100%**（原始输出见 t14 报告）。
+
+### 14.9 已知差异 / 后续课题（t11/t13 已量化，t14 补记）
+
+**差异 1：模块框窄高、框内大片空白，根因是单列打包策略——不能归因于「测试板器件少」**
+
+t13 live 回读（`docs/evidence/current/t13-readback.json`）里每页的模块框是 **200×820**（MAIN 三个、
+MAIN 2 两个），长宽比 **1:4.1**；离线 IR 框为 180×840（1:4.7）。框内实测（`docs/evidence/review/t14-visual-gap.mjs`）：
+6 个器件排成**一列**，紧盒只有 120×680，**占框面积 54%，即 46% 是框内空白**，且五个模块数值完全相同
+——这是**固定单列打包**的签名。同样 6 器件的模块，参考侧排成多列，块是**宽而矮**的：
+t11 实测 CORE 1050×760（1.4:1）、DEVICE 1414×918（1.5:1）、POWER 540×310（1.7:1）。
+所以「框内空」是**策略**造成的，不是器件数量造成的。
+
+**本轮不强制改的理由**：把单列打包改成多列会同时改变 band 容量、每页模块数、收敛幅面与尾页平衡，
+即**动分页稳定性**，属独立课题（需要自己的黄金样例与 live 对照）；本轮验收规则在现有策略下已全部通过
+（§14.5），故只登记差异、不改实现。
+
+**差异 2：页名仍是 `MAIN` / `MAIN 2`**（多模块页无法等于三个模块名）——见 §14.5 未收口项。
+
+**差异 3：参考侧无法用同一函数量测**（t13 保留意见之一）——参考工程没有 IR，客户端 API 无法把原生
+图框与网络旗标/标签干净分离，故参考侧只能按 t11 的方法在 live 几何上近似同口径。
+
+### 14.10 独立复核与保留意见（t13，j3）
+
+**复核结论：t12 判 pass。** 来源 `docs/evidence/current/index.json`
+（`generatedAt 2026-10-18T06:25:11Z`，`purpose: "t13 independent review of t12: rule enforcement,
+adversarial attempts, live re-verification"`）：
+
+- 门禁复核：tsc clean / oxlint 0-0（42 文件）/ vitest **19 文件 553 用例通过**（该轮未跑 `--coverage`，
+  覆盖率数字由 t12 自报 100%）。
+- 现场导入：项目 `dsh-t13-…`，`validateErrors: 0`、`budgetOk: true`、2 页；两页 rects/texts 与期望一致
+  （30/44、29/43）。
+- 对抗实验 7 例，`bypassConclusion: "no bypass found: every below-target page is caught either by
+  minimum (not delivered on its smallest sheet), ceiling (the shape could reach the target) or
+  floor (below 25%)"`。
+- 规则确实在门禁里执行：`specEnforcement` 指出 spec 断言的是规则**判定与规则名**，
+  `parts==[18,12]` 只是并列的形状守卫，不是执行点。
+
+**t13 两条保留意见（原文引用）**：
+
+1. **参考侧同口径不可得**：`referenceComparison.limitation` = "the same metric cannot be computed on
+   the reference: it has no IR, and the client API cannot cleanly separate the native frame from net
+   flags/labels"（对应 §14.9 差异 3）。
+2. **居中 baseline 不可复现**：`centering.note` = "…t12 centering baseline (left 140 / right 250) does
+   not reproduce against the t10 tree; it may describe the pre-t10 state."（**t14 已据此订正 §14.1 第 3 条**）。
+
+另记：t13 的 `coverage` 字段注明该轮只跑套件、未跑覆盖率，因此覆盖率证据来源仍是 `--coverage` 运行；
+t14 已重跑一次（§14.8）。

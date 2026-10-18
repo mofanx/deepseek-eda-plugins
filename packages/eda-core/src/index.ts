@@ -10,6 +10,10 @@
 
 export { computeBlockFrames } from './blocks.ts'
 export type { EasyEdaBlockFrame } from './blocks.ts'
+export { measurePageFill } from './measure.ts'
+export type { SchematicInkBox, SchematicPageFill } from './measure.ts'
+export { checkPageBudget, describePageBudget } from './page-budget.ts'
+export type { PageBudgetPage, PageBudgetReport, PageBudgetRule, PageBudgetViolation } from './page-budget.ts'
 export { computeSheetChrome, pageSizeLabel, titleBlockTop, frameSymbolFor, EASYEDA_FRAME_A3, EASYEDA_FRAME_A4, EASYEDA_FRAME_LIBRARY_UUID, FRAME_DEVICE_FIELD, FRAME_SYMBOL_FIELD } from './sheet-chrome.ts'
 export type {
   EasyEdaFrameField,
