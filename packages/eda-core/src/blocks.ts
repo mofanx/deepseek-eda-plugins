@@ -31,6 +31,10 @@ const GRID = 10
 /**
  * Margin beyond member geometry: covers the symbol body plus the 40-unit
  * stub a layout-generated flag hangs off an edge pin.
+ * t20 tried 60 for a tighter ring around the content: intra-block blank fell
+ * 11pt (41.7% -> 30.6%) but the delivered page got emptier (t18 live 54.0%/42.1%
+ * -> 51.0%/37.1%), because a smaller frame also shrinks the ink box the
+ * acceptance rule measures. Reverted; the measured trade-off is in §14.16.
  */
 const FRAME_PAD = 80
 /** Headroom inside the frame reserved for the title text. */
