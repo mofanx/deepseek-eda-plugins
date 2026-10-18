@@ -49,6 +49,14 @@ const BODY_HALF_WIDTH = 60
 /** Vertical padding above the outermost pin row inside the outline. */
 const BODY_HALF_PADDING = 20
 /**
+ * Width-to-height ratio the module packer aims for when one signal-flow layer
+ * stacks many siblings in a single column. The reference project's modules are
+ * 1.4:1-1.7:1 (wide and short); one column of six 2-pin parts is 1:4.7 and
+ * leaves 46% of its frame blank (t14). Splitting such a layer into balanced
+ * sub-columns makes the block wide instead of tall without changing members.
+ */
+const MODULE_BLOCK_ASPECT = 1.4
+/**
  * Edge allowance inside the page frame for sheets carrying module frames —
  * covers the pin stub + flag stub plus the frame padding and title headroom
  * the serializer adds around module members. The title block is five rows
@@ -431,10 +439,66 @@ function halfHeightsOf(
 }
 
 /**
+ * How many side-by-side sub-columns one layer needs to approach
+ * {@link MODULE_BLOCK_ASPECT}. Uses the layer's average member height so a
+ * column of tall symbols splits at the same visual ratio as one of short
+ * parts. One- and two-member layers stay single: splitting them cannot make
+ * the block shorter than one symbol.
+ */
+function targetColumnsOf(
+  members: readonly SchematicIrComponent[],
+  halfHeightOf: ReadonlyMap<string, number>,
+  o: ResolvedLayoutOptions,
+): number {
+  if (members.length <= 2) return 1
+  let total = 0
+  for (const member of members) total += 2 * (halfHeightOf.get(member.id) as number)
+  const step = total / members.length + o.rowGap
+  const raw = Math.sqrt(MODULE_BLOCK_ASPECT * members.length * step / o.columnPitch)
+  return Math.min(members.length, Math.max(1, Math.ceil(raw)))
+}
+
+/**
+ * Cut one layer's members into contiguous sub-columns, balanced by count and
+ * capped by the usable page height. `target === 1` reproduces a plain vertical
+ * stack with a page-height wrap; module layers pass the aspect-derived target
+ * so six same-layer parts become two balanced columns of three instead of one
+ * tall column.
+ */
+function splitLayerColumns(
+  members: readonly SchematicIrComponent[],
+  halfHeightOf: ReadonlyMap<string, number>,
+  o: ResolvedLayoutOptions,
+  maxHeight: number,
+  target: number,
+): SchematicIrComponent[][] {
+  const rowsPerColumn = Math.max(1, Math.ceil(members.length / target))
+  const columns: SchematicIrComponent[][] = []
+  let column: SchematicIrComponent[] = []
+  let height = 0
+  for (const member of members) {
+    const half = halfHeightOf.get(member.id) as number
+    if (column.length > 0) {
+      const next = height + o.rowGap + 2 * half
+      if (column.length >= rowsPerColumn || next > maxHeight) {
+        columns.push(column)
+        column = []
+        height = 0
+      }
+    }
+    height += (column.length > 0 ? o.rowGap : 0) + 2 * half
+    column.push(member)
+  }
+  if (column.length > 0) columns.push(column)
+  return columns
+}
+
+/**
  * Place one module group relative to `origin` in signal-flow columns;
- * returns the group's bounding span for grid packing. A column that would
- * grow past `maxHeight` wraps into a continuation column one pitch to the
- * right, so a tall group widens instead of running off the page.
+ * returns the group's bounding span for grid packing. A module layer too tall
+ * for its target aspect is split into balanced sub-columns (`compact`), and a
+ * column that still exceeds `maxHeight` wraps into a continuation column one
+ * pitch to the right, so a tall group widens instead of running off the page.
  */
 function placeGroup(
   members: readonly SchematicIrComponent[],
@@ -443,6 +507,7 @@ function placeGroup(
   halfHeightOf: ReadonlyMap<string, number>,
   o: ResolvedLayoutOptions,
   maxHeight: number,
+  compact = false,
 ): { width: number; height: number } {
   const layers = layerOf([...members])
   const columns = new Map<number, SchematicIrComponent[]>()
@@ -455,27 +520,25 @@ function placeGroup(
   for (const column of columns.values()) {
     column.sort((a, b) => componentKey(a).localeCompare(componentKey(b)))
   }
+  let x = origin.x
   let width = 0
   let height = 0
   for (const layer of [...columns.keys()].sort((a, b) => a - b)) {
     const column = columns.get(layer) as SchematicIrComponent[]
-    let cursor = origin.y
-    let peak = 0
-    let columnX = snap(origin.x + layer * o.columnPitch, o.grid)
-    for (const component of column) {
-      const half = halfHeightOf.get(component.id) as number
-      if (cursor !== origin.y && cursor + 2 * half > origin.y + maxHeight) {
-        peak = Math.max(peak, cursor - o.rowGap - origin.y)
-        columnX = snap(columnX + o.columnPitch, o.grid)
-        cursor = origin.y
+    const target = compact ? targetColumnsOf(column, halfHeightOf, o) : 1
+    for (const chunk of splitLayerColumns(column, halfHeightOf, o, maxHeight, target)) {
+      let cursor = origin.y
+      for (const component of chunk) {
+        const half = halfHeightOf.get(component.id) as number
+        if (!positions.has(component.id)) {
+          positions.set(component.id, { x: snap(x + BODY_HALF_WIDTH, o.grid), y: snap(cursor + half, o.grid) })
+        }
+        cursor += 2 * half + o.rowGap
       }
-      if (!positions.has(component.id)) {
-        positions.set(component.id, { x: snap(columnX + BODY_HALF_WIDTH, o.grid), y: snap(cursor + half, o.grid) })
-      }
-      cursor += 2 * half + o.rowGap
+      width = Math.max(width, x + 2 * BODY_HALF_WIDTH - origin.x)
+      height = Math.max(height, cursor - o.rowGap - origin.y)
+      x = snap(x + o.columnPitch, o.grid)
     }
-    width = Math.max(width, columnX + 2 * BODY_HALF_WIDTH - origin.x)
-    height = Math.max(height, peak, cursor - o.rowGap - origin.y)
   }
   return { width, height }
 }
@@ -627,6 +690,8 @@ interface PlannedCell {
   readonly positions: ReadonlyMap<string, SchematicPoint>
   readonly width: number
   readonly height: number
+  /** Placement band within a page, for row centring. */
+  readonly band: number
 }
 
 /** Per-source-sheet placement decision: the (possibly split) sheets plus the
@@ -696,8 +761,8 @@ function planCells(
     let cellX = usable.left
     let rowHeight = 0
     for (const [key, members] of row.groups) {
-      const box = placeGroup(members, { x: cellX, y: rowY }, positions, halfHeightOf, options, usable.bottom - rowY)
-      cells.push({ key, members, positions: cellPositions(members, positions), width: box.width, height: box.height })
+      const box = placeGroup(members, { x: cellX, y: rowY }, positions, halfHeightOf, options, usable.bottom - rowY, key !== '')
+      cells.push({ key, members, positions: cellPositions(members, positions), width: box.width, height: box.height, band: 0 })
       cellX += box.width + options.moduleGap
       rowHeight = Math.max(rowHeight, box.height)
     }
@@ -743,24 +808,15 @@ function shardGroup(
   }
   for (const column of columns.values()) column.sort((a, b) => componentKey(a).localeCompare(componentKey(b)))
 
-  // Cut columns into chunks that each fit one page height. A column whose
-  // members fit stays a single chunk.
+  // Cut each signal-flow layer into page-height chunks, and split a layer that
+  // would stand as one tall column into the same balanced sub-columns the
+  // one-page packer uses. Paginated module frames are what the t13 review
+  // measured as 1:4.7; splitting here is what makes a delivered page wide.
   const chunks: SchematicIrComponent[][] = []
   for (const layer of [...columns.keys()].sort((a, b) => a - b)) {
     const column = columns.get(layer) as SchematicIrComponent[]
-    let chunk: SchematicIrComponent[] = []
-    let chunkHeight = 0
-    for (const component of column) {
-      const memberHeight = 2 * (halfHeightOf.get(component.id) as number)
-      if (chunk.length > 0 && chunkHeight + memberHeight > usableHeight) {
-        chunks.push(chunk)
-        chunk = []
-        chunkHeight = 0
-      }
-      chunk.push(component)
-      chunkHeight += memberHeight + o.rowGap
-    }
-    if (chunk.length > 0) chunks.push(chunk)
+    const target = key === '' ? 1 : targetColumnsOf(column, halfHeightOf, o)
+    chunks.push(...splitLayerColumns(column, halfHeightOf, o, usableHeight, target))
   }
 
   const shards: Shard[] = []
@@ -895,6 +951,97 @@ function bandCapacity(shards: readonly Shard[], usable: PageRect, gap: number): 
   return Math.max(1, count)
 }
 
+/**
+ * Centre every partial band inside the widest band on the same page. A page
+ * balanced 3 + 2 puts two modules on the first band and one on the second;
+ * left-aligned, the lone module reads as an unfinished row. Centring keeps the
+ * page's outer box (the widest band still defines it) while making the shorter
+ * row look deliberate.
+ */
+function centreBands(cells: readonly PlannedCell[], o: ResolvedLayoutOptions): PlannedCell[] {
+  const bands = new Map<number, PlannedCell[]>()
+  for (const cell of cells) {
+    const band = cell.band
+    const list = bands.get(band) ?? []
+    list.push(cell)
+    bands.set(band, list)
+  }
+  if (bands.size <= 1) return [...cells]
+  const widths = new Map<number, number>()
+  for (const [band, list] of bands) {
+    let minX = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    for (const cell of list) {
+      for (const point of cell.positions.values()) {
+        minX = Math.min(minX, point.x)
+        maxX = Math.max(maxX, point.x)
+      }
+    }
+    widths.set(band, maxX - minX + 2 * BODY_HALF_WIDTH)
+  }
+  const widest = Math.max(...widths.values())
+  return cells.map((cell) => {
+    const band = cell.band
+    const dx = snap((widest - (widths.get(band) as number)) / 2, o.grid)
+    if (dx === 0) return cell
+    return {
+      ...cell,
+      positions: new Map([...cell.positions].map(([id, point]) => [id, { x: point.x + dx, y: point.y }])),
+    }
+  })
+}
+
+/**
+ * Shelf-pack shards into pages, wrapping a band at the usable width and
+ * breaking a page at the usable height or at `pageLimit` modules. `pageLimit`
+ * may be `Infinity` for a greedy measurement pass; the returned cells carry
+ * their band index so {@link centreBands} can align partial rows afterwards.
+ */
+function packShards(
+  shards: readonly Shard[],
+  usable: PageRect,
+  o: ResolvedLayoutOptions,
+  bandLimit: number,
+  pageLimit: number,
+): PlannedCell[][] {
+  const pages: PlannedCell[][] = []
+  let cells: PlannedCell[] = []
+  let x = usable.left
+  let y = usable.top
+  let bandHeight = 0
+  let inBand = 0
+  let band = 0
+  const flushPage = (): void => {
+    pages.push(cells)
+    cells = []
+    x = usable.left
+    y = usable.top
+    bandHeight = 0
+    inBand = 0
+    band = 0
+  }
+  for (const shard of shards) {
+    if (cells.length > 0 && cells.length >= pageLimit) flushPage()
+    const wrapsBand = x > usable.left && (x + shard.width > usable.right || inBand >= bandLimit)
+    if (wrapsBand) {
+      x = usable.left
+      y += bandHeight + o.moduleGap
+      bandHeight = 0
+      inBand = 0
+      band += 1
+    }
+    if (cells.length > 0 && y + shard.height > usable.bottom) flushPage()
+    const placed = new Map<string, SchematicPoint>()
+    for (const [id, point] of shard.positions) placed.set(id, { x: snap(point.x + x, o.grid), y: snap(point.y + y, o.grid) })
+    cells.push({ key: shard.key, members: shard.members, positions: placed, width: shard.width, height: shard.height, band })
+    x += shard.width + o.moduleGap
+    bandHeight = Math.max(bandHeight, shard.height)
+    inBand += 1
+  }
+  pages.push(cells)
+  return pages
+}
+
 function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayoutOptions, usable: PageRect): SheetPlan[] {
   // Pagination may use a tighter column pitch than the one-page ladder: pages
   // exist to be readable, and 300 units still leaves 180 between symbol
@@ -918,37 +1065,16 @@ function planPaginated(sheet: SchematicIrSheet, zone: SheetZone, o: ResolvedLayo
   const capacity = bandCapacity(shards, usable, o.moduleGap)
   const bandCount = Math.max(1, Math.ceil(shards.length / capacity))
   const bandLimit = o.moduleColumns ?? Math.max(1, Math.ceil(shards.length / bandCount))
-
-  const pages: PlannedCell[][] = []
-  let cells: PlannedCell[] = []
-  let x = usable.left
-  let y = usable.top
-  let bandHeight = 0
-  let inBand = 0
-  for (const shard of shards) {
-    const wrapsBand = x > usable.left && (x + shard.width > usable.right || inBand >= bandLimit)
-    if (wrapsBand) {
-      x = usable.left
-      y += bandHeight + o.moduleGap
-      bandHeight = 0
-      inBand = 0
-    }
-    if (cells.length > 0 && y + shard.height > usable.bottom) {
-      pages.push(cells)
-      cells = []
-      x = usable.left
-      y = usable.top
-      bandHeight = 0
-      inBand = 0
-    }
-    const placed = new Map<string, SchematicPoint>()
-    for (const [id, point] of shard.positions) placed.set(id, { x: snap(point.x + x, o.grid), y: snap(point.y + y, o.grid) })
-    cells.push({ key: shard.key, members: shard.members, positions: placed, width: shard.width, height: shard.height })
-    x += shard.width + o.moduleGap
-    bandHeight = Math.max(bandHeight, shard.height)
-    inBand += 1
-  }
-  pages.push(cells)
+  // A page that leaves a partial last page would otherwise ship 4 + 1, which
+  // the distribution rule rejects even though every page is dense. Measure the
+  // greedy page count, then cap each page at an even share (3 + 2). If the even
+  // share needs more pages than greedy, keep greedy: balance must not cost a
+  // page.
+  const greedy = packShards(shards, usable, o, bandLimit, Number.POSITIVE_INFINITY)
+  const pageLimit = Math.ceil(shards.length / greedy.length)
+  const packed = packShards(shards, usable, o, bandLimit, pageLimit)
+  const pages = (packed.length <= greedy.length ? packed : greedy)
+    .map(pageCells => centreBands(pageCells, o))
 
   // Fit underfilled pages to their content, then centre each page inside its
   // own sheet. A page that carries a single module on a wide A3 sheet otherwise
@@ -1073,8 +1199,8 @@ function planSheet(sheet: SchematicIrSheet, o: ResolvedLayoutOptions): SheetPlan
   const usableHeight = usable.bottom - usable.top
   const measure = (options: ResolvedLayoutOptions): { pages: PackedRow[][]; fits: boolean } => {
     const halfHeightOf = halfHeightsOf(sheet.components, zone.sidesOf, options.pinPitch, options.grid)
-    const spans = zone.orderedGroups.map(([, members]) =>
-      placeGroup(members, { x: 0, y: 0 }, new Map(), halfHeightOf, options, usableHeight))
+    const spans = zone.orderedGroups.map(([key, members]) =>
+      placeGroup(members, { x: 0, y: 0 }, new Map(), halfHeightOf, options, usableHeight, key !== ''))
     const packed = packRows(zone.orderedGroups, spans, columns, usable, options.moduleGap)
     const stacked = packPages(packed.rows, usable, options.moduleGap)
     return { pages: stacked.pages, fits: packed.fits && stacked.fits }

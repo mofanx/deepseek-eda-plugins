@@ -737,6 +737,23 @@ describe('page bounds', () => {
     for (const point of allGeometry(laid)) expect(inPage(point)).toBe(true)
   })
 
+  it('keeps the greedy page count when balancing would add a page', () => {
+    // One tall module plus five short ones: an even per-page cap would push the
+    // tall module onto its own page and still split the shorts into 2 + 2 + 1,
+    // so the balance pass must fall back to the greedy 1 + 3 + 2 layout.
+    const shorts = ['a', 'b', 'c', 'd', 'e']
+    const doc = ir(sheet({
+      blocks: [{ name: 'tall' }, ...shorts.map(name => ({ name }))],
+      components: [
+        comp('tall', { block: 'tall', pins: Array.from({ length: 80 }, (_, i) => pin(`p${i}`)) }),
+        ...shorts.map((block, i) => comp(`s${i}`, { block, pins: [pin('p1')] })),
+      ],
+    }))
+    const laid = layoutSchematic(doc, { moduleColumns: 1, pageSize: SCHEMATIC_PAGE_A3 })
+    expect(laid.sheets).toHaveLength(3)
+    expect(laid.sheets[0]?.components.filter(component => component.kind === 'part')).toHaveLength(1)
+  })
+
   it('paginates a module grid that cannot compress onto one page', () => {
     const doc = ir(sheet({
       name: 'MAIN',

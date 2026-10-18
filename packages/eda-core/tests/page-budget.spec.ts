@@ -159,7 +159,10 @@ describe('delivery budget: one metric, one rule', () => {
 
     const { ir, pins } = t5Board()
     const laid = layoutSchematic(ir, { pageSize: SCHEMATIC_PAGE_A3, symbolPins: new Map([['sym', pins]]) })
-    const first = measurePageFill(laid.sheets[0] as SchematicIrSheet, SCHEMATIC_PAGE_A3)
+    // The compact layout leaves page 0 dense enough to keep the planned frame,
+    // while the two-module tail converges; measure a converged page.
+    const fitted = laid.sheets.find(sheet => sheet.pageSize !== undefined) as SchematicIrSheet
+    const first = measurePageFill(fitted, SCHEMATIC_PAGE_A3)
     expect(first.fitted).toBe(true)
     // The ink box covers the module frames, so it is larger than the anchor box.
     expect(first.box.x1).toBeGreaterThan(0)
@@ -211,14 +214,12 @@ describe('delivery budget: one metric, one rule', () => {
     const report = judge(ir, SCHEMATIC_PAGE_A3, { symbolPins: new Map([['sym', pins]]) })
     expect(rules(report)).toEqual([])
     expect(report.ok).toBe(true)
-    // Rebalanced bands 3 + 2 instead of the width-greedy 4 + 1. This is
-    // documentation of the layout's output, not the guard: the controls below
-    // fail through the rule's own checks with no part split asserted at all.
+    // Rebalanced 3 + 2 instead of the width-greedy 4 + 1. The first page packs
+    // two modules beside each other and one below, so it is dense enough to
+    // keep its planned frame; the two-module tail still converges.
     expect(report.pages.map(page => page.parts)).toEqual([18, 12])
-    expect(report.pages.every(page => page.fitted)).toBe(true)
-    // Under the delivery metric both pages clear the target, so no page needs
-    // the structural exemption here.
-    for (const page of report.pages) expect(page.fill).toBeGreaterThanOrEqual(SCHEMATIC_PAGE_BUDGET.fillTarget)
+    expect(report.pages.some(page => page.fitted)).toBe(true)
+    expect(report.pages.every(page => page.fill >= SCHEMATIC_PAGE_BUDGET.fillTarget)).toBe(true)
   })
 
   it('centres a converged page on the sheet it converges to', () => {
@@ -229,7 +230,9 @@ describe('delivery budget: one metric, one rule', () => {
     // edge, so a box over every component is asymmetric by construction.
     const { ir, pins } = t5Board()
     const laid = layoutSchematic(ir, { pageSize: SCHEMATIC_PAGE_A3, symbolPins: new Map([['sym', pins]]) })
-    for (const sheet of laid.sheets) {
+    const converged = laid.sheets.filter(sheet => sheet.pageSize !== undefined)
+    expect(converged.length).toBeGreaterThan(0)
+    for (const sheet of converged) {
       expect(sheet.pageSize).toBeDefined()
       const size = sheet.pageSize!
       const anchors = sheet.components
@@ -311,21 +314,63 @@ describe('delivery budget: one metric, one rule', () => {
     console.log(describePageBudget(report))
     for (const violation of report.violations) console.log(`  ${violation.rule}: ${violation.detail}`)
     expect(report.ok).toBe(false)
-    expect(rules(report)).toEqual(['ceiling', 'floor', 'minimum'])
+    // The compact tail is no longer below the 25% floor, so the failure is the
+    // two real defects: the page is not at its minimum and its shape could
+    // still reach the target.
+    expect(rules(report)).toEqual(['ceiling', 'minimum'])
     // Page 0 still clears the target on the full A3 frame; page 1 does not.
     expect(report.pages[0]!.fill).toBeGreaterThanOrEqual(SCHEMATIC_PAGE_BUDGET.fillTarget)
     const tail = report.pages[1]!
     expect(tail.fill).toBeLessThan(SCHEMATIC_PAGE_BUDGET.fillTarget)
     expect(tail.atMinimum).toBe(false)
-    expect(tail.fill).toBeLessThan(SCHEMATIC_PAGE_BUDGET.fillFloor)
+    expect(tail.fill).toBeGreaterThanOrEqual(SCHEMATIC_PAGE_BUDGET.fillFloor)
+  })
+
+  /** Hand-built one-column module page: six parts stacked, the t9 shape. */
+  const columnPage = (name: string): SchematicIrSheet => ({
+    name,
+    blocks: [{ name: 'MCU', title: 'MCU' }],
+    components: Array.from({ length: 6 }, (_, i) => ({
+      id: `${name}-u${i}`,
+      kind: 'part',
+      designator: `U${i}`,
+      deviceUuid: 'dev',
+      block: 'MCU',
+      position: { x: 100, y: 200 + i * 130 },
+      pins: [{ ...pin(`p${i}`, `N${i}`, 'INPUT') }],
+    })),
+    wires: [],
+    busEntries: [],
+    junctions: [],
+    attrs: [],
+  })
+
+  /** Hand-built compact module: `parts` parts in two sub-columns. */
+  const modulePage = (name: string, block: string, parts: number, x: number, y: number): SchematicIrSheet => ({
+    name,
+    blocks: [{ name: block, title: block }],
+    components: Array.from({ length: parts }, (_, i) => ({
+      id: `${name}-${block}-${i}`,
+      kind: 'part',
+      designator: `U${i}`,
+      deviceUuid: 'dev',
+      block,
+      position: { x: x + (i % 2) * 300, y: y + Math.floor(i / 2) * 120 },
+      pins: [{ ...pin(`p${i}`, `N${i}`, 'BI') }],
+    })),
+    wires: [],
+    busEntries: [],
+    junctions: [],
+    attrs: [],
   })
 
   it('rejects the one-module-per-page pagination that the old rule let through', () => {
-    // Control 2: the t9 finding. Five pages at ~22% each used to pass because
-    // their "structural ceiling" was low. The rule now fails every one of them
-    // on the floor and on not being at their minimum — no part list involved.
-    const { ir, pins } = t5Board()
-    const report = judge(ir, SCHEMATIC_PAGE_A3, { symbolPins: new Map([['sym', pins]]), moduleColumns: 1 })
+    // Control 2: the t9 finding, built directly so it cannot be masked by a
+    // later packing improvement. Five pages at ~7% each used to pass because
+    // their "structural ceiling" was low. The rule fails every one of them on
+    // the floor and on not being at their minimum — no part list involved.
+    const report = checkPageBudget(['A', 'B', 'C', 'D', 'E'].map(columnPage), SCHEMATIC_PAGE_A3)
+    console.log(describePageBudget(report))
     expect(report.pages.length).toBe(5)
     expect(report.pages.map(page => page.parts)).toEqual([6, 6, 6, 6, 6])
     for (const page of report.pages) {
@@ -337,21 +382,35 @@ describe('delivery budget: one metric, one rule', () => {
   })
 
   it('rejects a width-greedy pack that strands a module', () => {
-    // Control 3: four modules on the first band and one alone on the second.
+    // Control 3: four modules on the first page and one alone on the second.
     // The per-page spread (24 vs 6) exceeds one module, so the board fails even
-    // though no single page is below the floor.
-    const report = judge(board(), SCHEMATIC_PAGE_A3, { moduleColumns: 4 })
+    // though no single page is below the floor. Built from laid module groups,
+    // not from the packer, so the distribution rule is exercised on its own.
+    const four = ['MCU', 'POWER', 'IO', 'MEM'].map((block, index) =>
+      modulePage('A', block, 6, 200 + (index % 2) * 620, 200 + Math.floor(index / 2) * 420))
+    const pageA: SchematicIrSheet = {
+      ...(four[0] as SchematicIrSheet),
+      blocks: four.flatMap(sheet => sheet.blocks ?? []),
+      components: four.flatMap(sheet => sheet.components),
+    }
+    const report = checkPageBudget([pageA, modulePage('B', 'CLK', 6, 200, 200)], SCHEMATIC_PAGE_A3)
+    console.log(describePageBudget(report))
     expect(report.pages.map(page => page.parts)).toEqual([24, 6])
     expect(report.ok).toBe(false)
     expect(rules(report)).toContain('distribution')
   })
 
   it('rejects a pagination that leaves two mergeable pages', () => {
-    // Control 4: five five-part modules, one per page. Each page carries a
-    // single ~660-tall module, so two of them would still fit side by side on
-    // one sheet — the pagination is not minimal.
-    const report = judge(board(5, 5), SCHEMATIC_PAGE_A3, { moduleColumns: 1 })
-    expect(report.pages.length).toBeGreaterThan(1)
+    // Control 4: two five-part modules each alone on an A3 page. Each drawn box
+    // is small enough that both would still fit side by side on one sheet — the
+    // pagination is not minimal. Hand-built, so compact packing cannot merge
+    // them for us and hide the rule.
+    const report = checkPageBudget([
+      modulePage('P1', 'A', 5, 200, 200),
+      modulePage('P2', 'B', 5, 200, 200),
+    ], SCHEMATIC_PAGE_A3)
+    console.log(describePageBudget(report))
+    expect(report.pages.length).toBe(2)
     expect(report.ok).toBe(false)
     expect(rules(report)).toContain('pagination')
   })
@@ -387,10 +446,10 @@ describe('delivery budget: one metric, one rule', () => {
   })
 
   it('keeps the planned frame when a framed page already clears the target', () => {
-    // On a tight frame each page holds one module, whose content box is most of
-    // it: the page is dense enough, so the layout delivers the planned size
-    // instead of converging, and never reports a fitted size.
-    const laid = layoutSchematic(board(12), { pageSize: SCHEMATIC_PAGE_A3 })
+    // Seven compact modules fill two A3 pages (4 + 3). Each page's tight box
+    // clears the target, so the layout keeps the planned frame instead of
+    // converging, and never reports a fitted size.
+    const laid = layoutSchematic(board(6, 7), { pageSize: SCHEMATIC_PAGE_A3 })
     expect(laid.sheets.some(sheet => sheet.pageSize === undefined)).toBe(true)
     expect(laid.sheets.length).toBeGreaterThan(1)
     for (const sheet of laid.sheets) expect(sheet.components.length).toBeGreaterThan(0)
