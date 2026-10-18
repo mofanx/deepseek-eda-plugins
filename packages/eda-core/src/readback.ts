@@ -242,21 +242,21 @@ export function readBackNetRegions(source: string): NetRegion[] {
   return regionsOf(nodes)
 }
 
-/** IR-side net regions of one sheet, projected into persisted space (y - pageHeight). */
-function irNetRegions(sheet: SchematicIrSheet, pageHeight: number): NetRegion[] {
+/** IR-side net regions of one sheet, projected into persisted space by `projectY`. */
+function irNetRegions(sheet: SchematicIrSheet, projectY: (y: number) => number): NetRegion[] {
   const nodes: NetNode[] = []
   for (const wire of sheet.wires) {
     const segments: Segment[] = []
     for (const dots of wire.dots ?? []) {
       for (let i = 0; i + 3 < dots.length; i += 2) {
-        segments.push([dots[i] as number, (dots[i + 1] as number) - pageHeight, dots[i + 2] as number, (dots[i + 3] as number) - pageHeight])
+        segments.push([dots[i] as number, projectY(dots[i + 1] as number), dots[i + 2] as number, projectY(dots[i + 3] as number)])
       }
     }
     nodes.push({ id: wire.id, names: wire.net === undefined ? [] : [wire.net], segments })
   }
   for (const component of sheet.components) {
     if ((component.kind !== 'netflag' && component.kind !== 'netport') || component.netName === undefined || component.position === undefined) continue
-    nodes.push({ names: [component.netName], segments: [], point: { x: component.position.x, y: component.position.y - pageHeight } })
+    nodes.push({ names: [component.netName], segments: [], point: { x: component.position.x, y: projectY(component.position.y) } })
   }
   return regionsOf(nodes)
 }
@@ -285,6 +285,9 @@ const joinNames = (names: ReadonlySet<string>): string => [...names].sort().join
  * @param sheetIndex - sheet position, for finding locators.
  * @param symbolPins - pin geometry per bound symbol UUID (the `symbolPins`
  * snapshot from `resolveBindings`), in sheet space.
+ * @param pageSize - delivered page size for imported `.epru` pages; ignored when `ySign` is `-1`.
+ * @param ySign - `1` for persisted `y - pageHeight` (imported pages) or `-1` for
+ * the primitive API's `-y` mirror.
  * @returns one finding per detected diff; empty when the netlists agree.
  */
 export function diffNetlists(
@@ -293,11 +296,13 @@ export function diffNetlists(
   sheetIndex: number,
   symbolPins?: ReadonlyMap<string, readonly SchematicSymbolPin[]>,
   pageSize?: SchematicPageSize,
+  ySign: 1 | -1 = 1,
 ): SchematicFinding[] {
   const findings: SchematicFinding[] = []
   const observed = readBackNetRegions(source)
   const pageHeight = (pageSize ?? SCHEMATIC_PAGE_A4).height
-  const expected = irNetRegions(sheet, pageHeight)
+  const projectY = ySign === 1 ? (y: number): number => y - pageHeight : (y: number): number => -y
+  const expected = irNetRegions(sheet, projectY)
   for (const region of observed) {
     if (region.names.size > 1) {
       findings.push({
@@ -339,7 +344,7 @@ export function diffNetlists(
           }
         }
       }
-      const point = { x: pin.endpoint.x, y: pin.endpoint.y - pageHeight }
+      const point = { x: pin.endpoint.x, y: projectY(pin.endpoint.y) }
       const want = namesAt(point, expected)
       if (pin.net !== undefined) want.add(pin.net)
       if (want.size === 0) continue

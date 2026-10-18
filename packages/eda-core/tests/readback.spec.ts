@@ -38,6 +38,35 @@ describe('diffNetlists', () => {
     expect(diffNetlists(doc, src, 0, undefined, a3).filter(f => f.code.startsWith('SCHEMATIC_NETLIST_'))).toEqual([])
   })
 
+  it('projects primitive-path sources through -y instead of the page height', () => {
+    // The primitive API persists layoutY as `-layoutY`; only imported `.epru`
+    // pages use `y - pageHeight`. A fitted 570-high page with layoutY=260 is
+    // the case the old `y - requestedHeight` projection reported as dropped.
+    const fitted = sheet({
+      components: [
+        {
+          id: 'u1', kind: 'part', designator: 'U1', position: { x: 0, y: 260 },
+          pins: [{ id: 'p1', name: 'O', number: '1', electric: 'OUTPUT', endpoint: { x: 0, y: 260 }, net: 'SIG' }],
+        },
+        {
+          id: 'u2', kind: 'part', designator: 'U2', position: { x: 100, y: 260 },
+          pins: [{ id: 'p1', name: 'I', number: '1', electric: 'INPUT', endpoint: { x: 100, y: 260 }, net: 'SIG' }],
+        },
+      ],
+      wires: [{ id: 'w1', kind: 'wire', dots: [[0, 260, 100, 260]], net: 'SIG' }],
+    })
+    const primitive = [
+      '{"type":"WIRE","id":"w1"}||{}|',
+      '{"type":"LINE","id":"l1"}||{"lineGroup":"w1","startX":0,"startY":-260,"endX":100,"endY":-260}|',
+      '{"type":"ATTR","id":"a1"}||{"parentId":"w1","key":"NET","value":"SIG"}|',
+    ].join('\n')
+    expect(diffNetlists(fitted, primitive, 0, undefined, undefined, -1)
+      .filter(f => f.code.startsWith('SCHEMATIC_NETLIST_'))).toEqual([])
+    // The imported-page projection expects y=260-825=-565 and drops both pins.
+    expect(diffNetlists(fitted, primitive, 0)
+      .filter(f => f.code === 'SCHEMATIC_NETLIST_DROPPED')).toHaveLength(2)
+  })
+
   it('ignores non-electrical RECT/TEXT frame records in the netlist diff', () => {
     const doc = sheet()
     const framed: SchematicIrSheet = {

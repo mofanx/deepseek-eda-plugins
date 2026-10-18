@@ -1031,10 +1031,11 @@ return sources;`
           })
         }
       }
-      // The primitive build path has no per-sheet delivered size (the client
-      // creates one default page), so it still diffs against the requested
-      // page height; only the imported `.epru` path carries `sheet.pageSize`.
-      findings.push(...diffNetlists(sheet, source, sheetIndex, options.symbolPins, options.pageSize))
+      // The primitive build path creates one default page and persists the API
+      // coordinate as `-layoutY`; the imported `.epru` path instead persists
+      // `layoutY - deliveredPageHeight`. Project this path through the `-y`
+      // mirror so a fitted sheet is not diffed against the requested height.
+      findings.push(...diffNetlists(sheet, source, sheetIndex, options.symbolPins, options.pageSize, -1))
     }
   } else {
     findings.push({
