@@ -1487,3 +1487,47 @@ mismatch 已在），改后用一条明确的 abort 换掉 4 次 15s 盲等，�
 新代码走的是 `SchematicFinding.code` 自由字符串，没有注册表要同步；覆盖率门禁不因新分支破 100%。
 另记一条边界：脚本里的 15s race 低于 bridge 默认 30s execute budget；若调用方把 `options.timeoutMs`
 压到 ~15s 以下，bridge 会先超时、`CREATE_TIMEOUT` 不再浮出，此时只有 transport streak 生效（已在代码注释）。
+
+### 14.19 t23：合成 48-pin 的 on-pin 兜底——根因是引脚压在 body 估算边界上
+
+§14.15 把「48-pin IC 逐脚标签垂直重叠」归档为限制。t23 修掉的是**「所有候选被拒 → on-pin 兜底」的根因，
+标签重叠的观感没有解决**（见本节末）。
+
+**复现**（合成 48 脚、脚距 10 单位＝100 mil，每脚一个唯一 net；`t23-pin-edge.mjs` 是修后回归，
+修前的 `48 flags` 需要回退修复才能复现）：
+
+- 修复前：`flags=48 columns=1 wires=0`——48 个旗标全部落在同一条 x 列（x=340），纵向 span 470，
+  **同列最小间距 10 单位**。x=340 就是**引脚端点列**（part x=300 + probe 使用的 pin 偏移 40，与 t19 的
+  `C23922` 形状一致），而 `wires=0` 说明这些旗标是**直接落在引脚上、没有 stub**：不是「选了一条太挤的
+  lane」，是所有候选都被拒后的兜底。
+- 根因：`BODY_HALF_WIDTH 60` → 估算 body 右边 360，`pinStub 20` → padded 右边界 **340**，恰好等于引脚端点。
+  `segmentCrossesRect` 里 `inside()` 用严格 `<`（340 不算「在体内」），而边测试用 `segmentsTouch`
+  把「stub 起点正好落在 padded 边界上」判成穿越 → `fits()` 对**所有**候选（含 lane）返回 false →
+  `flagPosition = endpoint`。反证：`pinStub` 改成 19 或 21，同一张表立刻输出 48 wires / 0 flags；
+  只有 20 这个「body 右边界 − pin 偏移 = pinStub」的刀锋值会触发兜底。
+
+**一个被污染的负结果，记下来避免误导**：中途试过「给旗标候选加 lane 2/3 + 同列 30×18 去重」，
+复量仍是 48 flags / 1 列 / minGap 10。当时写成了「还有更强的未知约束」，复核指出 lane 候选**从未被执行**
+（第一个候选就失败），所以这次实验**不能用来否定 lane**；改动已回退，结论作废。
+
+**修复**：`segmentCrossesRect` 改成用 Liang–Barsky 求线段落在 padded 矩形内的参数区间——只**贴住**边界
+（stub 从引脚向外离开）区间长度为 0，判为合法；**沿边滑行或穿过**（中心弦、贴边弦、近边斜弦）区间长度为正，
+仍算穿越。端点严格落在 padded 内部的仍然豁免（符号引脚几何可以落在估算轮廓内）。这版没有内缩盲带：
+复核点名的 `(20,20)→(80,20)`、`(20,20)→(80,21)`、`(340,500)→(260,500)` 都判为 true，并已写进回归用例。
+
+- 效果：合成的 48 脚最坏情况从 `48 flags / 0 wires` 变成 **`48 wires / 0 flags`**，stub 长 80 单位；
+  即恢复了设计里的 wire 路径（`DEFAULT_FLAG_FANOUT 6` 下单脚网络本来就该走 wire）。
+- **没有解决的**：wire 的 `NET` ATTR 文本仍在引脚端点 `(340,y)`、10 单位间距，**标签重叠的结构性原因
+  （文本高度 > 脚距）没变**；live t19 截图（`docs/evidence/current/t19-real-ic-page1.png`）里 MCU
+  右侧仍是密集文本。要真正可读，还得决定单脚网络用 wire+NET 还是 flag，再谈错列 fanout。
+
+**live 复核**（复用已有 bridge/landing 会话，客户端未重启）：
+
+- `node docs/evidence/review/t18-live-loop.mjs` → **PASS**：`54.0% / 42.1%`，`1655×1170 / 1510×810`，
+  `rects 30/29`，`frames 3/3、2/2`——与修复前同数，说明 t18 的引脚不在这个边界上，它只作回归；
+- `node docs/evidence/review/t19-real-ic.mjs` → **PASS**：`MAIN 910×1170`，`21 components / 39 texts`，
+  填充 `46.5%`，零 error——同样与修复前同数，**只作回归，不构成「观感改善」的证据**；
+- `node docs/evidence/review/t23-pin-edge.mjs` → **PASS**：`pins=48 wires=48 flags=0`，`stub length 80`。
+
+**证据口径**：`t23-pin-edge.mjs` 已随本轮进入版本库；旧探针仍留在 gitignore 的 `.tmp-temp/`，不再作为证据。
+它复现的是「全唯一 net 的合成最坏情况」，live t19 是 14 个 flag、不是 48，两者不要混用。

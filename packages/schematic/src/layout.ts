@@ -326,10 +326,15 @@ export function segmentsTouch(a: SchematicPoint, b: SchematicPoint, c: Schematic
 }
 
 /**
- * Whether segment `a`–`b` crosses through `rect` shrunk by `pad`. A segment
- * with an endpoint inside the rect is not a crossing: symbol pin geometry may
- * sit inside the estimated outline, and a stub that starts at a pin must stay
- * legal. Only a wire that passes clean through the body counts.
+ * Whether segment `a`–`b` crosses through `rect` shrunk by `pad`. Touching the
+ * padded edge is not a crossing — a pin can sit exactly on it and a stub has to
+ * leave from there — but running along or through the shrunk rect still counts.
+ * A segment with an endpoint strictly inside stays legal (symbol pin geometry
+ * may sit inside the estimated outline). The boundary case is not academic:
+ * `BODY_HALF_WIDTH 60` with a 40-unit pin offset and `pinStub 20` puts the pin
+ * exactly on the padded edge, and a strict test there made every stub "touch"
+ * the body, so each net fell back onto the pin itself (offline 48-pin probe:
+ * 48 flags, no stubs, 10-unit pitch; §14.19).
  */
 export function segmentCrossesRect(a: SchematicPoint, b: SchematicPoint, rect: BodyRect, pad: number): boolean {
   const left = rect.left + pad
@@ -337,12 +342,37 @@ export function segmentCrossesRect(a: SchematicPoint, b: SchematicPoint, rect: B
   const top = rect.top + pad
   const bottom = rect.bottom - pad
   if (right <= left || bottom <= top) return false
-  const inside = (p: SchematicPoint): boolean => p.x > left && p.x < right && p.y > top && p.y < bottom
-  if (inside(a) || inside(b)) return false
-  return segmentsTouch(a, b, { x: left, y: top }, { x: right, y: top })
-    || segmentsTouch(a, b, { x: right, y: top }, { x: right, y: bottom })
-    || segmentsTouch(a, b, { x: right, y: bottom }, { x: left, y: bottom })
-    || segmentsTouch(a, b, { x: left, y: bottom }, { x: left, y: top })
+  const strictlyInside = (p: SchematicPoint): boolean =>
+    p.x > left && p.x < right && p.y > top && p.y < bottom
+  if (strictlyInside(a) || strictlyInside(b)) return false
+  // Liang–Barsky: keep the parameter range of the segment inside the padded
+  // rect. A stub that only touches the edge clips to a single point (zero
+  // length), while a segment along or across the rect keeps a positive span —
+  // so the test is exact and has no inset blind band.
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  let t0 = 0
+  let t1 = 1
+  for (const [p, q] of [
+    [-dx, a.x - left],
+    [dx, right - a.x],
+    [-dy, a.y - top],
+    [dy, bottom - a.y],
+  ] as readonly (readonly [number, number])[]) {
+    if (p === 0) {
+      if (q < 0) return false
+      continue
+    }
+    const r = q / p
+    if (p < 0) {
+      if (r > t1) return false
+      if (r > t0) t0 = r
+    } else {
+      if (r < t0) return false
+      if (r < t1) t1 = r
+    }
+  }
+  return (t1 - t0) * Math.hypot(dx, dy) > 1e-9
 }
 
 const isGroundNet = (net: string): boolean => GROUND_NET_RE.test(net)

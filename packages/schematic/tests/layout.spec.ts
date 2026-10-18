@@ -1434,6 +1434,24 @@ describe('segment body-crossing predicate', () => {
     expect(segmentCrossesRect(p(-10, 150), p(110, 150), rect, 0)).toBe(false)
     expect(segmentCrossesRect(p(-10, 50), p(110, 50), rect, 60)).toBe(false)
   })
+
+  it('lets a pin stub start exactly on the padded edge without hiding edge-to-edge chords', () => {
+    // BODY_HALF_WIDTH 60, a 40-unit pin offset and pinStub 20 put the pin
+    // exactly on the padded edge; the stub leaves the body from there.
+    expect(segmentCrossesRect(p(80, 50), p(120, 50), rect, 20)).toBe(false)
+    // A stub aimed back into the body counts as pin geometry, not a crossing.
+    expect(segmentCrossesRect(p(80, 50), p(60, 50), rect, 20)).toBe(false)
+    // Chords that merely touch the padded edge still cut the body: across the
+    // middle, along the top edge, and a near-edge diagonal.
+    expect(segmentCrossesRect(p(20, 50), p(80, 50), rect, 20)).toBe(true)
+    expect(segmentCrossesRect(p(20, 20), p(80, 20), rect, 20)).toBe(true)
+    expect(segmentCrossesRect(p(20, 20), p(80, 21), rect, 20)).toBe(true)
+    // The 48-pin case: padded rect [260,340]x[20,500], a chord at y=500 runs
+    // from one edge to the other even though both endpoints touch the edge.
+    const body = { left: 240, right: 360, top: 0, bottom: 520 }
+    expect(segmentCrossesRect(p(340, 500), p(260, 500), body, 20)).toBe(true)
+    expect(segmentCrossesRect(p(340, 500), p(420, 500), body, 20)).toBe(false)
+  })
 })
 
 describe('authored geometry on a paginated sheet', () => {
