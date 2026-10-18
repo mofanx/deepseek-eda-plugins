@@ -1426,4 +1426,64 @@ serialize/导入的 `.epru` 页（§14.14 修复 1）。`readback.ts`、`seriali
 已按这两套约定改写，避免下一轮再把 primitive 页按页高反算。
 
 **仍未收口**：`buildIntoEasyEda` 的器件 `create` 在该导入工程上仍 `CREATE_TIMEOUT`（netflag/wire 正常），
-完整 primitive 交付没有 live 闭环；本条只闭合“回读投影”，不冒充整条链路。
+完整 primitive 交付没有 live 闭环；本条只闭合“回读投影”，不冒充整条链路。§14.18 把「能否换原生工程」
+查到了 API 层，并把 6×15s 的盲等改成 2×15s 的快速失败。
+
+### 14.18 t22：primitive 建件为何无法 live 收口 + CREATE_TIMEOUT 快速失败
+
+**问题**：§14.17 只闭合了回读投影；器件 `create` 仍挂起。假设是「导入工程不支持 `sch_PrimitiveComponent.create`，
+换成原生工程就能落件」。本轮用 live API 逐项验证这个假设。
+
+**live 事实（当前 web 客户端）**：
+
+| 探测 | 结果 |
+|---|---|
+| `dmt_Project.createProject(name, name, team, null, '', 1, 'eprj3')` | 返回 `undefined`，之后 203 个工程里没有任何 `dsh-native-probe` —— **静默 no-op，建不出原生工程** |
+| `dmt_Project.copyProject` / `modifyProjectFriendlyName` / `deleteProject` / `waitForReady` | 空实现或返回 `false`（`waitForReady(){return!1}`），**不能复制/改名/删除/等待** |
+| `getReadyState()` | 导入工程 t18 与原生用户工程 `电阻分压电路_5V转2.5V` **都返回 `notLoaded`** —— 不是可用的判别位 |
+| `dmt_Schematic.createSchematic('DSH_T22_PROBE')`（原生工程内） | 未创建（`NO_SCHEMATIC`），**建不出探针原理图** |
+| `lib_Device.get(deviceUuid, libraryUuid)` | 返回 device 对象（解析正常） |
+| `sch_PrimitiveComponent.create(device, 100, 200, ...)`（导入工程） | **15s 超时**，器件未落 |
+
+**结论**：当前 web 客户端既不能程序化建原生工程，也不能在原生工程里建探针页，所以「原生工程能落件」
+这个假设**无法在 live 上证实**；完整 primitive 交付本轮仍不冒充闭环。生产交付走 import，不受影响。
+
+**同轮优化（可 live 闭环的部分）**：`buildIntoEasyEda` 原先只在**传输层**连续 3 次失败时中止；而
+`CREATE_TIMEOUT` 是 chunk 正常返回里的 failure payload，不会触发中止，6 个器件就要盲等 6×15s。
+本轮在 `runChunks` 里加 `createTimeoutStreak`：连续 2 个 chunk 返回 `CREATE_TIMEOUT` 就置
+`abortedByCreateTimeout`，跳过剩余 placement，并追加一条 `SCHEMATIC_BUILD_CREATE_ABORTED` error（消息直接指向 import 路径）。A/B（同一导入工程、6 颗
+`C25804`，改前/改后同一探针；永久脚本 `docs/evidence/review/t22-create-abort.mjs`）：
+
+| 量 | 改前 | 改后 |
+|---|---|---|
+| 墙钟 | **98.4s** | **34.7s**（-64.7%） |
+| `SCHEMATIC_BUILD_CREATE_TIMEOUT` | 6 条 | 2 条 |
+| `SCHEMATIC_BUILD_CREATE_ABORTED` | 0 | 1 条（error） |
+| 已落器件 | 11（部分 marker/wire） | 0（剩余 placement 全跳过） |
+
+跳过 marker/wire 会让空页多出 12 条 `SCHEMATIC_NETLIST_DROPPED`；但改前同样是失败构建（count/net
+mismatch 已在），改后用一条明确的 abort 换掉 4 次 15s 盲等，并避免继续把挂起的 create 堆进客户端队列。
+回归用例 `aborts remaining part chunks after two consecutive CREATE_TIMEOUTs`（3 个 part、前两个
+`CREATE_TIMEOUT`）断言只执行 2 个 part chunk、报出 abort。永久证据脚本
+`node docs/evidence/review/t22-create-abort.mjs` 复跑 **PASS**：
+`elapsed 34.7s componentChunks=2 timeouts=2 aborted=1`，并清理自己创建的页；若目标工程上器件创建真的成功，
+脚本打印 `SKIP` 而不是误报失败。
+
+**交叉复核**：独立 subagent 对 `runChunks` 的 streak 语义、与既有 `chunkStreak` 的交互、跳过 marker/wire
+的取舍、finding code/severity 与覆盖率逐项审阅。**结论：ship（无需回退）**，并指出五处非阻塞改进；
+本轮采纳了其中四项：
+
+1. **transport throw 重置 streak**：catch 分支原来只加 `chunkStreak`、不重置 `createTimeoutStreak`，
+   会出现 `timeout → throw → timeout` 也触发 abort，与“连续”语义不符；已在 catch 里 `createTimeoutStreak = 0`。
+2. **2 vs 3 注释纠偏**：原注释称“与 transport streak 同一信号”，但 transport 阈值是 3；已改为说明
+   “故意比 transport 少一次，因为每次都要付 15s”，并记录 abort 是跨 sheet 全局的。
+3. **诊断措辞软化**：消息不再断言“该工程不支持 primitive 建件”，改为条件式（“如果是导入工程……”），
+   并注明后面的 dropped/mismatch 是跳过 placement 的后果。
+4. **补多 sheet 回归**：新增 `carries the CREATE_TIMEOUT abort across sheets`（3 个 sheet 各 1 个 part，
+   前两个 timeout，第三个 chunk 被跳过）和 `resets the CREATE_TIMEOUT streak when the next part chunk succeeds`。
+5. 未采纳：抑制 abort 后的 downstream finding（复核自己也标为非阻塞；保留原始证据更有用）。
+
+复核同时确认：`CREATE_TIMEOUT` 是返回的 failure payload、不是 throw，所以 `executeChunk` 不会重试它；
+新代码走的是 `SchematicFinding.code` 自由字符串，没有注册表要同步；覆盖率门禁不因新分支破 100%。
+另记一条边界：脚本里的 15s race 低于 bridge 默认 30s execute budget；若调用方把 `options.timeoutMs`
+压到 ~15s 以下，bridge 会先超时、`CREATE_TIMEOUT` 不再浮出，此时只有 transport streak 生效（已在代码注释）。

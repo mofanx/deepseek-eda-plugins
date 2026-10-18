@@ -512,6 +512,67 @@ describe('buildIntoEasyEda chunked placement', () => {
     expect(report.findings.find(f => f.code === 'SCHEMATIC_BUILD_ABORTED')?.severity).toBe('error')
   })
 
+  it('aborts remaining part chunks after two consecutive CREATE_TIMEOUTs', async () => {
+    const threeParts: SchematicIr = {
+      sheets: [{
+        components: [1, 2, 3].map(index => ({
+          id: `c${index}`, kind: 'part' as const, designator: `U${index}`,
+          position: { x: index * 10, y: 0 }, deviceUuid: `d${index}`, pins: [],
+        })),
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    }
+    const timeoutChunk = (irId: string): { status: string; failures: { code: string; irId: string; sheetIndex: number }[]; created: number } =>
+      ({ status: 'OK', failures: [{ code: 'CREATE_TIMEOUT', irId, sheetIndex: 0 }], created: 0 })
+    const { bridge, calls } = scriptedBridge([prepareOk, timeoutChunk('c1'), timeoutChunk('c2'), [null], oracleOk])
+    const report = await buildIntoEasyEda(threeParts, { bridge, retries: 0 })
+    expect(report.findings.filter(f => f.code === 'SCHEMATIC_BUILD_CREATE_TIMEOUT')).toHaveLength(2)
+    expect(report.findings.find(f => f.code === 'SCHEMATIC_BUILD_CREATE_ABORTED')?.severity).toBe('error')
+    // The third part chunk is never executed.
+    expect(calls.filter(code => code.includes('sch_PrimitiveComponent.create(device'))).toHaveLength(2)
+  })
+
+  it('resets the CREATE_TIMEOUT streak when the next part chunk succeeds', async () => {
+    const twoParts: SchematicIr = {
+      sheets: [{
+        components: [1, 2].map(index => ({
+          id: `c${index}`, kind: 'part' as const, designator: `U${index}`,
+          position: { x: index * 10, y: 0 }, deviceUuid: `d${index}`, pins: [],
+        })),
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    }
+    const timeoutChunk = { status: 'OK', failures: [{ code: 'CREATE_TIMEOUT', irId: 'c1', sheetIndex: 0 }], created: 0 }
+    const { bridge, calls } = scriptedBridge([prepareOk, timeoutChunk, chunkOk(1), [null], oracleOk])
+    const report = await buildIntoEasyEda(twoParts, { bridge, retries: 0 })
+    expect(report.findings.filter(f => f.code === 'SCHEMATIC_BUILD_CREATE_TIMEOUT')).toHaveLength(1)
+    expect(report.findings.find(f => f.code === 'SCHEMATIC_BUILD_CREATE_ABORTED')).toBeUndefined()
+    expect(calls.filter(code => code.includes('sch_PrimitiveComponent.create(device'))).toHaveLength(2)
+  })
+
+  it('carries the CREATE_TIMEOUT abort across sheets', async () => {
+    const threeSheets: SchematicIr = {
+      sheets: [1, 2, 3].map(index => ({
+        components: [{
+          id: `c${index}`, kind: 'part' as const, designator: `U${index}`,
+          position: { x: 0, y: 0 }, deviceUuid: `d${index}`, pins: [],
+        }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      })),
+    }
+    const prepareThree = { status: 'OK', failures: [], pageUuids: ['p1', 'p2', 'p3'] }
+    const timeoutChunk = (irId: string, sheetIndex: number): { status: string; failures: { code: string; irId: string; sheetIndex: number }[]; created: number } =>
+      ({ status: 'OK', failures: [{ code: 'CREATE_TIMEOUT', irId, sheetIndex }], created: 0 })
+    const { bridge, calls } = scriptedBridge([
+      prepareThree, timeoutChunk('c1', 0), timeoutChunk('c2', 1), [null, null, null], oracleOk,
+    ])
+    const report = await buildIntoEasyEda(threeSheets, { bridge, retries: 0 })
+    expect(report.findings.filter(f => f.code === 'SCHEMATIC_BUILD_CREATE_TIMEOUT')).toHaveLength(2)
+    expect(report.findings.find(f => f.code === 'SCHEMATIC_BUILD_CREATE_ABORTED')?.severity).toBe('error')
+    // Sheet 3's part chunk is skipped once the streak crosses the sheet boundary.
+    expect(calls.filter(code => code.includes('sch_PrimitiveComponent.create(device'))).toHaveLength(2)
+  })
+
   it('reports a malformed chunk result and a plain-Error throw through retries', async () => {
     const { bridge } = scriptedBridge([
       prepareOk,

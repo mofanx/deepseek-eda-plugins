@@ -348,6 +348,10 @@ for (const c of doc.components) {
         device = await eda.lib_Device.get(c.deviceUuid, undefined);
       }
       if (device === undefined) { failures.push({ code: 'DEVICE_NOT_FOUND', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
+      // 15s is deliberately below the bridge's 30s default execute budget. A
+      // caller that lowers options.timeoutMs below ~15s makes the bridge time
+      // out first, so CREATE_TIMEOUT never surfaces and only the transport
+      // streak can abort.
       placed = await raced(placeOnce(() => eda.sch_PrimitiveComponent.create(device, c.x, c.y, c.subPartName, c.rotation, c.mirror, c.addIntoBom, c.addIntoPcb)).then(v => ['ok', v], e => ['throw', e]), 15000);
       if (placed === undefined) { failures.push({ code: 'CREATE_TIMEOUT', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
       if (placed[0] !== 'ok') { failures.push({ code: 'CREATE_THROWN', irId: c.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(placed[1]) }); continue; }
@@ -841,16 +845,34 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
   // idempotency checks.
   let created = 0
   let chunkStreak = 0
+  let createTimeoutStreak = 0
+  let abortedByCreateTimeout = false
   const runChunks = async (chunks: { script: string; irIds: string[]; sheetIndex: number }[]) => {
     for (const chunk of chunks) {
-      if (chunkStreak >= 3) break
+      if (chunkStreak >= 3 || abortedByCreateTimeout) break
       try {
         const raw = await executeChunk(bridge, chunk.script, executeOptions, retries, backoffMs)
         chunkStreak = 0
         created += raw.created
         pushFailures(raw.failures)
+        // A transport failure trips `chunkStreak`; a chunk that returns a
+        // CREATE_TIMEOUT failure answered normally, so `chunkStreak` resets and
+        // only this counter tracks it. On an imported project every device
+        // create can hang for the full 15s race, so six parts cost 90s of
+        // guaranteed-futile work. Two consecutive timeouts (deliberately one
+        // fewer than the transport streak, because each already costs 15s) set
+        // the abort flag, which stops the remaining placement for every sheet.
+        if (raw.failures.some(failure => failure.code === 'CREATE_TIMEOUT')) {
+          createTimeoutStreak += 1
+          if (createTimeoutStreak >= 2) abortedByCreateTimeout = true
+        } else {
+          createTimeoutStreak = 0
+        }
       } catch (error) {
         chunkStreak += 1
+        // A thrown chunk is not a CREATE_TIMEOUT answer, so the timeouts are no
+        // longer consecutive.
+        createTimeoutStreak = 0
         const detail = error instanceof Error ? error.message : String(error)
         pushFailures(chunk.irIds.map(irId => ({ code: 'CHUNK_FAILED', irId, sheetIndex: chunk.sheetIndex, detail })))
       }
@@ -922,6 +944,13 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
       code: 'SCHEMATIC_BUILD_ABORTED',
       severity: 'error',
       message: 'placement aborted after 3 consecutive chunk failures — the client may be busy (dialogs) or the bridge is wedged; rerun to resume',
+    })
+  }
+  if (abortedByCreateTimeout) {
+    findings.push({
+      code: 'SCHEMATIC_BUILD_CREATE_ABORTED',
+      severity: 'error',
+      message: 'part placement did not return from the client twice in a row — the remaining placement was skipped; if this is an imported project, primitive device creation is not supported there, so press ESC/dismiss dialogs and rerun, or deliver through the import path. The dropped-net/mismatch findings below are consequences of this skipped placement',
     })
   }
   const builtPages = prepared.pageUuids
