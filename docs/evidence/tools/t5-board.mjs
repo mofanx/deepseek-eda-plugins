@@ -75,16 +75,15 @@ export function measure(laid, pageSize = SCHEMATIC_PAGE_A3) {
     }
     const box = { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) }
     const blocks = (sheet.blocks ?? []).length
-    const pg = sheet.pageSize ?? pageSize
     return {
       index, name: sheet.name ?? '',
       parts: sheet.components.filter(c => c.id.startsWith('u')).length,
       blocks, box, pageSize: size,
-      pageSize: `${pg.width}x${pg.height}`,
-      fill: Number((((box.x2 - box.x1) * (box.y2 - box.y1)) / (pg.width * pg.height) * 100).toFixed(1)),
+      pageSizeLabel: `${size.width}x${size.height}`,
+      fill: Number((((box.x2 - box.x1) * (box.y2 - box.y1)) / (size.width * size.height) * 100).toFixed(1)),
       withinSheet: box.x1 >= 0 && box.y1 >= 0 && box.x2 <= size.width && box.y2 <= size.height,
       clearsTitleBlock: box.y2 <= blockTop, blockTop,
-      expectedRects: 27 + blocks, expectedTexts: 41 + blocks,
+      expectedRects: 27 + blocks,
     }
   })
 }

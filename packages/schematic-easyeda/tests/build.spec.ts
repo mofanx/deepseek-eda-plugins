@@ -12,11 +12,12 @@ import {
   renderPrepareScript,
   renderSheetSymbolChunkScript,
   renderWireChunkScript,
+  serializeEasyEdaDocument,
   serializeEasyEdaProject,
   type EasyEdaBridge,
   type EasyEdaEmbeddedDoc,
 } from '@deepseek-ai/dsh-plugin-eda-easyeda'
-import type { SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
+import type { SchematicIr, SchematicIrSheet } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { SCHEMATIC_PAGE_A3, SchematicError } from '@deepseek-ai/dsh-plugin-eda-sch'
 
 
@@ -793,6 +794,19 @@ describe('buildIntoEasyEda read-back diff', () => {
     const net = report.findings.find(f => f.code === 'SCHEMATIC_ROUNDTRIP_NET')
     expect(net?.severity).toBe('warning')
     expect(net?.locator?.net).toBe('A[1:2]')
+  })
+
+  it('ignores declaration-only wire rows when asserting NET attrs', async () => {
+    // Pagination keeps every authored wire row on page 1 with its dots
+    // stripped; those rows are declarations, not drawn geometry.
+    const declared: SchematicIr = {
+      sheets: [{ ...ir.sheets[0]!, wires: [{ id: 'w-decl', kind: 'wire', net: 'MEM-A1' }] }],
+    }
+    const { bridge } = scriptedBridge(standardQueue({ readback: [source], oracle: { counts: [{ components: 5, wires: 0 }], nets: [], drc: [] } }))
+    const report = await buildIntoEasyEda(declared, { bridge })
+    expect(report.findings.map(f => f.code)).not.toContain('SCHEMATIC_ROUNDTRIP_NET')
+    // The oracle reconciles the client netlist against the same drawn wires.
+    expect(report.findings.map(f => f.code)).not.toContain('SCHEMATIC_EDA_NET_MISMATCH')
   })
 
   it('reports SCHEMATIC_ROUNDTRIP_UNAVAILABLE for unreadable pages', async () => {
@@ -1770,6 +1784,18 @@ describe('importIntoEasyEda', () => {
     expect(codes).toContain('SCHEMATIC_IMPORT_NET')
   })
 
+  it('ignores declaration-only wire rows in the imported source', async () => {
+    const declarationOnly: SchematicIr = {
+      sheets: [{ ...ir.sheets[0]!, wires: [{ id: 'w-decl', kind: 'wire', net: 'MEM-A1' }] }],
+    }
+    const { bridge } = scriptedBridge([emptyLibrary,
+      { status: 'OK', projectUuid: 'proj-1' },
+      { pageUuids: ['pg-1'], sources: ['{"type":"ATTR","id":"a1","ticket":1}||{"key":"NET","value":"OTHER"}|'] },
+    ])
+    const report = await importIntoEasyEda(declarationOnly, { bridge })
+    expect(report.findings.map(f => f.code)).not.toContain('SCHEMATIC_IMPORT_NET')
+  })
+
   it('flags unreadable imported pages as warnings', async () => {
     const { bridge } = scriptedBridge([emptyLibrary,
       { status: 'OK', projectUuid: 'proj-1' },
@@ -1795,6 +1821,38 @@ describe('importIntoEasyEda', () => {
     const offPin = report.findings.filter(f => f.code === 'WIRE_NOT_ON_PIN')
     expect(offPin).toHaveLength(1)
     expect(offPin[0]?.severity).toBe('error')
+  })
+
+  it('diffs each imported page against its own delivered height', async () => {
+    // A fitted tail page is shorter than the requested A3 (t17 emits
+    // 1510x810). The persisted Y of that page is layoutY - 810, so diffing it
+    // with the requested 1170 reports every pin as dropped. Before the fix this
+    // test fails with SCHEMATIC_NETLIST_DROPPED on the tail page.
+    const fitted = { width: 1510, height: 810 }
+    const page = (id: string, y: number, pageSize?: { width: number, height: number }): SchematicIrSheet => ({
+      ...(pageSize === undefined ? {} : { pageSize }),
+      components: [{
+        id, kind: 'part', designator: id.toUpperCase(), position: { x: 100, y },
+        pins: [{ id: `${id}p1`, name: 'O', number: '1', electric: 'OUTPUT', endpoint: { x: 140, y }, net: `NET_${id}` }],
+      }],
+      wires: [{ id: `w_${id}`, kind: 'wire', dots: [[140, y, 200, y]], net: `NET_${id}` }],
+      busEntries: [], junctions: [], attrs: [],
+    })
+    const top = page('u1', 300)
+    const tail = page('u2', 200, fitted)
+    const multi: SchematicIr = { sheets: [top, tail] }
+    const { bridge } = scriptedBridge([emptyLibrary,
+      { status: 'OK', projectUuid: 'proj-2' },
+      {
+        pageUuids: ['pg-1', 'pg-2'],
+        sources: [
+          serializeEasyEdaDocument({ sheets: [top] }, { pageSize: SCHEMATIC_PAGE_A3 }),
+          serializeEasyEdaDocument({ sheets: [tail] }, { pageSize: fitted }),
+        ],
+      },
+    ])
+    const report = await importIntoEasyEda(multi, { bridge, pageSize: SCHEMATIC_PAGE_A3 })
+    expect(report.findings.filter(f => f.code.startsWith('SCHEMATIC_NETLIST'))).toEqual([])
   })
 
   it('reports a non-Error library-collection failure verbatim', async () => {

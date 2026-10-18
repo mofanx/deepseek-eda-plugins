@@ -1273,3 +1273,57 @@ t15 的未收口项是页名。t16 把 `pageModuleTitle` 从「只有单模块�
 
 **仍未收口**：live 回读/截图（无客户端 bridge，同上）；块形 1:1 vs 参考 1.4–1.7，差额仍在图框规格
 （80 内边距 + 60 标题位），改它属观感改动、需 live 对照后才动。
+
+> **2026-10-18 补记**：live 回读/截图已由 §14.14 完成（按 landing 流程重注册 bridge 后）。
+
+### 14.14 live 闭环（t18）：拟合页回读高度 + 声明线过滤
+
+**为什么现在才跑 live**：此前 EasyEDA 客户端一直没连上；本轮按仓内 landing 流程重注册（脚本弹窗被拦截时点
+“open the landing page”，BroadcastChannel 把编辑器标签页注册到 49620），bridge `--check` 退出 0 后才开始。
+
+**live 首跑抓到的真 bug（拟合页丢网）**：t5 五模块板两页 [18,12]；第 2 页（MEM+CLK）按内容收敛到
+**1510×810**（请求幅面 A3 1655×1170）。`diffNetlists` 仍用 `options.pageSize.height=1170` 反算持久化 Y，
+而 EasyEDA 的持久化 Y 是 `layoutY - 交付页高`；810 的页按 1170 反算后，第 2 页 12 个器件的 24 个引脚
+全被读成 `SCHEMATIC_NETLIST_DROPPED`。回读源本身正确（12 器件、24 条 NET），不是导入丢数据。
+
+**修复 1**：`build.ts` 增加
+`deliveredPageSize(sheet, requested) => sheet.pageSize ?? requested`，
+**import 调用点**改传它（交付路径就是 `.epru` 导入，页幅面随 `sheet.pageSize` 落盘）。回归用例
+`diffs each imported page against its own delivered height`：两页 IR（尾页 `pageSize 1510×810`）
+逐页序列化回读，旧代码报 dropped、新代码零 error。**verify/primitive 路径不改**：实测 primitive
+建页不按 `sheet.pageSize` 落 `layoutY - pageHeight`（见下方残留），继续用请求幅面才是它原有的坐标系。
+
+**修复 2（同一轮 live 暴露的第二个误报）**：修复 1 后 error 归零，但剩 10 条 `SCHEMATIC_IMPORT_NET`
+（MEM/CLK 的 A1–A5；消息里的 “page 1” 指第 1 页，也就是含这些声明行的 MCU+POWER+IO 页）。根因：
+分页把源页所有 authored wire 行留在第 1 页并剥掉 `dots`（只为保住 ATTR；路由再给每页画新线），
+NET 检查却把这些**声明行**当成要落盘的已画线；序列化本就不画它们。离线 mock 重放 live 回读源确认：
+第 1 页 `sheet.wires=46`、落盘 NET 36，差额正是 10 条 MEM/CLK 声明；第 2 页 24 条已画线全部命中。
+修复：verify/import 两处 NET 检查与 oracle 的客户端网表对账都跳过
+`(wire.dots ?? []).length === 0` 的行（与 `serialize.ts` 的声明判定同口径），并各加回归断言。
+
+**t18 live 证据**：`node docs/evidence/review/t18-live-loop.mjs`（bridge 49620，真实窗口）：
+
+| 页 | 名称 | 交付幅面 | 矩形 | 器件 | 模块框 | 填充 |
+|---|---|---|---|---|---|---|
+| 0 | MCU+POWER+IO | 1655×1170 | 30 | 18 | 3/3 | 54.0% |
+| 1 | MEM+CLK | **1510×810** | 29 | 12 | 2/2 | 42.1% |
+
+`findings` 为空，脚本 PASS；截图 `docs/evidence/current/t18-page1-mcu-power-io.png`、
+`t18-page2-mem-clk.png`。页名、幅面、矩形/器件数、模块框位置与标题全部由 live 回读断言，
+不是只看导入返回值。
+
+**文字数 38/37 vs t13 44/43 不是回归**：逐值 diff 显示差异只是标题栏字段（t13 传了公司/图号/日期/版本/作者，
+t18 走默认标题栏），MCU/POWER/IO/MEM/CLK 模块标题两版都在；矩形、线、器件数与 t13 完全一致。
+
+**脚本自身修的两处**：`t5-board.measure()` 的 `pageSize` 先写对象又被字符串覆盖，改为对象 +
+`pageSizeLabel`；t18 的页高改 `max(rect.y)+8`（该 API 的 `y` 是下边），模块框匹配用
+`pageHeight - frame.y`。
+
+**门禁（独立复跑）**：`pnpm build`（`tsc -b` + tsdown）exit 0；`oxlint packages` 0 warnings / 0 errors
+（42 文件）；`vitest run --coverage` **19 文件 / 563 用例通过，覆盖率 100%**。
+
+**仍未收口**：primitive/verify 路径（`engine.verify`）仍用请求幅面；实测新建 primitive 页的持久化 Y
+是 `-layoutY`（592×570 拟合页、导线 y=260 → 源 -260），不是 `layoutY - pageHeight`，这条路径的坐标系
+要单独收口（生产交付走 import，不受影响）；live 证据只覆盖 t5 夹具（2 引脚占位符号），真实 IC 符号的
+观感与引脚密度需下一块真板；t18 依赖本地 bridge/landing，CI 不跑；标题栏文字数随 `frame` 配置变化，
+t18 只断言模块标题存在、不断言总数。

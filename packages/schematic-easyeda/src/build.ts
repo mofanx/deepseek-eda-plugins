@@ -764,6 +764,16 @@ function scriptFailureMessage(failure: ScriptFailure): string {
 }
 
 /**
+ * Page size whose height defines persisted Y for an imported sheet. A fitted
+ * sheet carries its own delivered size (t17: 1510x810 instead of the requested
+ * A3 1170); the imported-page read-back diff must use that height or every pin
+ * on the page reads as dropped.
+ */
+function deliveredPageSize(sheet: SchematicIrSheet, requested?: SchematicPageSize): SchematicPageSize | undefined {
+  return sheet.pageSize ?? requested
+}
+
+/**
  * Build the IR into the running EasyEDA client: precondition checks, then one
  * primitive call per placeable element, then a read-back diff of
  * `getDocumentSource()` against the intended designators and net names, then
@@ -1009,6 +1019,9 @@ return sources;`
       }
       const nets = new Set(attrs.get('NET') ?? [])
       for (const wire of sheet.wires) {
+        // A declaration-only wire row (no drawn geometry) keeps its ATTRs on
+        // page 1 but is never drawn, so it has no NET attr to find.
+        if ((wire.dots ?? []).length === 0) continue
         if (wire.net !== undefined && !nets.has(wire.net)) {
           findings.push({
             code: 'SCHEMATIC_ROUNDTRIP_NET',
@@ -1018,6 +1031,9 @@ return sources;`
           })
         }
       }
+      // The primitive build path has no per-sheet delivered size (the client
+      // creates one default page), so it still diffs against the requested
+      // page height; only the imported `.epru` path carries `sheet.pageSize`.
       findings.push(...diffNetlists(sheet, source, sheetIndex, options.symbolPins, options.pageSize))
     }
   } else {
@@ -1095,7 +1111,12 @@ return sources;`
     } else {
       for (const [sheetIndex, sheet] of ir.sheets.entries()) {
         if (unready.has(sheetIndex)) continue
-        for (const net of new Set(sheet.wires.map(w => w.net).filter((n): n is string => n !== undefined))) {
+        // Declaration-only rows keep every authored wire on page 1 but never
+        // reach the client netlist, so they must not be reconciled as names.
+        for (const net of new Set(sheet.wires
+          .filter(w => (w.dots ?? []).length > 0)
+          .map(w => w.net)
+          .filter((n): n is string => n !== undefined))) {
           if (!clientNets.has(net)) {
             findings.push({
               code: 'SCHEMATIC_EDA_NET_MISMATCH',
@@ -1841,6 +1862,10 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
       }
     }
     for (const wire of sheet.wires) {
+      // Pagination keeps every authored wire row on page 1 with no drawn dots;
+      // those rows are declarations, not geometry, so they must not be
+      // asserted against this page's NET attrs.
+      if ((wire.dots ?? []).length === 0) continue
       if (wire.net !== undefined && !names.has(wire.net)) {
         findings.push({
           code: 'SCHEMATIC_IMPORT_NET',
@@ -1850,7 +1875,9 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
         })
       }
     }
-    findings.push(...diffNetlists(sheet, source, index, options.symbolPins, options.pageSize))
+    // Same delivered-height rule as the verify path: a fitted sheet's
+    // persisted Y uses its own height, not the requested page size.
+    findings.push(...diffNetlists(sheet, source, index, options.symbolPins, deliveredPageSize(sheet, options.pageSize)))
   }
 
   return { projectUuid: projectUuid ?? readBack.projectUuid ?? '', pageUuids, findings }
