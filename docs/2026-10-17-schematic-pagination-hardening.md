@@ -1672,6 +1672,9 @@ mismatch 已在），改后用一条明确的 abort 换掉 4 次 15s 盲等，�
   `Global Net Name`，同一测量为 **57.05 × 6**——宽度收窄 **78%**。
 - 视觉：`docs/evidence/current/t8-netlabel-f6-page1.png` 全页与局部均为 `MCU-17`…`MCU-48`、`GND`、`+3V3`
   单次、无前缀、无堆叠（对照见 §14.15 的旧图）。
+- 截图步骤已自足：`t8-netlabel-font.mjs` 在截图前 `openProject` → `waitForDocumentReady` → `zoomToAllPrimitives`，
+  并要求两张连拍一致；**导入后立即截图会拿到 ~16 kB 的空白帧**（本次实测两次），故空白/未稳定时只 WARN 且
+  **不覆盖**既有证据图，避免把空白图提交进仓库。修正前该脚本会把 16 kB 空白帧当成 PASS 写盘。
 
 **门禁与回归**
 
