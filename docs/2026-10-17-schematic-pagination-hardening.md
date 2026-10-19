@@ -1890,3 +1890,18 @@ create([[760,350,800,350],[800,350,800,750]], 'ZZTESTANCHOR')
 
 - 页面已按 IR 重建（`t19-real-ic.mjs`：MAIN 910×1170，21 components / 39 texts，errors 0），探针已删除，网表回到 55/55，残留 0。
 - 未改任何产品代码；`layout.ts` 的泳道改动需要先决定接受黄金样例/分页基线重排，再动手。
+
+### 14.23.5 更正：primitive 路径的字号旋钮已由队友重新落地
+
+§14.22.4 记录的"已回滚、新增用例为红"只反映当时的中间状态，勿再引用。实际落地情况：
+
+- `3e9e344 feat(schematic-easyeda): size net labels on the primitive build path`
+- `1053b64 test(evidence): t25 closed loop for the primitive path's net-label size`
+
+本轮独立核对（只读）：
+- `build.ts:336` 的默认值是 `DEFAULT_NET_LABEL_FONT_SIZE`（不是 `null`），即 primitive 路径默认就把 flag/port 标签从客户端自然值 8 单位拉到 6 单位——正是 §14.22.1 量到的最差情形修正。
+- `build.ts:427` 是 `modify(attr, { fontSize: labelFontSize / 100 })`——**inch 换算存在且正确**（§14.22.2 第 3 条的坑没有踩到）。
+- 标签目标先 `recordLabel` 收集、循环结束后批量 apply（`build.ts:416-427`），避免每个器件全表扫描。
+- 采用既有 (x,y) 位置的幂等 adopt 分支也会 `recordLabel`（`build.ts:369`），重试不会把标签留在默认值。
+
+命名冲突提醒：`docs/evidence/current/t25-anchor-crop.png`（本轮 §14.23.1 的锚点证据）与队友的 `docs/evidence/review/t25-primitive-netlabel.mjs` 共用 `t25` 前缀，含义不同，后续编号请从 `t26` 起。
