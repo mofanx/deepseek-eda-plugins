@@ -1704,3 +1704,52 @@ mismatch 已在），改后用一条明确的 abort 换掉 4 次 15s 盲等，�
   `modify` 该器件的 `Name` ATTR，并做同样的 live 闭环）。
 - `tool-schematic/src/index.ts:333`、`scripts/live-verify.mjs:169` 未暴露该选项，取默认 6（无正确性问题）。
 
+
+## 14.22 网标字号与文字堆叠：量到了什么，哪些结论要撤回
+
+触发：交付页上模块符号旁的文字仍然"堆叠"，需要判断字号旋钮（§14.21 引入的 `netLabelFontSize`）能否解决。
+
+### 14.22.1 与取图无关的几何事实（可信）
+
+对已交付页 `dsh-t19-real-ic-1792382444751` 的 MAIN 页，直接读客户端的属性几何：
+
+| 存储 fontSize（0.01 inch） | 该属性 bbox 高 | bbox 宽 | 所属 flag 组件 bbox |
+| --- | --- | --- | --- |
+| `null`（客户端自然值） | 8 | — | 6 × 11 |
+| 3 | 3 | 9.75 | 6 × 11 |
+| 5 | 5 | 16.27 | 6 × 11 |
+| 6（当前交付值） | 6 | 19.54 | 6 × 11 |
+| 12 | 12 | 39.09 | 6 × 11 |
+| 20 | 20 | 65.18 | 6 × 11 |
+
+结论：
+- **网标文字高 = 存储字号**（单位 0.01 inch = 10 mil），宽 ≈ 3.26 × 字号；flag 符号本身不随字号缩放（恒 6 × 11）。
+- 真实 48 脚符号脚距 10 单位，故垂直余隙：自然值 8 → 20%，6 → 40%，5 → 50%，3 → 70%。
+- 因此字号**确实是**有效的渲染杠杆；`DEFAULT_NET_LABEL_FONT_SIZE = 6` 的注释（"8 单位只剩 20%"）与实测一致。
+
+### 14.22.2 需要撤回的结论
+
+1. **t5 与 t6 的像素结论都测错了对象。** 交付页每个网标有两个属性：`Name`（**画出来的**那个）与 `Global Net Name`（连接性，客户端给出的 bbox 是 **0 × 0**，即不绘制）。t5 与 t6 改的都是 `Global Net Name`，所以"字号无效果"（t5）与"哈希/PNG 字节单调变化"（t6）都不是渲染证据，二者矛盾源于测了非绘制属性。
+2. **`getCurrentRenderedAreaImage()` 在本会话返回陈旧图。** 把 `Name` 的值从 `MCU-22` 改成 `WWWWWWWWWWWW`、以及调用 `zoomToAllPrimitives()` 之后，该 API 的整图校验和与图像尺寸（1419 × 508）**完全不变**，而同一时刻的真实浏览器截图明显变化（基线见 `docs/evidence/current/t24-netlabel-overlap-baseline.png`）。凡是仅凭该 API 得出的像素结论（含 t6 的字节增长、t8 头部"changing the stored size changed the rendered pixels"）都需要用真实截图通道复验后才能采信。
+3. **`eda.sch_PrimitiveAttribute.modify(attr, { fontSize: X })` 的单位是 inch，不是 0.01 inch。** 传 6 写进源里是 600，传 0.06 写进源里是 6。要写 N 单位必须传 `N / 100`。直接用源单位去 modify 会得到 100 倍字号（实测把 14 个网标写成 2000 后，画面出现巨型图形，随后已精确还原为 6）。
+
+### 14.22.3 真正的堆叠来源（关键）
+
+- 该 MAIN 页共 **55 条导线**，其中 14 条 flag 的 `Name` 属性是 ATTR，其余是每条导线自带的 `Net`（`MCU-10`、`CLK-A0`…），**页面上的 `NET` ATTR 数为 0**。
+- 也就是说，屏幕上那一大片 `MCU-nn` 文字是**客户端为导线绘制的网络名**，不是 §14.21 那套 `NET`/`Name` ATTR 标签。`netLabelFontSize` 只能影响 14 个 flag 标签（以及将来可能出现的 `NET` ATTR），**影响不到这片文字**。
+- 没有找到控制导线网络名大小/可见性的接口：`sch_PrimitiveWire` 只暴露 `LineType` 与 `Net`；`dmt_Schematic` / `dmt_Project` / `dmt_EditorControl` 上不存在 net/label/font/size 类方法。
+- 因此"调小字号即可解决堆叠"的假设不成立；可行的方向只有几何层面（把导线的有效标注间距撑开）或接受当前密度。
+
+### 14.22.4 本轮未交付的改动（已回滚，不做无验证上线）
+
+primitive 放置路径补字号旋钮（`netLabelFontSize` → 创建 flag/netport 后对 `Name` 属性 `modify(fontSize: N/100)`，失败记 `SCHEMATIC_BUILD_NET_LABEL_FONT` 警告而非中断放置）已实现，但：
+- 它解决不了 14.22.3 的主要堆叠；
+- 新增的 5 个用例是红的（测试执行壳里 `await` 落在非 async 作用域，另有 1 处字面量断言写错）。
+
+按"不交付未验证改动"的纪律整棵工作树回滚，`tsc -b` 0、`oxlint packages` 0/0、`vitest run` 21 文件 **603/603** 全绿。
+
+### 14.22.5 下一步（需要先补测量通道）
+
+1. 用真实截图（dpx）建立可复现的像素通道；`zoomToRegion`/`zoomTo` 的参数语义在此版本上不可靠（传 bbox 得到 5% 缩放），需要先标定。
+2. 标定后回答一个问题：客户端把导线的网络名画在导线的哪个位置（起点/中点/最长段）。若跟随导线 y，则可在 `layout.ts` 把这 55 段 stub 分成 ≥2 条泳道（间距 ≥20 单位）展开，连通性（每段导线的 `Net`）不变，再用 t19/t23 回归；若固定在图幅某处，则几何方案无效，只能接受密度。
+3. flag 标签仍可用 5（50% 余隙，KiCad 参考值）替代 6；但这只改善 14 个标签的观感，不改主诉。
