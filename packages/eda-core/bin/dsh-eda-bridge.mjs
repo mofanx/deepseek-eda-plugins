@@ -60,6 +60,8 @@ import { WebSocketServer } from 'ws'
 import { randomUUID } from 'node:crypto'
 import { createServer, get as httpGet } from 'node:http'
 import { createConnection } from 'node:net'
+import { guardHttpHandler, replyJson } from './http-guard.mjs'
+import { createHttpApi } from './http-api.mjs'
 
 // ─── Port configuration ─────────────────────────────────────────────
 const PORT_START = 49620
@@ -180,7 +182,7 @@ async function findAvailablePort() {
 }
 
 // ─── HTTP server (agents submit code via HTTP POST) ─────────────────
-const httpHandler = async (req, res) => {
+const handleHttpRequest = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -188,22 +190,6 @@ const httpHandler = async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
     res.end()
-    return
-  }
-
-  // Health check — carries the service identifier for handshake verification
-  if (req.method === 'GET' && req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({
-      service: SERVICE_ID,
-      bridge: IMPLEMENTATION_ID,
-      status: 'ok',
-      edaConnected: edaClients.size > 0,
-      edaWindowCount: edaClients.size,
-      activeWindowId: activeEdaWindowId,
-      pendingRequests: pendingRequests.size,
-      timestamp: Date.now(),
-    }))
     return
   }
 
@@ -245,84 +231,30 @@ const timer = setInterval(async () => {
     return
   }
 
-  // List all connected EDA windows
-  if (req.method === 'GET' && req.url === '/eda-windows') {
-    res.writeHead(200, { 'Content-Type': 'application/json' })
-    const windows = []
-    for (const [windowId, ws] of edaClients) {
-      windows.push({
-        windowId,
-        connected: ws.readyState === 1,
-        active: windowId === activeEdaWindowId,
-      })
-    }
-    res.end(JSON.stringify({
-      windows,
-      activeWindowId: activeEdaWindowId,
-      count: edaClients.size,
-    }))
-    return
-  }
+  // JSON endpoints (/health, /eda-windows, /eda-windows/select, /execute).
+  // Kept in a separate module so their request/response contract is unit
+  // tested without binding a port — see bin/http-api.mjs.
+  if (await httpApi(req, res)) return
 
-  // Select the active EDA window
-  if (req.method === 'POST' && req.url === '/eda-windows/select') {
-    let body = ''
-    for await (const chunk of req) body += chunk
-    try {
-      const { windowId } = JSON.parse(body)
-      if (!edaClients.has(windowId)) {
-        res.writeHead(404, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ error: `EDA window "${windowId}" not found` }))
-        return
-      }
-      activeEdaWindowId = windowId
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ success: true, activeWindowId }))
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Invalid request body' }))
-    }
-    return
-  }
-
-  // Execute code on the EDA client
-  if (req.method === 'POST' && req.url === '/execute') {
-    let body = ''
-    for await (const chunk of req) body += chunk
-
-    try {
-      const payload = JSON.parse(body)
-      const code = payload.code
-      const windowId = payload.windowId // optional; defaults to the active window
-      if (!code || typeof code !== 'string') {
-        res.writeHead(400, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ error: 'Missing "code" field (string)' }))
-        return
-      }
-
-      const result = await executeOnEda(code, windowId)
-      // Serialize before writeHead: an unserializable result must reach the
-      // error branch below, not crash the server on a second writeHead.
-      const reply = JSON.stringify({ success: true, result, windowId: windowId || activeEdaWindowId })
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(reply)
-    } catch (err) {
-      // The caller may have aborted its HTTP request while the EDA-side
-      // execute was still running — writes on a dead socket must not take
-      // the server down.
-      try {
-        if (res.headersSent || res.writableEnded || res.destroyed) return
-        const status = err.message?.includes('not connected') ? 503 : 500
-        res.writeHead(status, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ success: false, error: err.message }))
-      } catch { /* response socket already gone */ }
-    }
-    return
-  }
-
-  res.writeHead(404, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify({ error: 'Not found' }))
+  replyJson(res, 404, { error: 'Not found' })
 }
+
+const httpApi = createHttpApi({
+  edaClients,
+  pendingRequests,
+  serviceId: SERVICE_ID,
+  implementationId: IMPLEMENTATION_ID,
+  getActiveWindowId: () => activeEdaWindowId,
+  setActiveWindowId: (windowId) => { activeEdaWindowId = windowId },
+  execute: executeOnEda,
+})
+
+/**
+ * The server's request entry point. `guardHttpHandler` keeps a handler bug or
+ * a client that vanished mid-write from rejecting the request promise, which
+ * Node would surface as an unhandled rejection and a dead bridge.
+ */
+const httpHandler = guardHttpHandler(handleHttpRequest)
 
 // ─── WebSocket handlers ─────────────────────────────────────────────
 

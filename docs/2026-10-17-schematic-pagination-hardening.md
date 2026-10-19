@@ -1531,3 +1531,81 @@ mismatch 已在），改后用一条明确的 abort 换掉 4 次 15s 盲等，�
 
 **证据口径**：`t23-pin-edge.mjs` 已随本轮进入版本库；旧探针仍留在 gitignore 的 `.tmp-temp/`，不再作为证据。
 它复现的是「全唯一 net 的合成最坏情况」，live t19 是 14 个 flag、不是 48，两者不要混用。
+
+### 14.20 t5 收尾：`/eda-windows/select` 曾能**一次请求打死 bridge**（已修 + 回归）
+
+**现象**：本轮一次 `POST /eda-windows/select` 之后，bridge 进程直接消失（`/health` 从 200 变 connection refused），
+日志只有一行 `Error [ERR_HTTP_HEADERS_SENT]: Cannot write headers after they are sent to the client`，
+栈顶是 `dsh-eda-bridge.mjs` 的 HTTP handler。同一时刻浏览器里编辑器还在，但所有 agent 的 live 通道全部中断。
+
+**两个独立根因，都修了**：
+
+1. **成功分支引用了不存在的变量**。`select` 回包写的是 `{ success: true, activeWindowId }`，而模块里的变量名是
+   `activeEdaWindowId` → `ReferenceError` 在 `writeHead(200)` **之后**抛出 → `catch` 里又无条件 `res.writeHead(400)`
+   → `ERR_HTTP_HEADERS_SENT` 从 `catch` 里逃出去 → Node 把它当成未捕获异常 → 进程退出。
+   **一行 `POST /eda-windows/select` 就能把整个 bridge 打死**，这是本轮最严重的稳定性缺陷。
+   （注意：只有**成功分支**会走到这里；未知 id / 非 JSON body 在旧版走的是 `writeHead(404/400)`，本身不崩——
+   最初我在文档里把三行都写成崩溃路径，是交叉复核纠正的。）
+2. **handler 没有兜底层**。`handleHttpRequest` 是 `async`，HTTP server 不会 await 它；任何逃出来的异常都会变成
+   unhandled rejection。客户端在请求体传到一半断开时，`for await (const chunk of req)` 会抛 `Error: aborted`
+   （`code: ECONNRESET`），这条路径同样直接打死进程。
+
+**修复**（`packages/eda-core/bin/`）：
+
+- 新增 `http-guard.mjs`：`replyJson()` 在 `headersSent || writableEnded || destroyed` 时**只返回 false、不再写**；
+  `guardHttpHandler()` 把整个 handler 包起来，异常时能写就补 500、写不了就 `res.destroy()`，并且只报告不抛出。
+- 新增 `http-api.mjs`：`/health`、`/eda-windows`、`/eda-windows/select`、`/execute` 四个 JSON 端点抽成
+  依赖注入的工厂（`getActiveWindowId`/`setActiveWindowId`/`execute` 全部注入），**不再直接摸模块级变量**——
+  这正是根因 1 的土壤；`/landing` 与 CORS/OPTIONS 仍留在 bin 里。
+- `select` 的解析与写回复彻底分开：解析阶段的失败（JSON 非法、或请求体中途断开）才是 400，写完之后的失败不再被
+  误判成「body 不合法」。
+- 顺手修掉一处语义不一致：`/execute` 在「没有可用窗口」时原先回 **500**，现在映射到 **503**。两条真实消息都要匹配：
+  `No EDA window connected. …` 与 `EDA window "…" is no longer connected. …`；第一版只写了 `not connected`，
+  **漏掉了后者**（交叉复核实测：stale-window 仍回 500），已补 `no longer connected`，测试也改成用这两条真实字符串。
+- **一处有意的契约变化**：`/execute` 的 body 不是合法 JSON（含 `null`）时，旧版回 500 `{success:false,error:"Unexpected token…"}`，
+  现在回 400 `{error:"Invalid request body"}`。仓内客户端 `src/bridge.ts:293` 对所有非 2xx 一律抛
+  `SCHEMATIC_BRIDGE_EXECUTION`、不读 body，所以不影响调用方；但这是超出 500→503 之外的改变，明确记在这里。
+- `package.json` 的 `files` 补上两个新 bin 文件，否则发布包里 bridge 会缺依赖模块（这个坑不补等于没修）。
+
+**回归**（`packages/eda-core/tests/http-guard.spec.ts` 15 例 + `http-api.spec.ts` 13 例，共 28 例）：
+
+- `replyJson` 覆盖：正常写、已写头/已结束/已销毁时不写、写时抛错返回 false **且打日志**、跳过时不打日志、`undefined` 载荷写空体。
+- `guardHttpHandler` 覆盖：正常透传、抛错转 500、**已回包后再抛错只 destroy 不二次写头**、默认 `console.error`、
+  **错误回调自己抛错也不得让 guard 的 promise reject**、非 `Error` 抛出用 `String()`。
+- `http-api` 覆盖：health 计数与时间戳、窗口列表的 connected/active、select 的 200/400/404、**select 成功回包必须
+  回显新 id**（就是根因 1 会挂的那条断言）、`/execute` 的 200/400/503/500、结果不可序列化时降级为 500、未知路由返回 false。
+- **变异验证**：把 `activeWindowId` 拼写错误原样注回 `http-api.mjs:85`，该用例立刻失败并打印
+  `ReferenceError: activeWindowId is not defined`；还原后文件 SHA256 与备份一致。即这条回归**确实**能抓住原 bug。
+- **回归覆盖的边界（复核提出，如实记录）**：测试加载的是抽出来的 `http-api.mjs`，**bin 里的装配代码本身没有单测**
+  （`vitest.config.ts` 的覆盖率门槛只覆盖 `packages/*/src/**/*.ts`，`bin/` 不在 100% 口径内），
+  且 `tsc` 也不检查 `.mjs`。装配错误只能靠 live 冒烟兜住——所以下面每个端点都在真实进程上打了一遍。
+
+**live A/B（同一台机器、同一个浏览器会话，两版都用真实注册的 EDA 窗口）**：
+
+| 场景 | 旧版（`HEAD~1`） | 修复后 |
+|---|---|---|
+| `POST /eda-windows/select`（**合法** id，真实注册窗口） | 客户端收到 `An error occurred while sending the request`（200 头已发出、body 没等到，连接被重置）；进程 exit 1，栈 `ERR_HTTP_HEADERS_SENT at .head-bridge.tmp.mjs:282` | 200 `{"success":true,"activeWindowId":"51cfb4f02b56a54d"}`，进程存活 |
+| 请求体中断（`Content-Length: 500` 只发 12 字节） | 进程 exit 1，栈 `Error: aborted`（`ECONNRESET`） | 存活，`/health` 仍 200 |
+| 未知 id / 非 JSON body | 404 / 400，**不崩** | 404 / 400，存活 |
+| 无 EDA 窗口时 `/execute` | 500 | 503 |
+| `/execute` 指定一个已消失的 `windowId` | 500（判定串漏了 `no longer connected`） | 503 `EDA window "ghost-window" is no longer connected. …` |
+| 客户端在 `execute` 执行到一半断开（3s 脚本，300ms 时断开） | 未单独复现 | 存活，`/health` 仍 200，`edaWindowCount` 不变 |
+| 12 次连续 `/health` 探测 | — | 12/12 通过，同一进程 |
+
+**门禁**：`tsc -b` exit 0；`oxlint packages` **0 warning / 0 error（44 文件）**；
+`vitest run --coverage` **21 文件 / 596 用例通过**，`src` 覆盖率 100%（`perFile` 门槛未破；如上，`bin/` 不在该口径内）。
+
+**live 回归（复用修复后的 bridge，走团队既有证据脚本）**：`t19-real-ic.mjs` PASS（`MAIN 910×1170`，
+`21 components / 39 texts`）；`t18-live-loop.mjs` PASS（`54.0% / 42.1%`，`1655×1170 / 1510×810`，
+`rects 30/29`，`frames 3/3、2/2`——与文档既有数字一致）；`t23-pin-edge.mjs` PASS（`pins=48 wires=48 flags=0`，
+`stub 80`）。注意 `t19-real-ic.mjs` 会重刷 `docs/evidence/current/t19-real-ic-page1.png`：本次因为视口缩放不同
+（176394 → 84995 字节）而**不是**渲染变化，已 `git checkout` 还原，不留噪声。
+
+**现场**：t19 工程 MAIN 页复核 `21 components / 0 buses / 55 wires`，源 `94833` 字符，
+无 `T5AB`/`T3*` 残留、`nonNullFontSize = 0`——本轮的 `fontSize` 四档 A/B 与临时旗标均已还原干净。
+注意工程里出现了另一个**空页 `P1`（uuid `671078d5dd8ce96d`，0 器件）**，不是本轮创建（本轮删的是
+`fde5a4e6b954df83`，已落 `DELETE_DOC` 墓碑），未做改动。
+
+**未完成**：提交 `cb74dba` 已在本地 `master`（ahead 1），但本机到 `github.com:443` 的 TCP 连不通
+（`Test-NetConnection` False，无代理变量），`git push` 两次都失败在 `Failed to connect to github.com port 443`，
+**推送待网络恢复后补**。
