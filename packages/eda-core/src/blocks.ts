@@ -6,7 +6,7 @@
  * @module @deepseek-ai/dsh-plugin-eda-core/blocks
  */
 
-import { SCHEMATIC_PAGE_A4 } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { SCHEMATIC_FRAME_PAD, SCHEMATIC_PAGE_A4 } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { SchematicIrSheet, SchematicPageSize } from '@deepseek-ai/dsh-plugin-eda-sch'
 import { titleBlockTop } from './sheet-chrome.ts'
 
@@ -29,14 +29,17 @@ export interface EasyEdaBlockFrame {
 
 const GRID = 10
 /**
- * Margin beyond member geometry: covers the symbol body plus the 40-unit
- * stub a layout-generated flag hangs off an edge pin.
+ * Margin beyond member geometry: covers the symbol body plus the stub a
+ * layout-generated flag hangs off an edge pin. Imported from the schematic
+ * package rather than restated, so the drawn frame and the layout's own frame
+ * allowance cannot disagree. Measured t19 overhang: a 60-unit stub, so this pad
+ * keeps every wire 20 units clear of the border (docs §14.25).
  * t20 tried 60 for a tighter ring around the content: intra-block blank fell
  * 11pt (41.7% -> 30.6%) but the delivered page got emptier (t18 live 54.0%/42.1%
  * -> 51.0%/37.1%), because a smaller frame also shrinks the ink box the
  * acceptance rule measures. Reverted; the measured trade-off is in §14.16.
  */
-const FRAME_PAD = 80
+const FRAME_PAD = SCHEMATIC_FRAME_PAD
 /** Headroom inside the frame reserved for the title text. */
 const TITLE_HEADROOM = 60
 const TITLE_INSET_X = 20

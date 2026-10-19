@@ -71,6 +71,11 @@ const PAGE_EDGE_FLAT = SCHEMATIC_PAGE_BUDGET.edgePadFlat
  * headroom its title band takes above them. Exported so the serializer and the
  * page fit below cannot drift apart: the fit box must cover the drawn frame,
  * or a fitted sheet would let the frame reach into the title block.
+ * Must stay strictly ABOVE the stub a trunk runs past a pin endpoint, or grid
+ * snapping can put that stub end on the border and the wire reads as "pressed
+ * onto the frame line". Measured on the t19 four-module plan: the stub is 60
+ * units and this pad is 80, so every wire clears the border by 20 units
+ * (re-measured, docs §14.25).
  */
 export const SCHEMATIC_FRAME_PAD = 80
 export const SCHEMATIC_FRAME_HEADROOM = 60
