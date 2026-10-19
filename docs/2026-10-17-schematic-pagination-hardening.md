@@ -1606,6 +1606,6 @@ mismatch 已在），改后用一条明确的 abort 换掉 4 次 15s 盲等，�
 注意工程里出现了另一个**空页 `P1`（uuid `671078d5dd8ce96d`，0 器件）**，不是本轮创建（本轮删的是
 `fde5a4e6b954df83`，已落 `DELETE_DOC` 墓碑），未做改动。
 
-**未完成**：提交 `cb74dba` 已在本地 `master`（ahead 1），但本机到 `github.com:443` 的 TCP 连不通
-（`Test-NetConnection` False，无代理变量），`git push` 两次都失败在 `Failed to connect to github.com port 443`，
-**推送待网络恢复后补**。
+**推送**：修复提交已推送到 `origin/master`（`ebaae63..` 快进，push exit 0）；本段推送说明是随后追加的
+文档提交。注意本机到 `github.com:443` 的连通性时好时坏，第一次尝试两次都 `Failed to connect to github.com port 443`，
+第三次才成功；若后续推送失败先 `Test-NetConnection github.com -Port 443` 确认是网络而不是仓库问题。
