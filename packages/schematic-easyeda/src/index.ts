@@ -164,6 +164,8 @@ export interface EasyEdaEngineImportOptions {
   /** Sheet chrome (border + title block) drawn on every imported page;
    * defaults to the project title. */
   readonly frame?: EasyEdaSheetFrameOptions | undefined
+  /** Net-label font size in format units; see {@link EasyEdaImportOptions.netLabelFontSize}. */
+  readonly netLabelFontSize?: number | null | undefined
 }
 
 /**
@@ -199,6 +201,7 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
       clientId: this.config.clientId,
       ...(options.pageSize === undefined ? {} : { pageSize: options.pageSize }),
       ...(frame === undefined ? {} : { frame }),
+      ...(options.netLabelFontSize === undefined ? {} : { netLabelFontSize: options.netLabelFontSize }),
     })
   }
 
@@ -281,6 +284,7 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
       symbolPins: options.symbolPins,
       pageSize: options.pageSize,
       frame: options.frame,
+      netLabelFontSize: options.netLabelFontSize,
     })
   }
 }

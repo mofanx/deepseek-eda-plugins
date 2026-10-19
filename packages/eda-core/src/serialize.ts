@@ -45,6 +45,13 @@ export interface EasyEdaSerializeOptions {
    * the frame metadata enables the chrome; omit it for bare document sources.
    */
   readonly frame?: EasyEdaSheetFrameOptions
+  /**
+   * Font size written for the drawn net label (a flag/port `Name`, a wire/bus
+   * `NET`), in the format's 0.01-inch units. Defaults to
+   * {@link DEFAULT_NET_LABEL_FONT_SIZE}; pass `null` to let the client pick its
+   * own default.
+   */
+  readonly netLabelFontSize?: number | null
 }
 
 /** Outputs of {@link serializeEasyEdaProject}: the files inside an `.epro2`. */
@@ -101,10 +108,47 @@ interface BindingMap {
   readonly flags: ReadonlyMap<string, { readonly device: EasyEdaEmbeddedDoc; readonly symbol: EasyEdaEmbeddedDoc }>
 }
 
-const ATTR_TAIL = '"rotation":0,"color":null,"fillColor":null,"fontFamily":null,"fontSize":null,"strikeout":null,"underline":null,"italic":null,"fontWeight":null,"vAlign":0,"hAlign":2'
+const ATTR_STYLE_HEAD = '"rotation":0,"color":null,"fillColor":null,"fontFamily":null,"fontSize":'
+const ATTR_STYLE_TAIL = ',"strikeout":null,"underline":null,"italic":null,"fontWeight":null,"vAlign":0,"hAlign":2'
 
-/** ATTR keys whose values are meant to be visible on the canvas. */
-const VISIBLE_ATTR_KEYS = new Set(['Designator', 'Name', 'Global Net Name', 'NET'])
+/**
+ * Canvas visibility per ATTR key, copied from the client's own exported
+ * documents (`tests/fixtures/live-build-readback.eeda`): the `Designator` and
+ * the component/flag/port `Name` this emitter writes are
+ * `"keyVisible":null,"valueVisible":true`, a wire's `NET` is
+ * `"keyVisible":false,"valueVisible":true`, and a flag's
+ * `Global Net Name` is `"keyVisible":null,"valueVisible":null`.
+ *
+ * The fixture's own frame/unbound `Name` attrs (`value:""`) are hidden, but this
+ * emitter never writes those. Emitting `"keyVisible":true` instead makes the
+ * canvas draw a `Key : Value` prefix (`Designator : U1`,
+ * `Global Net Name : MCU-34`), and making both the flag's `Name` and
+ * `Global Net Name` visible draws every net name twice — the wall of
+ * overlapping text the 48-pin note recorded. Every other key stays `null`/`null`,
+ * exactly as before.
+ */
+const ATTR_VISIBILITY: Readonly<Record<string, { readonly keyVisible: string; readonly valueVisible: string }>> = {
+  Designator: { keyVisible: 'null', valueVisible: 'true' },
+  Name: { keyVisible: 'null', valueVisible: 'true' },
+  NET: { keyVisible: 'false', valueVisible: 'true' },
+  'Global Net Name': { keyVisible: 'null', valueVisible: 'null' },
+}
+
+/**
+ * Font size (EasyEDA 0.01-inch units, the value the format stores) the
+ * serializer writes for the net label the client actually draws: the flag/port
+ * `Name` attr, and a wire/bus `NET` attr.
+ *
+ * A `null` size makes the client render its own default, measured at 8 units on
+ * a delivered page. The real 48-pin C23922 has a 10-unit (100 mil) minimum
+ * same-side pin pitch, so an 8-unit label leaves only 20% clearance and the
+ * delivered column reads as a wall of text. KiCad's official
+ * `DEFAULT_TEXT_SIZE` is 50 mil (5 units) against the same 100-mil pitch, so 6
+ * units keeps the label legible while leaving 40% clearance at the worst case.
+ * Pass `netLabelFontSize: null` for the client default, or `5` for the KiCad
+ * reference.
+ */
+export const DEFAULT_NET_LABEL_FONT_SIZE = 6
 
 class Emitter {
   private ticket = 0
@@ -127,12 +171,15 @@ class Emitter {
     return ++this.ticket
   }
 
-  /** Emit one ATTR row belonging to `parentId`; `x`/`y` are IR coordinates. */
-  attr(parentId: string, key: string, value: string, x: number, y: number): void {
+  /**
+   * Emit one ATTR row belonging to `parentId`; `x`/`y` are IR coordinates.
+   * `fontSize` is the format's own unit value; `null` keeps the client default.
+   */
+  attr(parentId: string, key: string, value: string, x: number, y: number, fontSize: number | null = null): void {
     const id = `attr${this.attrSeq++}`
-    const visible = VISIBLE_ATTR_KEYS.has(key)
+    const visibility = ATTR_VISIBILITY[key]
     this.lines.push(
-      `{"type":"ATTR","id":"${id}","ticket":${this.nextTicket()}}||{"groupId":"","locked":false,"zIndex":0,"parentId":${JSON.stringify(parentId)},"key":${JSON.stringify(key)},"value":${JSON.stringify(value)},"keyVisible":${visible ? 'true' : 'null'},"valueVisible":${visible ? 'true' : 'null'},"x":${x},"y":${y - this.pageHeight},${ATTR_TAIL}}|`,
+      `{"type":"ATTR","id":"${id}","ticket":${this.nextTicket()}}||{"groupId":"","locked":false,"zIndex":0,"parentId":${JSON.stringify(parentId)},"key":${JSON.stringify(key)},"value":${JSON.stringify(value)},"keyVisible":${visibility?.keyVisible ?? 'null'},"valueVisible":${visibility?.valueVisible ?? 'null'},"x":${x},"y":${y - this.pageHeight},${ATTR_STYLE_HEAD}${fontSize === null ? 'null' : fontSize}${ATTR_STYLE_TAIL}}|`,
     )
   }
 
@@ -168,7 +215,7 @@ class Emitter {
   }
 }
 
-function emitComponent(emit: Emitter, component: SchematicIrComponent, bindings?: BindingMap): void {
+function emitComponent(emit: Emitter, component: SchematicIrComponent, bindings: BindingMap | undefined, netLabelFontSize: number | null): void {
   const flag = bindings?.flags.get(component.id)
   const symbol = flag?.symbol ?? (component.symbolUuid === undefined ? undefined : bindings?.symbols.get(component.symbolUuid))
   const device = flag?.device ?? (component.deviceUuid === undefined ? undefined : bindings?.devices.get(component.deviceUuid))
@@ -186,7 +233,9 @@ function emitComponent(emit: Emitter, component: SchematicIrComponent, bindings?
   if (component.footprintUuid !== undefined) emit.attr(component.id, 'Footprint', footprint?.localUuid ?? component.footprintUuid, x, y)
   if (component.designator !== undefined) emit.attr(component.id, 'Designator', component.designator, x, y)
   if (component.netName !== undefined) {
-    emit.attr(component.id, 'Name', component.netName, x, y)
+    // `Name` is the attr the flag/port device draws — the client's own documents
+    // keep `Global Net Name` hidden — so the net-label size belongs here.
+    emit.attr(component.id, 'Name', component.netName, x, y, netLabelFontSize)
     if (component.kind === 'netflag') emit.attr(component.id, 'Global Net Name', component.netName, x, y)
   }
 }
@@ -206,6 +255,7 @@ function emitSheet(
   pageSize: SchematicPageSize = SCHEMATIC_PAGE_A4,
   frame?: EasyEdaSheetFrameOptions,
   pageCount = 1,
+  netLabelFontSize: number | null = DEFAULT_NET_LABEL_FONT_SIZE,
 ): void {
   // A page the layout fitted to its content (幅面收敛) is delivered on that
   // smaller sheet; the frame, its title block, and the module-frame clamp all
@@ -242,7 +292,7 @@ function emitSheet(
     // COMPONENT record renders an empty "?" box — so it projects to drawn
     // sheet-symbol graphics instead of a component record.
     if (component.kind === 'block') continue
-    emitComponent(emit, component, bindings)
+    emitComponent(emit, component, bindings, netLabelFontSize)
   }
   // A row with no geometry is a declaration only (pagination keeps authored
   // wire rows without their unanchored dots so ATTRs survive). Projecting it
@@ -266,7 +316,7 @@ function emitSheet(
     }
     if (wire.net !== undefined) {
       const first = chains[0] as readonly number[]
-      emit.attr(wire.id, 'NET', wire.net, first[0] as number, first[1] as number)
+      emit.attr(wire.id, 'NET', wire.net, first[0] as number, first[1] as number, netLabelFontSize)
     }
   }
   for (const attr of sheet.attrs) {
@@ -300,11 +350,12 @@ function emitSheet(
 export function serializeEasyEdaDocument(ir: SchematicIr, options: EasyEdaSerializeOptions = {}): string {
   const emit = new Emitter()
   const clientId = options.clientId ?? 'dsh'
+  const netLabelFontSize = options.netLabelFontSize === undefined ? DEFAULT_NET_LABEL_FONT_SIZE : options.netLabelFontSize
   ir.sheets.forEach((sheet, index) => {
     const uuid = index === 0 && options.docUuid !== undefined
       ? options.docUuid
       : randomUUID().replaceAll('-', '')
-    emitSheet(emit, sheet, uuid, clientId, options.schematicUuid, index, undefined, options.pageSize ?? SCHEMATIC_PAGE_A4, options.frame, ir.sheets.length)
+    emitSheet(emit, sheet, uuid, clientId, options.schematicUuid, index, undefined, options.pageSize ?? SCHEMATIC_PAGE_A4, options.frame, ir.sheets.length, netLabelFontSize)
   })
   return emit.lines.join('\n') + '\n'
 }
@@ -331,10 +382,17 @@ export function serializeEasyEdaProject(
     pageSize?: SchematicPageSize | undefined
     /** Draw the production border/title block; presence enables the chrome. */
     frame?: EasyEdaSheetFrameOptions | undefined
+    /**
+     * Font size written for the drawn net label (a flag/port `Name`, a
+     * wire/bus `NET`), in the format's 0.01-inch units. Defaults to
+     * {@link DEFAULT_NET_LABEL_FONT_SIZE}; `null` keeps the client default.
+     */
+    netLabelFontSize?: number | null | undefined
   } = {},
 ): EasyEdaProjectPackage {
   const clientId = options.clientId ?? 'dsh'
   const title = options.title ?? 'DSH Schematic'
+  const netLabelFontSize = options.netLabelFontSize === undefined ? DEFAULT_NET_LABEL_FONT_SIZE : options.netLabelFontSize
   const schematicUuid = randomUUID().replaceAll('-', '')
   const pageUuids = ir.sheets.map(() => randomUUID().replaceAll('-', ''))
   const emit = new Emitter()
@@ -358,7 +416,7 @@ export function serializeEasyEdaProject(
   pageUuids.forEach((uuid, index) => {
     const sheet = ir.sheets[index]
     /* v8 ignore next -- pageUuids derives from ir.sheets.map, so the index is always in range */
-    if (sheet !== undefined) emitSheet(emit, sheet, uuid, clientId, schematicUuid, index, bindings, options.pageSize ?? SCHEMATIC_PAGE_A4, options.frame, ir.sheets.length)
+    if (sheet !== undefined) emitSheet(emit, sheet, uuid, clientId, schematicUuid, index, bindings, options.pageSize ?? SCHEMATIC_PAGE_A4, options.frame, ir.sheets.length, netLabelFontSize)
   })
   return {
     projectJson: JSON.stringify({ title, cbb_project: false }),

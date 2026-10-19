@@ -1545,6 +1545,12 @@ export interface EasyEdaImportOptions {
    * project name; pass custom fields (version/company/date) to override.
    */
   readonly frame?: EasyEdaSheetFrameOptions | undefined
+  /**
+   * Font size written for the drawn net label (a flag/port `Name`, a wire/bus
+   * `NET`), in the format's 0.01-inch units. Defaults to the serializer's own
+   * `DEFAULT_NET_LABEL_FONT_SIZE`; `null` keeps the client default.
+   */
+  readonly netLabelFontSize?: number | null | undefined
   /** Per-call timeout override for the bridge execution, in milliseconds. */
   readonly timeoutMs?: number | undefined
 }
@@ -1777,6 +1783,7 @@ export async function importIntoEasyEda(ir: SchematicIr, options: EasyEdaImportO
     library: collected.library,
     pageSize,
     frame: options.frame ?? { projectTitle: projectName },
+    netLabelFontSize: options.netLabelFontSize,
   })
   const raw = await bridge.execute(
     renderImportScript(pkg, projectName),

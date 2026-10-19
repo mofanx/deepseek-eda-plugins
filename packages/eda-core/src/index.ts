@@ -26,7 +26,7 @@ export type {
 } from './sheet-chrome.ts'
 export { computeSheetSymbolBoxes } from './hierarchy.ts'
 export type { EasyEdaSheetSymbolBox, EasyEdaSheetSymbolPin } from './hierarchy.ts'
-export { serializeEasyEdaDocument, serializeEasyEdaProject } from './serialize.ts'
+export { DEFAULT_NET_LABEL_FONT_SIZE, serializeEasyEdaDocument, serializeEasyEdaProject } from './serialize.ts'
 export type {
   EasyEdaEmbeddedDoc,
   EasyEdaProjectLibrary,

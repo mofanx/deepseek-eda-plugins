@@ -499,6 +499,11 @@ export interface SchematicEngineSerializeOptions {
    * to its own document title. Engines that draw no frame ignore this.
    */
   readonly titleBlock?: SchematicTitleBlockOptions | undefined
+  /**
+   * Net-label text size, in the engine's own unit. Engines that render net
+   * labels onto wires/flags honor it; `null` keeps the engine default.
+   */
+  readonly netLabelFontSize?: number | null | undefined
 }
 
 /**

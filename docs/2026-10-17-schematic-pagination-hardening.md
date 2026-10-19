@@ -1338,6 +1338,9 @@ primitive 页的 `-y`）；`build.ts` 的 primitive 调用点改传 `-1`。回�
 
 ### 14.15 t19：真实 48-pin IC 的 live 交付与引脚密度限制
 
+> **本节的「渲染器忽略 overlay ATTR 的 `fontSize`」结论已在 §14.21 撤回**：那是画布懒重绘造成的陈旧帧；
+> 稳定帧 A/B 证明渲染器按 `fontSize` 渲染，且堆叠的真正原因是 ATTR 可见性（`keyVisible` 与重复的 `Name`）。
+
 **脚本**：`node docs/evidence/review/t19-real-ic.mjs`（bridge 49620，真实窗口；需要联网解析 LCSC 库）。
 它用真实 `C23922 STM32F030C8T6`（48 脚）加 6 颗 `C25804` 0603 电阻，铺成 `MCU/POWER/IO/CLK` 四模块，
 `layoutSchematic` A3 后走生产 import 路径，最后在客户端逐页回读。
@@ -1490,6 +1493,9 @@ mismatch 已在），改后用一条明确的 abort 换掉 4 次 15s 盲等，�
 
 ### 14.19 t23：合成 48-pin 的 on-pin 兜底——根因是引脚压在 body 估算边界上
 
+> **本节按「字号不可控」推断的「标签仍会重叠」已在 §14.21 撤回**：网标字号可控（默认 6），且交付源改为
+> 与客户端一致的可见性后，每个网名只画一次、不再带 `Key : Value` 前缀，真实 48 脚页已无堆叠。
+
 §14.15 把「48-pin IC 逐脚标签垂直重叠」归档为限制。t23 修掉的是**「所有候选被拒 → on-pin 兜底」的根因，
 标签重叠的观感没有解决**（见本节末）。
 
@@ -1609,3 +1615,89 @@ mismatch 已在），改后用一条明确的 abort 换掉 4 次 15s 盲等，�
 **推送**：修复提交已推送到 `origin/master`（`ebaae63..` 快进，push exit 0）；本段推送说明是随后追加的
 文档提交。注意本机到 `github.com:443` 的连通性时好时坏，第一次尝试两次都 `Failed to connect to github.com port 443`，
 第三次才成功；若后续推送失败先 `Test-NetConnection github.com -Port 443` 确认是网络而不是仓库问题。
+
+## 14.21 网标交付：字号可控 + 可见性对齐客户端（撤回 §14.15/§14.19 的「渲染器忽略 fontSize」）
+
+§14.15 与 §14.19 把 48 脚 IC 的网标堆叠归档为「渲染器忽略 overlay ATTR 的 `fontSize`」。本轮用**稳定帧**复核，
+该结论不成立：渲染器确实按 ATTR 的 `fontSize` 渲染，之前看到的「无变化」是画布**懒重绘**造成的陈旧帧。
+堆叠的**真正原因**是交付源的 ATTR 可见性：`keyVisible` 被写成 `true`，且网旗的 `Name` 与 `Global Net Name`
+**同时可见**——每个网名被画两遍，还带 `Key : Value` 前缀（`Global Net Name : MCU-34`）。
+
+**修正 1：渲染器尊重 `fontSize`（稳定帧 A/B，同一页面同一视口，14 个网标）**
+
+方法：改字号后先 `zoomToAllPrimitives()` 强制重绘，再连拍两张并要求**逐字节一致**（否则算未稳定）。
+
+| 存储值 | 客户端 bbox 高 | 渲染字节 | 稳定 | sha256 前 16 |
+|---|---|---|---|---|
+| `null`（客户端默认） | 8 | 134325 | 是 | `86af904501391acc` |
+| 4 | 4 | 127077 | 是 | `efbf9ac18cabeccc` |
+| 6 | 6 | 129771 | 是 | `191e96e6525f058b` |
+| 12 | 12 | 141415 | 是 | `19a8f1935b90535e` |
+| 16 | 16 | 149549 | 是 | `0c0965e73c524b93` |
+| 20 | 20 | 155778 | 是 | `959b5df4899e9066` |
+
+六档互不相同、随字号单调，每档两张连拍一致；`fontSize:null` 与显式 `8` 渲染**完全相同**。
+此前的「同 hash」复现自证是陈旧帧（同一状态两次采样都会变），故 §14.15/§14.19 的「忽略」撤回。
+
+**修正 2：可见性对齐客户端自己的导出（堆叠的真正原因）**
+
+`packages/eda-core/tests/fixtures/live-build-readback.eeda` 是客户端**自己导出**的文档源（全文件 `"keyVisible":true` 出现 **0 次**：
+66 次 `null`、1 次 `false`），其中：`Designator` 与**本发射器写出的**器件/网旗/网口 `Name` 为
+`"keyVisible":null,"valueVisible":true`（L44/L62/L67）；导线的 `NET` 为
+`"keyVisible":false,"valueVisible":true`（L75）；网旗的 `Global Net Name` 为 `"keyVisible":null,"valueVisible":null`（L63，隐藏）。
+交付源此前对所有可见键一律写 `keyVisible:true`，并把网旗的 `Name` 与 `Global Net Name` 都设为可见。
+
+> 交叉复核的限定：该 fixture 里 `Name` **并非一律** `valueVisible:true`——L34（图框、`value:""`）是 `null/null`，
+> L72（未绑定符号、`value:""`）是 `null/false`。本发射器从不写这两种 `Name`，故映射只针对它自己写出的 `Name` 成立；
+> 且 fixture 只有 1 条 `Global Net Name`，该条映射是单样本。
+
+- `serialize.ts` 新增 `ATTR_VISIBILITY` 表，按客户端约定逐键给出可见性，取代「可见键一律 true」。
+- 网旗/网口真正被器件绘制的是 `Name`，因此**网标字号挂在 `Name`**；`Global Net Name` 保持隐藏、不带字号。
+- 导线的 `NET` 仍可见（`keyVisible:false`），字号同样生效。
+- 回读链路不受影响：`readback.ts` 不读 `keyVisible`/`valueVisible`（已核对）。
+
+**修正 3：新增网标字号旋钮（默认 6）**
+
+`DEFAULT_NET_LABEL_FONT_SIZE = 6`（格式单位 = 0.01 英寸）。客户端默认 8；实测真实 48 脚 C23922 同侧最小脚距
+**10 单位（100 mil）**，8 单位只剩 20% 净空；KiCad 官方 `DEFAULT_TEXT_SIZE` 为 50 mil（5 单位）对同样 100 mil 脚距，
+取 6 单位留 40% 净空。`serializeEasyEdaDocument` / `serializeEasyEdaProject` / `importIntoEasyEda` /
+`engine.importProject` / `engine.serialize` 均可用 `netLabelFontSize` 覆盖（`null` 回到客户端默认）。
+
+**live 闭环（真实导入路径，`docs/evidence/review/t8-netlabel-font.mjs`，exit 0）**
+
+- 用与 t19 相同的真实 C23922 48 脚 IR 经 `importIntoEasyEda` 交付：`errors=0`。
+- 客户端读回：`flags=14`、`labels=14`；14/14 的 `Name` 字号 = **6**；14/14 `keyVisible` 为假（无键前缀）；
+  14/14 的 `Global Net Name` `valueVisible` 为假（不再重复绘制）。
+- `getPrimitivesBBox` 实测 `+3V3`：**12.407 × 6**；修正前用**同一 IR 的另一次导入**、可见属性是带键前缀的
+  `Global Net Name`，同一测量为 **57.05 × 6**——宽度收窄 **78%**。
+- 视觉：`docs/evidence/current/t8-netlabel-f6-page1.png` 全页与局部均为 `MCU-17`…`MCU-48`、`GND`、`+3V3`
+  单次、无前缀、无堆叠（对照见 §14.15 的旧图）。
+
+**门禁与回归**
+
+- 新增用例：`serialize.spec.ts` 5 例（字号 + 可见性表，数值取自客户端 fixture）、`build.spec.ts` 引擎转发 1 例、
+  导入透传 1 例。
+- `tsc -b` exit 0；`oxlint packages` 0/0（44 文件）；`vitest run --coverage` **21 文件 / 603 用例**，`src` 100%。
+- 黄金样例 `layout-golden.eeda` 重生成：`"fontSize":6` 5 处、`"fontSize":null` 7 处、`"keyVisible":true` **0 处**。
+- 改动文件：`eda-core/src/serialize.ts`、`eda-core/src/index.ts`、`schematic-easyeda/src/build.ts`、
+  `schematic-easyeda/src/index.ts`、`schematic/src/types.ts`、`eda-core/tests/serialize.spec.ts`、
+  `schematic-easyeda/tests/build.spec.ts`、`eda-core/tests/fixtures/layout-golden.eeda`、本文件。
+
+**交叉复核（独立 subagent，对抗式）**：结论 `sound-with-caveats`。它独立核对并**证实**：可见性映射与客户端 fixture
+一致（该文件 `keyVisible:true` 出现 0 次）、黄金样例计数 5/7/0、`netLabelFontSize` 五处入口全部生效（默认 6 /
+显式 5 / `null` / 工程 7 均落到正确 ATTR）、`readback.ts` 不读可见性、`tsc -b` 与 `oxlint` 通过。
+它用**变异测试**证明数值被钉住：默认 6 改成 8 → 黄金样例字节比较与 `build.spec.ts:1347` 字面量断言双双失败；
+`Name` 的 `keyVisible` 改回 `true` → 黄金样例与新可见性用例双双失败（两次都还原，sha256 回到 `3B95617E…FE29C`）。
+其提出的问题已逐条处理：默认值断言改为字面量 `6`（原写法用同一常量自证，变异后仍通过）、`build.spec.ts` 的 `null`
+断言改为只查网旗 `Name` 行（原断言在默认输出里恒真）、补回一处被误删的换行、限定 `Name` 的措辞、把本文件补进
+改动清单、并把 primitive 路径的缺口记在下面。它在沙箱内跑不了 `vitest`（esbuild `spawn EPERM`），故
+「603 用例 / 100%」由本机另行跑出（见上），评审侧如实标注为未能复现。
+
+**已知未覆盖（交叉复核提出，如实记录）**
+
+- **原始 build 路径没有这个旋钮**：`engine.build`/`buildIntoEasyEda` 走客户端的 `createNetFlag`/`createNetPort`
+  （`build.ts:362-369`），该 API 无字号参数，故这条路径交付的网标仍是客户端默认 8。若 48 脚页走 primitive 路径，
+  仍可能堆叠。serialize/import 路径（真实交付用的那条）已修；primitive 路径列为下一步（需在创建后定位并
+  `modify` 该器件的 `Name` ATTR，并做同样的 live 闭环）。
+- `tool-schematic/src/index.ts:333`、`scripts/live-verify.mjs:169` 未暴露该选项，取默认 6（无正确性问题）。
+

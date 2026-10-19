@@ -1335,6 +1335,23 @@ describe('EasyEdaSchematicEngine.serialize', () => {
   it('maps persisted Y through the caller-supplied page size', () => {
     expect(engine.serialize(seamIr, { pageSize: SCHEMATIC_PAGE_A3 })).toContain('"y":-1170')
   })
+
+  it('forwards the net-label font size, defaulting to the serializer value', () => {
+    const flagIr: SchematicIr = {
+      sheets: [{
+        components: [{ id: 'f', kind: 'netflag', netName: 'GND', position: { x: 0, y: 0 }, pins: [] }],
+        wires: [], busEntries: [], junctions: [], attrs: [],
+      }],
+    }
+    // Assert on the flag's `Name` line: the default output already contains a
+    // `"fontSize":null` (the hidden `Global Net Name`), so a whole-source
+    // `toContain` would pass even if the option were ignored.
+    const nameLine = (source: string) => source.split('\n').find(line => line.includes('"key":"Name"'))
+    expect(engine.serialize(flagIr)).toContain('"key":"Global Net Name","value":"GND"')
+    expect(nameLine(engine.serialize(flagIr))).toContain('"fontSize":6')
+    expect(nameLine(engine.serialize(flagIr, { netLabelFontSize: 5 }))).toContain('"fontSize":5')
+    expect(nameLine(engine.serialize(flagIr, { netLabelFontSize: null }))).toContain('"fontSize":null')
+  })
 })
 
 describe('renderImportScript', () => {
@@ -1725,6 +1742,19 @@ describe('importIntoEasyEda', () => {
     expect(report.projectUuid).toBe('proj-1')
     expect(report.pageUuids).toEqual(['pg-1'])
     expect(report.findings).toEqual([])
+  })
+
+  it('forwards the net-label font size into the imported project source', async () => {
+    const { bridge, calls } = scriptedBridge([emptyLibrary,
+      { status: 'OK', projectUuid: 'proj-1' },
+      { pageUuids: ['pg-1'], sources: [importedSource] },
+    ])
+    await importIntoEasyEda(ir, { bridge, netLabelFontSize: 5 })
+    // `renderImportScript` embeds the `.epru` as a JSON string literal, so the
+    // ATTR fields arrive with escaped quotes.
+    expect(calls[1]).toContain('\\"key\\":\\"Global Net Name\\",\\"value\\":\\"GND\\"')
+    expect(calls[1]).toContain('\\"fontSize\\":5')
+    expect(calls[1]).not.toContain('\\"fontSize\\":6')
   })
 
   it('maps NO_TEAM and import rejection to typed errors', async () => {

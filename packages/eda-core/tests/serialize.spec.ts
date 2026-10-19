@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { serializeEasyEdaDocument, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
+import { DEFAULT_NET_LABEL_FONT_SIZE, serializeEasyEdaDocument, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
 import { SCHEMATIC_PAGE_A3, layoutSchematic, validateSchematic } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { SchematicIr } from '@deepseek-ai/dsh-plugin-eda-sch'
 
@@ -343,5 +343,72 @@ describe('paginated layout projection', () => {
       .map(line => JSON.parse(line.slice(line.indexOf('||') + 2).replace(/\|$/, '')).title as string)
     expect(titles).toHaveLength(laid.sheets.length)
     expect(new Set(titles).size).toBe(titles.length)
+  })
+})
+
+describe('net label size and visibility', () => {
+  // A real 48-pin symbol (C23922) has a 10-unit minimum same-side pin pitch, so
+  // the serializer ships net labels smaller than the client's 8-unit default,
+  // and copies the client's own ATTR visibility so each net name renders once.
+  const labelled: SchematicIr = {
+    sheets: [{
+      components: [
+        { id: 'f1', kind: 'netflag', netName: 'GND', position: { x: 10, y: 20 }, pins: [] },
+        { id: 'np1', kind: 'netport', netName: 'SIG', position: { x: 30, y: 40 }, pins: [] },
+        { id: 'c1', kind: 'part', designator: 'U1', deviceUuid: 'dev-1', position: { x: 50, y: 60 }, pins: [] },
+      ],
+      wires: [{ id: 'w1', kind: 'wire', dots: [[0, 0, 10, 0]], net: 'SIG' }],
+      busEntries: [], junctions: [], attrs: [],
+    }],
+  }
+  const attrLine = (source: string, parentId: string, key: string): string | undefined => source.split('\n')
+    .find(line => line.includes(`"parentId":"${parentId}"`) && line.includes(`"key":"${key}"`))
+  const sizeFor = (source: string, parentId: string, key: string): string | undefined =>
+    attrLine(source, parentId, key)?.match(/"fontSize":([^,]+)/)?.[1]
+  const visFor = (source: string, parentId: string, key: string): string[] | undefined =>
+    attrLine(source, parentId, key)?.match(/"keyVisible":([^,]+),"valueVisible":([^,]+)/)?.slice(1)
+
+  it('ships the pinned default size on the attr the flag/port device draws', () => {
+    // Pinned literally (not via the exported constant) so mutating the default
+    // fails here rather than agreeing with itself.
+    expect(DEFAULT_NET_LABEL_FONT_SIZE).toBe(6)
+    const source = serializeEasyEdaDocument(labelled)
+    expect(sizeFor(source, 'f1', 'Name')).toBe('6')
+    expect(sizeFor(source, 'np1', 'Name')).toBe('6')
+    expect(sizeFor(source, 'w1', 'NET')).toBe('6')
+    // The hidden connectivity attr and the designator are chrome, not the label.
+    expect(sizeFor(source, 'f1', 'Global Net Name')).toBe('null')
+    expect(sizeFor(source, 'c1', 'Designator')).toBe('null')
+  })
+
+  it('copies the client visibility table so each net name renders exactly once', () => {
+    const source = serializeEasyEdaDocument(labelled)
+    // Values lifted from the client's own export (live-build-readback.eeda).
+    expect(visFor(source, 'f1', 'Name')).toEqual(['null', 'true'])
+    expect(visFor(source, 'f1', 'Global Net Name')).toEqual(['null', 'null'])
+    expect(visFor(source, 'w1', 'NET')).toEqual(['false', 'true'])
+    expect(visFor(source, 'c1', 'Designator')).toEqual(['null', 'true'])
+    // Binding attrs stay invisible, exactly as before.
+    expect(visFor(source, 'c1', 'Device')).toEqual(['null', 'null'])
+  })
+
+  it('honors an explicit size', () => {
+    const source = serializeEasyEdaDocument(labelled, { netLabelFontSize: 5 })
+    expect(sizeFor(source, 'f1', 'Name')).toBe('5')
+    expect(sizeFor(source, 'w1', 'NET')).toBe('5')
+    expect(sizeFor(source, 'np1', 'Name')).toBe('5')
+  })
+
+  it('keeps the client default when the size is null', () => {
+    const source = serializeEasyEdaDocument(labelled, { netLabelFontSize: null })
+    expect(sizeFor(source, 'f1', 'Name')).toBe('null')
+    expect(sizeFor(source, 'w1', 'NET')).toBe('null')
+    expect(sizeFor(source, 'np1', 'Name')).toBe('null')
+  })
+
+  it('threads the size through the project package', () => {
+    const pkg = serializeEasyEdaProject(labelled, { netLabelFontSize: 7 })
+    expect(sizeFor(pkg.epru, 'f1', 'Name')).toBe('7')
+    expect(sizeFor(pkg.epru, 'w1', 'NET')).toBe('7')
   })
 })
