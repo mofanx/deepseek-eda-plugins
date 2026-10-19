@@ -1982,7 +1982,11 @@ function layoutSheet(plan: SheetPlan, netSheets: ReadonlyMap<string, Set<number>
       const newJunctions: SchematicPoint[] = []
       if (endpoints.length === 1) {
         const dir = (unrouted[0] as { side: PinSide }).side === 'left' ? -1 : 1
-        dots.push([first.x, first.y, snap(first.x + dir * 4 * o.pinStub, o.grid), first.y])
+        // 3 pin stubs, not 4: the module frame is padded by SCHEMATIC_FRAME_PAD
+        // (80) and a stub of exactly that length lands ON the border after
+        // snapping - 41 of 62 delivered segments did. 3 * 20 = 60 leaves 20
+        // units of clear air (measured, docs 14.26).
+        dots.push([first.x, first.y, snap(first.x + dir * 3 * o.pinStub, o.grid), first.y])
       } else {
         dots.push([Math.min(...xs), trunkY, Math.max(...xs), trunkY])
         for (const endpoint of endpoints) {

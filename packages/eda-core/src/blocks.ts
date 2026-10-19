@@ -32,8 +32,9 @@ const GRID = 10
  * Margin beyond member geometry: covers the symbol body plus the stub a
  * layout-generated flag hangs off an edge pin. Imported from the schematic
  * package rather than restated, so the drawn frame and the layout's own frame
- * allowance cannot disagree. Measured t19 overhang: a 60-unit stub, so this pad
- * keeps every wire 20 units clear of the border (docs §14.25).
+ * allowance cannot disagree. The layout's single-member stub is 3 * pinStub
+ * (60) so a pin-endpoint-based frame keeps every wire 20 units clear of its
+ * border; at 4 * pinStub (80) the stub ended exactly ON the border (docs 14.26).
  * t20 tried 60 for a tighter ring around the content: intra-block blank fell
  * 11pt (41.7% -> 30.6%) but the delivered page got emptier (t18 live 54.0%/42.1%
  * -> 51.0%/37.1%), because a smaller frame also shrinks the ink box the
