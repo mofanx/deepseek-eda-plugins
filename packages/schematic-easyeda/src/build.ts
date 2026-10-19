@@ -450,11 +450,23 @@ await eda.dmt_EditorControl.openDocument(doc.pageUuid);
 const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
 if (!active || active.uuid !== doc.pageUuid) return { status: 'WRONG_PAGE', failures, created };
 const seen = new Set();
+// Nets already on the page. create() absorbs a wire whose line overlaps an
+// existing one and keeps the EXISTING net name, so the absorbed net silently
+// leaves the netlist while create() still reports success (measured live:
+// 55 -> 54 nets, CLK-A1 gone). Snapshot the net set and prove it never shrinks.
+const netsBefore = new Set();
+let beforeUnreadable = 0;
 try {
   for (const w of await eda.sch_PrimitiveWire.getAll() || []) {
     try { seen.add(w.getState_Net() + '|' + JSON.stringify(w.getState_Line())) } catch (e) {}
+    try { const n = w.getState_Net(); if (typeof n === 'string' && n !== '') netsBefore.add(n) } catch (e) { beforeUnreadable += 1 }
   }
-} catch (e) {}
+} catch (e) { beforeUnreadable += 1 }
+try { for (const b of await eda.sch_PrimitiveBus.getAll() || []) { try { const n = b.getState_Net(); if (typeof n === 'string' && n !== '') netsBefore.add(n) } catch (e) { beforeUnreadable += 1 } } } catch (e) {}
+// Nets this chunk is asking for. Their absence afterwards is unambiguous: a
+// net the client absorbed into an existing wire keeps that wire's name, so the
+// requested net never appears and is invisible to a before/after comparison.
+const intended = new Set();
 for (const w of doc.wires) {
   try {
     if (w.net === undefined) { failures.push({ code: 'MISSING_NET', irId: w.irId, sheetIndex: doc.sheetIndex }); continue; }
@@ -467,6 +479,7 @@ for (const w of doc.wires) {
     // There is nothing to draw, and reporting CREATE_FAILED would block delivery
     // of a document the layout produced on purpose.
     if (chains.length === 0) continue;
+    intended.add(w.net);
     for (const line of chains) {
       if (w.kind !== 'bus' && seen.has(w.net + '|' + JSON.stringify(line))) { created += 1; continue; }
       const placed = w.kind === 'bus'
@@ -478,6 +491,32 @@ for (const w of doc.wires) {
     failures.push({ code: 'CREATE_THROWN', irId: w.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
   }
 }
+// Post-condition: placing wires may add a net, never remove one. Checked by
+// re-reading the page rather than trusting create(), which merges silently.
+try {
+  const netsAfter = new Set();
+  let afterUnreadable = 0;
+  for (const w of await eda.sch_PrimitiveWire.getAll() || []) {
+    try { const n = w.getState_Net(); if (typeof n === 'string' && n !== '') netsAfter.add(n) } catch (e) { afterUnreadable += 1 }
+  }
+  try { for (const b of await eda.sch_PrimitiveBus.getAll() || []) { try { const n = b.getState_Net(); if (typeof n === 'string' && n !== '') netsAfter.add(n) } catch (e) { afterUnreadable += 1 } } } catch (e) {}
+  const reported = new Set();
+  for (const net of intended) {
+    if (netsAfter.has(net)) continue;
+    reported.add(net);
+    const culprit = doc.wires.find(x => x.net === net);
+    failures.push({ code: 'WIRE_NET_LOST', irId: culprit ? culprit.irId : '', sheetIndex: doc.sheetIndex, detail: net });
+  }
+  // A net that was already on the page is a loss too, but only when both reads
+  // were clean: a getState_Net() that throws must not look like a deletion.
+  if (beforeUnreadable === 0 && afterUnreadable === 0) {
+    for (const net of netsBefore) {
+      if (netsAfter.has(net) || reported.has(net)) continue;
+      const culprit = doc.wires.find(x => x.net === net);
+      failures.push({ code: 'WIRE_NET_LOST', irId: culprit ? culprit.irId : '', sheetIndex: doc.sheetIndex, detail: net });
+    }
+  }
+} catch (e) {}
 return { status: 'OK', failures, created };`
 }
 
@@ -730,7 +769,7 @@ function isPrepareResult(value: unknown): value is PrepareResult {
   return typeof v.status === 'string' && Array.isArray(v.failures) && Array.isArray(v.pageUuids)
 }
 
-const ERROR_FAILURE_CODES = new Set(['NO_DEVICE', 'DEVICE_NOT_FOUND', 'MISSING_NET', 'CREATE_FAILED', 'CREATE_THROWN', 'CREATE_TIMEOUT', 'PAGE_CREATE_FAILED', 'PAGE_ACTIVATE_FAILED', 'CHUNK_FAILED'])
+const ERROR_FAILURE_CODES = new Set(['NO_DEVICE', 'DEVICE_NOT_FOUND', 'MISSING_NET', 'WIRE_NET_LOST', 'CREATE_FAILED', 'CREATE_THROWN', 'CREATE_TIMEOUT', 'PAGE_CREATE_FAILED', 'PAGE_ACTIVATE_FAILED', 'CHUNK_FAILED'])
 
 /** Chunk scripts return this placement shape. */
 interface ChunkResult {
@@ -788,6 +827,7 @@ function findingCode(scriptCode: string): string {
     case 'NO_DEVICE': return 'SCHEMATIC_BUILD_NO_DEVICE'
     case 'DEVICE_NOT_FOUND': return 'SCHEMATIC_BUILD_DEVICE_NOT_FOUND'
     case 'MISSING_NET': return 'SCHEMATIC_BUILD_MISSING_NET'
+    case 'WIRE_NET_LOST': return 'SCHEMATIC_BUILD_WIRE_NET_LOST'
     case 'PAGE_CREATE_FAILED': return 'SCHEMATIC_BUILD_PAGE_CREATE'
     case 'PAGE_ACTIVATE_FAILED': return 'SCHEMATIC_BUILD_PAGE_ACTIVATE'
     case 'UNSUPPORTED_KIND': return 'SCHEMATIC_BUILD_UNSUPPORTED_KIND'
@@ -809,6 +849,7 @@ function scriptFailureMessage(failure: ScriptFailure): string {
     case 'MISSING_NET': return `primitive "${target}" has no net name`
     case 'CREATE_FAILED': return `primitive "${target}": the client create call returned undefined`
     case 'CREATE_THROWN': return `primitive "${target}": the client create call threw${failure.detail === undefined ? '' : ` (${failure.detail})`}`
+    case 'WIRE_NET_LOST': return `net "${failure.detail}" is not on the page after the wire chunk — the client merged a wire into an existing one and kept that one's name, so this net left the netlist silently`
     case 'CREATE_TIMEOUT': return `component "${target}": the device placement call did not return within 15s — the client is likely waiting on a dialog or a pending interactive placement; press ESC or dismiss dialogs in the EasyEDA window and rerun (a part that lands late is deduped by position)`
     case 'PAGE_CREATE_FAILED': return 'the client could not create a schematic page for this sheet'
     case 'PAGE_ACTIVATE_FAILED': return 'the created page did not become the active document — aborting instead of building into the wrong page'

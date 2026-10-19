@@ -2192,3 +2192,66 @@ describe('net label font size on the primitive path', () => {
     expect(failed.failures.map(failure => failure.code)).toContain('NET_LABEL_FONT_FAILED')
   })
 })
+
+describe('wire net integrity post-condition', () => {
+  // create() merges an overlapping wire into the existing one, keeps the
+  // existing net name, and still reports success, so the absorbed net leaves
+  // the netlist silently (measured live: 55 -> 54 nets, CLK-A1 gone). The chunk
+  // therefore re-reads the page and proves the net set never shrinks.
+  const AsyncFunction = Object.getPrototypeOf(async () => undefined).constructor as new (
+    ...args: string[]
+  ) => (...values: unknown[]) => Promise<{ status: string; failures: { code: string; irId: string }[]; created: number }>
+  const fake = (before: readonly string[], after: readonly string[]) => {
+    let call = 0
+    const asWire = (net: string) => ({ getState_Net: () => net, getState_Line: () => [[0, 0, 10, 0]] })
+    return {
+      dmt_EditorControl: { openDocument: async () => undefined },
+      dmt_Schematic: { getCurrentSchematicPageInfo: async () => ({ uuid: 'page-1' }) },
+      sch_PrimitiveWire: {
+        getAll: async () => (call++ === 0 ? before : after).map(asWire),
+        create: async () => true,
+      },
+      sch_PrimitiveBus: { getAll: async () => [] },
+    }
+  }
+  const runWireChunk = async (eda: unknown, wires: readonly unknown[]) =>
+    new AsyncFunction('eda', renderWireChunkScript(wires as never, 'page-1', 0))(eda)
+  const wire = (irId: string, net: string) => ({ irId, kind: 'wire', net, dots: [[0, 0, 20, 0]] })
+
+  it('flags a net this chunk asked for that the client silently absorbed', async () => {
+    // The absorbed wire keeps the EXISTING name, so the requested net never
+    // appears at all - a before/after comparison alone cannot see it.
+    const result = await runWireChunk(fake(['A'], ['A']), [wire('w-b', 'B')])
+    expect(result.status).toBe('OK')
+    expect(result.failures.map(failure => failure.code)).toEqual(['WIRE_NET_LOST'])
+    expect(result.failures[0]?.irId).toBe('w-b')
+  })
+
+  it('flags a net that was on the page before the chunk and is gone after', async () => {
+    const result = await runWireChunk(fake(['A', 'GONE'], ['A', 'C']), [wire('w-c', 'C')])
+    expect(result.failures.map(failure => failure.code)).toEqual(['WIRE_NET_LOST'])
+    // No IR row owns the pre-existing net, so the finding names the sheet only.
+    expect(result.failures[0]?.irId).toBe('')
+  })
+
+  it('stays quiet when the net set only grows', async () => {
+    const result = await runWireChunk(fake(['A'], ['A', 'C']), [wire('w-c', 'C')])
+    expect(result.failures).toEqual([])
+  })
+
+  it('surfaces a lost net as an error finding that names it', async () => {
+    const { bridge } = scriptedBridge(standardQueue({
+      wireChunk: {
+        status: 'OK',
+        failures: [{ code: 'WIRE_NET_LOST', irId: 'w1', sheetIndex: 0, detail: 'CLK-A1' }],
+        created: 3,
+      },
+    }))
+    const report = await buildIntoEasyEda(ir, { bridge })
+    const lost = report.findings.filter(finding => finding.code === 'SCHEMATIC_BUILD_WIRE_NET_LOST')
+    expect(lost).toHaveLength(1)
+    expect(lost[0]?.severity).toBe('error')
+    // Losing a net is only actionable if the finding says which one.
+    expect(lost[0]?.message).toContain('CLK-A1')
+  })
+})
