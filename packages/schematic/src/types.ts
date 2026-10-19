@@ -458,6 +458,13 @@ export interface SchematicEngineVerifyOptions {
    * {@link SchematicEngineSerializeOptions.titleBlock}.
    */
   readonly titleBlock?: SchematicTitleBlockOptions | undefined
+  /**
+   * Net-label font size in the engine's own format unit, or `null` for the
+   * client default; engines that place labels without a serializer honour it on
+   * the primitive path too. See
+   * {@link SchematicEngineSerializeOptions.netLabelFontSize}.
+   */
+  readonly netLabelFontSize?: number | null | undefined
 }
 
 /**

@@ -1753,3 +1753,84 @@ primitive 放置路径补字号旋钮（`netLabelFontSize` → 创建 flag/netpo
 1. 用真实截图（dpx）建立可复现的像素通道；`zoomToRegion`/`zoomTo` 的参数语义在此版本上不可靠（传 bbox 得到 5% 缩放），需要先标定。
 2. 标定后回答一个问题：客户端把导线的网络名画在导线的哪个位置（起点/中点/最长段）。若跟随导线 y，则可在 `layout.ts` 把这 55 段 stub 分成 ≥2 条泳道（间距 ≥20 单位）展开，连通性（每段导线的 `Net`）不变，再用 t19/t23 回归；若固定在图幅某处，则几何方案无效，只能接受密度。
 3. flag 标签仍可用 5（50% 余隙，KiCad 参考值）替代 6；但这只改善 14 个标签的观感，不改主诉。
+
+## 14.23 primitive 路径补齐网标字号：两条交付路径对齐
+
+§14.21 只给 serialize/import 路径加了 `netLabelFontSize`；primitive 路径（`buildIntoEasyEda` →
+`renderComponentChunkScript`）没有旋钮，同一份 IR 走两条路会交付 8 与 6 两种网标。本节把两条路对齐。
+
+**实现**
+
+- 创建 `netflag`/`netport` 后记录其 primitive id（`getState_PrimitiveId` → `primitiveId` → `id` 依次兜底），
+  chunk 末尾做**一次** `eda.sch_PrimitiveAttribute.getAll()` 扫描（每个 flag 各扫一次是 O(n²)），
+  对 `parentId` 匹配且 `key === 'Name'` 的属性调 `modify(attr, { fontSize: labelFontSize / 100 })`。
+- **单位**：`modify` 收 inch，文档存 0.01 inch，故除 100（§14.22.2 第 3 条已实测）。这是本改动的关键一行。
+- 定位不到或 modify 抛错只记 `NET_LABEL_FONT_MISSING` / `NET_LABEL_FONT_FAILED`
+  （→ `SCHEMATIC_BUILD_NET_LABEL_FONT`），**不中断放置**。
+- 入口：`EasyEdaBuildOptions`、`EasyEdaEngineBuildOptions`、seam 的 `SchematicEngineVerifyOptions` 均新增
+  `netLabelFontSize`；默认与序列化器一致（`DEFAULT_NET_LABEL_FONT_SIZE = 6`），`null` 交给客户端默认。
+
+**live 闭环**（真实客户端，`buildIntoEasyEda` 交付 3 个 netflag 后回读 `Name` 属性的**存储值**，再删除临时页）
+
+| 调用 | 交付 `Name` 存储 fontSize | 期望 |
+|---|---|---|
+| 不给选项（默认） | 6 | 6 |
+| `netLabelFontSize: 5` | 5 | 5 |
+| `netLabelFontSize: null` | `null`（未触碰） | `null` |
+
+三次 `errors=0`，3 个临时页全部删除。**5 能落成 5 就证明 `/100` 是对的**：若漏掉换算，存储值会是 500。
+
+**门禁**：`tsc -b` 0；`oxlint packages` 0/0（44 文件）；`vitest run --coverage` **21 文件 / 612 用例**，`src` 100%。
+
+**交叉复核**（独立子代理，结论 `sound-with-caveats`）查出两处真实缺陷，均已修：
+
+1. **重试缺口**——位置已被占用而跳过的组件（`build.ts:365`）原本**不记录**标签，于是"放置成功但在扫描前超时"的一次重试会把该标签留在客户端默认 8 且**零告警**，与"无法定尺寸必须告警"直接矛盾。改为取出那个已存在 primitive 的 id 一并纳入扫描（`recordLabel(c, existing)`），重试路径也会补齐字号。
+2. **`getAll()` 形状**——`(attrs || []).find` 在 try 之外，若返回非数组就抛 → `CHUNK_FAILED`（error 级），连续 3 次会中止后续放置，与"绝不中止放置"矛盾。改为 `!Array.isArray(attrs)` 统一记 `NET_LABEL_FONT_FAILED`。
+
+复核同时**确认**：`build.ts:423` 是唯一带 `fontSize` 的 `modify`，默认值 6 同样除以 100，原值 6 从不直达 `modify`；
+六个入口全部到达消费点，且 `null` 不被任何 `... === undefined` 条件吞掉；生成脚本以 async 函数体解析通过，
+`null` 在 `recordLabel` 就短路（`null / 100` 永不执行）；`/100→/1`、默认 `6→null`、`6→8`、`null` 被 `??` 强制
+四处变异全部被测试捕获（源码按 SHA-256 还原）。**残留**：`tool-schematic` 仍未暴露该选项（引擎 seam 可达、产品工具不可达）；
+"两条路径一致"仅指 flag/port 的 `Name`——序列化路径还给导线 `NET` 上字号，primitive 路径不建 `NET` 属性
+（导线网名由客户端自绘，见 §14.22.3）。
+
+补记：复核指出"**没有测试真正执行生成的脚本**"（`scriptedBridge` 只截字符串）。已补 3 个用
+`AsyncFunction` + 假客户端**实跑**该 chunk 的用例：6→`{fontSize:0.06}`、`null`→零调用、被占位 adopt 的标签仍被设号、
+无 id 与非数组 `getAll()` 都只降级为 warning 而 `status` 仍为 `OK`。
+
+## 14.24 「模块符号与文字堆叠」的实测归因（几何修复本轮未交付）
+
+对当前打开的 t19 页（`dsh-t19-real-ic-1792382444751` MAIN）用客户端自身几何逐项量过（独立复核子代理复算，
+离线复现与 live 完全一致，几何差 0）。结论与直觉相反：
+
+**证伪**
+
+- **4 个模块框互不重叠也不相接**，最小间距 40 单位（MCU–IO 竖向 40；MCU–POWER 横向 50；IO–CLK 120；POWER–CLK 200）。
+- **0/39 个 TEXT 压在任何框线上**：4 个模块标题各自距自己上边框 **10.00** 单位（扣掉描边 0.5 后 9.5）、距左边框 20.00；
+  跨框最近也有 50.00。
+- **0/166 个可见 ATTR（网标/旗标/位号）压在任何框线上**，且全部落在某个框内部；最近的距框线 30.61。
+
+**证实（真正的两处）**
+
+1. **41/62 段导线正好终止在模块框边框上（0 间距）**。`layout.ts:1978-1980` 的单成员主干 stub 长
+   `4 × pinStub = 80`，而 `blocks.ts:39` 的 `FRAME_PAD` **也是 80**；`computeBlockFrames` 只按
+   `component.position`/`pin.endpoint` 量内容（`blocks.ts:63-78`），**看不见**这根画到端点外 80 单位的导线。
+   于是网格对齐后两者精确重合：`210−80=130`（MCU 左边框）、`600−80=520`（POWER/CLK 左边框）、
+   `640+80=720`（右边框）、`280−80=200`（IO 左边框）。这就是"压在框线上"。
+2. **119 对"文字压在器件符号上"**：导线的 `NET` 标签锚在该导线**第一个顶点**（`serialize.ts:317-320`），
+   而 `layout.ts:1980` 把第一个顶点设成**引脚端点**，所以 6 单位高的标签墨迹正好横跨 21×9 的电阻本体，
+   例如 `POWER-A0` 墨盒 `x[600,628] y[254,260]` 压在 `u2 x[609.5,630.5] y[255.5,264.5]` 上，重叠 18.50×4.50。
+
+**为什么本轮没有动几何**：两个候选修法都要重排基线，属于"改了必须重新验证一整轮"的量级，不做无验证上线。
+
+| 候选 | 改动 | 连带影响 |
+|---|---|---|
+| A. 撑开框（推荐） | `blocks.ts:39` `FRAME_PAD` 80→100，并同步 `layout.ts:75` `SCHEMATIC_FRAME_PAD` 与 `budget.ts:37/53/54/55` 的 `edgePadFramed`/`outwardX`/`outwardTop`/`outwardBottom`（这些常量就是"不许漂移"才抽出来的） | 框线外移 20 单位、41 处 0 间距全部变成 20 单位净空；但 fit box 变大 → 拟合页尺寸/分页/`fill` 全部要重新基线（t18/t19/t23 数字与多份黄金样例） |
+| B. 缩短 stub | `layout.ts:1980` `4 * o.pinStub` → `3 * o.pinStub`（80→60） | 同样得到 20 单位净空，且 fit 预算无需改；但每个单成员网的导线长度都变，黄金样例与 t23 的 `stub length min=80 max=80` 断言要改 |
+
+候选 C（把 `NET` 标签锚点从引脚端点移到导线中点）只影响序列化源码里的 ATTR 坐标，爆炸半径最小，
+但它是否真能消除观感，取决于"客户端是否自己也画一遍导线网名"（§14.22.3 认为会画）——这一点**尚未验证**，
+所以也没有上线。
+
+下一步建议：先做候选 A（几何上可证、观感确定），并接受随之而来的基线重排；或先花一次测量确认候选 C 的前提。
+

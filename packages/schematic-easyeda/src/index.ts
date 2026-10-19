@@ -142,6 +142,8 @@ export interface EasyEdaEngineBuildOptions {
    * import this engine's option types can still request a title block.
    */
   readonly titleBlock?: SchematicTitleBlockOptions | undefined
+  /** Net-label font size in format units; see {@link EasyEdaBuildOptions.netLabelFontSize}. */
+  readonly netLabelFontSize?: number | null | undefined
 }
 
 /** Overrides for one {@link EasyEdaSchematicEngine.importProject} call. */
@@ -231,6 +233,7 @@ export class EasyEdaSchematicEngine implements SchematicEngine {
       symbolPins: options.symbolPins,
       pageSize: options.pageSize,
       frame: options.frame ?? options.titleBlock,
+      ...(options.netLabelFontSize === undefined ? {} : { netLabelFontSize: options.netLabelFontSize }),
     })
   }
 

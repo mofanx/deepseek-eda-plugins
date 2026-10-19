@@ -21,7 +21,7 @@ import type {
 } from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { EasyEdaBridge } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { EasyEdaSheetFrameOptions, SheetChromeRect, SheetChromeText } from '@deepseek-ai/dsh-plugin-eda-core'
-import { computeBlockFrames, computeSheetChrome, computeSheetSymbolBoxes, pageSizeLabel, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
+import { DEFAULT_NET_LABEL_FONT_SIZE, computeBlockFrames, computeSheetChrome, computeSheetSymbolBoxes, pageSizeLabel, serializeEasyEdaProject } from '@deepseek-ai/dsh-plugin-eda-core'
 import type { EasyEdaEmbeddedDoc, EasyEdaProjectLibrary, EasyEdaProjectPackage } from '@deepseek-ai/dsh-plugin-eda-core'
 import { diffNetlists, parseDocumentSource, readBackAttrs } from '@deepseek-ai/dsh-plugin-eda-core'
 
@@ -46,6 +46,16 @@ export interface EasyEdaBuildOptions {
    * primitive path draws no chrome. The import path takes the same fields.
    */
   readonly frame?: EasyEdaSheetFrameOptions | undefined
+  /**
+   * Font size for the net labels the primitive path creates (the `Name` attr of
+   * each `netflag`/`netport`), in the format's 0.01-inch units. Defaults to
+   * {@link DEFAULT_NET_LABEL_FONT_SIZE} so both delivery paths agree; pass
+   * `null` to keep the client's own default.
+   *
+   * The client's `sch_PrimitiveAttribute.modify` takes **inches**, so the
+   * format unit is divided by 100 on the way in.
+   */
+  readonly netLabelFontSize?: number | null | undefined
   /** Per-call timeout override for the bridge executions, in milliseconds. */
   readonly timeoutMs?: number | undefined
   /**
@@ -319,12 +329,31 @@ return { status: 'OK', failures, pageUuids };`
  * ports, and shorts batched).
  * @param pageUuid - target page uuid from the preparation stage.
  * @param sheetIndex - sheet index reported back on failures.
+ * @param netLabelFontSize - size written to each created flag/port `Name` attr,
+ * in format units (0.01 inch); `null` leaves the client default.
  * @returns the JavaScript body to pass to {@link EasyEdaBridge.execute}.
  */
-export function renderComponentChunkScript(components: readonly BuildComponent[], pageUuid: string, sheetIndex: number): string {
+export function renderComponentChunkScript(components: readonly BuildComponent[], pageUuid: string, sheetIndex: number, netLabelFontSize: number | null = DEFAULT_NET_LABEL_FONT_SIZE): string {
   return `${THROWN_DETAIL}const doc = { pageUuid: ${JSON.stringify(pageUuid)}, sheetIndex: ${sheetIndex}, components: ${JSON.stringify(components)} };
 const failures = [];
 let created = 0;
+// The flag/port device draws its \`Name\` attr; \`Global Net Name\` is hidden
+// connectivity. The client's modify() takes inches while the document stores
+// 0.01-inch units, hence the /100 below.
+const labelFontSize = ${netLabelFontSize === null ? 'null' : JSON.stringify(netLabelFontSize)};
+const labelTargets = [];
+const recordLabel = (c, p) => {
+  if (labelFontSize === null) return;
+  let id;
+  if (typeof p === 'string') id = p;
+  else if (p !== undefined && p !== null) {
+    try { if (typeof p.getState_PrimitiveId === 'function') id = p.getState_PrimitiveId() } catch (e) {}
+    if (typeof id !== 'string') { try { id = p.primitiveId } catch (e) {} }
+    if (typeof id !== 'string') { try { id = p.id } catch (e) {} }
+  }
+  if (typeof id === 'string') labelTargets.push({ id, irId: c.irId });
+  else failures.push({ code: 'NET_LABEL_FONT_MISSING', irId: c.irId, sheetIndex: doc.sheetIndex });
+};
 await eda.dmt_EditorControl.openDocument(doc.pageUuid);
 const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
 if (!active || active.uuid !== doc.pageUuid) return { status: 'WRONG_PAGE', failures, created };
@@ -333,7 +362,11 @@ if (!active || active.uuid !== doc.pageUuid) return { status: 'WRONG_PAGE', fail
 const occupied = [];
 try { occupied.push(...(await eda.sch_PrimitiveComponent.getAll(undefined, false) || [])) } catch (e) {}
 for (const c of doc.components) {
-  if (occupied.some(p => Math.abs(p.x - c.x) < 0.5 && Math.abs(p.y - c.y) < 0.5)) { created += 1; continue; }
+  const existing = occupied.find(p => Math.abs(p.x - c.x) < 0.5 && Math.abs(p.y - c.y) < 0.5);
+  // An adoptable primitive already sitting here: an earlier attempt placed it
+  // before the bridge timed out. Adopt it, and still record its label, or a
+  // retry would leave that label at the client default with nothing said.
+  if (existing !== undefined) { created += 1; if (c.kind === 'netflag' || c.kind === 'netport') recordLabel(c, existing); continue; }
   try {
     let placed;
     if (c.kind === 'part' || c.kind === 'block') {
@@ -363,11 +396,11 @@ for (const c of doc.components) {
       if (c.netName === undefined) { failures.push({ code: 'MISSING_NET', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
       const identification = /^(GND|AGND|DGND|PGND|PE|GROUND|EARTH)/i.test(c.netName) ? 'Ground' : 'Power';
       placed = await placeOnce(() => eda.sch_PrimitiveComponent.createNetFlag(identification, c.netName, c.x, c.y, c.rotation, c.mirror));
-      if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); else created += 1;
+      if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); else { created += 1; recordLabel(c, placed); }
     } else if (c.kind === 'netport') {
       if (c.netName === undefined) { failures.push({ code: 'MISSING_NET', irId: c.irId, sheetIndex: doc.sheetIndex }); continue; }
       placed = await placeOnce(() => eda.sch_PrimitiveComponent.createNetPort('BI', c.netName, c.x, c.y, c.rotation, c.mirror));
-      if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); else created += 1;
+      if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); else { created += 1; recordLabel(c, placed); }
     } else if (c.kind === 'short') {
       placed = await placeOnce(() => eda.sch_PrimitiveComponent.createShortCircuitFlag(c.x, c.y, c.rotation, c.mirror));
       if (placed === undefined) failures.push({ code: 'CREATE_FAILED', irId: c.irId, sheetIndex: doc.sheetIndex }); else created += 1;
@@ -376,6 +409,25 @@ for (const c of doc.components) {
     }
   } catch (e) {
     failures.push({ code: 'CREATE_THROWN', irId: c.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
+  }
+}
+// One attribute sweep for the whole chunk (getAll() per flag would be O(n^2)).
+// A label we cannot size is a finding, never an aborted placement.
+if (labelTargets.length > 0) {
+  let attrs;
+  try { attrs = await eda.sch_PrimitiveAttribute.getAll() } catch (e) { attrs = undefined }
+  if (!Array.isArray(attrs)) {
+    failures.push({ code: 'NET_LABEL_FONT_FAILED', irId: labelTargets.map(t => t.irId).join(','), sheetIndex: doc.sheetIndex, detail: 'sch_PrimitiveAttribute.getAll did not return an array' });
+  } else {
+    for (const target of labelTargets) {
+      const attr = attrs.find(a => {
+        try { return a.getState_ParentPrimitiveId() === target.id && a.getState_Key() === 'Name' } catch (e) { return false }
+      });
+      if (attr === undefined) { failures.push({ code: 'NET_LABEL_FONT_MISSING', irId: target.irId, sheetIndex: doc.sheetIndex }); continue; }
+      try { await eda.sch_PrimitiveAttribute.modify(attr, { fontSize: labelFontSize / 100 }) } catch (e) {
+        failures.push({ code: 'NET_LABEL_FONT_FAILED', irId: target.irId, sheetIndex: doc.sheetIndex, detail: thrownDetail(e) });
+      }
+    }
   }
 }
 return { status: 'OK', failures, created };`
@@ -743,6 +795,8 @@ function findingCode(scriptCode: string): string {
     case 'UNSUPPORTED_ATTR': return 'SCHEMATIC_BUILD_UNSUPPORTED_ATTR'
     case 'FRAME_FAILED': return 'SCHEMATIC_BUILD_FRAME_FAILED'
     case 'CREATE_TIMEOUT': return 'SCHEMATIC_BUILD_CREATE_TIMEOUT'
+    case 'NET_LABEL_FONT_MISSING': return 'SCHEMATIC_BUILD_NET_LABEL_FONT'
+    case 'NET_LABEL_FONT_FAILED': return 'SCHEMATIC_BUILD_NET_LABEL_FONT'
     default: return 'SCHEMATIC_BUILD_PRIMITIVE_FAILED'
   }
 }
@@ -793,6 +847,8 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
   const retries = options.retries ?? 2
   const backoffMs = options.retryBackoffMs ?? 500
   const batchSize = Math.max(1, options.batchSize ?? 4)
+  // Same default as the serializer, so both delivery paths size labels alike.
+  const netLabelFontSize = options.netLabelFontSize === undefined ? DEFAULT_NET_LABEL_FONT_SIZE : options.netLabelFontSize
   const payload = toBuildPayload(ir, options.createDocument ?? false, options.pageSize ?? SCHEMATIC_PAGE_A4, options.frame)
 
   // Stage 1: preconditions and fresh activated pages. One execution only — it
@@ -886,11 +942,11 @@ export async function buildIntoEasyEda(ir: SchematicIr, options: EasyEdaBuildOpt
     const parts = sheet.components.filter(c => c.kind === 'part')
     const markers = sheet.components.filter(c => c.kind !== 'part' && c.kind !== 'block')
     for (const part of parts) {
-      chunks.push({ script: renderComponentChunkScript([part], pageUuid, sheetIndex), irIds: [part.irId], sheetIndex })
+      chunks.push({ script: renderComponentChunkScript([part], pageUuid, sheetIndex, netLabelFontSize), irIds: [part.irId], sheetIndex })
     }
     for (let i = 0; i < markers.length; i += batchSize) {
       const batch = markers.slice(i, i + batchSize)
-      chunks.push({ script: renderComponentChunkScript(batch, pageUuid, sheetIndex), irIds: batch.map(c => c.irId), sheetIndex })
+      chunks.push({ script: renderComponentChunkScript(batch, pageUuid, sheetIndex, netLabelFontSize), irIds: batch.map(c => c.irId), sheetIndex })
     }
     for (let i = 0; i < sheet.wires.length; i += batchSize) {
       const batch = sheet.wires.slice(i, i + batchSize)

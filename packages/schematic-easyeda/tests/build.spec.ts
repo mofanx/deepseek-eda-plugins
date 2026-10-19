@@ -140,6 +140,30 @@ describe('renderComponentChunkScript', () => {
     expect(code).toContain('raced(')
     expect(code).toContain('CREATE_TIMEOUT')
   })
+
+  it('sizes the created flag/port labels, defaulting to the serializer value', () => {
+    const code = renderComponentChunkScript([{
+      irId: 'f1', kind: 'netflag', netName: 'GND', x: 0, y: 0, rotation: 0, mirror: false,
+    }], 'page-1', 0)
+    // Literal, so a changed default fails here rather than agreeing with itself.
+    expect(code).toContain('const labelFontSize = 6')
+    expect(code).toContain('sch_PrimitiveAttribute.getAll')
+    expect(code).toContain('sch_PrimitiveAttribute.modify')
+    // modify() takes inches; the document stores 0.01-inch units.
+    expect(code).toContain('fontSize: labelFontSize / 100')
+    // A label that cannot be sized is a finding, never a skipped placement.
+    expect(code).toContain('NET_LABEL_FONT_MISSING')
+    expect(code).toContain('NET_LABEL_FONT_FAILED')
+  })
+
+  it('honours an explicit size and leaves the client default alone for null', () => {
+    const five = renderComponentChunkScript([], 'page-1', 0, 5)
+    expect(five).toContain('const labelFontSize = 5')
+    const off = renderComponentChunkScript([], 'page-1', 0, null)
+    expect(off).toContain('const labelFontSize = null')
+    // null short-circuits before any attribute work, so the client decides.
+    expect(off).toContain('if (labelFontSize === null) return;')
+  })
 })
 
 describe('renderWireChunkScript', () => {
@@ -2058,5 +2082,113 @@ describe('seam titleBlock alias', () => {
     ])
     await engine.verify(ir, { bridge, titleBlock: { projectTitle: 'Alias Board' } })
     expect(calls.some(c => c.includes('Alias Board'))).toBe(true)
+  })
+})
+
+describe('net label font size on the primitive path', () => {
+  const markerOf = (calls: readonly string[]): string => {
+    const found = calls.find(code => code.includes('createNetFlag'))
+    if (found === undefined) throw new Error('the marker chunk never ran, so there is nothing to assert')
+    return found
+  }
+
+  it('defaults to the serializer value so both delivery paths agree', async () => {
+    const { bridge, calls } = scriptedBridge(standardQueue())
+    await buildIntoEasyEda(ir, { bridge })
+    expect(markerOf(calls)).toContain('const labelFontSize = 6')
+  })
+
+  it('forwards an explicit size and the client default', async () => {
+    const five = scriptedBridge(standardQueue())
+    await buildIntoEasyEda(ir, { bridge: five.bridge, netLabelFontSize: 5 })
+    expect(markerOf(five.calls)).toContain('const labelFontSize = 5')
+    const off = scriptedBridge(standardQueue())
+    await buildIntoEasyEda(ir, { bridge: off.bridge, netLabelFontSize: null })
+    expect(markerOf(off.calls)).toContain('const labelFontSize = null')
+  })
+
+  it('reaches the engine seam whether the option is set or absent', async () => {
+    const engine = new EasyEdaSchematicEngine({ clientId: 'dsh' } as never)
+    const set = scriptedBridge(standardQueue())
+    await engine.build(ir, { bridge: set.bridge, netLabelFontSize: 5 })
+    expect(markerOf(set.calls)).toContain('const labelFontSize = 5')
+    const unset = scriptedBridge(standardQueue())
+    await engine.build(ir, { bridge: unset.bridge })
+    expect(markerOf(unset.calls)).toContain('const labelFontSize = 6')
+  })
+
+  it('reports a label it could not size as a net-label-font finding, not a lost placement', async () => {
+    const { bridge } = scriptedBridge(standardQueue({
+      markerChunk: {
+        status: 'OK',
+        failures: [
+          { code: 'NET_LABEL_FONT_MISSING', irId: 'nf1', sheetIndex: 0 },
+          { code: 'NET_LABEL_FONT_FAILED', irId: 'nf1', sheetIndex: 0, detail: 'modify threw' },
+        ],
+        created: 4,
+      },
+    }))
+    const report = await buildIntoEasyEda(ir, { bridge })
+    const sized = report.findings.filter(finding => finding.code === 'SCHEMATIC_BUILD_NET_LABEL_FONT')
+    expect(sized).toHaveLength(2)
+  })
+
+  // The chunk is a string, so a presence assertion cannot tell a working sweep
+  // from one that never runs. Execute it against a fake client instead.
+  const AsyncFunction = Object.getPrototypeOf(async () => undefined).constructor as new (
+    ...args: string[]
+  ) => (...values: unknown[]) => Promise<{ status: string; failures: { code: string }[]; created: number }>
+  const fakeClient = (overrides: { created?: unknown; attrs?: unknown; occupied?: unknown } = {}) => {
+    const modifies: unknown[] = []
+    return {
+      modifies,
+      eda: {
+        dmt_EditorControl: { openDocument: async () => undefined },
+        dmt_Schematic: { getCurrentSchematicPageInfo: async () => ({ uuid: 'page-1' }) },
+        sch_PrimitiveComponent: {
+          getAll: async () => ('occupied' in overrides ? overrides.occupied : []),
+          createNetFlag: async () => ('created' in overrides ? overrides.created : 'prim-1'),
+        },
+        sch_PrimitiveAttribute: {
+          getAll: async () => ('attrs' in overrides
+            ? overrides.attrs
+            : [{ getState_ParentPrimitiveId: () => 'prim-1', getState_Key: () => 'Name' }]),
+          modify: async (_attr: unknown, patch: unknown) => { modifies.push(patch) },
+        },
+      },
+    }
+  }
+  const runChunk = async (fontSize: number | null, eda: unknown) =>
+    new AsyncFunction('eda', renderComponentChunkScript([{
+      irId: 'f1', kind: 'netflag', netName: 'GND', x: 100, y: 100, rotation: 0, mirror: false,
+    }], 'page-1', 0, fontSize))(eda)
+
+  it('executes the sweep: 6 stores 0.06in, and null touches nothing', async () => {
+    const sized = fakeClient()
+    expect(await runChunk(6, sized.eda)).toMatchObject({ status: 'OK', created: 1 })
+    expect(sized.modifies).toEqual([{ fontSize: 0.06 }])
+
+    const untouched = fakeClient()
+    expect(await runChunk(null, untouched.eda)).toMatchObject({ status: 'OK', created: 1 })
+    expect(untouched.modifies).toEqual([])
+  })
+
+  it('executes the retry path: a label adopted from an earlier attempt is still sized', async () => {
+    const adopted = fakeClient({ occupied: [{ x: 100, y: 100, getState_PrimitiveId: () => 'prim-1' }] })
+    expect(await runChunk(6, adopted.eda)).toMatchObject({ status: 'OK', created: 1 })
+    expect(adopted.modifies).toEqual([{ fontSize: 0.06 }])
+  })
+
+  it('executes the failure paths: an id-less flag and a non-array getAll stay warnings', async () => {
+    const noId = fakeClient({ created: {} })
+    const warned = await runChunk(6, noId.eda)
+    expect(warned.status).toBe('OK')
+    expect(warned.failures.map(failure => failure.code)).toContain('NET_LABEL_FONT_MISSING')
+    expect(noId.modifies).toEqual([])
+
+    const shapeless = fakeClient({ attrs: { length: 0 } })
+    const failed = await runChunk(6, shapeless.eda)
+    expect(failed.status).toBe('OK')
+    expect(failed.failures.map(failure => failure.code)).toContain('NET_LABEL_FONT_FAILED')
   })
 })
