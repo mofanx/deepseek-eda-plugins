@@ -174,9 +174,36 @@ function shoot(name) {
 // canvas window: skip the project tree (left) and the panel rows (top/bottom)
 const CANVAS = { x0: 300, x1: 0, y0: 92, y1: 578 }
 
+// ---------------------------------------------------- step 1: resolve MAIN
+// The old constant b188905f belonged to a project that no longer exists, so the
+// page step could only ever fail safely. Resolve the live MAIN instead: name,
+// schematic, and the component/wire counts the run must leave untouched.
+const mainStep = await callWithRetry(`
+const pages = (await eda.dmt_Schematic.getAllSchematicPagesInfo()) || [];
+const main = pages.find(p => p.name === 'MAIN');
+if (!main) return { status: 'NO_MAIN', pages: pages.map(p => ({ uuid: p.uuid, name: p.name })) };
+try { await eda.dmt_EditorControl.openDocument(main.uuid) } catch (e) {}
+await new Promise(r => setTimeout(r, 900));
+const cur = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!cur || cur.uuid !== main.uuid) return { status: 'MAIN_NOT_OPEN', main: main.uuid, active: cur };
+return {
+  status: 'OK',
+  main: main.uuid,
+  name: main.name,
+  schematic: main.parentSchematicUuid,
+  components: ((await eda.sch_PrimitiveComponent.getAll(undefined, false)) || []).length,
+  wires: ((await eda.sch_PrimitiveWire.getAll()) || []).length,
+};
+`, { timeoutMs: 120_000 })
+
+if (!mainStep || mainStep.status !== 'OK') {
+  console.error(JSON.stringify({ status: mainStep?.status || 'NO_MAIN', detail: mainStep }, null, 1))
+  process.exit(1)
+}
+
 // ------------------------------------------------------- step 2: calibration
 const calib = await callWithRetry(`
-try { await eda.dmt_EditorControl.openDocument('b188905fffe14e3bb0e7ccd16d5faa0a') } catch (e) {}
+try { await eda.dmt_EditorControl.openDocument(${JSON.stringify(mainStep.main)}) } catch (e) {}
 await new Promise(r => setTimeout(r, 1200));
 try { await eda.dmt_EditorControl.zoomToAllPrimitives() } catch (e) {}
 await new Promise(r => setTimeout(r, 1500));
@@ -217,17 +244,34 @@ const RATIO = 0.85
 // 910 wide) instead of a second page: openDocument does not switch the active
 // page in this client (measured: active stayed MAIN), so a cross-page A/B is
 // not reachable. One page also means calibration and A/B share a single image.
+// Measurement surface: a page we create from the live MAIN's schematic. MAIN
+// itself is never written to - the A/B step deletes every component on the
+// active page before placing its flags, and on MAIN that would wipe the real
+// project. A fresh page keeps the same parent schematic, is empty by
+// construction, and is the only page this run deletes.
 const pageStep = await callWithRetry(`
-const main = 'b188905fffe14e3bb0e7ccd16d5faa0a';
-await eda.dmt_EditorControl.openDocument(main);
-await new Promise(r => setTimeout(r, 800));
-const active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
-if (!active || active.uuid !== main) return { status: 'WRONG_PAGE', active };
+const main = ${JSON.stringify(mainStep.main)};
+const before = new Set(((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid));
+let created = null;
+try { created = await eda.dmt_Schematic.createSchematicPage(${JSON.stringify(mainStep.schematic)}) } catch (e) { created = 'ERR ' + String((e && e.message) || e) }
+await new Promise(r => setTimeout(r, 1000));
+const after = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []);
+const fresh = after.find(p => !before.has(p.uuid));
+const probe = typeof created === 'string' && !created.startsWith('ERR') ? created : (fresh && fresh.uuid);
+if (typeof probe !== 'string') return { status: 'PROBE_PAGE_UNAVAILABLE', created };
+if (probe === main) return { status: 'REFUSED_TARGET_IS_MAIN', probe };
+let active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!active || active.uuid !== probe) {
+  try { await eda.dmt_EditorControl.openDocument(probe) } catch (e) {}
+  await new Promise(r => setTimeout(r, 1000));
+  active = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+}
+if (!active || active.uuid !== probe) return { status: 'WRONG_PAGE', probe, active };
 let maxX = 0;
 for (const c of (await eda.sch_PrimitiveComponent.getAll(undefined, false)) || []) {
   try { const b = c.getState_BoundingBox ? c.getState_BoundingBox() : null; if (b && b.maxX > maxX) maxX = b.maxX } catch (e) {}
 }
-return { status: 'OK', pageUuid: main, backTo: main, occupiedMaxX: maxX };
+return { status: 'OK', pageUuid: probe, backTo: main, occupiedMaxX: maxX, mainComponents: ${JSON.stringify(mainStep.components)} };
 `, { timeoutMs: 120_000 })
 
 if (!pageStep || pageStep.status !== 'OK') {
@@ -236,6 +280,11 @@ if (!pageStep || pageStep.status !== 'OK') {
 }
 
 const madeStep = await callWithRetry(`
+// Safety: the wipe below is only legitimate on the throwaway page this run
+// created. Refuse if the active page drifted back to MAIN or anywhere else.
+const probe = ${JSON.stringify(pageStep.pageUuid)};
+const cur = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!cur || cur.uuid !== probe) return { status: 'WRONG_PAGE', probe, active: cur };
 // Re-runnable: a retry must not stack a second copy of the probe on the page.
 for (const c of (await eda.sch_PrimitiveComponent.getAll(undefined, false)) || []) {
   try { await eda.sch_PrimitiveComponent.delete(c) } catch (e) {}
@@ -306,9 +355,9 @@ return true;
 }
 
 // ------------------------------------------------------------------ cleanup
-// Measured rule: a page that was opened in a tab cannot be deleted until its
-// tab is closed (`closeDocument`), and a page never opened deletes directly.
-// So: close first, then delete, then prove the page list came back to MAIN.
+// Only the probe page this run created is deleted. Other pages (the known P1
+// orphans, or a concurrent member's probe) are neither ours to delete nor part
+// of this script's assertion; we report them and leave them alone.
 const cleanup = await callWithRetry(`
 const ids = ${JSON.stringify(setup.ids)};
 const main = ${JSON.stringify(setup.backTo)};
@@ -318,29 +367,25 @@ try { del = await eda.sch_PrimitiveComponent.delete(ids.length === 1 ? ids[0] : 
 await new Promise(r => setTimeout(r, 900));
 try { await eda.dmt_EditorControl.openDocument(main) } catch (e) {}
 await new Promise(r => setTimeout(r, 1500));
-const log = [];
-const strays = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid).filter(u => u !== main);
-for (const page of strays) {
-  const entry = { page, closed: null, deleted: null };
-  try { entry.closed = JSON.stringify(await eda.dmt_EditorControl.closeDocument(page)) } catch (e) { entry.closed = 'ERR ' + String((e && e.message) || e) }
-  await new Promise(r => setTimeout(r, 1200));
-  try { entry.deleted = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(page)) } catch (e) { entry.deleted = 'ERR ' + String((e && e.message) || e) }
-  await new Promise(r => setTimeout(r, 1200));
-  log.push(entry);
-}
+let closed = null, deleted = null;
+try { closed = JSON.stringify(await eda.dmt_EditorControl.closeDocument(probe)) } catch (e) { closed = 'ERR ' + String((e && e.message) || e) }
+await new Promise(r => setTimeout(r, 1000));
+try { deleted = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(probe)) } catch (e) { deleted = 'ERR ' + String((e && e.message) || e) }
 let pages = [];
 for (let i = 0; i < 6; i++) {
   pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid);
-  if (pages.every(u => u === main)) break;
+  if (!pages.includes(probe)) break;
   await new Promise(r => setTimeout(r, 1000));
 }
 try { await eda.dmt_EditorControl.openDocument(main) } catch (e) {}
 await new Promise(r => setTimeout(r, 1200));
+const mainNow = { components: ((await eda.sch_PrimitiveComponent.getAll(undefined, false)) || []).length, wires: ((await eda.sch_PrimitiveWire.getAll()) || []).length };
 return {
-  primitiveDelete: JSON.stringify(del), log,
+  primitiveDelete: JSON.stringify(del), closed, deleted,
   residuePages: pages.filter(u => u !== main),
   probeGone: !pages.includes(probe),
-  main: { components: ((await eda.sch_PrimitiveComponent.getAll(undefined, false)) || []).length, wires: ((await eda.sch_PrimitiveWire.getAll()) || []).length },
+  main: mainNow,
+  mainIntact: mainNow.components === ${JSON.stringify(mainStep.components)} && mainNow.wires === ${JSON.stringify(mainStep.wires)},
 };
 `, { timeoutMs: 240_000 })
 
@@ -366,6 +411,7 @@ const columnVerdict = (key) => {
 const out = {
   status: calibrationOk ? 'OK' : 'CALIBRATION_FAILED',
   freshness: { gate: 'content-sha256', packages: Object.keys(freshSnapshot.packages).length },
+  resolvedMain: { uuid: mainStep.main, name: mainStep.name, schematic: mainStep.schematic, components: mainStep.components, wires: mainStep.wires },
   calibration: {
     known: calibration.known,
     pixelColumns: calCols.map((c) => ({ width: c.width, bands: c.bands, medianHeight: c.medianHeight })),
@@ -384,8 +430,13 @@ const out = {
   cleanup,
 }
 console.log(JSON.stringify(out, null, 1))
+// Residue is not asserted empty: the project carries known P1 orphans from
+// earlier runs, and concurrent members may add pages mid-run. What must hold is
+// that OUR probe is gone and that MAIN still has the component/wire counts it
+// had before this script touched anything.
 const good = calibrationOk &&
+  madeStep?.status === 'OK' &&
   columnVerdict('control').measuredBands > 0 &&
   columnVerdict('staggered').measuredBands > 0 &&
-  cleanup?.probeGone && (cleanup?.residuePages || []).length === 0
+  cleanup?.probeGone && cleanup?.mainIntact
 process.exitCode = good ? 0 : 1

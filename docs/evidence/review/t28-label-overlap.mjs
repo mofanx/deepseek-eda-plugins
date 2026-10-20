@@ -48,7 +48,8 @@ const log = (step, value) => {
 // ---- 0. current state, and the id we must never touch -----------------------
 const base = await call(`
 const cur = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
-return { main: cur.uuid, schematic: cur.parentSchematicUuid, name: cur.name };
+const pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid);
+return { main: cur.uuid, schematic: cur.parentSchematicUuid, name: cur.name, pages };
 `)
 out.mainPage = base.main
 const FORBIDDEN = new Set([base.main])
@@ -211,7 +212,30 @@ for (let i = 0; i < 5; i++) {
 return { del: JSON.stringify(del), closed, deleted, pages, residue: pages.filter(u => u !== main), probeGone: !pages.includes(probe) };
 `, 180_000)
 out.cleanup = cleanup
-out.status = out.cleanup?.probeGone && (out.cleanup?.residue || []).length === 0 ? 'OK' : 'RESIDUE'
+
+// Superset assertion: the four P1 orphans that predate this script are known
+// residue and must not turn a clean run red. Anything NOT in this list (and not
+// our own probe, which is judged by probeGone) is unexpected and fails.
+// Known set read 2026-10-20 from getAllSchematicPagesInfo(); update it only by
+// adding ids that have been attributed to a named run, never by widening to a
+// wildcard. T28_EXTRA_RESIDUE is a test hook that injects ids so the assertion
+// itself can be proven to fail.
+const KNOWN_RESIDUE = new Set([
+  '03feee84fe9a094d', '1d3d210baee76a03', '2a555a2fca6da7ed', '48c31104b4660672',
+  '7bd5f4ea83b1bb13', 'abb8d61f70f52909', 'b67be58e31a69ef2', 'fba443281f342e5b',
+])
+const observed = out.cleanup?.residue ?? []
+const injected = (process.env.T28_EXTRA_RESIDUE || '').split(',').map((s) => s.trim()).filter(Boolean)
+// Pages already present when this run started belong to someone else's probe on
+// this shared client; only pages that appear AFTER that snapshot are candidates
+// for "this run leaked a page". The explicit KNOWN_RESIDUE list still documents
+// the attributed orphans, and an id that is neither known nor in the snapshot
+// (or injected) fails.
+const preexisting = new Set((base.pages || []).filter((u) => u !== base.main))
+const allowed = new Set([...KNOWN_RESIDUE, ...preexisting])
+const unexpected = [...observed, ...injected].filter((u) => u !== out.probePage && !allowed.has(u))
+out.residue = { knownAtRead: [...KNOWN_RESIDUE].sort(), preexisting: [...preexisting].sort(), observed, injected, unexpected }
+out.status = out.cleanup?.probeGone && unexpected.length === 0 ? 'OK' : 'RESIDUE'
 
 console.log(JSON.stringify(out, null, 1))
 process.exitCode = out.status === 'OK' ? 0 : 1
