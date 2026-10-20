@@ -1,31 +1,67 @@
 {
-  "version": 1,
+  "version": 2,
+  "config": {
+    "root": {
+      "package.json": "b85a52e2485222330572300c7dda25fa88be136b0c2824f62a9b26ed8c42d6e8",
+      "pnpm-workspace.yaml": "092e4bd1af5da98f1cb698b61a674a73219a7e8ed1466beff7e6b4bdcfa2cfa6",
+      "tsconfig.json": "0ef3e792891c5789d01ed5048268fc02917f070f5b703579d0b45b62da291e3e",
+      "tsconfig.base.json": "f749ebec1d657e56acb0559d825aa289bb6a5197509266496929941be561b178",
+      "tsdown.config.ts": "a1f37e3a3bf24547fe60a6b1360e5e2da007558a468c3ffc0a6f3c8629790b2a"
+    },
+    "packages": {
+      "eda-core": {
+        "package.json": "9047b69abee78720e57b15daa68a8f99a70d4e39abb667833d4b87f5f1dbd817",
+        "tsconfig.json": "6ac945229959ee9612f9648e7b465dced5238bc71cdcaa2ed30e48cdcba310a8"
+      },
+      "schematic": {
+        "package.json": "15b88ff050b30f41c0d0645f5340b365b5a46df879539169fd90a8b1e660dc45",
+        "tsconfig.json": "6a7295e2c121e99c8badb5df8db61832952eee08fcb70a3ba8f8af94ba3747e5"
+      },
+      "schematic-bundle": {
+        "package.json": "91bd3eade0a6e6e33242123346235dc8c756b48cd2c4635c32159791384c98e8",
+        "tsconfig.json": "23497c1c1b391f62f9e047618979561daea660786aff8b598af296b39bfdc097"
+      },
+      "schematic-easyeda": {
+        "package.json": "4d812ebc0fb02f927b585a5dbe1bcd36113e9e39d4e4d7632358b986394cfe90",
+        "tsconfig.json": "9f4757f118400bfe549840e647b9fee4f659e71770851bfa9037f65c8b06375f"
+      },
+      "tool-schematic": {
+        "package.json": "c1ad85254fd92299140d1a14c7641b95406972e7e5a47675d0990fda20184cd4",
+        "tsconfig.json": "6ac945229959ee9612f9648e7b465dced5238bc71cdcaa2ed30e48cdcba310a8"
+      }
+    }
+  },
   "packages": {
     "eda-core": {
       "files": 10,
       "sha256": "d367acbb499a0ae1b94284584ef903a00d406c6a811062e24867e6627245e4a2",
-      "hasLib": true
+      "hasLib": true,
+      "lib": "6c5a6d678f74056358eb10541dd7fbf14f8daee2b67251e8a661aee482e75c48"
     },
     "schematic": {
       "files": 7,
       "sha256": "c1b824cfd5257f67b3e4f7ed52407f766210562e29e401576d16b999ca0cd64b",
-      "hasLib": true
+      "hasLib": true,
+      "lib": "50828e9a2d2b780be7651f04e12c1f07a9d323799c0a605dba8cf7ba0a2e92ae"
     },
     "schematic-bundle": {
       "files": 1,
       "sha256": "43e38105acccd5e5c162c6bc50412abd5e0ab336c73a6ec2a2d2ff79c164e237",
-      "hasLib": true
+      "hasLib": true,
+      "lib": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
     },
     "schematic-easyeda": {
       "files": 2,
       "sha256": "b146f2801e34c64a132bd9267df9a27060dbb2c775b56820bfbaaeff3fee89e1",
-      "hasLib": true
+      "hasLib": true,
+      "lib": "d8774fa884e4b21c0e95f40c257a6ffe3d9c28ddac9aa474861d77d19213b0be"
     },
     "tool-schematic": {
       "files": 1,
       "sha256": "e867f82583d21f9b412c851ec4c5262b249de32850b45476206b8e807c81ca2b",
-      "hasLib": true
+      "hasLib": true,
+      "lib": "26f49a38f9efdc708febd5ddc6b844f2ae4709107702baf30dc7b28df6eb73a3"
     }
   },
-  "generatedAt": "2026-10-20T12:19:31.617Z"
+  "generatedAt": "2026-10-20T13:01:40.917Z"
 }

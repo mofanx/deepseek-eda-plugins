@@ -2374,15 +2374,17 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 
 ### 14.35.2 新判据：内容指纹基线
 
-模块 `docs/evidence/review/shared/freshness.mjs`（供所有证据脚本共用）：
+模块 `docs/evidence/review/shared/freshness.mjs`（供所有证据脚本共用），基线为**版本 2**：
 
-- 对每个 `packages/*/src/**/*.ts` 计算 `sha256(relpath\0sha256(bytes))`，按包聚合，**完全不读 mtime**；
-- 与 `shared/freshness-baseline.json` 钉住的摘要比较；失败即 `process.exit(1)`，并在调用桥之前返回；
-- 失败输出 `{status:'STALE_BUILD', reason:'source content differs from the pinned build baseline', drift:[{package,reason:'content',baseline,current}]}`；
-- 其它分支：无基线 → `NO_BASELINE`；基线有 lib 而现在没有 → `lib-missing`；新增包 → `unbaselined`；包消失 → `removed`；
-- `node docs/evidence/review/shared/freshness.mjs --update` 重建基线，`--check` 自检。
+- **源码**：对每个 `packages/*/src/**/*.{ts,tsx,mts,cts}` 计算 `sha256(relpath\0sha256(bytes))`，按包聚合；
+- **构建配置**：根 `package.json`、`pnpm-workspace.yaml`、`tsconfig.json`、`tsconfig.base.json`、`tsdown.config.ts`，加各包的 `package.json` / `tsconfig.json`（当前共 15 项），逐文件记 sha256；
+- **编译产物**：每个包 `lib/index.js` 的 sha256，仅在 `--strict-lib`（或环境变量 `DSH_FRESHNESS_STRICT_LIB=1`）时比对；
+- **完全不读 mtime**。与 `shared/freshness-baseline.json` 比较；失败即 `process.exit(1)`，并在调用桥之前返回；
+- 失败输出 `{status:'STALE_BUILD', strictLib, drift:[…]}`，`drift` 条目按 `scope` 区分：`root-config` / `<pkg>:config` / 包级 `content`；
+- 其它分支：无基线 → `NO_BASELINE`；基线有 lib 而现在没有 → `lib-missing`；新增包 → `unbaselined`；包消失 → `removed`；严格模式下基线无 lib 摘要 → `lib-unpinned`；
+- `node docs/evidence/review/shared/freshness.mjs --update` 重建基线（**总是**记录 lib 摘要），`--check [--strict-lib]` 自检。
 
-为什么不直接比较 lib 与 src 的字节：编译产物与源码不同构，无法逐字节比。因此钉的是"**生成当前 lib 的那份源码内容**"。
+为什么不直接比较 lib 与 src 的字节：编译产物与源码不同构，无法逐字节比。因此钉的是"**生成当前 lib 的那份源码内容**"，配置与产物摘要作为补充。
 
 ### 14.35.3 双向自证
 
@@ -2396,10 +2398,16 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 - **仍用 mtime 旧门（13 个）**：`t26-wire-net-guard`、`t27-flag-stagger`、`t28-label-overlap`、`t29-flag-stagger-readback`、`t30-cross-review-t2`、`t31-overlap-classify`、`t32-flag-glyph-size`、`t33-flag-glyph-crosscheck`、`t33-verify-t31-classify`、`t34-cross-review-t6b`、`t35-count-definitions`、`t36-cross-review-t10`、`t37-flag-component-type`。
 - **另类（未切）**：`t42-cross-review-t10` 用 `git status -- packages` 为空作为门——内容相关，但任何与本次证据无关的脏文件都会让它误报，建议后续也并入本模块。
 
-### 14.35.5 边界
+### 14.35.5 覆盖与边界（基线 v2）
 
-- 基线钉的是 **src**，不是 lib 的字节：lib 若被原地篡改（目录仍在、内容变了）本门察觉不到。它保证的是"当前源码 = 生成该 lib 时的源码"。
-- `--update` 是逃生阀：在未重建的情况下更新基线，会让门放行一个过期构建。约定：`--update` 必须紧跟在成功的 `npx tsc -b` 之后，并与源码改动放在同一个提交里。
-- **"改内容 → 构建 → 还原源码"不被抓**：基线只钉 src，`hasLib` 只是布尔、`snapshot()` 从不读 lib 字节。先改源码并 `tsc -b`，再 `git checkout` 还原源码，此时 lib 已由被还原掉的那版内容编译，而门看到的是还原后的 src——放行。这是"不钉 lib 字节"的直接后果，不是回归；要堵它只能给编译产物也存哈希。
-- **`--update` 在未重建的树上执行无意义**：它只把当前 src 重写成基线，并不验证 lib 与之一致；照此更新后，门会长期放行一个过期构建。故上一条约定（紧跟成功构建）不是流程偏好，而是这个判据成立的前提。
-- **构建配置不在覆盖内**：`walkSource` 只收 `src/**/*.{ts,tsx,mts,cts}`，`packageNames` 只看有没有 `src/`。改 `tsconfig.json`、`package.json`（`exports`/依赖）或根配置同样会改变 lib，但指纹不变。
+**本轮已堵**
+
+- **构建配置**：任一被钉的配置文件改动，默认模式即 `exit 1`，`drift` 形如 `{scope:'eda-core:config', file:'tsconfig.json', reason:'config'}`。实测：给 `eda-core/tsconfig.json` 追加一行注释 → `exit 1`；`git checkout` 还原 → `exit 0`。
+- **编译产物漂移**：`--strict-lib` 下比对 `lib/index.js` 的 sha256。实测"改内容 → `npx tsc -b && npx tsdown --config-loader native` → `git checkout` 还原源码"：默认模式 `exit 0` 且输出与干净基线**逐字节相同**（`{"status":"FRESH","strictLib":false,"packages":5,"files":21,"configs":15}`）；严格模式 `exit 1`，报 `lib-drift`：`6c5a6d67…` → `5f399640…`（bundle 确由被还原掉的那版源码编出）。干净重建后摘要回到 `6c5a6d67…`，严格模式恢复 FRESH。
+  注意：只用 `tsc -b` 不算构建——它只出 `lib/types`，bundle 由 `tsdown` 打；上一轮曾在这里得出过"构建了但哈希没变"的假象。
+
+**仍为边界**
+
+- **默认模式不钉 lib 字节**：日常重建频繁，每次都要求更新基线会制造误杀，故 lib 比对默认关闭，只在收口/CI 用 `--strict-lib`。这意味着默认模式对"构建后还原源码"仍无感——这是刻意的可用性取舍，不是遗漏。
+- **`--update` 是逃生阀**：在未重建的树上更新基线，会让门放行过期构建；约定不变：`--update` 必须紧跟成功的 `npx tsc -b && npx tsdown`，并与源码/配置改动同一提交。
+- **指纹之外的文件**：`pnpm-lock.yaml`、CI 脚本、`node_modules` 里实际安装的编译器版本不在指纹内。lockfile 变化频繁、纳入会天天误报；编译器版本只由 `package.json` 的声明范围间接覆盖。
