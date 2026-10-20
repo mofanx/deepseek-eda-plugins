@@ -118,7 +118,7 @@ const snapshot = async () => {
       const s = stateOf(it);
       const o = ownOf(it);
       if (n === 'sch_PrimitiveAttribute') {
-        rows.push({ id: s.PrimitiveId ?? o.id ?? null, st: { Key: s.Key ?? null, Value: s.Value ?? null, X: s.X ?? null, Y: s.Y ?? null, FontSize: s.FontSize ?? null, ValueVisible: s.ValueVisible ?? null, KeyVisible: s.KeyVisible ?? null } });
+        rows.push({ id: s.PrimitiveId ?? o.id ?? null, st: { Key: s.Key ?? null, Value: s.Value ?? null, X: s.X ?? null, Y: s.Y ?? null, FontSize: s.FontSize ?? null, ValueVisible: s.ValueVisible ?? null, KeyVisible: s.KeyVisible ?? null, ParentPrimitiveId: s.ParentPrimitiveId ?? null, Rotation: s.Rotation ?? null, Color: s.Color ?? null, AlignMode: s.AlignMode ?? null, Align: s.Align ?? null, Bold: s.Bold ?? null, Italic: s.Italic ?? null, UnderLine: s.UnderLine ?? null, FontName: s.FontName ?? null } });
       } else {
         rows.push({ id: s.PrimitiveId ?? o.id ?? o.uuid ?? null, st: s, own: o });
       }

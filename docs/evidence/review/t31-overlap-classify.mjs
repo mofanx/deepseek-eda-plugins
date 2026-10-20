@@ -100,8 +100,22 @@ const buildBox = (r, extendDown) => {
 }
 const blockRows = (extendDown) => {
   const block = buildBox(rects.find((r) => r.PrimitiveId === 'rect2') ?? { TopLeftX: 0, TopLeftY: 0, Width: 0, Height: 0 }, extendDown)
-  const rows = texts.filter((t) => typeof t.Y === 'number' && t.Y >= 40 && t.Y <= 160)
-  return { reading: extendDown ? 'downward' : 'upward', block: [block.y1, block.y2], rowsInBlock: rows.filter((t) => t.Y >= block.y1 && t.Y <= block.y2).length, rowsConsidered: rows.length }
+  // The window runs from y=0 to the top of the title block, not from y=40: the
+  // block's own rows start at 18 and 38, and cutting at 40 silently dropped the
+  // 8 texts that live there (21 in the window, 13 above y=40).
+  const rows = texts.filter((t) => typeof t.Y === 'number' && t.Y >= 0 && t.Y <= 160)
+  const inBlock = rows.filter((t) => t.Y >= block.y1 && t.Y <= block.y2)
+  const ys = (xs) => new Set(xs.map((t) => t.Y)).size
+  return {
+    reading: extendDown ? 'downward' : 'upward',
+    block: [block.y1, block.y2],
+    textsInWindow: rows.length,
+    distinctYInWindow: ys(rows),
+    textsInBlock: inBlock.length,
+    distinctYInBlock: ys(inBlock),
+    allTexts: texts.filter((t) => typeof t.Y === 'number').length,
+    allDistinctY: ys(texts.filter((t) => typeof t.Y === 'number')),
+  }
 }
 const boxes = rects.map((r) => buildBox(r, true)).filter((b) => [b.x1, b.y1, b.x2, b.y2].every(Number.isFinite))
 
@@ -219,6 +233,8 @@ report.netAttributes = {
   count: netKeys,
   wiresCarryingNetProperty: wires.filter((w) => typeof w.Net === 'string' && w.Net.length > 0).length,
   flagComponents: comps.filter((c) => String(c.PrimitiveId ?? '').startsWith('layout:flag:')).length,
+  flagComponentsByGlobalNetName: new Set(attrs.filter((a) => a.Key === 'Global Net Name' && a.ParentPrimitiveId).map((a) => a.ParentPrimitiveId)).size,
+  globalNetNameAttrs: attrs.filter((a) => a.Key === 'Global Net Name').length,
   reading: netKeys === 0
     ? 'net names live on the wire Net property and on flag components (Global Net Name), not as NET attributes; the 119-pair mechanism is the source-import path'
     : 'NET attributes are present, so the 119-pair mechanism is reproducible on this page',
