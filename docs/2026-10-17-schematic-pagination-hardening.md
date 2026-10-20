@@ -2349,3 +2349,54 @@ t2 曾写"y=805 行的 +3V3 与 MCU-30：dy=5、dx=30"。该句把三个坐标�
 **非法值**：两层都拒绝、都不夹取——非数（如 `"5"`）由参数 schema 挡下（`INVALID_ARGS`）；0 与负数通过 schema 后由工具守卫挡下（`SCHEMATIC_NET_LABEL_FONT_SIZE`）。理由是夹取会让拼写错误变成"看起来正常、实际被静默改字号"的文档。
 
 **自证**：删掉 generate 侧 `serialize` 的透传 → 1 红 / 4 绿；删掉 validate 侧 `netLabelFontSize` → 1 红 / 7 绿；两次还原后文件 SHA-256 均与改动值一致（本次 `4433DF82…BDE82`）。该文件 **49/49** 绿；全量 **634** 用例通过、行/分支/函数/语句覆盖率仍 100%（与改前同）。
+
+## 14.35 证据脚本新鲜度门：从 mtime 改为内容指纹
+
+### 14.35.1 失效模式（实测）
+
+旧的证据门（t27–t41 中的多数脚本）只比较 mtime：
+
+```js
+const gate = { src: newest(pkg + '/eda-core/src', '.ts'), lib: newest(pkg + '/eda-core/lib', '.js') }
+if (gate.lib < gate.src) { /* STALE_BUILD, exit 1 */ }
+```
+
+`git checkout -- <file>` 还原内容时会重写 mtime，于是**内容与 HEAD 逐字节相同的树也会被判过期**。以 `t41` 与 `packages/eda-core/src/serialize.ts` 实测（文件内容哈希用 SHA-256）：
+
+| 现场 | 文件 SHA-256 | 退出码 | 输出 |
+|---|---|---|---|
+| A 当前树 | `9DA2C73B…` | 1 | `{"status":"STALE_BUILD","src":…,"lib":…}` |
+| B `git checkout` 还原（只改 mtime） | `9DA2C73B…`（=HEAD） | 1 | 与 A 同 |
+| C 真实改内容 | `1EC607EC…` | 1 | 与 A 同（仅 src 数字变大） |
+| D 再次还原 | `9DA2C73B…`（=HEAD） | 1 | 与 A 同 |
+
+B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被拦），又吞掉了真过期的信号（分不清"该重建"与"只是碰了时钟"）。
+
+### 14.35.2 新判据：内容指纹基线
+
+模块 `docs/evidence/review/shared/freshness.mjs`（供所有证据脚本共用）：
+
+- 对每个 `packages/*/src/**/*.ts` 计算 `sha256(relpath\0sha256(bytes))`，按包聚合，**完全不读 mtime**；
+- 与 `shared/freshness-baseline.json` 钉住的摘要比较；失败即 `process.exit(1)`，并在调用桥之前返回；
+- 失败输出 `{status:'STALE_BUILD', reason:'source content differs from the pinned build baseline', drift:[{package,reason:'content',baseline,current}]}`；
+- 其它分支：无基线 → `NO_BASELINE`；基线有 lib 而现在没有 → `lib-missing`；新增包 → `unbaselined`；包消失 → `removed`；
+- `node docs/evidence/review/shared/freshness.mjs --update` 重建基线，`--check` 自检。
+
+为什么不直接比较 lib 与 src 的字节：编译产物与源码不同构，无法逐字节比。因此钉的是"**生成当前 lib 的那份源码内容**"。
+
+### 14.35.3 双向自证
+
+- **真过期**：给 `serialize.ts` 追加一行注释后运行 `t41` → `exit 1`，耗时 **263 ms**，`drift` 为 `eda-core`：`d367acbb…` → `2be9482d…`（10 个文件）。同一脚本在干净树上需 **723 ms**（含桥发现与回读），说明过期分支在发起网络调用之前就结束。
+- **假过期**：`git checkout` 还原（mtime 已变）后运行 → `exit 0`，输出与改动前那次运行**逐字节相同**（3138 bytes，`-ceq` 为 `True`）。
+- **无基线**：指向不存在的基线路径 → `{"status":"NO_BASELINE",…}`，`exit 1`。
+
+### 14.35.4 切换清单
+
+- **已切换到共享模块（4 个）**：`t38-cross-review-t2.mjs`、`t39-row805.mjs`、`t40-netlabel-surface.mjs`（原本无门，本次补上）、`t41-cross-review-t5.mjs`。
+- **仍用 mtime 旧门（13 个）**：`t26-wire-net-guard`、`t27-flag-stagger`、`t28-label-overlap`、`t29-flag-stagger-readback`、`t30-cross-review-t2`、`t31-overlap-classify`、`t32-flag-glyph-size`、`t33-flag-glyph-crosscheck`、`t33-verify-t31-classify`、`t34-cross-review-t6b`、`t35-count-definitions`、`t36-cross-review-t10`、`t37-flag-component-type`。
+- **另类（未切）**：`t42-cross-review-t10` 用 `git status -- packages` 为空作为门——内容相关，但任何与本次证据无关的脏文件都会让它误报，建议后续也并入本模块。
+
+### 14.35.5 边界
+
+- 基线钉的是 **src**，不是 lib 的字节：lib 若被原地篡改（目录仍在、内容变了）本门察觉不到。它保证的是"当前源码 = 生成该 lib 时的源码"。
+- `--update` 是逃生阀：在未重建的情况下更新基线，会让门放行一个过期构建。约定：`--update` 必须紧跟在成功的 `npx tsc -b` 之后，并与源码改动放在同一个提交里。

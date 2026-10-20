@@ -1,24 +1,11 @@
 // t39: who is on row y=805, and does a wire carry +3V3 / MCU-30? (read-only)
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { gateFreshness } from './shared/freshness.mjs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const pkgDir = join(repoRoot, 'packages')
-const newest = (dir, ext) => {
-  let m = 0
-  const walk = (d) => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const f = join(d, e.name)
-      if (e.isDirectory()) { if (e.name !== 'node_modules' && e.name !== 'dist') walk(f) }
-      else if (e.name.endsWith(ext)) m = Math.max(m, statSync(f).mtimeMs)
-    }
-  }
-  if (existsSync(dir)) walk(dir)
-  return m
-}
-const gate = { src: newest(join(pkgDir, 'eda-core/src'), '.ts'), lib: newest(join(pkgDir, 'eda-core/lib'), '.js') }
-if (gate.lib < gate.src) { console.error(JSON.stringify({ status: 'STALE_BUILD', ...gate })); process.exit(1) }
+gateFreshness(repoRoot)
 
 const { HttpEasyEdaBridge } = await import(pathToFileURL(join(pkgDir, 'eda-core/lib/index.js')).href)
 const bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 20_000 })

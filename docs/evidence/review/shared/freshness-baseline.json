@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "packages": {
+    "eda-core": {
+      "files": 10,
+      "sha256": "d367acbb499a0ae1b94284584ef903a00d406c6a811062e24867e6627245e4a2",
+      "hasLib": true
+    },
+    "schematic": {
+      "files": 7,
+      "sha256": "c1b824cfd5257f67b3e4f7ed52407f766210562e29e401576d16b999ca0cd64b",
+      "hasLib": true
+    },
+    "schematic-bundle": {
+      "files": 1,
+      "sha256": "43e38105acccd5e5c162c6bc50412abd5e0ab336c73a6ec2a2d2ff79c164e237",
+      "hasLib": true
+    },
+    "schematic-easyeda": {
+      "files": 2,
+      "sha256": "b146f2801e34c64a132bd9267df9a27060dbb2c775b56820bfbaaeff3fee89e1",
+      "hasLib": true
+    },
+    "tool-schematic": {
+      "files": 1,
+      "sha256": "e867f82583d21f9b412c851ec4c5262b249de32850b45476206b8e807c81ca2b",
+      "hasLib": true
+    }
+  },
+  "generatedAt": "2026-10-20T12:19:31.617Z"
+}

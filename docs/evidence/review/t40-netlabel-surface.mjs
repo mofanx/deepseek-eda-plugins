@@ -1,8 +1,11 @@
 // t40: is there a NetLabel namespace, and can a wire's label position be set?
+import { gateFreshness } from './shared/freshness.mjs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const pkgDir = join(resolve(import.meta.dirname, '../../..'), 'packages')
+const repoRoot = resolve(import.meta.dirname, '../../..')
+const pkgDir = join(repoRoot, 'packages')
+gateFreshness(repoRoot)
 const { HttpEasyEdaBridge } = await import(pathToFileURL(join(pkgDir, 'eda-core/lib/index.js')).href)
 const bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 20_000 })
 const r = await bridge.execute(`
