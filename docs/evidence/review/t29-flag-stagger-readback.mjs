@@ -28,13 +28,18 @@
 // measured; the symbol height is not measured, so any claim about symbol collision
 // is conditional on an unmeasured h.
 //
-// KNOWN LIMIT (t6): a page that has been activated cannot be removed in this
-// session, and the delete API's return value does not reflect reality (measured:
-// deleteSchematicPage returned true while the page persisted). Cleanup therefore
-// asserts that the residue equals the pre-existing residue plus this run's own
-// probe, which cannot pass silently: an unexpected page, a vanished page, or a
-// lost MAIN all fail.
-//// Safety: every mutating call targets a page this script created, and the id is
+// KNOWN LIMIT: probe pages have not been removable in this session, and the API
+// value does not predict the outcome. Measured raw returns: deleteSchematicPage
+// gave false, false and true for pages that ALL persisted, while one page from an
+// earlier run did vanish on true - so true+gone, true+persisted and
+// false+persisted all occur. Activation is NOT the cause: a page that was never
+// activated (wasActive:false) also returned false and persisted, and the one page
+// that did vanish had been activated. closeDocument returned false every time.
+// GET /eda-windows reports count:1, so there is no second window to delete from.
+// Cleanup therefore asserts that the residue equals the pre-existing residue plus
+// this run own probe, which cannot pass silently: an unexpected page, a vanished
+// page, or a lost MAIN all fail.
+// Safety: every mutating call targets a page this script created, and the id is
 // asserted different from MAIN before anything is created, measured or deleted.
 //
 // Usage: node docs/evidence/review/t29-flag-stagger-readback.mjs
