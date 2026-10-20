@@ -2394,8 +2394,11 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 
 ### 14.35.4 切换清单
 
-- **已切换到共享模块（4 个）**：`t38-cross-review-t2.mjs`、`t39-row805.mjs`、`t40-netlabel-surface.mjs`（原本无门，本次补上）、`t41-cross-review-t5.mjs`。
-- **仍用 mtime 旧门（13 个）**：`t26-wire-net-guard`、`t27-flag-stagger`、`t28-label-overlap`、`t29-flag-stagger-readback`、`t30-cross-review-t2`、`t31-overlap-classify`、`t32-flag-glyph-size`、`t33-flag-glyph-crosscheck`、`t33-verify-t31-classify`、`t34-cross-review-t6b`、`t35-count-definitions`、`t36-cross-review-t10`、`t37-flag-component-type`。
+- **已切换到共享模块（17 个）**：`t38-cross-review-t2.mjs`、`t39-row805.mjs`、`t40-netlabel-surface.mjs`（原本无门，本次补上）、`t41-cross-review-t5.mjs`；以及一次性迁移的 13 个：`t26-wire-net-guard`、`t27-flag-stagger`、`t28-label-overlap`、`t29-flag-stagger-readback`、`t30-cross-review-t2`、`t31-overlap-classify`、`t32-flag-glyph-size`、`t33-flag-glyph-crosscheck`、`t33-verify-t31-classify`、`t34-cross-review-t6b`、`t35-count-definitions`、`t36-cross-review-t10`、`t37-flag-component-type`。
+- **迁移方式**：`t46-codemod-mtime-gate.mjs` 一次性替换 28 种形态（helper、gate 常量、单行/块状 if、`freshness` 变体、t26 的自定义 `newest`、t30 的记录式循环）；不匹配的形态在脚本内单独说明。
+- **输出格式的必要变化**：原先把 `src`/`lib` 的 ISO 时间写进 `fresh`/`freshness` 字段，迁移后改为 `{ gate: 'content-sha256', packages: N }`。mtime 已不存在，无法保留原值；字段名保留，其余输出不动。
+- **迁移后实测**：13/13 在注入内容改动时 exit 1 + `STALE_BUILD` + `drift`（200–380 ms，未触网）；干净树 11/13 exit 0。`t27` 与 `t28` 在门**之后**失败，原因与门无关：t27 硬编码旧工程 MAIN `b188905f…`（该工程已损坏删除，现 MAIN 是 `b275cd23…`）→ `WRONG_PAGE`；t28 断言 `residue.length === 0`，而 4 个 P1 孤儿永久存在 → `RESIDUE`。两者需单独更新预期，不能靠改门掩盖。
+- **运行代价**：为验收实跑这 13 个脚本，`t29`/`t32` 各留下一个探针页（`03feee84…`、`7bd5f4ea…`），残留 4→6；MAIN 未动（21 器件 / 55 导线）。
 - **另类（未切）**：`t42-cross-review-t10` 用 `git status -- packages` 为空作为门——内容相关，但任何与本次证据无关的脏文件都会让它误报，建议后续也并入本模块。
 
 ### 14.35.5 覆盖与边界（基线 v2）

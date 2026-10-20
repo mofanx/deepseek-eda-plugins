@@ -12,36 +12,17 @@
 // and both of their inputs are unreadable on this HEAD.
 //
 // Usage: node docs/evidence/review/t31-overlap-classify.mjs
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { gateFreshness } from './shared/freshness.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
+const freshSnapshot = gateFreshness(repoRoot)
 const pkgDir = join(repoRoot, 'packages')
 const outDir = join(repoRoot, 'docs/evidence/current')
 
 // ---------------------------------------------------------------- preflight
-function newestMtime(dir, ext) {
-  let newest = 0
-  const walk = (d) => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const full = join(d, e.name)
-      if (e.isDirectory()) {
-        if (e.name === 'node_modules' || e.name === 'dist') continue
-        walk(full)
-      } else if (e.name.endsWith(ext)) newest = Math.max(newest, statSync(full).mtimeMs)
-    }
-  }
-  if (existsSync(dir)) walk(dir)
-  return newest
-}
-
-const gate = { src: newestMtime(join(pkgDir, 'eda-core/src'), '.ts'), lib: newestMtime(join(pkgDir, 'eda-core/lib'), '.js') }
-gate.fresh = gate.lib >= gate.src
-if (!gate.fresh) {
-  console.error(JSON.stringify({ status: 'STALE_BUILD', ...gate, hint: 'run npx tsdown first' }, null, 1))
-  process.exit(1)
-}
 
 const { HttpEasyEdaBridge } = await import(pathToFileURL(join(pkgDir, 'eda-core/lib/index.js')).href)
 const bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 20_000 })
@@ -133,7 +114,7 @@ const overlap = (a, b) => {
 }
 const round = (n) => Math.round(n * 100) / 100
 
-const report = { status: 'OK', fresh: { src: new Date(gate.src).toISOString(), lib: new Date(gate.lib).toISOString() } }
+const report = { status: 'OK', fresh: { gate: 'content-sha256', packages: Object.keys(freshSnapshot.packages).length } }
 report.scope = { main, pageCount: pages.length, compCount: comps.length, textCount: texts.length, rectCount: rects.length, wireCount: wires.length, attrCount: attrs.length }
 
 // ---- what the client does and does not expose ------------------------------

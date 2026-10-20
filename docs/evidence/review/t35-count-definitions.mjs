@@ -4,26 +4,13 @@
 //      many distinct y values
 //   C. does the rect mapping stored_y = pageHeight - IR_y hold (border rect
 //      8..1162 maps to itself; title block 1024..1154 maps to 16..146)
-import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { gateFreshness } from './shared/freshness.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
+gateFreshness(repoRoot)
 const pkgDir = join(repoRoot, 'packages')
-const newest = (dir, ext) => {
-  let m = 0
-  const walk = (d) => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const f = join(d, e.name)
-      if (e.isDirectory()) { if (e.name !== 'node_modules' && e.name !== 'dist') walk(f) }
-      else if (e.name.endsWith(ext)) m = Math.max(m, statSync(f).mtimeMs)
-    }
-  }
-  if (existsSync(dir)) walk(dir)
-  return m
-}
-const gate = { src: newest(join(pkgDir, 'eda-core/src'), '.ts'), lib: newest(join(pkgDir, 'eda-core/lib'), '.js') }
-if (gate.lib < gate.src) { console.error(JSON.stringify({ status: 'STALE_BUILD', ...gate })); process.exit(1) }
 
 const { HttpEasyEdaBridge } = await import(pathToFileURL(join(pkgDir, 'eda-core/lib/index.js')).href)
 const bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 20_000 })

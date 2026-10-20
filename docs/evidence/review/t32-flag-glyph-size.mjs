@@ -21,35 +21,13 @@
 // a page can drop out of getAllSchematicPagesInfo() and come back (measured).
 //
 // Usage: node docs/evidence/review/t32-flag-glyph-size.mjs
-import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { gateFreshness } from './shared/freshness.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
+const freshSnapshot = gateFreshness(repoRoot)
 const pkgDir = join(repoRoot, 'packages')
-
-function newestMtime(dir, ext) {
-  let newest = 0
-  const walk = (d) => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const full = join(d, e.name)
-      if (e.isDirectory()) {
-        if (e.name === 'node_modules' || e.name === 'dist') continue
-        walk(full)
-      } else if (e.name.endsWith(ext)) newest = Math.max(newest, statSync(full).mtimeMs)
-    }
-  }
-  if (existsSync(dir)) walk(dir)
-  return newest
-}
-
-const gateSrc = newestMtime(join(pkgDir, 'eda-core/src'), '.ts')
-const gateLib = newestMtime(join(pkgDir, 'eda-core/lib'), '.js')
-const freshness = { src: new Date(gateSrc).toISOString(), lib: new Date(gateLib).toISOString(), fresh: gateLib >= gateSrc }
-if (!freshness.fresh) {
-  console.error(JSON.stringify({ status: 'STALE_BUILD', freshness }, null, 1))
-  process.exit(1)
-}
 
 const { HttpEasyEdaBridge } = await import(pathToFileURL(join(pkgDir, 'eda-core/lib/index.js')).href)
 const bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 20_000 })
@@ -67,7 +45,7 @@ async function call(code, timeoutMs = 90_000) {
   throw last
 }
 
-const out = { status: 'OK', freshness }
+const out = { status: 'OK', freshness: { gate: 'content-sha256', packages: Object.keys(freshSnapshot.packages).length } }
 const TYPES = [
   'sch_PrimitivePolygon',
   'sch_PrimitiveArc',

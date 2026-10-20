@@ -22,40 +22,17 @@
  * page we may destroy; the reference project is off-limits. It stays covered by
  * the executed-chunk tests in build.spec.ts.
  *
- * Preflight (P0.5): the tsdown bundle must be newer than every source file.
+ * Preflight (P0.5): the source fingerprint must match the pinned build baseline.
  * Two earlier rounds produced inverted conclusions by measuring a stale
  * `lib/index.js` — `tsc -b` refreshes `lib/types/*` but NOT the bundle, and
  * these scripts import the bundle. Fail fast instead of measuring a ghost.
  */
-import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { gateFreshness } from './shared/freshness.mjs'
 import { HttpEasyEdaBridge, renderWireChunkScript } from '../../../packages/schematic-easyeda/lib/index.js'
 
 const repo = new URL('../../../', import.meta.url).pathname.replace(/^\/(?=[A-Za-z]:)/, '')
-
-const newest = (dir) => {
-  let best = { path: dir, mtime: 0 }
-  for (const name of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, name.name)
-    if (name.isDirectory()) {
-      const nested = newest(full)
-      if (nested.mtime > best.mtime) best = nested
-    } else if (name.name.endsWith('.ts')) {
-      const { mtimeMs } = statSync(full)
-      if (mtimeMs > best.mtime) best = { path: full, mtime: mtimeMs }
-    }
-  }
-  return best
-}
-
-const src = newest(join(repo, 'packages', 'schematic-easyeda', 'src'))
-const lib = join(repo, 'packages', 'schematic-easyeda', 'lib', 'index.js')
-const libMtime = statSync(lib).mtimeMs
-if (libMtime < src.mtime) {
-  console.error(`FAIL preflight: ${lib} is older than ${src.path} — run \`npx tsdown\` before measuring`)
-  process.exit(1)
-}
-console.log(`PASS preflight: bundle ${new Date(libMtime).toISOString()} >= newest src ${new Date(src.mtime).toISOString()}`)
+gateFreshness(repo)
 
 const bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 20_000 })
 
