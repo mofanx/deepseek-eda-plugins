@@ -196,7 +196,12 @@ const main = ${JSON.stringify(base.main)};
 if (probe === main) return { status: 'REFUSED_DELETE_MAIN' };
 let del = null;
 try { del = await eda.sch_PrimitiveComponent.delete(ids.length === 1 ? ids[0] : ids) } catch (e) { del = String((e && e.message) || e) }
-await new Promise(r => setTimeout(r, 800));
+await new Promise(r => setTimeout(r, 700));
+// Unsaved edits keep deleteSchematicPage returning true while the page survives
+// (measured 2026-10-20, t27 differential). Save while the probe is still active.
+let saved = null;
+try { saved = JSON.stringify(await eda.sch_Document.save()) } catch (e) { saved = 'ERR ' + String((e && e.message) || e) }
+await new Promise(r => setTimeout(r, 700));
 try { await eda.dmt_EditorControl.openDocument(main) } catch (e) {}
 await new Promise(r => setTimeout(r, 1200));
 let closed = null, deleted = null;
@@ -211,7 +216,7 @@ for (let i = 0; i < 5; i++) {
   if (!pages.includes(probe)) break;
   await new Promise(r => setTimeout(r, 1000));
 }
-return { del: JSON.stringify(del), closed, deleted, pages, residue: pages.filter(u => u !== main), probeGone: !pages.includes(probe) };
+return { del: JSON.stringify(del), saved, closed, deleted, pages, residue: pages.filter(u => u !== main), probeGone: !pages.includes(probe) };
 `, 180_000)
 out.cleanup = cleanup
 

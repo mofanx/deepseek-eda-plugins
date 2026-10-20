@@ -376,7 +376,15 @@ const main = ${JSON.stringify(setup.backTo)};
 const probe = ${JSON.stringify(setup.pageUuid)};
 let del = null;
 try { del = await eda.sch_PrimitiveComponent.delete(ids.length === 1 ? ids[0] : ids) } catch (e) { del = String((e && e.message) || e) }
-await new Promise(r => setTimeout(r, 900));
+await new Promise(r => setTimeout(r, 700));
+// Dirty-state coupling (measured 2026-10-20): a page with unsaved edits keeps
+// deleteSchematicPage returning true while the page survives. Saving the probe
+// while it is still the active document makes the same call actually delete it.
+// Segment differential: bare page -> gone; flags without save -> persisted;
+// flags + save -> gone.
+let saved = null;
+try { saved = JSON.stringify(await eda.sch_Document.save()) } catch (e) { saved = 'ERR ' + String((e && e.message) || e) }
+await new Promise(r => setTimeout(r, 700));
 try { await eda.dmt_EditorControl.openDocument(main) } catch (e) {}
 await new Promise(r => setTimeout(r, 1500));
 let closed = null, deleted = null;
@@ -394,7 +402,7 @@ try { await eda.dmt_EditorControl.openDocument(main) } catch (e) {}
 await new Promise(r => setTimeout(r, 1200));
 const mainNow = { components: ((await eda.sch_PrimitiveComponent.getAll(undefined, false)) || []).length, wires: ((await eda.sch_PrimitiveWire.getAll()) || []).length };
 return {
-  primitiveDelete: JSON.stringify(del), closed, deleted,
+  primitiveDelete: JSON.stringify(del), saved, closed, deleted,
   residuePages: pages.filter(u => u !== main),
   probeGone: !pages.includes(probe),
   main: mainNow,

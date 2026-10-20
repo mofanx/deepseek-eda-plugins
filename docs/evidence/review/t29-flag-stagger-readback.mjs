@@ -301,7 +301,12 @@ const main = ${JSON.stringify(base.main)};
 if (probe === main) return { status: 'REFUSED_DELETE_MAIN' };
 let del = null;
 try { del = await eda.sch_PrimitiveComponent.delete(ids.length === 1 ? ids[0] : ids) } catch (e) { del = String((e && e.message) || e) }
-await new Promise(r => setTimeout(r, 800));
+await new Promise(r => setTimeout(r, 700));
+// Unsaved edits keep deleteSchematicPage returning true while the page survives
+// (measured 2026-10-20, t27 differential). Save while the probe is still active.
+let saved = null;
+try { saved = JSON.stringify(await eda.sch_Document.save()) } catch (e) { saved = 'ERR ' + String((e && e.message) || e) }
+await new Promise(r => setTimeout(r, 700));
 try { await eda.dmt_EditorControl.openDocument(main) } catch (e) {}
 await new Promise(r => setTimeout(r, 1300));
 let closed = null;
@@ -316,13 +321,19 @@ for (let i = 0; i < 6; i++) {
   if (!pages.includes(probe)) break;
   await new Promise(r => setTimeout(r, 1000));
 }
-return { deleted, residue: pages.filter(u => u !== main), probeGone: !pages.includes(probe), mainStillThere: pages.includes(main) };
+return { saved, deleted, residue: pages.filter(u => u !== main), probeGone: !pages.includes(probe), mainStillThere: pages.includes(main) };
 `, 180_000)
 out.cleanup = cleanup
-const expected = new Set([...(out.residueBefore ?? []), pageStep.probe])
+const before = new Set(out.residueBefore ?? [])
 const actual = new Set(cleanup?.residue ?? [])
-const sameSet = expected.size === actual.size && [...expected].every((u) => actual.has(u))
-out.expectedResidue = [...expected].sort()
+// The probe is allowed to be present OR gone: saving before the delete (measured
+// 2026-10-20) makes the delete work, and a successful delete must not fail a
+// residue assertion. What must hold: no pre-existing page vanished, and no page
+// we cannot name appeared.
+const allowed = new Set([...before, pageStep.probe])
+const missingPre = [...before].filter((u) => !actual.has(u))
+const extraUnknown = [...actual].filter((u) => !allowed.has(u))
+out.expectedResidue = [...before].sort()
 out.actualResidue = [...actual].sort()
 
 // This script tolerates its own probe surviving (the client often refuses the
@@ -334,10 +345,10 @@ const confirm = await confirmPageGone(async () => {
 }, pageStep.probe)
 out.cleanupConfirm = confirm
 out.leak = { tolerated: true, probe: pageStep.probe, gone: confirm.gone, leakedId: confirm.leakedId }
-out.summary = { leakedProbes: confirm.gone ? [] : [pageStep.probe], leakedCount: confirm.gone ? 0 : 1 }
+out.summary = { leakedProbes: confirm.gone ? [] : [pageStep.probe], leakedCount: confirm.gone ? 0 : 1, missingPre, extraUnknown: extraUnknown.length }
 if (!confirm.gone) console.error(`TOLERATED_PROBE_LEAK probe=${pageStep.probe} deleteSaid=${JSON.stringify(cleanup?.deleted)} recheck=${JSON.stringify(confirm.attempts)}`)
 
-out.status = cleanup?.mainStillThere && sameSet ? 'OK_WITH_KNOWN_RESIDUE' : 'RESIDUE'
+out.status = cleanup?.mainStillThere && missingPre.length === 0 && extraUnknown.length === 0 ? 'OK_WITH_KNOWN_RESIDUE' : 'RESIDUE'
 
 console.log(JSON.stringify(out, null, 1))
 process.exitCode = out.status === 'OK' || out.status === 'OK_WITH_KNOWN_RESIDUE' ? 0 : 1

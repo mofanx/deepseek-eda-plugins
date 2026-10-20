@@ -253,9 +253,15 @@ out.verdict = {
 const cleanup = await call(`
 const probe = ${JSON.stringify(pageStep.probe)};
 const main = ${JSON.stringify(base.main)};
-const expected = ${JSON.stringify([...new Set([...out.residueBefore, pageStep.probe])])};
+const expected = ${JSON.stringify([...new Set(out.residueBefore)])};
+const probeId = probe;
 if (probe === main) return { status: 'REFUSED_DELETE_MAIN' };
 const exists = async (u) => { try { const r = await eda.dmt_Schematic.getSchematicPageInfo(u); return !!(r && r.uuid) } catch (e) { return 'ERR' } };
+// Unsaved edits keep deleteSchematicPage returning true while the page survives
+// (measured 2026-10-20, t27 differential). Save while the probe is still active.
+let saved = null;
+try { saved = JSON.stringify(await eda.sch_Document.save()) } catch (e) { saved = 'ERR ' + String(e && e.message || e).slice(0, 80) }
+await new Promise(r => setTimeout(r, 700));
 let closed = null, deleted = null;
 try { closed = JSON.stringify(await eda.dmt_EditorControl.closeDocument(probe)) } catch (e) { closed = 'ERR' }
 await new Promise(r => setTimeout(r, 900));
@@ -268,10 +274,13 @@ for (let i = 0; i < 3; i++) {
 const listed = pages.filter(u => u !== main);
 const existence = {};
 for (const u of expected) existence[u] = await exists(u);
-const extra = listed.filter(u => !expected.includes(u));
+// The probe is ours: its absence is success (save before delete makes the delete
+// work), its presence is a tolerated leak. Only the pre-existing pages are
+// required to stay, and any page outside {pre-existing, probe} is unexpected.
+const extra = listed.filter(u => u !== probeId && !expected.includes(u));
 const missingFromList = expected.filter(u => !listed.includes(u));
 const missingReal = expected.filter(u => existence[u] !== true);
-return { closed, deleted, listed, existence, extra, missingFromList, missingReal, mainStillThere: pages.includes(main) };
+return { saved, closed, deleted, listed, existence, probePresent: listed.includes(probeId), extra, missingFromList, missingReal, mainStillThere: pages.includes(main) };
 `)
 out.cleanup = cleanup
 
@@ -293,7 +302,9 @@ if (!confirm.gone) console.error(`TOLERATED_PROBE_LEAK probe=${pageStep.probe} d
 // that merely dropped out of the list is reported, not silently accepted.
 const ok = cleanup?.mainStillThere && (cleanup?.extra ?? []).length === 0 && (cleanup?.missingReal ?? []).length === 0
 out.residueCheck = {
-  expected: [...new Set([...out.residueBefore, pageStep.probe])].sort(),
+  expected: [...new Set(out.residueBefore)].sort(),
+  probe: pageStep.probe,
+  probePresent: cleanup?.probePresent === true,
   listed: [...(cleanup?.listed ?? [])].sort(),
   existence: cleanup?.existence ?? {},
   extra: cleanup?.extra ?? [],

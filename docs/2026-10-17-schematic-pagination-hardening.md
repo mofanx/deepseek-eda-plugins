@@ -2440,4 +2440,17 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 
 **清理不能信返回值**：`deleteSchematicPage` 实测出现 `false + 仍在`、`true + 仍在`、`true + 已删` 三种；`t27`/`t28`/`t29`/`t32` 现在都在删除后用 `shared/page-cleanup.mjs` 以 400/800/1600 ms 退避重列，判据是"列表里没有它"，不是返回值。`t27`/`t28` 泄漏即 `exit 1` 并打印 id；`t29`/`t32` 按设计容忍自家探针残留，但必须打印 `TOLERATED_PROBE_LEAK probe=…` 并写入 `summary.leakedProbes`，不再静默。
 
-**2026-10-20 实测（共享客户端，窗口内页面 21→26）**：`T28_SKIP_DELETE=1` → `exit 1`、`PROBE_LEAK`、`probe=d224f8d13804e759`，三次退避均在场；`t28` 正常跑 `exit 0`、无泄漏；`t29`/`t32` `exit 0` 但各自打印并计数了一个残留探针（`255daf39…`、`53193aa8…`）；`t27` 两轮均 `PROBE_LEAK`（`3504dfc8…`、`940ca5ae…`、`bcda3318…`），同一次运行的 `calibration.status` 已是 `UNAVAILABLE`——证明两个状态确实分开，只是泄漏优先级更高。**`t27` 因此仍未 exit 0**：不是断言放宽不够，而是客户端删不掉它自己建的页；`probeGone` 是硬断言，不能用"容忍"换绿。
+**删除失败的真因：脏状态，不是渲染（2026-10-20 四段差分）**。在自建页上做对照，每段都只删自己的页、删前断言目标 ≠ MAIN：
+
+| 段 | 放置 96 flag | `sch_Document.save()` | 删除结果 |
+|---|---|---|---|
+| A 建页即删 | 否 | 否 | 第 1 次退避即消失 |
+| B 打开并 zoomTo 后删（不放置） | 否 | 否 | 第 1 次退避即消失 |
+| C 放 96 flag 后删 | 是 | 否 | `deleted:"true"`，三次退避（400/800/1600 ms）仍在，`getSchematicPageInfo` 仍返回该页 |
+| D 放 96 flag + save 后删 | 是 | 是（`"true"`） | 第 1 次退避即消失 |
+
+结论：**渲染/激活耦合不成立（B 能删），脏状态耦合成立（C 不能删、D 能删）**——页上有未保存修改时 `deleteSchematicPage` 静默失败。修法：删除前在探针仍为活动文档时 `eda.sch_Document.save()`。四个脚本都已加入；随后实测 t27/t28/t29/t32 各跑一轮，页面 **27→27、零新增**（此前 t27 每轮必留一个探针页）。
+
+**实测（2026-10-20，save 修复后）**：`t27` → `exit 2`、`CALIBRATION_UNAVAILABLE`（`cal=UNAVAILABLE`、`probeGone=true`、`mainIntact=true`、MAIN 21/55），页面 27→27；`t28` → `exit 0`、无泄漏；`t29` 探针 `ca00554f…` 被真删后 `exit 0`；`t32` 探针 `76dd1507…` 被真删后 `exit 0`、`probePresent:false`。红侧仍成立：`T28_SKIP_DELETE=1` → `exit 1`、`PROBE_LEAK`、`probe=a570509d2baa4589`，该页随后用守卫删除清掉（`del:"true"`、首次退避即 gone）。
+
+**仍为红的一点**：`t27` 的像素校准在当前共享窗口里仍拿不到行带（可见标签页不是它自己的文档），所以它退 **2 而不是 0**。这是环境不可用，明确不算通过；`probeGone` 与 `mainIntact` 两条硬断言均已满足，没有为了变绿而放宽。
