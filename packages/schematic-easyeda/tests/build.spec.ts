@@ -2198,21 +2198,59 @@ describe('wire net integrity post-condition', () => {
   // existing net name, and still reports success, so the absorbed net leaves
   // the netlist silently (measured live: 55 -> 54 nets, CLK-A1 gone). The chunk
   // therefore re-reads the page and proves the net set never shrinks.
+  type Phase = 'before' | 'after'
+  interface FakeOptions {
+    /** Buses differ between the two reads, so both bus loops are observable. */
+    busNets?: { before?: readonly string[]; after?: readonly string[] }
+    /** Make getState_Net throw during this read: the guard must not guess. */
+    boom?: Phase
+    /** Make getState_Net return null during this read. */
+    nulls?: Phase
+  }
   const AsyncFunction = Object.getPrototypeOf(async () => undefined).constructor as new (
     ...args: string[]
-  ) => (...values: unknown[]) => Promise<{ status: string; failures: { code: string; irId: string }[]; created: number }>
-  const fake = (before: readonly string[], after: readonly string[]) => {
-    let call = 0
-    const asWire = (net: string) => ({ getState_Net: () => net, getState_Line: () => [[0, 0, 10, 0]] })
-    return {
+  ) => (...values: unknown[]) => Promise<{
+    status: string
+    failures: { code: string; irId: string; detail?: string }[]
+    created: number
+  }>
+  const fake = (before: readonly (string | null)[], after: readonly (string | null)[], options: FakeOptions = {}) => {
+    let wireCalls = 0
+    let busCalls = 0
+    let creates = 0
+    const asWire = (net: string | null, phase: Phase) => ({
+      getState_Net: () => {
+        if (options.boom === phase) throw new Error(`getState_Net exploded (${phase} read)`)
+        if (options.nulls === phase) return null
+        return net
+      },
+      // The live client returns a FLAT point array here (verified in t26), and
+      // the chunk's dedupe key is net + '|' + JSON.stringify(line), so the
+      // shape matters: a nested array would key differently and never match.
+      getState_Line: () => [0, 0, 10, 0],
+    })
+    const eda = {
       dmt_EditorControl: { openDocument: async () => undefined },
       dmt_Schematic: { getCurrentSchematicPageInfo: async () => ({ uuid: 'page-1' }) },
       sch_PrimitiveWire: {
-        getAll: async () => (call++ === 0 ? before : after).map(asWire),
-        create: async () => true,
+        getAll: async () => {
+          const phase: Phase = wireCalls++ === 0 ? 'before' : 'after'
+          return (phase === 'before' ? before : after).map(net => asWire(net, phase))
+        },
+        create: async () => {
+          creates += 1
+          return true
+        },
       },
-      sch_PrimitiveBus: { getAll: async () => [] },
+      sch_PrimitiveBus: {
+        getAll: async () => {
+          const phase: Phase = busCalls++ === 0 ? 'before' : 'after'
+          const nets = phase === 'before' ? options.busNets?.before : options.busNets?.after
+          return (nets ?? []).map(net => ({ getState_Net: () => net }))
+        },
+      },
     }
+    return { eda, creates: () => creates }
   }
   const runWireChunk = async (eda: unknown, wires: readonly unknown[]) =>
     new AsyncFunction('eda', renderWireChunkScript(wires as never, 'page-1', 0))(eda)
@@ -2221,21 +2259,24 @@ describe('wire net integrity post-condition', () => {
   it('flags a net this chunk asked for that the client silently absorbed', async () => {
     // The absorbed wire keeps the EXISTING name, so the requested net never
     // appears at all - a before/after comparison alone cannot see it.
-    const result = await runWireChunk(fake(['A'], ['A']), [wire('w-b', 'B')])
+    const result = await runWireChunk(fake(['A'], ['A']).eda, [wire('w-b', 'B')])
     expect(result.status).toBe('OK')
     expect(result.failures.map(failure => failure.code)).toEqual(['WIRE_NET_LOST'])
     expect(result.failures[0]?.irId).toBe('w-b')
+    // The finding must carry the net it is about, or nobody can act on it.
+    expect(result.failures[0]?.detail).toBe('B')
   })
 
   it('flags a net that was on the page before the chunk and is gone after', async () => {
-    const result = await runWireChunk(fake(['A', 'GONE'], ['A', 'C']), [wire('w-c', 'C')])
+    const result = await runWireChunk(fake(['A', 'GONE'], ['A', 'C']).eda, [wire('w-c', 'C')])
     expect(result.failures.map(failure => failure.code)).toEqual(['WIRE_NET_LOST'])
     // No IR row owns the pre-existing net, so the finding names the sheet only.
     expect(result.failures[0]?.irId).toBe('')
+    expect(result.failures[0]?.detail).toBe('GONE')
   })
 
   it('stays quiet when the net set only grows', async () => {
-    const result = await runWireChunk(fake(['A'], ['A', 'C']), [wire('w-c', 'C')])
+    const result = await runWireChunk(fake(['A'], ['A', 'C']).eda, [wire('w-c', 'C')])
     expect(result.failures).toEqual([])
   })
 
@@ -2253,5 +2294,85 @@ describe('wire net integrity post-condition', () => {
     expect(lost[0]?.severity).toBe('error')
     // Losing a net is only actionable if the finding says which one.
     expect(lost[0]?.message).toContain('CLK-A1')
+  })
+
+  it('watches bus nets too, not just wires', async () => {
+    // Buses are a separate primitive collection; a net living on a bus is
+    // invisible to a wire-only snapshot.
+    const vanished = await runWireChunk(
+      fake([], [], { busNets: { before: ['BUS_A'], after: [] } }).eda,
+      [],
+    )
+    expect(vanished.failures.map(failure => failure.code)).toEqual(['WIRE_NET_LOST'])
+    expect(vanished.failures[0]?.detail).toBe('BUS_A')
+
+    const stable = await runWireChunk(
+      fake([], [], { busNets: { before: ['BUS_A'], after: ['BUS_A'] } }).eda,
+      [],
+    )
+    expect(stable.failures).toEqual([])
+  })
+
+  it('does not call a net lost when the page cannot be read back', async () => {
+    // A getter that throws must not be read as a deletion. Guessing here would
+    // turn a healthy page into a blocking, error-severity finding.
+    const result = await runWireChunk(fake(['A', 'GONE'], ['A'], { boom: 'after' }).eda, [])
+    expect(result.status).toBe('OK')
+    expect(result.failures).toEqual([])
+  })
+
+  it('ignores a wire whose net getter returns null', async () => {
+    const result = await runWireChunk(fake(['A'], ['A'], { nulls: 'before' }).eda, [])
+    expect(result.failures).toEqual([])
+  })
+
+  it('reuses a wire already on the page instead of creating it again', async () => {
+    // Same net and same line as the page: the chunk's dedupe key is
+    // net + '|' + JSON.stringify(line), so this must skip create() entirely
+    // and must not report the net as missing.
+    const { eda, creates } = fake(['A'], ['A'])
+    const result = await runWireChunk(eda, [{ irId: 'w-dup', kind: 'wire', net: 'A', dots: [0, 0, 10, 0] }])
+    expect(result.created).toBe(1)
+    expect(creates()).toBe(0)
+    expect(result.failures).toEqual([])
+  })
+
+  it('does not call a requested net lost when the after read yields no name', async () => {
+    // Asking for B; the page came back with A intact plus one nameless wire,
+    // which is what an absorbed B looks like. That one new nameless slot is an
+    // alibi for B, and for B only - A is present, so nothing is claimed.
+    const result = await runWireChunk(fake(['A'], ['A', null], { nulls: 'after' }).eda, [wire('w-b', 'B')])
+    expect(result.status).toBe('OK')
+    expect(result.failures).toEqual([])
+  })
+
+  it('does not call a requested net lost when the after read throws', async () => {
+    const result = await runWireChunk(fake(['A'], ['A'], { boom: 'after' }).eda, [wire('w-b', 'B')])
+    expect(result.status).toBe('OK')
+    expect(result.failures).toEqual([])
+  })
+
+  it('still reports real losses once the page reads back cleanly', async () => {
+    // Guards against over-suppression: with both reads clean, the requested net
+    // D that never appeared AND the pre-existing net GONE that vanished must
+    // both come through.
+    const result = await runWireChunk(fake(['A', 'GONE'], ['A']).eda, [wire('w-d', 'D')])
+    expect(result.failures.map(failure => failure.detail).sort()).toEqual(['D', 'GONE'])
+  })
+
+  it('still reports a loss when the page holds a nameless wire it already had', async () => {
+    // Review counterexample: before [A, <null>] -> after [<null>]. That nameless
+    // wire existed before the chunk, so it cannot be hiding A. A page-level gate
+    // stayed silent here and A's disappearance went unreported.
+    const result = await runWireChunk(fake(['A', null], [null]).eda, [])
+    expect(result.failures.map(failure => failure.code)).toEqual(['WIRE_NET_LOST'])
+    expect(result.failures[0]?.detail).toBe('A')
+  })
+
+  it('spends a nameless slot on at most one missing net', async () => {
+    // One NEW nameless wire can hide one net, not two: it excuses the requested
+    // B and leaves the pre-existing A reported, instead of silencing the page.
+    const result = await runWireChunk(fake(['A'], [null]).eda, [wire('w-b', 'B')])
+    expect(result.failures.map(failure => failure.detail)).toEqual(['A'])
   })
 })

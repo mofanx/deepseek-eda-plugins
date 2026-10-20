@@ -455,14 +455,17 @@ const seen = new Set();
 // leaves the netlist while create() still reports success (measured live:
 // 55 -> 54 nets, CLK-A1 gone). Snapshot the net set and prove it never shrinks.
 const netsBefore = new Set();
-let beforeUnreadable = 0;
+// Pre-existing nameless slots: wires that are there but report no readable
+// name. Counted so they cannot later be spent as an excuse for a net that
+// really vanished - they were already nameless before this chunk ran.
+let beforeUnnamed = 0;
 try {
   for (const w of await eda.sch_PrimitiveWire.getAll() || []) {
     try { seen.add(w.getState_Net() + '|' + JSON.stringify(w.getState_Line())) } catch (e) {}
-    try { const n = w.getState_Net(); if (typeof n === 'string' && n !== '') netsBefore.add(n) } catch (e) { beforeUnreadable += 1 }
+    try { const n = w.getState_Net(); if (typeof n === 'string' && n !== '') netsBefore.add(n); else beforeUnnamed += 1 } catch (e) { beforeUnnamed += 1 }
   }
-} catch (e) { beforeUnreadable += 1 }
-try { for (const b of await eda.sch_PrimitiveBus.getAll() || []) { try { const n = b.getState_Net(); if (typeof n === 'string' && n !== '') netsBefore.add(n) } catch (e) { beforeUnreadable += 1 } } } catch (e) {}
+} catch (e) {}
+try { for (const b of await eda.sch_PrimitiveBus.getAll() || []) { try { const n = b.getState_Net(); if (typeof n === 'string' && n !== '') netsBefore.add(n); else beforeUnnamed += 1 } catch (e) { beforeUnnamed += 1 } } } catch (e) {}
 // Nets this chunk is asking for. Their absence afterwards is unambiguous: a
 // net the client absorbed into an existing wire keeps that wire's name, so the
 // requested net never appears and is invisible to a before/after comparison.
@@ -495,26 +498,47 @@ for (const w of doc.wires) {
 // re-reading the page rather than trusting create(), which merges silently.
 try {
   const netsAfter = new Set();
+  let afterUnnamed = 0;
   let afterUnreadable = 0;
-  for (const w of await eda.sch_PrimitiveWire.getAll() || []) {
-    try { const n = w.getState_Net(); if (typeof n === 'string' && n !== '') netsAfter.add(n) } catch (e) { afterUnreadable += 1 }
-  }
-  try { for (const b of await eda.sch_PrimitiveBus.getAll() || []) { try { const n = b.getState_Net(); if (typeof n === 'string' && n !== '') netsAfter.add(n) } catch (e) { afterUnreadable += 1 } } } catch (e) {}
+  let afterBroken = 0;
+  // A nameless wire is a SUCCESSFUL read of "this wire has no name"; a throw is
+  // a FAILED read. Counted separately because they license different
+  // conclusions - see the alibi rule below.
+  try {
+    for (const w of await eda.sch_PrimitiveWire.getAll() || []) {
+      try { const n = w.getState_Net(); if (typeof n === 'string' && n !== '') netsAfter.add(n); else afterUnnamed += 1 } catch (e) { afterUnreadable += 1 }
+    }
+  } catch (e) { afterBroken += 1 }
+  try { for (const b of await eda.sch_PrimitiveBus.getAll() || []) { try { const n = b.getState_Net(); if (typeof n === 'string' && n !== '') netsAfter.add(n); else afterUnnamed += 1 } catch (e) { afterUnreadable += 1 } } } catch (e) { afterBroken += 1 }
+  // Suppression is per net, not per page. A nameless slot in the after read
+  // could be a missing net wearing no name, so each such slot is one "alibi"
+  // that may excuse exactly ONE missing net. Only the surplus over the page's
+  // pre-existing nameless slots counts: a wire that was already nameless before
+  // the chunk cannot be hiding a net it never had.
+  // Counterexample this rule fixes (found in review): before [A, <null>] ->
+  // after [<null>]. One unrelated nameless wire silenced the whole page and A's
+  // disappearance went unreported.
+  // A failed read is a different animal: we cannot know what it would have
+  // said, so the whole comparison is untrustworthy and every claim is dropped
+  // rather than guessed. Downgrading to a warning would still put an
+  // unsubstantiated claim in front of the user; the read-back stage compares
+  // the delivered netlist against the IR, so a real loss resurfaces there with
+  // better evidence than this chunk has.
+  const pageTrusted = afterBroken === 0 && afterUnreadable === 0;
+  let alibis = pageTrusted ? afterUnnamed - beforeUnnamed : Number.POSITIVE_INFINITY;
   const reported = new Set();
   for (const net of intended) {
     if (netsAfter.has(net)) continue;
     reported.add(net);
+    if (alibis > 0) { alibis -= 1; continue; }
     const culprit = doc.wires.find(x => x.net === net);
     failures.push({ code: 'WIRE_NET_LOST', irId: culprit ? culprit.irId : '', sheetIndex: doc.sheetIndex, detail: net });
   }
-  // A net that was already on the page is a loss too, but only when both reads
-  // were clean: a getState_Net() that throws must not look like a deletion.
-  if (beforeUnreadable === 0 && afterUnreadable === 0) {
-    for (const net of netsBefore) {
-      if (netsAfter.has(net) || reported.has(net)) continue;
-      const culprit = doc.wires.find(x => x.net === net);
-      failures.push({ code: 'WIRE_NET_LOST', irId: culprit ? culprit.irId : '', sheetIndex: doc.sheetIndex, detail: net });
-    }
+  for (const net of netsBefore) {
+    if (netsAfter.has(net) || reported.has(net)) continue;
+    if (alibis > 0) { alibis -= 1; continue; }
+    const culprit = doc.wires.find(x => x.net === net);
+    failures.push({ code: 'WIRE_NET_LOST', irId: culprit ? culprit.irId : '', sheetIndex: doc.sheetIndex, detail: net });
   }
 } catch (e) {}
 return { status: 'OK', failures, created };`
