@@ -107,7 +107,7 @@ export function gateFreshness(repoRoot, { baselinePath = BASELINE_PATH } = {}) {
     console.error(JSON.stringify({
       status: 'NO_BASELINE',
       baselinePath,
-      hint: 'run `node docs/evidence/review/lib/freshness.mjs --update` after a successful build',
+      hint: 'run `node docs/evidence/review/shared/freshness.mjs --update` after a successful build',
     }))
     process.exit(1)
   }
@@ -118,7 +118,7 @@ export function gateFreshness(repoRoot, { baselinePath = BASELINE_PATH } = {}) {
       status: 'STALE_BUILD',
       reason: 'source content differs from the pinned build baseline',
       drift: problems,
-      hint: 'rebuild with `npx tsc -b`; if the source change is intended, then run `node docs/evidence/review/lib/freshness.mjs --update`',
+      hint: 'rebuild with `npx tsc -b`; if the source change is intended, then run `node docs/evidence/review/shared/freshness.mjs --update`',
     }, null, 1))
     process.exit(1)
   }
@@ -148,7 +148,7 @@ if (invokedDirectly) {
       files: Object.values(current.packages).reduce((sum, pkg) => sum + pkg.files, 0),
     }))
   } else {
-    console.log('usage: node docs/evidence/review/lib/freshness.mjs --update | --check')
+    console.log('usage: node docs/evidence/review/shared/freshness.mjs --update | --check')
     process.exitCode = 2
   }
 }
