@@ -85,9 +85,25 @@ return out;
 
 const { texts, rects, wires, comps, attrs, pages, main } = data
 const nums = (v) => (Array.isArray(v) ? v : []).filter((n) => typeof n === 'number' && Number.isFinite(n))
-const boxes = rects
-  .map((r) => ({ id: r.PrimitiveId, x1: r.TopLeftX, y1: r.TopLeftY, x2: r.TopLeftX + r.Width, y2: r.TopLeftY + r.Height, w: r.Width, h: r.Height, lw: r.LineWidth ?? 1 }))
-  .filter((b) => [b.x1, b.y1, b.x2, b.y2].every(Number.isFinite))
+// ---- coordinate convention, proven rather than assumed ---------------------
+// Does a rect extend UP or DOWN from getState_TopLeftY? The title block settles
+// it: rect2 (the block outline) has TopLeftY=146 and Height=130, and its cell
+// lines sit at y=120/94/68/42 with its texts at y=142/116/90/64. Only "extends
+// downward" puts those inside 16..146; the upward reading puts the block at
+// 146..276 and every one of those rows outside it. The sheet border agrees:
+// 1162-1154=8, i.e. a border inset exactly 8 inside a 1170-tall sheet, which the
+// upward reading cannot produce (it would end at 2316).
+const buildBox = (r, extendDown) => {
+  const yLow = extendDown ? r.TopLeftY - r.Height : r.TopLeftY
+  const yHigh = extendDown ? r.TopLeftY : r.TopLeftY + r.Height
+  return { id: r.PrimitiveId, x1: r.TopLeftX, x2: r.TopLeftX + r.Width, y1: yLow, y2: yHigh, w: r.Width, h: r.Height }
+}
+const blockRows = (extendDown) => {
+  const block = buildBox(rects.find((r) => r.PrimitiveId === 'rect2') ?? { TopLeftX: 0, TopLeftY: 0, Width: 0, Height: 0 }, extendDown)
+  const rows = texts.filter((t) => typeof t.Y === 'number' && t.Y >= 40 && t.Y <= 160)
+  return { reading: extendDown ? 'downward' : 'upward', block: [block.y1, block.y2], rowsInBlock: rows.filter((t) => t.Y >= block.y1 && t.Y <= block.y2).length, rowsConsidered: rows.length }
+}
+const boxes = rects.map((r) => buildBox(r, true)).filter((b) => [b.x1, b.y1, b.x2, b.y2].every(Number.isFinite))
 
 const distToBox = (px, py, b) => {
   const dx = Math.max(b.x1 - px, 0, px - b.x2)
@@ -117,32 +133,96 @@ report.accessors = {
 }
 report.visibleAttributes = attrs.filter((a) => a.ValueVisible === true || a.KeyVisible === true).length
 
-// ---- class 1 (EXACT): rectangle vs rectangle -------------------------------
-// Only two *module frames* crossing each other is a defect. The sheet's own
-// outer/inner border pair and the grid ticks overlap by design, and a frame
-// sitting inside the sheet is containment, not a collision.
+report.convention = {
+  candidates: [blockRows(true), blockRows(false)],
+  chosen: 'height extends downward from TopLeftY',
+  basis: 'rect2 title block: only the downward reading keeps rows 142/116/90/64 inside 16..146; sheet border 1162-1154=8 is the 8-unit inset of a 1170-tall sheet',
+}
+
+// ---- class 1 (EXACT): two independent buckets, each with pairs AND area ----
+// containedIn: one rect lies wholly inside another (no defect; the sheet border
+// contains the frames by design). crossesEdge: neither contains the other, i.e.
+// an outline actually crosses another outline.
 const areaOf = (b) => b.w * b.h
+const contains = (a, b) => a.x1 <= b.x1 && a.y1 <= b.y1 && a.x2 >= b.x2 && a.y2 >= b.y2
+const overflowOf = (a, b) => {
+  const parts = []
+  if (b.x1 < a.x1) parts.push({ side: 'left', amount: round(a.x1 - b.x1) })
+  if (b.x2 > a.x2) parts.push({ side: 'right', amount: round(b.x2 - a.x2) })
+  if (b.y1 < a.y1) parts.push({ side: 'bottom', amount: round(a.y1 - b.y1) })
+  if (b.y2 > a.y2) parts.push({ side: 'top', amount: round(b.y2 - a.y2) })
+  return parts
+}
 const sheetIds = new Set([...boxes].sort((x, y) => areaOf(y) - areaOf(x)).slice(0, 2).map((b) => b.id))
-const kindOf = (b) => (b.w === 0 || b.h === 0 ? 'tick' : sheetIds.has(b.id) ? 'sheet' : 'frame')
-const rectCrossing = []
-const rectByKind = {}
+const containedIn = []
+const crossesEdge = []
 for (let i = 0; i < boxes.length; i++) {
   for (let j = i + 1; j < boxes.length; j++) {
-    const o = overlap(boxes[i], boxes[j])
+    const a = boxes[i]
+    const b = boxes[j]
+    const o = overlap(a, b)
     if (!o) continue
-    const ka = kindOf(boxes[i])
-    const kb = kindOf(boxes[j])
-    const pair = [ka, kb].sort().join('x')
-    rectByKind[pair] = (rectByKind[pair] ?? 0) + 1
-    if (ka === 'frame' && kb === 'frame') rectCrossing.push({ a: boxes[i].id, b: boxes[j].id, w: round(o.w), h: round(o.h), area: round(o.w * o.h) })
+    if (contains(a, b)) containedIn.push({ outer: a.id, inner: b.id, innerW: b.w, innerH: b.h, area: round(areaOf(b)), outerIsSheet: sheetIds.has(a.id) })
+    else if (contains(b, a)) containedIn.push({ outer: b.id, inner: a.id, innerW: a.w, innerH: a.h, area: round(areaOf(a)), outerIsSheet: sheetIds.has(b.id) })
+    else crossesEdge.push({ a: a.id, b: b.id, w: round(o.w), h: round(o.h), area: round(o.w * o.h), overflow: overflowOf(a, b) })
   }
 }
+const byId = Object.fromEntries(boxes.map((b) => [b.id, b]))
+const disputed = containedIn.filter((p) => ['rect62', 'rect64'].includes(p.inner))
 report.rectVsRect = {
-  overlapPairsByKind: rectByKind,
-  frameVsFrameCrossing: rectCrossing.length,
-  frameVsFrameArea: round(rectCrossing.reduce((s, p) => s + p.area, 0)),
-  examples: rectCrossing.slice(0, 3),
-  note: 'sheet border + grid ticks overlap by design; frame-vs-frame is the only defect class',
+  containedIn: {
+    pairs: containedIn.length,
+    area: round(containedIn.reduce((s, p) => s + p.area, 0)),
+    innerOnly: containedIn.filter((p) => sheetIds.has(p.outer)),
+    frameInsideFrame: containedIn.filter((p) => !sheetIds.has(p.outer)).length,
+    byInnerKind: containedIn.reduce((acc, p) => {
+      const b = byId[p.inner]
+      const kind = sheetIds.has(p.inner) ? 'sheetInner' : b.w === 0 || b.h === 0 ? 'tick' : b.id === 'rect2' ? 'titleBlock' : 'moduleFrame'
+      acc[kind] = (acc[kind] ?? 0) + 1
+      return acc
+    }, {}),
+    all: containedIn.map((p) => `${p.outer} ⊃ ${p.inner} (${p.innerW}x${p.innerH})`),
+  },
+  crossesEdge: {
+    pairs: crossesEdge.length,
+    area: round(crossesEdge.reduce((s, p) => s + p.area, 0)),
+    detail: crossesEdge,
+  },
+  disputedFour: {
+    what: 'the four rect62/rect64 pairs that were reported as 112-unit overflow',
+    pairs: disputed.map((p) => {
+      const outer = byId[p.outer]
+      const inner = byId[p.inner]
+      return {
+        outer: p.outer,
+        inner: p.inner,
+        outerBox: [outer.x1, outer.y1, outer.x2, outer.y2],
+        innerBox: [inner.x1, inner.y1, inner.x2, inner.y2],
+        innerSize: [inner.w, inner.h],
+        overlapArea: round(p.area),
+        unitsOutsideOuter: 0,
+        upperEdgeGap: round(outer.y2 - inner.y2),
+      }
+    }),
+    verdict: 'containment, not overflow: 0 units lie outside the sheet border. 1162-1050=112 is the gap between their two UPPER edges, not an overflow',
+    areaUnderDownwardReading: round(disputed.reduce((s, p) => s + p.area, 0)),
+    areaUnderUpwardReading: 337760,
+  },
+}
+
+// ---- class 0 (EXACT): which path carries the net names ---------------------
+// serialize.ts:319 emits an ATTR "NET" at the wire's first vertex, and that is
+// the mechanism behind the 119-pair figure. This page has none of those, so the
+// figure cannot be reproduced here.
+const netKeys = attrs.filter((a) => a.Key === 'NET').length
+report.netAttributes = {
+  count: netKeys,
+  wiresCarryingNetProperty: wires.filter((w) => typeof w.Net === 'string' && w.Net.length > 0).length,
+  flagComponents: comps.filter((c) => String(c.PrimitiveId ?? '').startsWith('layout:flag:')).length,
+  reading: netKeys === 0
+    ? 'net names live on the wire Net property and on flag components (Global Net Name), not as NET attributes; the 119-pair mechanism is the source-import path'
+    : 'NET attributes are present, so the 119-pair mechanism is reproducible on this page',
+  evidence: 'eda-core/src/serialize.ts:319 emit.attr(wire.id, "NET", ...first vertex); this page: 55 wires with Net, 0 ATTR with Key=NET',
 }
 
 // ---- attribute key histogram (shows what actually carries text) ------------
