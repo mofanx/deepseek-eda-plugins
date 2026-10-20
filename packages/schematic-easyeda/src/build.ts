@@ -524,8 +524,21 @@ try {
   // unsubstantiated claim in front of the user; the read-back stage compares
   // the delivered netlist against the IR, so a real loss resurfaces there with
   // better evidence than this chunk has.
+  // Cap the excuse at one. The measured absorption case does NOT produce a
+  // nameless slot - the surviving wire keeps its own name (§14.25.2: 55 -> 54,
+  // CLK-A1 gone, the merged segment still named) - so a nameless slot is not
+  // "the absorption signature". It is an unexplained reading, and this is a
+  // fixed margin of one, not a model that scales with how many appear.
+  // The cap is a production trade-off, not a test artefact: a missed loss is
+  // silent and permanent (the wire is gone and nobody re-checks it), while a
+  // reported one is loud and verifiable (the net is visibly there, re-run).
+  // Pinning the margin at one puts the uncertainty on the cheap side. Beyond
+  // one nameless slot the page is in a state we have no measured model for, so
+  // claiming less - not more - is the defensible move.
+  // If that reasoning stops holding, remove the Math.min rather than the test:
+  // an excuse that exists only to keep a test green is worse than no excuse.
   const pageTrusted = afterBroken === 0 && afterUnreadable === 0;
-  let alibis = pageTrusted ? afterUnnamed - beforeUnnamed : Number.POSITIVE_INFINITY;
+  let alibis = pageTrusted ? Math.min(afterUnnamed - beforeUnnamed, 1) : Number.POSITIVE_INFINITY;
   const reported = new Set();
   for (const net of intended) {
     if (netsAfter.has(net)) continue;

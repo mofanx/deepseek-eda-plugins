@@ -2341,7 +2341,7 @@ describe('wire net integrity post-condition', () => {
     // Asking for B; the page came back with A intact plus one nameless wire,
     // which is what an absorbed B looks like. That one new nameless slot is an
     // alibi for B, and for B only - A is present, so nothing is claimed.
-    const result = await runWireChunk(fake(['A'], ['A', null], { nulls: 'after' }).eda, [wire('w-b', 'B')])
+    const result = await runWireChunk(fake(['A'], ['A', null]).eda, [wire('w-b', 'B')])
     expect(result.status).toBe('OK')
     expect(result.failures).toEqual([])
   })
@@ -2374,5 +2374,23 @@ describe('wire net integrity post-condition', () => {
     // B and leaves the pre-existing A reported, instead of silencing the page.
     const result = await runWireChunk(fake(['A'], [null]).eda, [wire('w-b', 'B')])
     expect(result.failures.map(failure => failure.detail)).toEqual(['A'])
+  })
+
+  it('S7: two new nameless slots excuse one loss, not two', async () => {
+    // S7 boundary. One nameless slot is the only ambiguity we price in; two or
+    // more is a page state we have no measured model for, so the excuse must
+    // not scale with the noise. A and B both vanish while the page gains two
+    // nameless wires: exactly one loss may be excused, so exactly one must be
+    // reported.
+    //
+    // Which of the two is reported is NOT part of the contract. The current
+    // implementation walks `intended` first and then the before-set in insertion
+    // order, so it happens to be B today - but that ordering is an
+    // implementation detail, not a promise, and asserting it would make this
+    // test fail on a harmless refactor.
+    const result = await runWireChunk(fake(['A', 'B'], [null, null]).eda, [])
+    const lost = result.failures.filter(failure => failure.code === 'WIRE_NET_LOST')
+    expect(lost).toHaveLength(1)
+    expect(['A', 'B']).toContain(lost[0]?.detail)
   })
 })
