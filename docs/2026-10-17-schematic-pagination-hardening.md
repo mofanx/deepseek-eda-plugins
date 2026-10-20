@@ -2403,11 +2403,11 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 - **已切换到共享模块（17 个）**：`t38-cross-review-t2.mjs`、`t39-row805.mjs`、`t40-netlabel-surface.mjs`（原本无门，本次补上）、`t41-cross-review-t5.mjs`；以及一次性迁移的 13 个：`t26-wire-net-guard`、`t27-flag-stagger`、`t28-label-overlap`、`t29-flag-stagger-readback`、`t30-cross-review-t2`、`t31-overlap-classify`、`t32-flag-glyph-size`、`t33-flag-glyph-crosscheck`、`t33-verify-t31-classify`、`t34-cross-review-t6b`、`t35-count-definitions`、`t36-cross-review-t10`、`t37-flag-component-type`。
 - **迁移方式**：`t46-codemod-mtime-gate.mjs` 一次性替换 28 种形态（helper、gate 常量、单行/块状 if、`freshness` 变体、t26 的自定义 `newest`、t30 的记录式循环）；不匹配的形态在脚本内单独说明。
 - **输出格式的必要变化**：原先把 `src`/`lib` 的 ISO 时间写进 `fresh`/`freshness` 字段，迁移后改为 `{ gate: 'content-sha256', packages: N }`。mtime 已不存在，无法保留原值；字段名保留，其余输出不动。
-- **迁移后实测**：13/13 在注入内容改动时 exit 1 + `STALE_BUILD` + `drift`（200–380 ms，未触网）；干净树 **12/13** exit 0，仅 `t27` 仍红。**更正**：早先记的"11/13、`t27` 与 `t28` 均失败"已过时——`t28` 原先断言 `residue.length === 0` 而必红，t5 改为超集断言后已转绿（见下条）；`t27` 的旧版硬编码已删除的工程 MAIN `b188905f…`（现 MAIN 是 `b275cd23…`）会 `WRONG_PAGE`，但该问题已由 t5 改为运行时解析，`t27` 现在失败于 `CALIBRATION_FAILED`（共享客户端可见页被占用，非门、非断言放水）。
-- **两项预期的修复（t5）**：`t28` 改为超集断言——显式列出已知孤儿页，并在启动时快照既有页面（他人探针不算本次残留），`probeGone` 单独成立即可；干净树 `exit 0`，注入一个未列入的 id → `RESIDUE` `exit 1`。`t27` 删掉两处硬编码旧 MAIN，改为运行时解析（`NO_MAIN` / `MAIN_NOT_OPEN` 明确错误码），并把 A/B 移到**本次新建的临时页**：原实现会先删除活动页的全部器件，若活动页是 MAIN 就会清空用户工程，现以 `WRONG_PAGE` 守卫 + 只删自己建的页 + 断 MAIN 器件/导线数与开始时一致。`t27` 干净树仍 `CALIBRATION_FAILED`：共享客户端当前可见标签页是他人探针的 P1 页（树内已 14 页、画布空白、缩放 5%），像素仪器拿不到行带；**没有**通过弱化校准断言来变绿。
+- **迁移后实测**：13/13 在注入内容改动时 exit 1 + `STALE_BUILD` + `drift`（200–380 ms，未触网）；干净树 **12/13** exit 0，仅 `t27` 仍红。**更正**：早先记的"11/13、`t27` 与 `t28` 均失败"已过时——`t28` 原先断言 `residue.length === 0` 而必红，t5 改为超集断言后已转绿（见下条）；`t27` 的旧版硬编码已删除的工程 MAIN `b188905f…`（现 MAIN 是 `b275cd23…`）会 `WRONG_PAGE`，但该问题已由 t5 改为运行时解析，`t27` 现在非 0 退出：`CALIBRATION_UNAVAILABLE`（**exit 2**，共享客户端可见页被他人占用，非门、非断言放水；与真实校准失败 `CALIBRATION_FAILED` / exit 1 已分开，口径以 §14.35.6 的状态表为准）。
+- **两项预期的修复（t5）**：`t28` 改为超集断言——显式列出已知孤儿页，并在启动时快照既有页面（他人探针不算本次残留），`probeGone` 单独成立即可；干净树 `exit 0`，注入一个未列入的 id → `RESIDUE` `exit 1`。`t27` 删掉两处硬编码旧 MAIN，改为运行时解析（`NO_MAIN` / `MAIN_NOT_OPEN` 明确错误码），并把 A/B 移到**本次新建的临时页**：原实现会先删除活动页的全部器件，若活动页是 MAIN 就会清空用户工程，现以 `WRONG_PAGE` 守卫 + 只删自己建的页 + 断 MAIN 器件/导线数与开始时一致。`t27` 干净树仍非 0（**exit 2 `CALIBRATION_UNAVAILABLE`**）：共享客户端当前可见标签页是他人探针的 P1 页（树内已 14 页、画布空白、缩放 5%），像素仪器拿不到行带；**没有**通过弱化校准断言来变绿。注意它与旧的 `CALIBRATION_FAILED`(exit 1) 不是一回事——后者是"有墨水但带高超范围"，前者是"根本没有可测墨水"。
 - **运行代价**：为验收实跑这 13 个脚本，`t29`/`t32` 各留下一个探针页（`03feee84…`、`7bd5f4ea…`），残留 4→6；MAIN 未动（21 器件 / 55 导线）。**该代价会随每次全量复跑累积**：v3 收尾那一轮再跑 6+13 个脚本，页面 10→13，新增 `2d7b04c4`、`7b0daa2e`、`e6fd538b`、`c74a9b3a`；`t29`/`t32` 每轮都会建探针页，但没有逐页 id 输出，**无法把每个新 id 归因到具体脚本**。同一窗口内并发成员在活动页上放器件，使 `getAll(undefined,true)` 的读数出现 36→21 的跳变——**"页面数不变"不能作为验收断言**，只能记录当时读数。
-- **静默漏页（t7 实测，已证实）**：单跑一次 `t32`，页面 **14→15**（新增 `99a12f4db87cbc33`），而脚本自身记录 `deleted:'true'`、`status:'OK'`——删除的返回值与真实状态不一致，漏页**没有任何报错**。机制：`t27`/`t28`/`t29`/`t32` 各建 1 个探针页；`t27`/`t28` 断言 `probeGone`，而 `t29`/`t32` 当时把自家 probe 放进 `expected`（`t29` L321、`t32` L255），于是**删成功反而判红、删不掉才通过**（`t29` L326 `sameSet`、`t32` L272 `missingReal`），整轮因此稳定 **+2 页**。静态清单见 `t47-page-audit.mjs`：creating=4、toleratingResidue=[t29,t32]。**该反向断言已由 t10 修复**（探针改为可有可无、泄漏打印 id 并计数），见 §14.35.6。
-- **激活假设不成立（t7 受控实验）**：`setActiveSchematicPage` 不存在；`activateDocument(O)` 返回 false 且活动页仍是 MAIN；`openDocument(O)` 返回 ok 但活动页不变；`deleteSchematicPage(O)` 两次（开 tab / close 后）均 false 且页持久。**但 t28 能删掉自己新建的页**：t8 复核两次，`deleted=true` 且该 id 确实不在最终列表（`971ac18b…`、`3a95ecc5…`）。故正确表述是"**旧孤儿页删不掉、本次新建页删得掉**"，不是"删除 API 全面失效"。返回值出现过 `false+persisted`、`true+persisted`、`true+gone` 三种组合，**不能单独作为判据**。
+- **静默漏页（t7 实测，已证实）**：单跑一次 `t32`，页面 **14→15**（新增 `99a12f4db87cbc33`），而脚本自身记录 `deleted:'true'`、`status:'OK'`——删除的返回值与真实状态不一致，漏页**没有任何报错**。**以下是 t10 修复前的行为，不是现状**：机制是 `t27`/`t28`/`t29`/`t32` 各建 1 个探针页；`t27`/`t28` 断言 `probeGone`，而 `t29`/`t32` 当时把自家 probe 放进 `expected`（`t29` L321、`t32` L255），于是**删成功反而判红、删不掉才通过**（`t29` L326 `sameSet`、`t32` L272 `missingReal`），整轮因此稳定 **+2 页**。静态清单见 `t47-page-audit.mjs`：creating=4、toleratingResidue=[t29,t32]。**该反向断言与静默漏页均已由 t10 修复**：删除前先 `sch_Document.save()`，删除后用 `shared/page-cleanup.mjs` 以 400/800/1600 ms 退避重列判定，探针改为可有可无、泄漏打印 id 并计数，见 §14.35.6。
+- **删除失败的判别是 saved/dirty，不是"新旧页"（t10 四段差分）**：t7 受控实验测到 `setActiveSchematicPage` 不存在、`activateDocument(O)`/`openDocument(O)` 都不切换活动页、`deleteSchematicPage(O)` 返回 false 且页持久；t8 又观察到 t28 能删掉自己新建的页，于是当时写成"**旧孤儿页删不掉、本次新建页删得掉**"。t10 的 A/B/C/D 对照证明那只是**相关而非因果**：A 建页即删 → gone；B 打开并 `zoomTo` 后删 → gone；C 放 96 个 flag 但**不 save** → `deleted:"true"` 而三次退避仍在；D 放 96 个 flag + `sch_Document.save()` → gone。真正的开关是**页上是否有未保存修改**（dirty），不是页的年龄。修法是删除前 save；返回值仍不可信（`false+persisted`、`true+persisted`、`true+gone` 都出现过），必须靠退避重列确认。
 - **另类（未切）**：`t42-cross-review-t10` 用 `git status -- packages` 为空作为门——内容相关，但任何与本次证据无关的脏文件都会让它误报，建议后续也并入本模块。
 
 ### 14.35.5 覆盖与边界（基线 v3）
@@ -2425,6 +2425,9 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 - **`--update` 是逃生阀**：在未重建的树上更新基线，会让门放行过期构建；约定不变：`--update` 必须紧跟成功的 `npx tsc -b && npx tsdown`，并与源码/配置改动同一提交。
 - **指纹之外的文件**：`pnpm-lock.yaml`、CI 脚本不在指纹内（lockfile 变化频繁、纳入会天天误报）。`extends` 指向 `node_modules` 里的 tsconfig 时，其**内容**现在会被钉住；但 `node_modules` 中实际安装的编译器/依赖版本仍只由 `package.json` 的声明范围间接覆盖，锁文件才是精确清单——这是有意不并入门的原因。
 - **旧基线（v1/v2）不验证闭包**：仍可读，但通过时只报 `FRESH_Vn_READ`，闭包是否完整需用 v3 基线复检。
+- **子目录里的 tsconfig 不在闭包**：闭包起点只有仓库根的 `tsconfig*.json` 与每个包的**顶层** `tsconfig*.json`。像 `packages/eda-core/config/tsconfig.build.json` 这种放在子目录里的配置，即使被构建用上（例如被 project references 或脚本引用），只要没被某个起点 `extends` 到，就**不会被钉**——改它仍是 FRESH。
+- **`src` 之外的 `.d.ts` 与 `tsdown.config.ts` 的 import 不入指纹**：源码扫描只覆盖 `packages/*/src/**/*.{ts,tsx,mts,cts}`；仓库或包里其它位置的全局声明（如 `types/**/*.d.ts`）不在指纹内。`tsdown.config.ts` 自身按内容钉住，但它 `import` 的本地模块（如 `./build/*.ts`）不钉——改那些文件不会触发 STALE_BUILD。
+- **`extends` 循环能终止但静默去重、不告警（待修，不是已堵）**：`tsconfigClosure` 用"文件已哈希则跳过"截断环，A→B→A 不会死循环，也**不会产生 warning**；也就是说配置图有环时检查照常通过。这是缺口：应改为"检测到回头边即列入 warnings 并走 `EXTENDS_UNRESOLVED`"。**在修好之前，不得声称配置闭包无死角。**
 
 ### 14.35.6 探针页的两种失败与清理校验（t10）
 
@@ -2450,8 +2453,44 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 | C 放 96 flag 后删 | 是 | 否 | `deleted:"true"`，三次退避（400/800/1600 ms）仍在，`getSchematicPageInfo` 仍返回该页 |
 | D 放 96 flag + save 后删 | 是 | 是（`"true"`） | 第 1 次退避即消失 |
 
-结论：**渲染/激活耦合不成立（B 能删），脏状态耦合成立（C 不能删、D 能删）**——页上有未保存修改时 `deleteSchematicPage` 静默失败。修法：删除前在探针仍为活动文档时 `eda.sch_Document.save()`。四个脚本都已加入；随后实测 t27/t28/t29/t32 各跑一轮，页面 **27→27、零新增**（此前 t27 每轮必留一个探针页）。
+结论：**渲染/激活耦合不成立（B 能删），脏状态耦合成立（C 不能删、D 能删）**——页上有未保存修改时 `deleteSchematicPage` 静默失败。修法：删除前调用 `eda.sch_Document.save()`。四个脚本都已加入；随后实测 t27/t28/t29/t32 各跑一轮，页面 **27→27、零新增**（此前 t27 每轮必留一个探针页）。
+
+**限定（t12 复核发现，待修）**：四个脚本在 `save()` 之前都**没有断言"活动文档就是自己的探针页"**（t27 的活动页检查只在擦除器件前的 L298）。`save()` 无参数、保存当前文档，若焦点被并发成员切走，它会去保存**别人的**文档；探针因此没被保存时删除会失败，但会被 `PROBE_LEAK` 抓住，不会假绿。正确修法是在 save 前加 `getCurrentSchematicPageInfo().uuid === probe`，否则以 `NOT_ACTIVE` 退出。在此之前，"探针仍为活动文档"是**假设**，不是已断言的事实。
 
 **实测（2026-10-20，save 修复后）**：`t27` → `exit 2`、`CALIBRATION_UNAVAILABLE`（`cal=UNAVAILABLE`、`probeGone=true`、`mainIntact=true`、MAIN 21/55），页面 27→27；`t28` → `exit 0`、无泄漏；`t29` 探针 `ca00554f…` 被真删后 `exit 0`；`t32` 探针 `76dd1507…` 被真删后 `exit 0`、`probePresent:false`。红侧仍成立：`T28_SKIP_DELETE=1` → `exit 1`、`PROBE_LEAK`、`probe=a570509d2baa4589`，该页随后用守卫删除清掉（`del:"true"`、首次退避即 gone）。
 
 **仍为红的一点**：`t27` 的像素校准在当前共享窗口里仍拿不到行带（可见标签页不是它自己的文档），所以它退 **2 而不是 0**。这是环境不可用，明确不算通过；`probeGone` 与 `mainIntact` 两条硬断言均已满足，没有为了变绿而放宽。
+
+### 14.35.7 证据脚本运行纪律（可执行清单）
+
+任何会触桥、且可能建页/删页的脚本，**必须**按下面四步走；这一步不是口号，是报告里要贴出来的数字。
+
+```powershell
+# ① 运行前快照：页面数、页面 id、MAIN 器件/导线（同一个 bridge call 内取，避免跨页）
+$code = @'
+const pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo())||[]).map(p=>`${String(p.uuid).slice(0,8)}:${p.name}`);
+const comps = ((await eda.sch_PrimitiveComponent.getAll(undefined,false))||[]).length;
+const wires = ((await eda.sch_PrimitiveWire.getAll(undefined,false))||[]).length;
+return { at:new Date().toISOString(), count:pages.length, pages, comps, wires };
+'@
+function Snap { (Invoke-WebRequest -Uri http://127.0.0.1:49620/execute -Method Post -ContentType 'application/json' -Body (@{code=$code}|ConvertTo-Json -Compress)).Content | ConvertFrom-Json | ForEach-Object { $_.result } }
+$before = Snap; $before | ConvertTo-Json -Depth 3 -Compress
+
+# ② 跑被测脚本，保留退出码
+node docs/evidence/review/tXX.mjs; $rc = $LASTEXITCODE
+
+# ③ 运行后快照，打印差集（必贴进报告）
+$after = Snap
+"before=$($before.count) after=$($after.count) exit=$rc"
+"added: "   + (($after.pages  | Where-Object { $_ -notin $before.pages }) -join ',')
+"removed: " + (($before.pages | Where-Object { $_ -notin $after.pages  }) -join ',')
+"main: comps $($before.comps)->$($after.comps) wires $($before.wires)->$($after.wires)"
+```
+
+**判定规则（缺一不可）**
+
+1. `added` 或 `removed` 非空 → 报告必须**逐 id 列出**，并写明归属（哪个脚本/哪个并发成员）；**无法归因就写"无法归因"**，不许省略、不许只写"页面数基本不变"。
+2. `comps` 或 `wires` 变化 → 除被测脚本本身就以改 MAIN 为目的外，一律视为失败，报告须写"MAIN 被改动"。
+3. 只报"通过/exit 0"而不贴 ①②③ 的数字，视为**证据不完整**，不得计入验收。
+4. `getAll` 读的是**当前聚焦文档**而非 `getCurrentSchematicPageInfo` 返回的页（t7 实测：激活指针不切换）。若 `comps` 与既有基线相差悬殊（例如 110 vs 21），先确认聚焦页，再下"MAIN 变了"的结论。
+5. 建页脚本必须打印自己创建的 probe id；没有 id 就无法在事后归因（`t27` 曾因此留下 `f4ddbf1b` 无法归因）。
