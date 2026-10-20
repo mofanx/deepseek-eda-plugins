@@ -2374,15 +2374,18 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 
 ### 14.35.2 新判据：内容指纹基线
 
-模块 `docs/evidence/review/shared/freshness.mjs`（供所有证据脚本共用），基线为**版本 2**：
+模块 `docs/evidence/review/shared/freshness.mjs`（供所有证据脚本共用），基线为**版本 3**：
 
 - **源码**：对每个 `packages/*/src/**/*.{ts,tsx,mts,cts}` 计算 `sha256(relpath\0sha256(bytes))`，按包聚合；
-- **构建配置**：根 `package.json`、`pnpm-workspace.yaml`、`tsconfig.json`、`tsconfig.base.json`、`tsdown.config.ts`，加各包的 `package.json` / `tsconfig.json`（当前共 15 项），逐文件记 sha256；
+- **构建配置**：根 `package.json`、`pnpm-workspace.yaml`、`tsdown.config.ts`，加各包的 `package.json`（当前共 8 项），逐文件记 sha256；
+- **tsconfig 闭包（v3 新增）**：从根与各包的每个 `tsconfig*.json` 出发，沿 `extends` **递归**展开（相对/绝对路径与 `node_modules` 包名解析，`extends` 支持字符串或数组），闭包内每个文件的 sha256 都入基线。今天闭包是 7 个文件（根 `tsconfig.json`、`tsconfig.base.json` + 5 个包的 `tsconfig.json`），因此"只改被 `extends` 引用、但不在固定清单里的文件"不再能蒙混过关；
+- **不可解析必须显式失败**：任一 `extends` 目标找不到、或 tsconfig 解析失败 → `{status:'EXTENDS_UNRESOLVED', warnings:[{file, extends, reason}]}` 且 `exit 1`；**不会**静默当作 FRESH，也不会只写一行日志放过；
 - **编译产物**：每个包 `lib/index.js` 的 sha256，仅在 `--strict-lib`（或环境变量 `DSH_FRESHNESS_STRICT_LIB=1`）时比对；
 - **完全不读 mtime**。与 `shared/freshness-baseline.json` 比较；失败即 `process.exit(1)`，并在调用桥之前返回；
-- 失败输出 `{status:'STALE_BUILD', strictLib, drift:[…]}`，`drift` 条目按 `scope` 区分：`root-config` / `<pkg>:config` / 包级 `content`；
+- 失败输出 `{status:'STALE_BUILD', strictLib, drift:[…]}`，`drift` 条目按 `scope` 区分：`root-config` / `<pkg>:config` / `tsconfig` / 包级 `content`；
 - 其它分支：无基线 → `NO_BASELINE`；基线有 lib 而现在没有 → `lib-missing`；新增包 → `unbaselined`；包消失 → `removed`；严格模式下基线无 lib 摘要 → `lib-unpinned`；
-- `node docs/evidence/review/shared/freshness.mjs --update` 重建基线（**总是**记录 lib 摘要），`--check [--strict-lib]` 自检。
+- **旧基线兼容**：v1/v2 仍可读，但它们没有 tsconfig 闭包，检查通过时状态为 `FRESH_V1_READ` / `FRESH_V2_READ`（含义：源码/配置一致，闭包未验证），不会冒充普通 `FRESH`；
+- `node docs/evidence/review/shared/freshness.mjs --update` 重建基线（**总是**记录 lib 摘要），`--check [--strict-lib] [--baseline <path>]` 自检。
 
 为什么不直接比较 lib 与 src 的字节：编译产物与源码不同构，无法逐字节比。因此钉的是"**生成当前 lib 的那份源码内容**"，配置与产物摘要作为补充。
 
@@ -2391,6 +2394,9 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 - **真过期**：给 `serialize.ts` 追加一行注释后运行 `t41` → `exit 1`，耗时 **263 ms**，`drift` 为 `eda-core`：`d367acbb…` → `2be9482d…`（10 个文件）。同一脚本在干净树上需 **723 ms**（含桥发现与回读），说明过期分支在发起网络调用之前就结束。
 - **假过期**：`git checkout` 还原（mtime 已变）后运行 → `exit 0`，输出与改动前那次运行**逐字节相同**（3138 bytes，`-ceq` 为 `True`）。
 - **无基线**：指向不存在的基线路径 → `{"status":"NO_BASELINE",…}`，`exit 1`。
+- **闭包内文件（v3）**：临时把根 `tsconfig.shared.json` 接入 `packages/eda-core/tsconfig.json` 的 `extends` 数组并 `--update`（基线记 8 个 tsconfig），随后只改 `tsconfig.shared.json` 的内容 → 默认模式 `exit 1`，`drift` 为 `{scope:'tsconfig', file:'tsconfig.shared.json', reason:'config', baseline:'5a699bee…', current:'01543698…'}`；还原该文件内容 → `exit 0`（`FRESH`，仍带 8 个 tsconfig）。收尾已删除该临时文件并把基线恢复为 7 个 tsconfig。
+- **不可解析的 extends**：给根 `tsconfig.json` 临时加 `"extends": "./tsconfig.nope.json"` → `exit 1`，`{"status":"EXTENDS_UNRESOLVED","warnings":[{"file":"tsconfig.json","extends":"./tsconfig.nope.json","reason":"unresolved"}]}`；还原后 `exit 0`。
+- **旧基线兼容**：`--check --baseline` 指向 `3b98085` 的 v1 基线 → `FRESH_V1_READ`（exit 0）；指向 `6d8b90f` 的 v2 基线 → `FRESH_V2_READ`（exit 0）。两者都仍会对源码内容漂移报错，只是不验证闭包。
 
 ### 14.35.4 切换清单
 
@@ -2398,19 +2404,21 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 - **迁移方式**：`t46-codemod-mtime-gate.mjs` 一次性替换 28 种形态（helper、gate 常量、单行/块状 if、`freshness` 变体、t26 的自定义 `newest`、t30 的记录式循环）；不匹配的形态在脚本内单独说明。
 - **输出格式的必要变化**：原先把 `src`/`lib` 的 ISO 时间写进 `fresh`/`freshness` 字段，迁移后改为 `{ gate: 'content-sha256', packages: N }`。mtime 已不存在，无法保留原值；字段名保留，其余输出不动。
 - **迁移后实测**：13/13 在注入内容改动时 exit 1 + `STALE_BUILD` + `drift`（200–380 ms，未触网）；干净树 11/13 exit 0。`t27` 与 `t28` 在门**之后**失败，原因与门无关：t27 硬编码旧工程 MAIN `b188905f…`（该工程已损坏删除，现 MAIN 是 `b275cd23…`）→ `WRONG_PAGE`；t28 断言 `residue.length === 0`，而 4 个 P1 孤儿永久存在 → `RESIDUE`。两者需单独更新预期，不能靠改门掩盖。
-- **运行代价**：为验收实跑这 13 个脚本，`t29`/`t32` 各留下一个探针页（`03feee84…`、`7bd5f4ea…`），残留 4→6；MAIN 未动（21 器件 / 55 导线）。
+- **运行代价**：为验收实跑这 13 个脚本，`t29`/`t32` 各留下一个探针页（`03feee84…`、`7bd5f4ea…`），残留 4→6；MAIN 未动（21 器件 / 55 导线）。**该代价会随每次全量复跑累积**：v3 收尾那一轮再跑 6+13 个脚本，页面 10→13，新增 `2d7b04c4`、`7b0daa2e`、`e6fd538b`、`c74a9b3a`；`t29`/`t32` 每轮都会建探针页，但没有逐页 id 输出，**无法把每个新 id 归因到具体脚本**。同一窗口内并发成员在活动页上放器件，使 `getAll(undefined,true)` 的读数出现 36→21 的跳变——**"页面数不变"不能作为验收断言**，只能记录当时读数。
 - **另类（未切）**：`t42-cross-review-t10` 用 `git status -- packages` 为空作为门——内容相关，但任何与本次证据无关的脏文件都会让它误报，建议后续也并入本模块。
 
-### 14.35.5 覆盖与边界（基线 v2）
+### 14.35.5 覆盖与边界（基线 v3）
 
 **本轮已堵**
 
 - **构建配置**：任一被钉的配置文件改动，默认模式即 `exit 1`，`drift` 形如 `{scope:'eda-core:config', file:'tsconfig.json', reason:'config'}`。实测：给 `eda-core/tsconfig.json` 追加一行注释 → `exit 1`；`git checkout` 还原 → `exit 0`。
-- **编译产物漂移**：`--strict-lib` 下比对 `lib/index.js` 的 sha256。实测"改内容 → `npx tsc -b && npx tsdown --config-loader native` → `git checkout` 还原源码"：默认模式 `exit 0` 且输出与干净基线**逐字节相同**（`{"status":"FRESH","strictLib":false,"packages":5,"files":21,"configs":15}`）；严格模式 `exit 1`，报 `lib-drift`：`6c5a6d67…` → `5f399640…`（bundle 确由被还原掉的那版源码编出）。干净重建后摘要回到 `6c5a6d67…`，严格模式恢复 FRESH。
+- **配置闭包递归（v3）**：`extends` 链上的文件按内容入基线，改它必红。实测：`tsconfig.shared.json` 只经 `eda-core/tsconfig.json` 的 `extends` 可达、不在原固定清单内，改内容 → `exit 1`，`drift` 为 `{scope:'tsconfig', file:'tsconfig.shared.json', reason:'config'}`；还原 → `exit 0`。**不可解析的 `extends` 显式失败**：`{status:'EXTENDS_UNRESOLVED', warnings:[…]}` 且 `exit 1`，不会静默放行。
+- **编译产物漂移**：`--strict-lib` 下比对 `lib/index.js` 的 sha256。实测"改内容 → `npx tsc -b && npx tsdown --config-loader native` → `git checkout` 还原源码"：默认模式 `exit 0` 且输出与干净基线**逐字节相同**（`{"status":"FRESH","strictLib":false,"packages":5,"files":21,"configs":8,"tsconfigs":7}`）；严格模式 `exit 1`，报 `lib-drift`：`6c5a6d67…` → `5f399640…`（bundle 确由被还原掉的那版源码编出）。干净重建后摘要回到 `6c5a6d67…`，严格模式恢复 FRESH。
   注意：只用 `tsc -b` 不算构建——它只出 `lib/types`，bundle 由 `tsdown` 打；上一轮曾在这里得出过"构建了但哈希没变"的假象。
 
 **仍为边界**
 
 - **默认模式不钉 lib 字节**：日常重建频繁，每次都要求更新基线会制造误杀，故 lib 比对默认关闭，只在收口/CI 用 `--strict-lib`。这意味着默认模式对"构建后还原源码"仍无感——这是刻意的可用性取舍，不是遗漏。
 - **`--update` 是逃生阀**：在未重建的树上更新基线，会让门放行过期构建；约定不变：`--update` 必须紧跟成功的 `npx tsc -b && npx tsdown`，并与源码/配置改动同一提交。
-- **指纹之外的文件**：`pnpm-lock.yaml`、CI 脚本、`node_modules` 里实际安装的编译器版本不在指纹内。lockfile 变化频繁、纳入会天天误报；编译器版本只由 `package.json` 的声明范围间接覆盖。
+- **指纹之外的文件**：`pnpm-lock.yaml`、CI 脚本不在指纹内（lockfile 变化频繁、纳入会天天误报）。`extends` 指向 `node_modules` 里的 tsconfig 时，其**内容**现在会被钉住；但 `node_modules` 中实际安装的编译器/依赖版本仍只由 `package.json` 的声明范围间接覆盖，锁文件才是精确清单——这是有意不并入门的原因。
+- **旧基线（v1/v2）不验证闭包**：仍可读，但通过时只报 `FRESH_Vn_READ`，闭包是否完整需用 v3 基线复检。
