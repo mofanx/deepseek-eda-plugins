@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createHash } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
@@ -6,6 +7,7 @@ import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ToolExecutionResult, type ToolResult } from '@deepseek-ai/dsh-tools'
 import SchematicRuntime from '@deepseek-ai/dsh-plugin-eda-sch'
 import type { SchematicEngine, SchematicLibrary } from '@deepseek-ai/dsh-plugin-eda-sch'
+import { serializeEasyEdaDocument } from '@deepseek-ai/dsh-plugin-eda-easyeda'
 import * as ToolSchematic from '@deepseek-ai/dsh-plugin-eda-sch-gen'
 
 const testToolSignal = new AbortController().signal
@@ -648,5 +650,91 @@ describe('page frame and title block', () => {
     const { call } = await mountTools()
     const out = await call('schematic_validate', { document: validDoc, pageSize: 'A3' })
     expect(out.isError).toBe(false)
+  })
+})
+
+describe('net-label font size', () => {
+  /** Records the options the tool passes down; the emitted text is irrelevant here. */
+  function optionRecorder(): { engine: SchematicEngine; serialize: Record<string, unknown>[]; verify: Record<string, unknown>[] } {
+    const serialize: Record<string, unknown>[] = []
+    const verify: Record<string, unknown>[] = []
+    const engine: SchematicEngine = {
+      id: 'recording',
+      available: () => true,
+      serialize: (_ir, options) => {
+        serialize.push((options ?? {}) as Record<string, unknown>)
+        return 'EMITTED'
+      },
+      verify: async (_ir, options) => {
+        verify.push((options ?? {}) as Record<string, unknown>)
+        return []
+      },
+    }
+    return { engine, serialize, verify }
+  }
+
+  /**
+   * Runs the real document serializer with a fixed document uuid, so the
+   * assertions below cover emitted bytes rather than only the option object.
+   * The mapping mirrors the EasyEDA engine: `titleBlock` reaches the serializer
+   * as `frame`, and an absent size stays absent so the engine default applies.
+   */
+  const byteEngine: SchematicEngine = {
+    id: 'bytes',
+    available: () => true,
+    serialize: (ir, options) => serializeEasyEdaDocument(ir, {
+      clientId: 'test',
+      docUuid: 'net-label-font-size',
+      ...(options?.pageSize === undefined ? {} : { pageSize: options.pageSize }),
+      ...(options?.titleBlock === undefined ? {} : { frame: options.titleBlock }),
+      ...(options?.netLabelFontSize === undefined ? {} : { netLabelFontSize: options.netLabelFontSize }),
+    }),
+  }
+  const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
+
+  it('leaves the option unset when the call omits it', async () => {
+    const recorder = optionRecorder()
+    const { call } = await mountTools({ engine: recorder.engine })
+    await call('schematic_generate', { document: validDoc })
+    expect(recorder.serialize[0]).not.toHaveProperty('netLabelFontSize')
+  })
+
+  it('emits the same bytes as before the option existed', async () => {
+    const { call } = await mountTools({ engine: byteEngine })
+    const out = await call('schematic_generate', { document: validDoc })
+    expect(out.isError).toBe(false)
+    const source = (out.value as { source: string }).source
+    // The default is still 6 units; the digest pins every byte of the page so a
+    // future change to the default (or to the geometry) cannot pass unnoticed.
+    expect(source).toContain('"fontSize":6')
+    expect(sha256(source)).toBe('e99452bfb064d82670fa51b02728b4488d0c38785e93cdb91a7c643fb8693fb2')
+  })
+
+  it('applies an explicit size on both delivery paths', async () => {
+    const recorder = optionRecorder()
+    const { call } = await mountTools({ engine: recorder.engine })
+    await call('schematic_generate', { document: validDoc, netLabelFontSize: 5, verify: true })
+    expect(recorder.serialize[0]?.netLabelFontSize).toBe(5)
+    expect(recorder.verify[0]?.netLabelFontSize).toBe(5)
+
+    const { call: callBytes } = await mountTools({ engine: byteEngine })
+    const out = await callBytes('schematic_generate', { document: validDoc, netLabelFontSize: 5 })
+    expect((out.value as { source: string }).source).toContain('"fontSize":5')
+  })
+
+  it('rejects zero and negative sizes instead of clamping them', async () => {
+    const { call } = await mountTools()
+    for (const bad of [0, -1]) {
+      const out = await call('schematic_generate', { document: validDoc, netLabelFontSize: bad })
+      expect(out.isError).toBe(true)
+      expect(out.error?.info?.code).toBe('SCHEMATIC_NET_LABEL_FONT_SIZE')
+    }
+  })
+
+  it('lets the argument schema reject a non-numeric size', async () => {
+    const { call } = await mountTools()
+    const out = await call('schematic_generate', { document: validDoc, netLabelFontSize: '5' })
+    expect(out.isError).toBe(true)
+    expect(out.error?.info?.code).toBe('INVALID_ARGS')
   })
 })

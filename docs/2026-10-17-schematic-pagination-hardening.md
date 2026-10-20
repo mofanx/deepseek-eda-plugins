@@ -2299,3 +2299,28 @@ t2 曾写"y=805 行的 +3V3 与 MCU-30：dy=5、dx=30"。该句把三个坐标�
 2. 任一口径下出现 `Δx<28` 的实测对（当前两模型均为 0）；
 3. 字形高度（当前为模型值 6）可测，且实测净空 <6；
 4. 客户端画点变为可观测（例如截图通道恢复、或导出结果含标签坐标），使"锚点=首顶点/中点"从模型变为实测。
+
+### 14.34 产品侧字号可调：`netLabelFontSize`
+
+**t6 前的状态**：引擎 seam 早已支持该旋钮，但产品工具没暴露，模型只能改 IR 不能改字号。
+
+| 位置 | 内容 |
+|---|---|
+| `eda-core/src/serialize.ts:151` | `DEFAULT_NET_LABEL_FONT_SIZE = 6`（源文件路径默认） |
+| `eda-core/src/serialize.ts:353,395` | 未传时取默认 6，`null` 表示交给客户端 |
+| `schematic/src/types.ts:467` | `SchematicEngineVerifyOptions.netLabelFontSize` |
+| `schematic-easyeda/src/build.ts:929` | 原语路径同一默认：未传取 6 |
+| `schematic-easyeda/src/build.ts:336,343` | 注入页面脚本的 `labelFontSize` |
+| `schematic-easyeda/src/build.ts:427` | `sch_PrimitiveAttribute.modify({ fontSize: labelFontSize / 100 })`（格式单位→0.01 in 的 parity） |
+| `schematic-easyeda/src/index.ts:206,236,290` | serialize/build/import 三处透传 |
+| `tool-schematic/src/index.ts`（改前） | 参数只有 `document/pageSize/titleBlock/verify`，**无字号** |
+
+**变更**：`schematic_generate` 增加可选数值参数 `netLabelFontSize`，同一值透传到 `engine.serialize` 与 `engine.verify`（源码路径与原语路径一致）。
+
+**默认不变**：调用方不传时，工具不向引擎传这个键（不是显式传 6），引擎按 `DEFAULT_NET_LABEL_FONT_SIZE = 6` 解析。测试用固定 `docUuid` 的整页 SHA-256 钉住字节，默认输出与改动前一致；显式传 6 与不传产出的字节也相同，但只有"不传"能保证旧行为。
+
+**口径**：**5 单位 = 50 mil = KiCad 默认字号**，用户可按需选择；**默认值保持 6 单位 = 60 mil 不变**。
+
+**非法值**：两层都拒绝、都不夹取——非数（如 `"5"`）由参数 schema 挡下（`INVALID_ARGS`）；0 与负数通过 schema 后由工具守卫挡下（`SCHEMATIC_NET_LABEL_FONT_SIZE`）。理由是夹取会让拼写错误变成"看起来正常、实际被静默改字号"的文档。
+
+**自证**：删掉 `serialize` 的透传 → 目标用例 1 红 / 4 绿；还原后源文件 SHA-256 一致、该文件 46/46 绿；全量 631 用例通过、行/分支/函数/语句覆盖率均 100%（与改前同）。

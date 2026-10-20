@@ -121,6 +121,26 @@ function titleBlockFor(requested: unknown, config: ResolvedConfig): SchematicTit
   }
 }
 
+/**
+ * Net-label font size for one call, or `undefined` to leave the engine default
+ * alone. Omitted and explicit-6 produce the same bytes because the engine
+ * resolves both to 6, but only the omitted form is passed at all — that is what
+ * keeps the no-argument output identical to the pre-option behaviour.
+ *
+ * Two layers reject instead of clamping. The argument schema turns away a
+ * non-number (`"5"` never reaches this function); this guard turns away a
+ * number that is zero, negative, or not finite. Clamping was rejected because a
+ * typo would then ship a document that looks fine while ignoring the request.
+ */
+function netLabelFontSizeFor(requested: unknown): number | undefined {
+  if (requested === undefined) return undefined
+  if (typeof requested === 'number' && Number.isFinite(requested) && requested > 0) return requested
+  throw new HarnessError(
+    `netLabelFontSize must be a positive finite number of format units, received ${JSON.stringify(requested)}`,
+    'SCHEMATIC_NET_LABEL_FONT_SIZE',
+  )
+}
+
 const PAGE_SIZE_PARAM_DESCRIPTION =
   'Page frame the layout plans against: "A3" (1655×1170, the production module-board size) or "A4" (1170×825). ' +
   'Defaults to the configured size. Geometry is placed and validated against this frame, so it must match the sheet the design targets.'
@@ -129,6 +149,11 @@ const TITLE_BLOCK_PARAM_DESCRIPTION =
   'Title-block fields printed in each page\'s border: { projectTitle?, drawingNumber?, schematicName?, version?, company?, date?, drawnBy?, checkedBy?, approvedBy? }. ' +
   'The border prints an 11-cell block (sheet name/number, project/size, version/date, designer/reviewer, approver/company) plus the page number; ' +
   'schematicName defaults to the page name and the page number/count are filled in per page automatically.'
+
+const NET_LABEL_FONT_SIZE_PARAM_DESCRIPTION =
+  'Net-label font size in format units (0.01 in), applied to every net name on both delivery paths. ' +
+  'Omit it to keep the engine default (6 units = 60 mil); pass 5 for the KiCad default of 50 mil. ' +
+  'Must be a positive finite number — 0 and negative values are rejected, not clamped, so a typo cannot ship as a silently resized document.'
 
 /** JSON-canonical projection of one validator finding, matching `FINDINGS_SCHEMA`. */
 interface FindingJson {
@@ -229,6 +254,7 @@ async function liveVerify(
   symbolPins?: SchematicBindingResolution['symbolPins'],
   pageSize?: SchematicPageSize,
   titleBlock?: SchematicTitleBlockOptions,
+  netLabelFontSize?: number,
 ): Promise<readonly SchematicFinding[]> {
   let engine
   try {
@@ -248,7 +274,7 @@ async function liveVerify(
     }]
   }
   try {
-    return await engine.verify(ir, { symbolPins, pageSize, titleBlock })
+    return await engine.verify(ir, { symbolPins, pageSize, titleBlock, ...(netLabelFontSize === undefined ? {} : { netLabelFontSize }) })
   } catch (error) {
     return [{
       code: 'SCHEMATIC_VERIFY_UNAVAILABLE',
@@ -287,6 +313,7 @@ function applyGenerateTool(ctx: Context, config: ResolvedConfig): void {
       document: { type: 'json', required: true, description: DOCUMENT_PARAM_DESCRIPTION },
       pageSize: { type: 'string', description: PAGE_SIZE_PARAM_DESCRIPTION },
       titleBlock: { type: 'json', description: TITLE_BLOCK_PARAM_DESCRIPTION },
+      netLabelFontSize: { type: 'number', description: NET_LABEL_FONT_SIZE_PARAM_DESCRIPTION },
       verify: { type: 'boolean', description: 'Also deliver through the engine live path and read the document back; netlist diffs and build failures return as findings for repair. Requires a reachable client — when the live path cannot run, the result reports SCHEMATIC_VERIFY_UNAVAILABLE as an error rather than passing unverified.' },
     },
     output: {
@@ -324,14 +351,15 @@ function applyGenerateTool(ctx: Context, config: ResolvedConfig): void {
       const { ir: bound, libraryResolver, symbolPins } = await ctx.schematic.resolveBindings(ir)
       const pageSize = pageSizeFor(args.pageSize, config)
       const titleBlock = titleBlockFor(args.titleBlock, config)
+      const netLabelFontSize = netLabelFontSizeFor(args.netLabelFontSize)
       const laid = ctx.schematic.layout(bound, { symbolPins, pageSize })
       exec.signal.throwIfAborted()
       const report = ctx.schematic.validate(laid, { libraryResolver })
       const notes = stringifiedNote(args.document)
       if (!report.ok) return { ok: false, format: '', source: '', sourceBytes: 0, findings: [...notes, ...report.findings].map(findingJson) }
       const engine = ctx.schematic.engine()
-      const source = await engine.serialize(laid, { pageSize, titleBlock })
-      const verifyFindings = args.verify === true ? await liveVerify(ctx, laid, symbolPins, pageSize, titleBlock) : []
+      const source = await engine.serialize(laid, { pageSize, titleBlock, ...(netLabelFontSize === undefined ? {} : { netLabelFontSize }) })
+      const verifyFindings = args.verify === true ? await liveVerify(ctx, laid, symbolPins, pageSize, titleBlock, netLabelFontSize) : []
       const ok = verifyFindings.every(f => f.severity !== 'error')
       const findings = [...notes, ...report.findings, ...verifyFindings]
       if (source.length > config.maxSourceChars) {
