@@ -46,6 +46,7 @@
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gateFreshness } from './shared/freshness.mjs'
+import { confirmPageGone } from './shared/page-cleanup.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const freshSnapshot = gateFreshness(repoRoot)
@@ -323,6 +324,19 @@ const actual = new Set(cleanup?.residue ?? [])
 const sameSet = expected.size === actual.size && [...expected].every((u) => actual.has(u))
 out.expectedResidue = [...expected].sort()
 out.actualResidue = [...actual].sort()
+
+// This script tolerates its own probe surviving (the client often refuses the
+// delete), but the survival must be stated, never implied: re-list with
+// increasing waits and print the id plus a summary count.
+const confirm = await confirmPageGone(async () => {
+  const pages = await call(`return ((await eda.dmt_Schematic.getAllSchematicPagesInfo())||[]).map(p=>p.uuid);`)
+  return Array.isArray(pages) ? pages : []
+}, pageStep.probe)
+out.cleanupConfirm = confirm
+out.leak = { tolerated: true, probe: pageStep.probe, gone: confirm.gone, leakedId: confirm.leakedId }
+out.summary = { leakedProbes: confirm.gone ? [] : [pageStep.probe], leakedCount: confirm.gone ? 0 : 1 }
+if (!confirm.gone) console.error(`TOLERATED_PROBE_LEAK probe=${pageStep.probe} deleteSaid=${JSON.stringify(cleanup?.deleted)} recheck=${JSON.stringify(confirm.attempts)}`)
+
 out.status = cleanup?.mainStillThere && sameSet ? 'OK_WITH_KNOWN_RESIDUE' : 'RESIDUE'
 
 console.log(JSON.stringify(out, null, 1))

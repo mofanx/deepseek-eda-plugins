@@ -17,6 +17,7 @@
 import { pathToFileURL } from 'node:url'
 import { join, resolve } from 'node:path'
 import { gateFreshness } from './shared/freshness.mjs'
+import { confirmPageGone } from './shared/page-cleanup.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 gateFreshness(repoRoot)
@@ -201,7 +202,8 @@ await new Promise(r => setTimeout(r, 1200));
 let closed = null, deleted = null;
 try { closed = JSON.stringify(await eda.dmt_EditorControl.closeDocument(probe)) } catch (e) { closed = 'ERR ' + String((e && e.message) || e) }
 await new Promise(r => setTimeout(r, 1000));
-try { deleted = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(probe)) } catch (e) { deleted = 'ERR ' + String((e && e.message) || e) }
+if (${JSON.stringify(process.env.T28_SKIP_DELETE === '1')}) deleted = 'SKIPPED_BY_TEST_HOOK';
+else try { deleted = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(probe)) } catch (e) { deleted = 'ERR ' + String((e && e.message) || e) }
 await new Promise(r => setTimeout(r, 1200));
 let pages = [];
 for (let i = 0; i < 5; i++) {
@@ -235,7 +237,18 @@ const preexisting = new Set((base.pages || []).filter((u) => u !== base.main))
 const allowed = new Set([...KNOWN_RESIDUE, ...preexisting])
 const unexpected = [...observed, ...injected].filter((u) => u !== out.probePage && !allowed.has(u))
 out.residue = { knownAtRead: [...KNOWN_RESIDUE].sort(), preexisting: [...preexisting].sort(), observed, injected, unexpected }
-out.status = out.cleanup?.probeGone && unexpected.length === 0 ? 'OK' : 'RESIDUE'
+
+// `deleted: "true"` is not evidence: this session saw true+persisted. The page
+// must be absent from a fresh listing, checked with increasing waits.
+const confirm = await confirmPageGone(async () => {
+  const pages = await call(`return ((await eda.dmt_Schematic.getAllSchematicPagesInfo())||[]).map(p=>p.uuid);`)
+  return Array.isArray(pages) ? pages : []
+}, page.probe)
+out.cleanupConfirm = confirm
+const probeGone = cleanup?.probeGone === true && confirm.gone === true
+out.status = !probeGone ? 'PROBE_LEAK' : (unexpected.length === 0 ? 'OK' : 'RESIDUE')
+if (!probeGone) out.leakedProbe = confirm.leakedId ?? page.probe
 
 console.log(JSON.stringify(out, null, 1))
+if (!probeGone) console.error(`PROBE_LEAK probe=${out.leakedProbe} deleteSaid=${JSON.stringify(cleanup?.deleted)} recheck=${JSON.stringify(confirm.attempts)}`)
 process.exitCode = out.status === 'OK' ? 0 : 1

@@ -27,6 +27,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gateFreshness } from './shared/freshness.mjs'
+import { confirmPageGone } from './shared/page-cleanup.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const freshSnapshot = gateFreshness(repoRoot)
@@ -219,11 +220,22 @@ const calibration = calShot
   : { error: 'no screenshot' }
 
 // Calibration gate: the documented baseline is a 2 px text band on this page.
-// Media band height across columns must land near 2 px, else stop.
+// Two distinct failures, deliberately not merged:
+//   UNAVAILABLE - the canvas handed us no ink at all (no columns), so the pixel
+//                 instrument has nothing to measure. This is an environment
+//                 condition: the shared client renders whatever tab is focused,
+//                 and openDocument/activateDocument do not switch it (measured).
+//                 It must not pass, and it must not be reported as a calibration
+//                 failure either.
+//   FAILED      - ink was found but the text band height is out of range, i.e. a
+//                 real calibration failure.
 const calCols = calibration.pixel?.columns ?? []
 const calHeights = calCols.map((c) => c.medianHeight).sort((a, b) => a - b)
 const calMedian = calHeights.length ? calHeights[Math.floor(calHeights.length / 2)] : null
-const calibrationOk = calCols.length > 0 && calMedian !== null && calMedian <= 4
+const calStatus = calCols.length === 0
+  ? 'UNAVAILABLE'
+  : (calMedian !== null && calMedian <= 4 ? 'OK' : 'FAILED')
+const calibrationOk = calStatus === 'OK'
 
 // --------------------------------------------------------- step 3: probe A/B
 const NETS = Array.from({ length: 48 }, (_, i) => `MCU-${i + 1}`)
@@ -370,7 +382,8 @@ await new Promise(r => setTimeout(r, 1500));
 let closed = null, deleted = null;
 try { closed = JSON.stringify(await eda.dmt_EditorControl.closeDocument(probe)) } catch (e) { closed = 'ERR ' + String((e && e.message) || e) }
 await new Promise(r => setTimeout(r, 1000));
-try { deleted = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(probe)) } catch (e) { deleted = 'ERR ' + String((e && e.message) || e) }
+if (${JSON.stringify(process.env.T27_SKIP_DELETE === '1')}) deleted = 'SKIPPED_BY_TEST_HOOK';
+else try { deleted = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(probe)) } catch (e) { deleted = 'ERR ' + String((e && e.message) || e) }
 let pages = [];
 for (let i = 0; i < 6; i++) {
   pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid);
@@ -394,7 +407,7 @@ const rowsOf = (key) => (key === 'control' ? control.length : staggered.length /
 const columnVerdict = (key) => {
   const cols = (shots[key]?.pixel?.columns ?? []).filter((c) => c.bands >= 4)
   const textCol = cols.sort((a, b) => b.width - a.width)[0] ?? null
-  if (!textCol) return { rows: rowsOf(key), measured: null, verdict: 'NO_BANDS' }
+  if (!textCol) return { rows: rowsOf(key), measured: null, verdict: calStatus === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'NO_BANDS' }
   const expected = rowsOf(key)
   const gaps = textCol.minGap
   return {
@@ -417,6 +430,7 @@ const out = {
     pixelColumns: calCols.map((c) => ({ width: c.width, bands: c.bands, medianHeight: c.medianHeight })),
     medianBandHeightPx: calMedian,
     baseline: '2 px text band (documented)',
+    status: calStatus,
     ok: calibrationOk,
     image: calibration.image,
   },
@@ -429,14 +443,46 @@ const out = {
   },
   cleanup,
 }
+// The delete return value is not evidence (measured: false+gone, true+gone and
+// true+still-there all occur). Re-list with increasing waits and judge on that.
+const confirm = await confirmPageGone(async () => {
+  const pages = await callWithRetry(`return ((await eda.dmt_Schematic.getAllSchematicPagesInfo())||[]).map(p=>p.uuid);`, { timeoutMs: 60_000 })
+  return Array.isArray(pages) ? pages : []
+}, setup.pageUuid)
+out.cleanupConfirm = confirm
+const probeGone = cleanup?.probeGone === true && confirm.gone === true
+const mainIntact = cleanup?.mainIntact === true
+
+// Precedence matters: a leaked probe or a touched MAIN outranks every
+// measurement outcome, so they cannot be hidden behind a calibration status.
+if (!mainIntact) {
+  out.status = 'MAIN_CHANGED'
+  console.error(`MAIN_CHANGED main=${JSON.stringify(cleanup?.main)} expected components/wires from the start of this run`)
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(1)
+}
+if (!probeGone) {
+  out.status = 'PROBE_LEAK'
+  out.leakedProbe = confirm.leakedId ?? setup.pageUuid
+  console.error(`PROBE_LEAK probe=${out.leakedProbe} deleteSaid=${JSON.stringify(cleanup?.deleted)} recheck=${JSON.stringify(confirm.attempts)}`)
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(1)
+}
+if (calStatus === 'UNAVAILABLE') {
+  out.status = 'CALIBRATION_UNAVAILABLE'
+  console.error(`CALIBRATION_UNAVAILABLE no ink columns in ${CANVAS.x0}..${CANVAS.y0}..${CANVAS.y1}; the focused tab does not render this document (openDocument/activateDocument do not switch it). Not a pass: no A/B verdict is claimed.`)
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(2)
+}
+if (calStatus === 'FAILED') {
+  out.status = 'CALIBRATION_FAILED'
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(1)
+}
+const cV = columnVerdict('control')
+const sV = columnVerdict('staggered')
+const good = madeStep?.status === 'OK' && cV.measuredBands > 0 && sV.measuredBands > 0 &&
+  cV.verdict === 'NO_OVERLAP' && sV.verdict === 'NO_OVERLAP'
+out.status = good ? 'OK' : 'OVERLAP_OR_MISSED'
 console.log(JSON.stringify(out, null, 1))
-// Residue is not asserted empty: the project carries known P1 orphans from
-// earlier runs, and concurrent members may add pages mid-run. What must hold is
-// that OUR probe is gone and that MAIN still has the component/wire counts it
-// had before this script touched anything.
-const good = calibrationOk &&
-  madeStep?.status === 'OK' &&
-  columnVerdict('control').measuredBands > 0 &&
-  columnVerdict('staggered').measuredBands > 0 &&
-  cleanup?.probeGone && cleanup?.mainIntact
 process.exitCode = good ? 0 : 1

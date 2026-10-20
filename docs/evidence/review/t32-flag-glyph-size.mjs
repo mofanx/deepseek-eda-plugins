@@ -24,6 +24,7 @@
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gateFreshness } from './shared/freshness.mjs'
+import { confirmPageGone } from './shared/page-cleanup.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const freshSnapshot = gateFreshness(repoRoot)
@@ -274,6 +275,19 @@ return { closed, deleted, listed, existence, extra, missingFromList, missingReal
 `)
 out.cleanup = cleanup
 
+// The two-way assertion above counts our own probe as expected, so it cannot
+// notice that the probe survived. Re-list with increasing waits and report the
+// survival explicitly: tolerated (this script is about glyph size, not cleanup)
+// but printed and counted, never silent.
+const confirm = await confirmPageGone(async () => {
+  const pages = await call(`return ((await eda.dmt_Schematic.getAllSchematicPagesInfo())||[]).map(p=>p.uuid);`)
+  return Array.isArray(pages) ? pages : []
+}, pageStep.probe)
+out.cleanupConfirm = confirm
+out.leak = { tolerated: true, probe: pageStep.probe, gone: confirm.gone, leakedId: confirm.leakedId }
+out.summary = { leakedProbes: confirm.gone ? [] : [pageStep.probe], leakedCount: confirm.gone ? 0 : 1 }
+if (!confirm.gone) console.error(`TOLERATED_PROBE_LEAK probe=${pageStep.probe} deleteSaid=${JSON.stringify(cleanup?.deleted)} recheck=${JSON.stringify(confirm.attempts)}`)
+
 // Two-way: nothing may have appeared, and every page that is supposed to exist
 // must still exist. Existence is the authority because the list flaps; a page
 // that merely dropped out of the list is reported, not silently accepted.
@@ -287,7 +301,7 @@ out.residueCheck = {
   missingReal: cleanup?.missingReal ?? [],
   listFlap: (cleanup?.missingFromList ?? []).length > 0,
 }
-out.status = ok ? 'OK' : 'RESIDUE_MISMATCH'
+out.status = ok ? (confirm.gone ? 'OK' : 'OK_WITH_KNOWN_RESIDUE') : 'RESIDUE_MISMATCH'
 
 console.log(JSON.stringify(out, null, 1))
 process.exitCode = ok ? 0 : 1

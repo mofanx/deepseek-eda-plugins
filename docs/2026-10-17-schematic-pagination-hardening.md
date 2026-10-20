@@ -2403,10 +2403,11 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 - **已切换到共享模块（17 个）**：`t38-cross-review-t2.mjs`、`t39-row805.mjs`、`t40-netlabel-surface.mjs`（原本无门，本次补上）、`t41-cross-review-t5.mjs`；以及一次性迁移的 13 个：`t26-wire-net-guard`、`t27-flag-stagger`、`t28-label-overlap`、`t29-flag-stagger-readback`、`t30-cross-review-t2`、`t31-overlap-classify`、`t32-flag-glyph-size`、`t33-flag-glyph-crosscheck`、`t33-verify-t31-classify`、`t34-cross-review-t6b`、`t35-count-definitions`、`t36-cross-review-t10`、`t37-flag-component-type`。
 - **迁移方式**：`t46-codemod-mtime-gate.mjs` 一次性替换 28 种形态（helper、gate 常量、单行/块状 if、`freshness` 变体、t26 的自定义 `newest`、t30 的记录式循环）；不匹配的形态在脚本内单独说明。
 - **输出格式的必要变化**：原先把 `src`/`lib` 的 ISO 时间写进 `fresh`/`freshness` 字段，迁移后改为 `{ gate: 'content-sha256', packages: N }`。mtime 已不存在，无法保留原值；字段名保留，其余输出不动。
-- **迁移后实测**：13/13 在注入内容改动时 exit 1 + `STALE_BUILD` + `drift`（200–380 ms，未触网）；干净树 11/13 exit 0。`t27` 与 `t28` 在门**之后**失败，原因与门无关：t27 硬编码旧工程 MAIN `b188905f…`（该工程已损坏删除，现 MAIN 是 `b275cd23…`）→ `WRONG_PAGE`；t28 断言 `residue.length === 0`，而 4 个 P1 孤儿永久存在 → `RESIDUE`。
+- **迁移后实测**：13/13 在注入内容改动时 exit 1 + `STALE_BUILD` + `drift`（200–380 ms，未触网）；干净树 **12/13** exit 0，仅 `t27` 仍红。**更正**：早先记的"11/13、`t27` 与 `t28` 均失败"已过时——`t28` 原先断言 `residue.length === 0` 而必红，t5 改为超集断言后已转绿（见下条）；`t27` 的旧版硬编码已删除的工程 MAIN `b188905f…`（现 MAIN 是 `b275cd23…`）会 `WRONG_PAGE`，但该问题已由 t5 改为运行时解析，`t27` 现在失败于 `CALIBRATION_FAILED`（共享客户端可见页被占用，非门、非断言放水）。
 - **两项预期的修复（t5）**：`t28` 改为超集断言——显式列出已知孤儿页，并在启动时快照既有页面（他人探针不算本次残留），`probeGone` 单独成立即可；干净树 `exit 0`，注入一个未列入的 id → `RESIDUE` `exit 1`。`t27` 删掉两处硬编码旧 MAIN，改为运行时解析（`NO_MAIN` / `MAIN_NOT_OPEN` 明确错误码），并把 A/B 移到**本次新建的临时页**：原实现会先删除活动页的全部器件，若活动页是 MAIN 就会清空用户工程，现以 `WRONG_PAGE` 守卫 + 只删自己建的页 + 断 MAIN 器件/导线数与开始时一致。`t27` 干净树仍 `CALIBRATION_FAILED`：共享客户端当前可见标签页是他人探针的 P1 页（树内已 14 页、画布空白、缩放 5%），像素仪器拿不到行带；**没有**通过弱化校准断言来变绿。
 - **运行代价**：为验收实跑这 13 个脚本，`t29`/`t32` 各留下一个探针页（`03feee84…`、`7bd5f4ea…`），残留 4→6；MAIN 未动（21 器件 / 55 导线）。**该代价会随每次全量复跑累积**：v3 收尾那一轮再跑 6+13 个脚本，页面 10→13，新增 `2d7b04c4`、`7b0daa2e`、`e6fd538b`、`c74a9b3a`；`t29`/`t32` 每轮都会建探针页，但没有逐页 id 输出，**无法把每个新 id 归因到具体脚本**。同一窗口内并发成员在活动页上放器件，使 `getAll(undefined,true)` 的读数出现 36→21 的跳变——**"页面数不变"不能作为验收断言**，只能记录当时读数。
-- **另类（未切）**：`t42-cross-review-t10` 用 `git status -- packages` 为空作为门——内容相关，但任何与本次证据无关的脏文件都会让它误报，建议后续也并入本模块。
+- **静默漏页（t7 实测，已证实）**：单跑一次 `t32`，页面 **14→15**（新增 `99a12f4db87cbc33`），而脚本自身记录 `deleted:'true'`、`status:'OK'`——删除的返回值与真实状态不一致，漏页**没有任何报错**。机制：`t27`/`t28`/`t29`/`t32` 各建 1 个探针页；`t27`/`t28` 断言 `probeGone`，`t29`/`t32` 却把自家 probe 放进 `expected`（`t29` L321、`t32` L255），于是**删成功反而判红、删不掉才通过**（`t29` L326 `sameSet`、`t32` L272 `missingReal`），整轮因此稳定 **+2 页**。静态清单见 `t47-page-audit.mjs`：creating=4、toleratingResidue=[t29,t32]。
+- **激活假设不成立（t7 受控实验）**：`setActiveSchematicPage` 不存在；`activateDocument(O)` 返回 false 且活动页仍是 MAIN；`openDocument(O)` 返回 ok 但活动页不变；`deleteSchematicPage(O)` 两次（开 tab / close 后）均 false 且页持久。**但 t28 能删掉自己新建的页**：t8 复核两次，`deleted=true` 且该 id 确实不在最终列表（`971ac18b…`、`3a95ecc5…`）。故正确表述是"**旧孤儿页删不掉、本次新建页删得掉**"，不是"删除 API 全面失效"。返回值出现过 `false+persisted`、`true+persisted`、`true+gone` 三种组合，**不能单独作为判据**。
 
 ### 14.35.5 覆盖与边界（基线 v3）
 
@@ -2423,3 +2424,20 @@ B/D 与 C 的输出无法区分——这既是假阳性（内容已还原仍被�
 - **`--update` 是逃生阀**：在未重建的树上更新基线，会让门放行过期构建；约定不变：`--update` 必须紧跟成功的 `npx tsc -b && npx tsdown`，并与源码/配置改动同一提交。
 - **指纹之外的文件**：`pnpm-lock.yaml`、CI 脚本不在指纹内（lockfile 变化频繁、纳入会天天误报）。`extends` 指向 `node_modules` 里的 tsconfig 时，其**内容**现在会被钉住；但 `node_modules` 中实际安装的编译器/依赖版本仍只由 `package.json` 的声明范围间接覆盖，锁文件才是精确清单——这是有意不并入门的原因。
 - **旧基线（v1/v2）不验证闭包**：仍可读，但通过时只报 `FRESH_Vn_READ`，闭包是否完整需用 v3 基线复检。
+
+### 14.35.6 探针页的两种失败与清理校验（t10）
+
+**状态码分离**：`t27` 的像素校准以前把"画布没有墨水"和"校准值超范围"都记成 `CALIBRATION_FAILED`。现分开：
+
+| 状态 | 退出码 | 含义 |
+|---|---|---|
+| `CALIBRATION_UNAVAILABLE` | **2** | 截图没有可测的墨水列（共享客户端渲染的是被聚焦的标签页，`openDocument`/`activateDocument` 不切它——t7 实测）。这是环境条件，**不算通过**，也不与真实校准失败混同 |
+| `CALIBRATION_FAILED` | 1 | 有墨水但文字带高度超范围，真实校准失败 |
+| `PROBE_LEAK` | 1 | 本次建的探针页在退避重列后仍在，打印 `leakedProbe` |
+| `MAIN_CHANGED` | 1 | MAIN 器件/导线数与开始时不一致 |
+
+优先级：`MAIN_CHANGED` → `PROBE_LEAK` → 校准状态。前两者压过任何测量结论，不能被"环境不可用"掩盖。
+
+**清理不能信返回值**：`deleteSchematicPage` 实测出现 `false + 仍在`、`true + 仍在`、`true + 已删` 三种；`t27`/`t28`/`t29`/`t32` 现在都在删除后用 `shared/page-cleanup.mjs` 以 400/800/1600 ms 退避重列，判据是"列表里没有它"，不是返回值。`t27`/`t28` 泄漏即 `exit 1` 并打印 id；`t29`/`t32` 按设计容忍自家探针残留，但必须打印 `TOLERATED_PROBE_LEAK probe=…` 并写入 `summary.leakedProbes`，不再静默。
+
+**2026-10-20 实测（共享客户端，窗口内页面 21→26）**：`T28_SKIP_DELETE=1` → `exit 1`、`PROBE_LEAK`、`probe=d224f8d13804e759`，三次退避均在场；`t28` 正常跑 `exit 0`、无泄漏；`t29`/`t32` `exit 0` 但各自打印并计数了一个残留探针（`255daf39…`、`53193aa8…`）；`t27` 两轮均 `PROBE_LEAK`（`3504dfc8…`、`940ca5ae…`、`bcda3318…`），同一次运行的 `calibration.status` 已是 `UNAVAILABLE`——证明两个状态确实分开，只是泄漏优先级更高。**`t27` 因此仍未 exit 0**：不是断言放宽不够，而是客户端删不掉它自己建的页；`probeGone` 是硬断言，不能用"容忍"换绿。
