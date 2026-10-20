@@ -2328,9 +2328,19 @@ t2 曾写"y=805 行的 +3V3 与 MCU-30：dy=5、dx=30"。该句把三个坐标�
 | `schematic-easyeda/src/build.ts:336,343` | 注入页面脚本的 `labelFontSize` |
 | `schematic-easyeda/src/build.ts:427` | `sch_PrimitiveAttribute.modify({ fontSize: labelFontSize / 100 })`（格式单位→0.01 in 的 parity） |
 | `schematic-easyeda/src/index.ts:206,236,290` | serialize/build/import 三处透传 |
-| `tool-schematic/src/index.ts`（改前） | 参数只有 `document/pageSize/titleBlock/verify`，**无字号** |
+| `tool-schematic/src/index.ts`（改前） | 参数只有 `document/pageSize/titleBlock/verify`，**无字号**（t6 起 generate 暴露，t9 起 validate 同步） |
 
-**变更**：`schematic_generate` 增加可选数值参数 `netLabelFontSize`，同一值透传到 `engine.serialize` 与 `engine.verify`（源码路径与原语路径一致）。
+> 上表行号已于 t9 逐条复核：11 处全部命中（`serialize.ts` 151/353/395、`types.ts` 467、`build.ts` 929/336/343/427、easyeda `index.ts` 206/236/290）。
+
+**变更**：`schematic_generate` 与 `schematic_validate` 都增加可选数值参数 `netLabelFontSize`，共用同一守卫 `netLabelFontSizeFor`、同一非法值策略。generate 透传到 `engine.serialize` 与 `engine.verify`；validate 透传到 `engine.verify`——否则用 5 生成后再 validate，重建时会退回 6。`liveVerify` 同时由六个位置参数改为选项对象，两个调用点不再需要用 `undefined` 占位。
+
+**基准哈希**（`packages/tool-schematic/src/index.ts` 的 SHA-256，按提交内 blob 逐字节计算）：
+
+| 版本 | 提交 | SHA-256 | 性质 |
+|---|---|---|---|
+| **改前基准** | `57f370e`（即 `786cd3a^`） | `C26C7643A63800774EA02562AF55FB998592DF4DFFEB42151F72B24D63345012` | 真基准：该版本内 `netLabelFontSize` 命中 **0** 处 |
+| t6 改后 | `786cd3a` | `C24E4C21F10BA629850408E34AB3395C3EAF2BCB170BBA12826E95A05966100E` | **改后**哈希，**不是**基准（此前报告误标为 baseline，特此更正） |
+| t9 改后 | 本节所属提交 | `4433DF82C6EBBA2887DB9227D49470FD2CCB38E4A9C16E64C9FC8474031BDE82` | validate 对称 + `liveVerify` 选项化之后 |
 
 **默认不变**：调用方不传时，工具不向引擎传这个键（不是显式传 6），引擎按 `DEFAULT_NET_LABEL_FONT_SIZE = 6` 解析。测试用固定 `docUuid` 的整页 SHA-256 钉住字节，默认输出与改动前一致；显式传 6 与不传产出的字节也相同，但只有"不传"能保证旧行为。
 
@@ -2338,4 +2348,4 @@ t2 曾写"y=805 行的 +3V3 与 MCU-30：dy=5、dx=30"。该句把三个坐标�
 
 **非法值**：两层都拒绝、都不夹取——非数（如 `"5"`）由参数 schema 挡下（`INVALID_ARGS`）；0 与负数通过 schema 后由工具守卫挡下（`SCHEMATIC_NET_LABEL_FONT_SIZE`）。理由是夹取会让拼写错误变成"看起来正常、实际被静默改字号"的文档。
 
-**自证**：删掉 `serialize` 的透传 → 目标用例 1 红 / 4 绿；还原后源文件 SHA-256 一致、该文件 46/46 绿；全量 631 用例通过、行/分支/函数/语句覆盖率均 100%（与改前同）。
+**自证**：删掉 generate 侧 `serialize` 的透传 → 1 红 / 4 绿；删掉 validate 侧 `netLabelFontSize` → 1 红 / 7 绿；两次还原后文件 SHA-256 均与改动值一致（本次 `4433DF82…BDE82`）。该文件 **49/49** 绿；全量 **634** 用例通过、行/分支/函数/语句覆盖率仍 100%（与改前同）。

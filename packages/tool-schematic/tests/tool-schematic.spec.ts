@@ -737,4 +737,32 @@ describe('net-label font size', () => {
     expect(out.isError).toBe(true)
     expect(out.error?.info?.code).toBe('INVALID_ARGS')
   })
+
+  it('validate omits the option and still passes', async () => {
+    const recorder = optionRecorder()
+    const { call } = await mountTools({ engine: recorder.engine })
+    const out = await call('schematic_validate', { document: validDoc, verify: true })
+    expect(out.isError).toBe(false)
+    expect((out.value as { ok: boolean }).ok).toBe(true)
+    expect(recorder.verify[0]).not.toHaveProperty('netLabelFontSize')
+  })
+
+  it('validate forwards an explicit size to the live path', async () => {
+    const recorder = optionRecorder()
+    const { call } = await mountTools({ engine: recorder.engine })
+    await call('schematic_validate', { document: validDoc, verify: true, netLabelFontSize: 5 })
+    expect(recorder.verify[0]?.netLabelFontSize).toBe(5)
+  })
+
+  it('validate rejects the same invalid sizes as generate', async () => {
+    const { call } = await mountTools()
+    for (const bad of [0, -1]) {
+      const out = await call('schematic_validate', { document: validDoc, netLabelFontSize: bad })
+      expect(out.isError).toBe(true)
+      expect(out.error?.info?.code).toBe('SCHEMATIC_NET_LABEL_FONT_SIZE')
+    }
+    const typed = await call('schematic_validate', { document: validDoc, netLabelFontSize: '5' })
+    expect(typed.isError).toBe(true)
+    expect(typed.error?.info?.code).toBe('INVALID_ARGS')
+  })
 })

@@ -248,14 +248,19 @@ const DOCUMENT_PARAM_DESCRIPTION =
  * cannot run or throws reports `SCHEMATIC_VERIFY_UNAVAILABLE` as an *error* —
  * the result must not claim a clean `ok` on evidence that never happened.
  */
+interface LiveVerifyOptions {
+  symbolPins?: SchematicBindingResolution['symbolPins'] | undefined
+  pageSize?: SchematicPageSize | undefined
+  titleBlock?: SchematicTitleBlockOptions | undefined
+  netLabelFontSize?: number | undefined
+}
+
 async function liveVerify(
   ctx: Context,
   ir: SchematicIr,
-  symbolPins?: SchematicBindingResolution['symbolPins'],
-  pageSize?: SchematicPageSize,
-  titleBlock?: SchematicTitleBlockOptions,
-  netLabelFontSize?: number,
+  options: LiveVerifyOptions = {},
 ): Promise<readonly SchematicFinding[]> {
+  const { symbolPins, pageSize, titleBlock, netLabelFontSize } = options
   let engine
   try {
     engine = ctx.schematic.engine()
@@ -359,7 +364,7 @@ function applyGenerateTool(ctx: Context, config: ResolvedConfig): void {
       if (!report.ok) return { ok: false, format: '', source: '', sourceBytes: 0, findings: [...notes, ...report.findings].map(findingJson) }
       const engine = ctx.schematic.engine()
       const source = await engine.serialize(laid, { pageSize, titleBlock, ...(netLabelFontSize === undefined ? {} : { netLabelFontSize }) })
-      const verifyFindings = args.verify === true ? await liveVerify(ctx, laid, symbolPins, pageSize, titleBlock, netLabelFontSize) : []
+      const verifyFindings = args.verify === true ? await liveVerify(ctx, laid, { symbolPins, pageSize, titleBlock, netLabelFontSize }) : []
       const ok = verifyFindings.every(f => f.severity !== 'error')
       const findings = [...notes, ...report.findings, ...verifyFindings]
       if (source.length > config.maxSourceChars) {
@@ -392,6 +397,7 @@ function applyValidateTool(ctx: Context, config: ResolvedConfig): void {
     parameters: {
       document: { type: 'json', required: true, description: DOCUMENT_PARAM_DESCRIPTION },
       pageSize: { type: 'string', description: PAGE_SIZE_PARAM_DESCRIPTION },
+      netLabelFontSize: { type: 'number', description: NET_LABEL_FONT_SIZE_PARAM_DESCRIPTION },
       verify: { type: 'boolean', description: 'Also deliver through the engine live path and read the document back; netlist diffs and build failures return as findings for repair. Requires a reachable client — when the live path cannot run, the result reports SCHEMATIC_VERIFY_UNAVAILABLE as an error rather than passing unverified.' },
     },
     output: {
@@ -424,9 +430,10 @@ function applyValidateTool(ctx: Context, config: ResolvedConfig): void {
       exec.signal.throwIfAborted()
       const { ir: bound, libraryResolver, symbolPins } = await ctx.schematic.resolveBindings(ir)
       const pageSize = pageSizeFor(args.pageSize, config)
+      const netLabelFontSize = netLabelFontSizeFor(args.netLabelFontSize)
       const laid = ctx.schematic.layout(bound, { symbolPins, pageSize })
       const report = ctx.schematic.validate(laid, { libraryResolver })
-      const verifyFindings = args.verify === true && report.ok ? await liveVerify(ctx, laid, symbolPins, pageSize) : []
+      const verifyFindings = args.verify === true && report.ok ? await liveVerify(ctx, laid, { symbolPins, pageSize, netLabelFontSize }) : []
       return {
         ok: report.ok && verifyFindings.every(f => f.severity !== 'error'),
         findings: [...stringifiedNote(args.document), ...report.findings, ...verifyFindings].map(findingJson),
