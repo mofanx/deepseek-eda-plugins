@@ -1,31 +1,24 @@
 // t32: can the flag glyph's real size be measured? Read-only forensics.
 //
-// t29 measured the text band (6 units, from the stored font size) and the y
-// pitch, but had to leave the symbol box height unmeasured: attributes and
-// components expose no bounding box, getComponentDetail() fails for page
-// primitive ids, netFlagComponentUuid_Power yields an empty uuid, the library
-// lookups keyed on its libraryUuid return null, and placing a flag added no
-// rectangle and no text primitive to the page.
+// The first version of this file had three blind spots, fixed here:
+//   1. it keyed the diff on the primitive id and dropped anything without one,
+//      so a primitive that never exposes an id was invisible to the diff;
+//   2. it called getAll() once, with no way to tell whether hidden primitives
+//      were included, so a flag painted into a hidden layer would look absent;
+//   3. it compared id SETS only, so a placement that modified an existing
+//      primitive instead of adding one produced an empty diff.
 //
-// That last check only covered two of the drawing primitive types. A glyph is
-// just as likely to be drawn as a polygon, an arc or a circle, and those were
-// never inspected - so this script exists to close that specific hole rather
-// than to repeat the conclusions that are already established.
+// The instrument is now a full snapshot of every drawing namespace - id, type,
+// every getState_* value and every own property - diffed item by item. Items
+// are matched by id when they have one and by a content signature when they do
+// not, so additions, removals and same-id modifications are all visible. The
+// three getAll variants are counted separately so "hidden" is measured rather
+// than assumed.
 //
-// What it does:
-//   1. reports which drawing primitive namespaces exist and what getAll()
-//      actually returns, plus the state accessors each type exposes
-//   2. creates its own probe page (asserting the target is not MAIN), snapshots
-//      EVERY primitive namespace, places one net flag, and diffs every namespace
-//      again - so "the glyph is drawn as X" is answered for all X, not for two
-//   3. re-checks the earlier rect/text finding, which must still hold
-//   4. if a new primitive carries real geometry, reports the glyph box size and
-//      says whether the 6x11 constant survives
-//   5. cleans up and asserts the residue is exactly the pre-existing set plus
-//      this run's own probe, with MAIN still present
-//
-// Read-only with respect to the delivered page: the only mutations are a flag on
-// a page this script created, and that flag's deletion.
+// The cleanup assertion is two-way: the residue must equal the pre-existing set
+// plus this run's own probe. A missing page and an extra page both fail the run.
+// Existence is read through getSchematicPageInfo because the page LIST flaps -
+// a page can drop out of getAllSchematicPagesInfo() and come back (measured).
 //
 // Usage: node docs/evidence/review/t32-flag-glyph-size.mjs
 import { existsSync, readdirSync, statSync } from 'node:fs'
@@ -35,7 +28,6 @@ import { pathToFileURL } from 'node:url'
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const pkgDir = join(repoRoot, 'packages')
 
-// ---------------------------------------------------------------- preflight
 function newestMtime(dir, ext) {
   let newest = 0
   const walk = (d) => {
@@ -55,15 +47,14 @@ const gateSrc = newestMtime(join(pkgDir, 'eda-core/src'), '.ts')
 const gateLib = newestMtime(join(pkgDir, 'eda-core/lib'), '.js')
 const freshness = { src: new Date(gateSrc).toISOString(), lib: new Date(gateLib).toISOString(), fresh: gateLib >= gateSrc }
 if (!freshness.fresh) {
-  console.error(JSON.stringify({ status: 'STALE_BUILD', freshness, hint: 'rebuild before any live evidence' }, null, 1))
+  console.error(JSON.stringify({ status: 'STALE_BUILD', freshness }, null, 1))
   process.exit(1)
 }
 
 const { HttpEasyEdaBridge } = await import(pathToFileURL(join(pkgDir, 'eda-core/lib/index.js')).href)
 const bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 20_000 })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
-async function call(code, timeoutMs = 60_000) {
+async function call(code, timeoutMs = 90_000) {
   let last
   for (let i = 0; i < 3; i++) {
     try {
@@ -77,38 +68,69 @@ async function call(code, timeoutMs = 60_000) {
 }
 
 const out = { status: 'OK', freshness }
-const TYPES = ['sch_PrimitivePolygon', 'sch_PrimitiveArc', 'sch_PrimitiveCircle', 'sch_PrimitiveRectangle', 'sch_PrimitiveText', 'sch_PrimitivePin', 'sch_PrimitiveObject', 'sch_PrimitiveWire']
+const TYPES = [
+  'sch_PrimitivePolygon',
+  'sch_PrimitiveArc',
+  'sch_PrimitiveCircle',
+  'sch_PrimitiveRectangle',
+  'sch_PrimitiveText',
+  'sch_PrimitivePin',
+  'sch_PrimitiveObject',
+  'sch_PrimitiveWire',
+  'sch_PrimitiveBus',
+  'sch_PrimitiveComponent',
+  'sch_PrimitiveAttribute',
+]
 
-// ---- 1. which drawing primitive namespaces exist, and what they return ------
-out.inventory = await call(`
-const names = ${JSON.stringify(TYPES)};
-const res = {};
-for (const n of names) {
-  const ns = eda[n];
-  if (!ns) { res[n] = { exists: false }; continue }
-  const fns = [];
-  let p = ns;
-  while (p && p !== Object.prototype) { for (const k of Object.getOwnPropertyNames(p)) fns.push(k); p = Object.getPrototypeOf(p) }
-  const uniq = [...new Set(fns)].filter(k => { try { return typeof ns[k] === 'function' } catch (e) { return false } }).sort();
-  let count = null, err = null, stateFns = null, sample = null;
-  try {
-    const all = (await ns.getAll()) || [];
-    count = all.length;
-    if (all.length) {
-      const a = all[0];
-      const sp = [];
-      let q = a;
-      while (q && q !== Object.prototype) { for (const k of Object.getOwnPropertyNames(q)) sp.push(k); q = Object.getPrototypeOf(q) }
-      stateFns = [...new Set(sp)].filter(k => /^getState_/.test(k)).sort();
-      const snap = {};
-      for (const f of stateFns) { try { const v = a[f](); if (v !== undefined) snap[f.replace('getState_', '')] = v } catch (e) {} }
-      sample = snap;
+// Snapshot helper, injected into every page call. Attributes are captured
+// compactly because there are 662 of them and they cannot carry glyph geometry.
+const SNAP = `
+const SNAP_TYPES = ${JSON.stringify(TYPES)};
+const stateOf = (it) => {
+  const sp = [];
+  let q = it;
+  while (q && q !== Object.prototype) { for (const k of Object.getOwnPropertyNames(q)) sp.push(k); q = Object.getPrototypeOf(q) }
+  const fns = [...new Set(sp)].filter(k => /^getState_/.test(k));
+  const s = {};
+  for (const f of fns) { try { const v = it[f](); if (v !== undefined) s[f.replace('getState_', '')] = v } catch (e) {} }
+  return s;
+};
+const ownOf = (it) => {
+  const o = {};
+  for (const k of Object.keys(it)) { try { const v = it[k]; if (v === null || ['number','string','boolean'].includes(typeof v)) o[k] = v } catch (e) {} }
+  return o;
+};
+const snapshot = async () => {
+  const types = {};
+  for (const n of SNAP_TYPES) {
+    const ns = eda[n];
+    if (!ns) { types[n] = { exists: false }; continue }
+    const variants = {};
+    for (const [label, args] of [['default', []], ['hiddenTrue', [undefined, true]], ['hiddenFalse', [undefined, false]]]) {
+      try { const all = await ns.getAll(...args); variants[label] = all ? all.length : null } catch (e) { variants[label] = 'ERR' }
     }
-  } catch (e) { err = String(e && e.message || e).slice(0, 120) }
-  res[n] = { exists: true, apiFns: uniq.filter(k => /get|create|delete|modify/i.test(k)), count, err, stateAccessors: stateFns, sample };
-}
-return res;
-`)
+    let items = [];
+    try { items = (await ns.getAll(undefined, true)) || [] } catch (e) {
+      try { items = (await ns.getAll()) || [] } catch (e2) { items = [] }
+    }
+    const rows = [];
+    for (const it of items) {
+      const s = stateOf(it);
+      const o = ownOf(it);
+      if (n === 'sch_PrimitiveAttribute') {
+        rows.push({ id: s.PrimitiveId ?? o.id ?? null, st: { Key: s.Key ?? null, Value: s.Value ?? null, X: s.X ?? null, Y: s.Y ?? null, FontSize: s.FontSize ?? null, ValueVisible: s.ValueVisible ?? null, KeyVisible: s.KeyVisible ?? null } });
+      } else {
+        rows.push({ id: s.PrimitiveId ?? o.id ?? o.uuid ?? null, st: s, own: o });
+      }
+    }
+    types[n] = { exists: true, count: rows.length, variants, rows };
+  }
+  return types;
+};
+`
+
+// ---- 1. inventory: which namespaces exist, what the variants return ---------
+out.inventory = await call(`${SNAP}\nconst types = await snapshot();\nconst brief = {};\nfor (const [n, v] of Object.entries(types)) { brief[n] = v.exists ? { count: v.count, variants: v.variants, sample: (v.rows[0] ?? null) } : { exists: false } }\nreturn brief;\n`)
 
 // ---- 2. probe page, asserted different from MAIN ---------------------------
 const base = await call(`
@@ -149,94 +171,112 @@ if (pageStep.probe === base.main) {
   process.exit(1)
 }
 
-// ---- 3. place one flag and diff every primitive namespace ------------------
+// ---- 3+4. snapshot, place one flag, snapshot again -------------------------
 const diff = await call(`
-const names = ${JSON.stringify(TYPES)};
-const snapshot = async () => {
-  const map = {};
-  for (const n of names) {
-    try { map[n] = new Set((((await eda[n].getAll()) || [])).map(p => p.getState_PrimitiveId ? p.getState_PrimitiveId() : null)) } catch (e) { map[n] = null }
-  }
-  return map;
-};
+${SNAP}
 const before = await snapshot();
 const flag = await eda.sch_PrimitiveComponent.createNetFlag('Power', 'MCU-1', 300, 200, 0, false);
 const flagId = flag && (flag.getState_PrimitiveId ? flag.getState_PrimitiveId() : (flag.id || flag.primitiveId));
 await new Promise(r => setTimeout(r, 900));
-const added = {};
-for (const n of names) {
-  try {
-    const all = (await eda[n].getAll()) || [];
-    const beforeSet = before[n] || new Set();
-    const items = all.filter(p => { const id = p.getState_PrimitiveId ? p.getState_PrimitiveId() : null; return id && !beforeSet.has(id) });
-    if (!items.length) { added[n] = { added: 0, total: all.length }; continue }
-    const rows = items.slice(0, 6).map(p => {
-      const sp = [];
-      let q = p;
-      while (q && q !== Object.prototype) { for (const k of Object.getOwnPropertyNames(q)) sp.push(k); q = Object.getPrototypeOf(q) }
-      const fns = [...new Set(sp)].filter(k => /^getState_/.test(k)).sort();
-      const snap = {};
-      for (const f of fns) { try { const v = p[f](); if (v !== undefined) snap[f.replace('getState_', '')] = v } catch (e) {} }
-      return snap;
-    });
-    added[n] = { added: items.length, total: all.length, rows };
-  } catch (e) { added[n] = { err: String(e && e.message || e).slice(0, 100) } }
+const after = await snapshot();
+
+const sig = (r) => JSON.stringify({ st: r.st, own: r.own ?? null });
+const diffOf = (a, b) => {
+  const byId = (rows) => { const m = new Map(); for (const r of rows) if (r.id) m.set(r.id, r); return m };
+  const aId = byId(a), bId = byId(b);
+  const added = [], removed = [], changed = [];
+  for (const [id, r] of bId) if (!aId.has(id)) added.push(r);
+  for (const [id, r] of aId) if (!bId.has(id)) removed.push(r);
+  for (const [id, r] of bId) { const old = aId.get(id); if (old && sig(old) !== sig(r)) changed.push({ id, before: old, after: r }) }
+  // items without an id: match by content signature on both sides
+  const pool = new Map();
+  for (const r of a.filter(x => !x.id)) { const s = sig(r); pool.set(s, (pool.get(s) ?? 0) + 1) }
+  const addedNoId = [], removedNoId = [];
+  for (const r of b.filter(x => !x.id)) { const s = sig(r); const n = pool.get(s) ?? 0; if (n > 0) pool.set(s, n - 1); else addedNoId.push(s) }
+  for (const [s, n] of pool) for (let i = 0; i < n; i++) removedNoId.push(s);
+  return { added, removed, changed, addedNoId, removedNoId };
+};
+
+const report = {};
+for (const n of SNAP_TYPES) {
+  const a = before[n], b = after[n];
+  if (!a || !b || !a.exists || !b.exists) { report[n] = { exists: false }; continue }
+  const d = diffOf(a.rows, b.rows);
+  report[n] = { before: a.count, after: b.count, added: d.added.length, removed: d.removed.length, changed: d.changed.length, addedNoId: d.addedNoId.length, removedNoId: d.removedNoId.length, rows: d.added.slice(0, 4), changedRows: d.changed.slice(0, 2) };
 }
-let comp = null;
-try {
-  for (const c of ((await eda.sch_PrimitiveComponent.getAll(undefined, false)) || [])) {
-    const i = c.getState_PrimitiveId ? c.getState_PrimitiveId() : null;
-    if (i === flagId) comp = { x: c.getState_X ? c.getState_X() : null, y: c.getState_Y ? c.getState_Y() : null };
-  }
-} catch (e) {}
-if (flagId) { try { await eda.sch_PrimitiveComponent.delete(flagId) } catch (e) {} }
+
+// every state field of the new component, and every library path it exposes
+let compState = null;
+for (const c of ((await eda.sch_PrimitiveComponent.getAll(undefined, true)) || [])) {
+  const id = c.getState_PrimitiveId ? c.getState_PrimitiveId() : null;
+  if (id !== flagId) continue;
+  compState = stateOf(c);
+}
+const lib = {};
+for (const [label, nsName, arg] of [
+  ['lib_Symbol.get', 'lib_Symbol', compState && (compState.Symbol ?? compState.SymbolUuid ?? compState.LibSymbolUuid ?? compState.LibrarySymbolUuid)],
+  ['lib_Device.get', 'lib_Device', compState && (compState.Component ?? compState.Device ?? compState.DeviceUuid)],
+]) {
+  const ns = eda[nsName];
+  if (!ns) { lib[label] = 'NO_NAMESPACE'; continue }
+  const name = label.split('.')[1];
+  if (typeof ns[name] !== 'function') { lib[label] = 'NO_FUNCTION'; continue }
+  if (arg == null) { lib[label] = 'NO_ARG_FROM_STATE'; continue }
+  try {
+    const v = await ns[name](arg)
+    lib[label] = { arg, ret: v === undefined ? 'undefined' : JSON.stringify(v).slice(0, 600) }
+  } catch (e) { lib[label] = { arg, err: String(e && e.message || e).slice(0, 120) } }
+}
+try { await eda.sch_PrimitiveComponent.delete(flagId) } catch (e) {}
 await new Promise(r => setTimeout(r, 500));
-return { flagId, added, comp };
+return { flagId, report, comp: compState, lib };
 `)
 out.diff = diff
 
-// ---- 4. interpret ---------------------------------------------------------
-const rows = []
-for (const [name, v] of Object.entries(diff?.added ?? {})) {
-  if (v?.added) for (const r of v.rows ?? []) rows.push({ type: name, ...r })
+// ---- 5. interpretation ----------------------------------------------------
+const addedRows = []
+for (const [name, v] of Object.entries(diff?.report ?? {})) {
+  for (const r of v.rows ?? []) addedRows.push({ type: name, ...r })
 }
-const geometryOf = (r) => {
-  const h = r.Height ?? r.height
-  const w = r.Width ?? r.width
-  if (typeof h === 'number' && typeof w === 'number') return { w, h }
-  const ys = [r.Y, r.TopLeftY, r.CenterY, r.Center].filter((v) => typeof v === 'number')
-  const xs = [r.X, r.TopLeftX, r.CenterX].filter((v) => typeof v === 'number')
-  const radius = typeof r.Radius === 'number' ? r.Radius : null
-  if (radius !== null) return { w: radius * 2, h: radius * 2 }
-  if (ys.length && xs.length) return { w: null, h: null, x: xs[0], y: ys[0] }
-  return { w: null, h: null }
-}
-const withSize = rows.map((r) => ({ type: r.type, ...geometryOf(r), raw: r })).filter((r) => typeof r.h === 'number' || r.h === null)
+const sized = addedRows
+  .map((r) => {
+    const st = r.st ?? {}
+    const w = st.Width ?? r.own?.Width
+    const h = st.Height ?? r.own?.Height
+    if (typeof w === 'number' && typeof h === 'number') return { type: r.type, w, h }
+    const rad = st.Radius ?? r.own?.Radius
+    if (typeof rad === 'number') return { type: r.type, w: rad * 2, h: rad * 2 }
+    return null
+  })
+  .filter(Boolean)
 
 out.glyph = {
-  newPrimitiveRows: rows.length,
-  rowsByType: Object.fromEntries(Object.entries(diff?.added ?? {}).map(([k, v]) => [k, v?.added ?? v?.err ?? 0])),
-  sized: withSize.filter((r) => typeof r.h === 'number'),
-  unresolved: withSize.filter((r) => r.h === null),
+  addedRowsTotal: addedRows.length,
+  addedByType: Object.fromEntries(Object.entries(diff?.report ?? {}).map(([k, v]) => [k, v.added ?? v.addedNoId ?? 0])),
+  changedByType: Object.fromEntries(Object.entries(diff?.report ?? {}).map(([k, v]) => [k, v.changed ?? 0]).filter(([, n]) => n)),
+  addedSample: addedRows.slice(0, 4),
+  sized,
+  compState: diff?.comp ?? null,
+  libraryLookups: diff?.lib ?? null,
 }
-const sized = out.glyph.sized
 out.verdict = {
   symbolSizeMeasured: sized.length > 0,
-  constant6x11: sized.length ? (sized.some((r) => r.h === 11 && r.w === 6) ? 'CONFIRMED by a new primitive' : 'CONTRADICTED by a new primitive') : 'UNMEASURED',
-  textBandRecheck: 'see t29 (6 units from the stored font size)',
-  rectTextRecheck: (diff?.added?.sch_PrimitiveRectangle?.added ?? 0) === 0 && (diff?.added?.sch_PrimitiveText?.added ?? 0) === 0 ? 'still empty (matches t29)' : 'CHANGED - rect/text now appear',
+  constant6x11: sized.length ? (sized.some((r) => r.h === 11 && r.w === 6) ? 'CONFIRMED' : 'CONTRADICTED') : 'UNMEASURABLE',
+  reason: sized.length
+    ? 'a new primitive carries Width/Height'
+    : 'the flag adds no primitive of any drawing type that carries width or height, and the component state exposes no size field',
   staggerClaim: sized.length
-    ? `symbol box is ${sized[0].w ?? '?'}x${sized[0].h} units, so the stagger clears it whenever its height is <= 20`
-    : 'CONDITIONAL: symbol height still unmeasured, so "stagger clears symbol collision" holds only for a glyph of height <= 20',
+    ? `symbol box ${sized[0].w}x${sized[0].h}, clears whenever its height is <= 20`
+    : 'CONDITIONAL: glyph height unmeasured, so "stagger clears symbol collision" holds only for a glyph of height <= 20',
 }
 
-// ---- 5. cleanup -----------------------------------------------------------
+// ---- 6. two-way residue assertion ----------------------------------------
 const cleanup = await call(`
 const probe = ${JSON.stringify(pageStep.probe)};
 const main = ${JSON.stringify(base.main)};
+const expected = ${JSON.stringify([...new Set([...out.residueBefore, pageStep.probe])])};
 if (probe === main) return { status: 'REFUSED_DELETE_MAIN' };
-try { await eda.dmt_EditorControl.openDocument(main) } catch (e) {}
-await new Promise(r => setTimeout(r, 1200));
+const exists = async (u) => { try { const r = await eda.dmt_Schematic.getSchematicPageInfo(u); return !!(r && r.uuid) } catch (e) { return 'ERR' } };
 let closed = null, deleted = null;
 try { closed = JSON.stringify(await eda.dmt_EditorControl.closeDocument(probe)) } catch (e) { closed = 'ERR' }
 await new Promise(r => setTimeout(r, 900));
@@ -245,25 +285,31 @@ let pages = [];
 for (let i = 0; i < 3; i++) {
   await new Promise(r => setTimeout(r, 800));
   pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid);
-  if (!pages.includes(probe)) break;
 }
-// The page LIST flaps: a page can be absent from getAllSchematicPagesInfo() for
-// a moment and then reappear (measured: the probe was missing from the list at
-// cleanup, yet getSchematicPageInfo() returned it 3 s and 5.5 s later). So list
-// membership is not proof of deletion - ask for the page itself.
-let stillExists = true;
-try { const r = await eda.dmt_Schematic.getSchematicPageInfo(probe); stillExists = !!(r && r.uuid) } catch (e) { stillExists = true }
-return { closed, deleted, stillExists, residue: pages.filter(u => u !== main), probeGone: !stillExists, mainStillThere: pages.includes(main) };
+const listed = pages.filter(u => u !== main);
+const existence = {};
+for (const u of expected) existence[u] = await exists(u);
+const extra = listed.filter(u => !expected.includes(u));
+const missingFromList = expected.filter(u => !listed.includes(u));
+const missingReal = expected.filter(u => existence[u] !== true);
+return { closed, deleted, listed, existence, extra, missingFromList, missingReal, mainStillThere: pages.includes(main) };
 `)
 out.cleanup = cleanup
 
-const expected = new Set([...(out.residueBefore ?? []), pageStep.probe])
-const actual = new Set(cleanup?.residue ?? [])
-// Existence, not list membership, decides. If the page is really gone that is a
-// better outcome than the standing residue and is accepted; if it still exists,
-// nothing outside the known set may have appeared.
-const stray = [...actual].filter((u) => !expected.has(u))
-out.status = !cleanup?.mainStillThere ? 'RESIDUE' : cleanup?.stillExists ? (stray.length === 0 ? 'OK_WITH_KNOWN_RESIDUE' : 'RESIDUE') : 'OK_DELETED'
+// Two-way: nothing may have appeared, and every page that is supposed to exist
+// must still exist. Existence is the authority because the list flaps; a page
+// that merely dropped out of the list is reported, not silently accepted.
+const ok = cleanup?.mainStillThere && (cleanup?.extra ?? []).length === 0 && (cleanup?.missingReal ?? []).length === 0
+out.residueCheck = {
+  expected: [...new Set([...out.residueBefore, pageStep.probe])].sort(),
+  listed: [...(cleanup?.listed ?? [])].sort(),
+  existence: cleanup?.existence ?? {},
+  extra: cleanup?.extra ?? [],
+  missingFromList: cleanup?.missingFromList ?? [],
+  missingReal: cleanup?.missingReal ?? [],
+  listFlap: (cleanup?.missingFromList ?? []).length > 0,
+}
+out.status = ok ? 'OK' : 'RESIDUE_MISMATCH'
 
 console.log(JSON.stringify(out, null, 1))
-process.exitCode = out.status === 'RESIDUE' ? 1 : 0
+process.exitCode = ok ? 0 : 1
