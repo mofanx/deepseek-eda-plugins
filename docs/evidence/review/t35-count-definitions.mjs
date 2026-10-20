@@ -2,7 +2,8 @@
 //   A. how many flag components: prefix count vs Global Net Name parent count
 //   B. how many text rows the title-block window really covers, and over how
 //      many distinct y values
-//   C. does the rect mapping stored.TopLeftY = IR y2 hold (border rect = 8..1162)
+//   C. does the rect mapping stored_y = pageHeight - IR_y hold (border rect
+//      8..1162 maps to itself; title block 1024..1154 maps to 16..146)
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
