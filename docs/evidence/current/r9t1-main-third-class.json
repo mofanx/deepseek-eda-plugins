@@ -1,0 +1,183 @@
+{
+  "task": "r9t1",
+  "at": "2026-10-21T09:24:11.313Z",
+  "guide": "docs/evidence/current/r9t1-main-view-guide.md",
+  "overview": "docs/evidence/current/r9t1-main-overview.png",
+  "overviewDrawn": true,
+  "thresholds": {
+    "textRadius": 6,
+    "symbolRadius": 12,
+    "note": "symbol is an anchor proxy: no bounding box and no pin primitives are readable"
+  },
+  "wireSegments": 69,
+  "textPrimitiveCandidates": [],
+  "foreignLabelCandidates": [
+    {
+      "attribute": "attr111",
+      "parent": "layout:wire:MCU_34:flags",
+      "key": "Name",
+      "value": "MCU-34",
+      "x": 210,
+      "y": 795,
+      "distance": 0,
+      "at": [
+        210,
+        795
+      ],
+      "wire": "layout:wire:_3V3:flags",
+      "net": "+3V3",
+      "owner": "other"
+    },
+    {
+      "attribute": "attr102",
+      "parent": "layout:wire:MCU_26:flags",
+      "key": "Name",
+      "value": "MCU-26",
+      "x": 390,
+      "y": 795,
+      "distance": 0,
+      "at": [
+        390,
+        795
+      ],
+      "wire": "layout:wire:GND:flags",
+      "net": "GND",
+      "owner": "other"
+    }
+  ],
+  "attributeHitsByOwner": {
+    "pin-annotation": 32,
+    "other": 2
+  },
+  "attributeHitsTotal": 34,
+  "nearestTextWire": [
+    {
+      "text": "text65",
+      "content": "POWER",
+      "d": 130,
+      "at": [
+        540,
+        910
+      ],
+      "wire": "layout:wire:POWER_A0",
+      "net": "POWER-A0",
+      "t": 1
+    },
+    {
+      "text": "text67",
+      "content": "IO",
+      "d": 130,
+      "at": [
+        220,
+        390
+      ],
+      "wire": "layout:wire:IO_A0",
+      "net": "IO-A0",
+      "t": 1
+    },
+    {
+      "text": "text69",
+      "content": "CLK",
+      "d": 130,
+      "at": [
+        540,
+        390
+      ],
+      "wire": "layout:wire:CLK_A0",
+      "net": "CLK-A0",
+      "t": 1
+    },
+    {
+      "text": "text63",
+      "content": "MCU",
+      "d": 135,
+      "at": [
+        150,
+        905
+      ],
+      "wire": "layout:wire:MCU_36",
+      "net": "MCU-36",
+      "t": 1
+    },
+    {
+      "text": "text56",
+      "content": "B",
+      "d": 143.14,
+      "at": [
+        150,
+        715
+      ],
+      "wire": "layout:wire:MCU_16",
+      "net": "MCU-16",
+      "t": 1
+    },
+    {
+      "text": "text27",
+      "content": "图样名称",
+      "d": 148,
+      "at": [
+        340,
+        290
+      ],
+      "wire": "layout:wire:IO_B1",
+      "net": "IO-B1",
+      "t": 0.333
+    },
+    {
+      "text": "text29",
+      "content": "图号",
+      "d": 148,
+      "at": [
+        590,
+        290
+      ],
+      "wire": "layout:wire:CLK_A1",
+      "net": "CLK-A1",
+      "t": 0.167
+    },
+    {
+      "text": "text28",
+      "content": "MAIN",
+      "d": 149.93,
+      "at": [
+        380,
+        290
+      ],
+      "wire": "layout:wire:IO_B1",
+      "net": "IO-B1",
+      "t": 1
+    }
+  ],
+  "symbolCandidates": [],
+  "conclusion": "导线穿字/穿符号：**有候选，需人工在这些具体文件里确认**——2 处\"别人的网络名压在导线上\"，全部在 `tile-r4c0`（见下表 W1/W2 与对照图蓝框）。",
+  "fileChecks": {
+    "total": 16,
+    "exists": 16,
+    "shaMatches": 16,
+    "failures": []
+  },
+  "invariants": {
+    "before": {
+      "components": 21,
+      "parts": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wireNets": 55,
+      "pages": 2,
+      "active": "MAIN",
+      "activeUuid": "b275cd23e45c4271bead56f66d4f98fe"
+    },
+    "after": {
+      "components": 21,
+      "parts": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wireNets": 55,
+      "pages": 2,
+      "active": "MAIN",
+      "activeUuid": "b275cd23e45c4271bead56f66d4f98fe"
+    },
+    "unchanged": true
+  },
+  "wrote": 0
+}

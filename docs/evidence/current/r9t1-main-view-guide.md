@@ -1,0 +1,75 @@
+# MAIN 高清图块索引与第三类（导线穿字/穿符号）候选（r9t1）
+
+> 只读产出。图来自 `r8t1`：12 块分块（2 列 × 6 行，相邻重叠 12%，**2.323 px/单位**）+ 4 张特写（**5.405 px/单位**）。页坐标范围与 sha256 以 `docs/evidence/current/r8t1-main-hires-tiles.json` 为准，本索引逐条核对过文件存在性与哈希。
+
+## 一眼定位
+
+![overview](r9t1-main-overview.png)
+
+12 块按 2×6 拼回整页，每块左上角标 `rXcY`；**红框 A** 是已确认的真实重叠，**蓝框 W\*** 是本次新增、需人工确认的导线候选。
+
+## 12 块分块
+
+| 块 | 文件 | 页坐标范围 | px/单位 | 值得看的东西 |
+|---|---|---|---|---|
+| r0c0 | `r8t1-main-tile-r0c0.png` | (-2, -2) - (509.8, 216.7) | 2.323 | 器件：—<br>文字："图样名称", "MAIN", "项目", "dsh-t19-real-ic-17", "版本", "V0.1"<br>网络名：— |
+| r0c1 | `r8t1-main-tile-r0c1.png` | (400.2, -2) - (912, 216.7) | 2.323 | 器件：—<br>文字："MAIN", "图号", "dsh-t19-real-ic-17", "图幅", "910×1170", "V0.1"<br>网络名：— |
+| r1c0 | `r8t1-main-tile-r1c0.png` | (-2, 189.5) - (509.8, 408.1) | 2.323 | 器件：U4, U5<br>文字：—<br>网络名：IO-A0, IO-A1, IO-B0, IO-B1 |
+| r1c1 | `r8t1-main-tile-r1c1.png` | (400.2, 189.5) - (912, 408.1) | 2.323 | 器件：U6, U7<br>文字：—<br>网络名：CLK-A0, CLK-A1, CLK-B0, CLK-B1 |
+| r2c0 | `r8t1-main-tile-r2c0.png` | (-2, 380.9) - (509.8, 599.6) | 2.323 | 器件：U4<br>文字："C", "IO"<br>网络名：IO-A0, IO-B0 |
+| r2c1 | `r8t1-main-tile-r2c1.png` | (400.2, 380.9) - (912, 599.6) | 2.323 | 器件：U6<br>文字："C", "CLK"<br>网络名：CLK-A0, CLK-B0 |
+| r3c0 | `r8t1-main-tile-r3c0.png` | (-2, 572.4) - (509.8, 791.1) | 2.323 | 器件：U1, U?, layout:flag:MCU_17:0(flag), layout:flag:MCU_22:0(flag), layout:flag:MCU_25:0(flag), layout:flag:MCU_29:0(flag), layout:flag:MCU_30:0(flag), layout:flag:MCU_31:0(flag)<br>文字："B"<br>网络名：+3V3, MCU-17, MCU-22, MCU-25, MCU-29, MCU-30, MCU-31, MCU-32, MCU-33, MCU-10 |
+| r3c1 | `r8t1-main-tile-r3c1.png` | (400.2, 572.4) - (912, 791.1) | 2.323 | 器件：—<br>文字："B"<br>网络名：— |
+| r4c0 | `r8t1-main-tile-r4c0.png` | (-2, 763.9) - (509.8, 982.5) | 2.323 | 器件：U1, layout:flag:GND:bus:360(flag), layout:flag:MCU_22:0(flag), layout:flag:MCU_25:0(flag), layout:flag:MCU_26:0(flag), layout:flag:MCU_27:0(flag), layout:flag:MCU_28:0(flag), layout:flag:MCU_31:0(flag)<br>文字：—<br>网络名：GND, MCU-22, MCU-25, MCU-26, MCU-27, MCU-28, MCU-31, MCU-32, MCU-33, MCU-34 |
+| r4c1 | `r8t1-main-tile-r4c1.png` | (400.2, 763.9) - (912, 982.5) | 2.323 | 器件：U2, U3<br>文字：—<br>网络名：POWER-A0, POWER-A1, POWER-B0, POWER-B1 |
+| r5c0 | `r8t1-main-tile-r5c0.png` | (-2, 955.3) - (509.8, 1174) | 2.323 | 器件：—<br>文字："1", "2", "3", "A", "MCU"<br>网络名：— |
+| r5c1 | `r8t1-main-tile-r5c1.png` | (400.2, 955.3) - (912, 1174) | 2.323 | 器件：—<br>文字："4", "5", "6", "A", "POWER"<br>网络名：— |
+
+## 4 张特写
+
+| 特写 | 文件 | 页坐标范围 | px/单位 | 为什么拍它 |
+|---|---|---|---|---|
+| closeup-1 | `r8t1-main-closeup-1.png` | (778, 95) - (998, 189) | 5.405 | t55 最近文字对 22.8 单位（text41 "1/1" / text61 "D"） |
+| closeup-2 | `r8t1-main-closeup-2.png` | (480, 95) - (700, 189) | 5.405 | t55 最近文字-符号 151 单位（text29 "图号" / u7） |
+| closeup-3 | `r8t1-main-closeup-3.png` | (230, 95) - (450, 189) | 5.405 | t55 锚点落在矩形内（text27 "图样名称" 在 rect0 内） |
+| closeup-4 | `r8t1-main-closeup-4.png` | (-42, 21) - (178, 115) | 5.405 | t55 矩形包含 11 对（rect0 包 rect1，面积 999164） |
+
+## 三类问题的当前状态
+
+- 文字-文字：**一非一真**——`closeup-1` 中 `1/1` 与 `D` 相距 22.8 单位但分处两格，**不是重叠**；`closeup-2` 中 16pt 项目名 `dsh-t19-real-ic-1792425596633` 越出自身单元格压到「图幅」标签，**是真实重叠**（两者都是文字图元）。
+- 文字-符号：**几何不可判**——符号无包围框（无宽高、无引脚图元），算不出"文字压符号"；本任务不下任何结论。
+- 导线穿字/穿符号：**有候选，需人工在这些具体文件里确认**——2 处"别人的网络名压在导线上"，全部在 `tile-r4c0`（见下表 W1/W2 与对照图蓝框）。
+
+## 第三类的算法与阈值（可复算）
+
+- **导线**：`sch_PrimitiveWire.Line` 是扁平坐标序列 `[x1,y1,x2,y2,x3,y3,…]`，相邻两点构成一段；本页 55 条导线共 69 段。
+- **文字的两套来源**：`sch_PrimitiveText` 只有 39 条；真正的文字大头是 `sch_PrimitiveAttribute`——662 条，其中 342 条有坐标且非空。只用前者会得出"没有候选"的错误结论。
+- **判据**：导线线段到锚点的最短距离 ≤ **6** 单位，且垂足不在线段两端 5% 内——端点命中是接线，不是穿越。
+- **归属分类**（决定是不是真候选）：`own-wire-label`（标签属于它所在的那条线，正常）/ `pin-annotation`（`ParentPrimitiveId` 以 `-eNN` 结尾，画在符号体内的管脚标注，正常）/ `other`（别的网络的标签压在导线上，**候选**）。
+- 本页结果：中段命中 34 条，其中 32 条管脚标注、0 条自有标签、**2 条 other**。
+- **符号**：`getState_` 没有宽高，`sch_PrimitivePin` 返回 **0 个图元**，拿不到包围框；器件锚点代理（12 单位）在排除端点后命中 0 条，因此本任务不对"导线穿符号"下结论——**几何不可判**。
+
+### 导线 × 文字图元（39 条）
+
+命中：0 对。为了让"无命中"可被质疑，下面附最近距离——最近的文字图元离任何导线仍有 **130** 单位，远大于 6 单位阈值。
+
+| 最近 | 文字 | 内容 | 页坐标 | 最近距离 | 最近导线/网络 |
+|---|---|---|---|---|---|
+| 1 | text65 | `POWER` | (540, 910) | 130 | layout:wire:POWER_A0 / POWER-A0 |
+| 2 | text67 | `IO` | (220, 390) | 130 | layout:wire:IO_A0 / IO-A0 |
+| 3 | text69 | `CLK` | (540, 390) | 130 | layout:wire:CLK_A0 / CLK-A0 |
+| 4 | text63 | `MCU` | (150, 905) | 135 | layout:wire:MCU_36 / MCU-36 |
+| 5 | text56 | `B` | (150, 715) | 143.14 | layout:wire:MCU_16 / MCU-16 |
+
+### 导线 × 外来标签（候选，需人工确认）
+
+| # | 标签 | 所属 | 页坐标 | 距导线 | 压到的导线/网络 | 落在 |
+|---|---|---|---|---|---|---|
+| W1 | Name = `MCU-34` | layout:wire:MCU_34:flags | (210, 795) | 0 | layout:wire:_3V3:flags / +3V3 | tile-r4c0 |
+| W2 | Name = `MCU-26` | layout:wire:MCU_26:flags | (390, 795) | 0 | layout:wire:GND:flags / GND | tile-r4c0 |
+
+## 自证
+
+- 文件核对：16 个引用文件，存在 16 个，sha256 一致 16 个。
+- 零写入：EDA 侧无任何保存/删除/新建/修改/清空/打开文档调用（grep 0 命中），只用了两个页面读取 API 与 getAll/getState_；`wrote=0`；未发出任何 zoom 调用。全部图形输出用 System.Drawing 写 PNG。
+- MAIN 不变量：跑前 21/8/13/55/55/2。
