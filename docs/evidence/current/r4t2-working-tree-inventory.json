@@ -1,0 +1,204 @@
+{
+  "task": "t2",
+  "at": "2026-10-21T07:25:00.000Z",
+  "scope": "the 10 unowned entries in `git status --porcelain`; no deletion, no commit of other members' artifacts",
+  "snapshot": {
+    "command": "git status --porcelain",
+    "count": 10,
+    "entries": [
+      " M docs/evidence/current/main-inventory.json",
+      "?? docs/evidence/current/frame-diff.ps1",
+      "?? docs/evidence/current/t27-calibration-main.png",
+      "?? docs/evidence/current/t27-control.png",
+      "?? docs/evidence/current/t27-owner-main.png",
+      "?? docs/evidence/current/t27-owner-probe.png",
+      "?? docs/evidence/current/t27-probe-before.png",
+      "?? docs/evidence/current/t27-staggered.png",
+      "?? docs/evidence/review/t31-cross-review-t6.mjs",
+      "?? docs/evidence/review/t32-cross-review-t10.mjs"
+    ],
+    "unchangedAfter": true
+  },
+  "items": [
+    {
+      "path": "docs/evidence/current/main-inventory.json",
+      "type": "modified",
+      "bytes": 2864,
+      "sha256": "865856b2af42cc7184b9b8f9c64c06a871d34dd7ada2c35a0857e0a5f8f67d23",
+      "mtime": "2026-10-21 14:07:32 +08",
+      "summary": "live inventory of MAIN; working copy has 21 components (8 part + 13 netflag, 0 hex ids) and 55 wires, written 2026-10-21T06:07:32Z",
+      "attribution": "无法归因到具体成员；可归因到 docs/evidence/review/t50-main-inventory.mjs 的一次运行（该脚本是唯一写入者，默认输出路径就是这个文件）",
+      "referencedByCommitted": [
+        "docs/evidence/review/t50-main-inventory.mjs (default output path)",
+        "docs/2026-10-17-schematic-pagination-hardening.md (historical 63-device snapshot)"
+      ]
+    },
+    {
+      "path": "docs/evidence/current/frame-diff.ps1",
+      "type": "untracked",
+      "bytes": 1556,
+      "sha256": "dde918dbf414ff6d596b9a0573e96630f85c941cceae053115af7b01bbdb5138",
+      "mtime": "2026-10-21 13:56:23 +08",
+      "summary": "PowerShell helper that pixel-diffs two PNGs inside a rect and writes a JSON result",
+      "attribution": "无法归因到具体成员；内容与 docs/evidence/review/shared/canvas-owner.mjs 的 `const PS` 模板逐字节相同（1556/1556），是 frameDiff() 在 workDir=docs/evidence/current 时的运行生成物",
+      "referencedByCommitted": [
+        "docs/evidence/review/shared/canvas-owner.mjs (writes it with writeFileSync(ps1, PS); never reads the repo copy)"
+      ],
+      "generated": true
+    },
+    {
+      "path": "docs/evidence/current/t27-calibration-main.png",
+      "type": "untracked",
+      "bytes": 187363,
+      "sha256": "fa372d789efc3954e7107a25d0deb29a7dad19a4941e70318f83554f033745c3",
+      "mtime": "2026-10-20 21:51:15 +08",
+      "summary": "screenshot of MAIN taken during the t27 calibration attempt (large, 187 KB; not one of the identical frames)",
+      "attribution": "无法归因到具体成员；时间落在 t27 校准那轮，但没有任何已提交脚本写这个文件名",
+      "referencedByCommitted": [],
+      "generated": true
+    },
+    {
+      "path": "docs/evidence/current/t27-control.png",
+      "type": "untracked",
+      "bytes": 12696,
+      "sha256": "59a13a6d45eb329536d25880efaf11406101c5cb2aadee1cc50dea2d49c4df61",
+      "mtime": "2026-10-21 13:42:28 +08",
+      "summary": "canvas screenshot captured by t27 as its 'control' frame; identical to three other frames",
+      "attribution": "由 docs/evidence/review/t27-flag-stagger.mjs L422 `shoot('t27-control.png')` 写出（已提交脚本，运行者不可考）",
+      "referencedByCommitted": ["docs/evidence/review/t27-flag-stagger.mjs"],
+      "generated": true
+    },
+    {
+      "path": "docs/evidence/current/t27-owner-main.png",
+      "type": "untracked",
+      "bytes": 12696,
+      "sha256": "59a13a6d45eb329536d25880efaf11406101c5cb2aadee1cc50dea2d49c4df61",
+      "mtime": "2026-10-21 13:42:12 +08",
+      "summary": "frame captured while the API said MAIN was active; identical to t27-owner-probe.png",
+      "attribution": "无法归因到具体成员；与 t27-owner-probe.png 同 sha256，对应文档里记的『API 活动页从 MAIN 切到探针，画布零变化』那次取证",
+      "referencedByCommitted": ["docs/2026-10-17-schematic-pagination-hardening.md (quotes this hash)"],
+      "generated": true
+    },
+    {
+      "path": "docs/evidence/current/t27-owner-probe.png",
+      "type": "untracked",
+      "bytes": 12696,
+      "sha256": "59a13a6d45eb329536d25880efaf11406101c5cb2aadee1cc50dea2d49c4df61",
+      "mtime": "2026-10-21 13:42:20 +08",
+      "summary": "frame captured after the API reported the probe page active; byte-identical to t27-owner-main.png",
+      "attribution": "同上（无法归因到具体成员；画布归属调查的取证）",
+      "referencedByCommitted": ["docs/2026-10-17-schematic-pagination-hardening.md (quotes this hash)"],
+      "generated": true
+    },
+    {
+      "path": "docs/evidence/current/t27-probe-before.png",
+      "type": "untracked",
+      "bytes": 88779,
+      "sha256": "69c892769fd34f4ef97ae612f97caf541e9770d6c4a925946fee63d812ef9116",
+      "mtime": "2026-10-20 22:18:47 +08",
+      "summary": "older screenshot taken before a probe-page run; superseded by the 13:42 frames",
+      "attribution": "无法归因到具体成员；没有任何已提交脚本写这个文件名",
+      "referencedByCommitted": [],
+      "generated": true
+    },
+    {
+      "path": "docs/evidence/current/t27-staggered.png",
+      "type": "untracked",
+      "bytes": 12696,
+      "sha256": "59a13a6d45eb329536d25880efaf11406101c5cb2aadee1cc50dea2d49c4df61",
+      "mtime": "2026-10-21 13:42:36 +08",
+      "summary": "screenshot after the staggered placement run; identical to the control frame",
+      "attribution": "由 docs/evidence/review/t27-flag-stagger.mjs L464 `shoot('t27-staggered.png')` 写出",
+      "referencedByCommitted": ["docs/evidence/review/t27-flag-stagger.mjs"],
+      "generated": true
+    },
+    {
+      "path": "docs/evidence/review/t31-cross-review-t6.mjs",
+      "type": "untracked",
+      "bytes": 2603,
+      "sha256": "792a43c8ec132399d2d6c9fedf0f26d5ff771af194220316dc27ece0e1bb5490",
+      "mtime": "2026-10-20 08:58:45 +08",
+      "summary": "read-only probe that enumerates the API prototype to test whether a flag's symbol box has a size; it is the script behind the 'text/symbol expose no width or height' conclusion",
+      "attribution": "无法归因到具体成员（10-20 08:58，早于当天的 t34/t36 复核批次；无提交记录）",
+      "referencedByCommitted": [],
+      "carriesUnpublishedConclusion": false,
+      "conclusionWhere": "docs/2026-10-17-schematic-pagination-hardening.md: 文本原语只暴露 X/Y/FontSize/Content（无宽高），组件只暴露 X/Y（无本体框）",
+      "supersededBy": "docs/evidence/review/t34-cross-review-t6b.mjs (committed, same subject, four claims)"
+    },
+    {
+      "path": "docs/evidence/review/t32-cross-review-t10.mjs",
+      "type": "untracked",
+      "bytes": 3257,
+      "sha256": "b2c415448eb201827637a9de05b0b851b48977a74740fb0a55c00ed7e4345459",
+      "mtime": "2026-10-20 09:02:58 +08",
+      "summary": "read-only probe of the live document checking t10's two claims: the render/activation causality is gone from t29's notes, and the damaged project is gone while the healthy one is intact",
+      "attribution": "无法归因到具体成员（10-20 09:02，无提交记录）",
+      "referencedByCommitted": [],
+      "carriesUnpublishedConclusion": false,
+      "conclusionWhere": "docs/2026-10-17-schematic-pagination-hardening.md: 渲染/激活耦合不成立，脏状态耦合成立（页上有未保存修改时 deleteSchematicPage 静默失败）",
+      "supersededBy": "docs/evidence/review/t36-cross-review-t10.mjs (committed, recomputes every number in t10)"
+    }
+  ],
+  "focus": {
+    "mainInventory": {
+      "headVersion": { "at": "2026-10-21T05:52:55.117Z", "total": 63, "netflag": 55, "hexIds": 42, "layoutIds": 13, "wires": 55 },
+      "worktreeVersion": { "at": "2026-10-21T06:07:32.315Z", "total": 21, "netflag": 13, "hexIds": 0, "layoutIds": 13, "wires": 55 },
+      "diff": "5 insertions, 299 deletions: the 42 runtime hex-id flags disappeared, netflag 55 -> 13, total 63 -> 21; wires and the 8 parts unchanged",
+      "reading": "HEAD still holds the polluted pre-cleanup snapshot, the working copy matches the restored MAIN that t53 asserts (21 components / 8 part / 13 netflag / 55 wires)",
+      "whyNotCommitted": "it is a generated artifact: t50 writes it and nothing in the workflow commits it; the run that refreshed it at 06:07:32Z simply ended without a commit, and the doc still quotes the historical 63-device figure from before the cleanup",
+      "whichShouldWin": "the 21-device working copy, because it is the only version consistent with the current document and with the invariant gate; the 63 figure in the doc stays valid as a statement about the polluted state and should be labelled as historical",
+      "risk": "leaving HEAD at 63 means a reader who opens the committed JSON sees an inventory that contradicts MAIN today"
+    },
+    "crossReviewScripts": {
+      "verdict": "both are earlier exploratory probes, not carriers of unpublished conclusions",
+      "basis": [
+        "each file states its subject and read-only nature in its header",
+        "both conclusions are already in committed prose (no width/height; render/activation decoupled but dirty-state coupled)",
+        "both subjects were later re-done by committed scripts: t34 for t6, t36 for t10",
+        "no committed document names t31-cross-review-t6.mjs or t32-cross-review-t10.mjs"
+      ],
+      "advice": "do not treat them as lost review work; either discard them or commit them as historical probes, but do not cite them as the source of a conclusion they no longer uniquely hold"
+    }
+  },
+  "dispositions": [
+    { "path": "docs/evidence/current/main-inventory.json", "action": "提交刷新版（21 器件）", "owner": "该文件的运行者/作者（t50 的使用者，j5 或 j6），由 j4 裁定若无人认领", "note": "提交前先重跑 t50 生成一次，避免提交手工编辑的 JSON；同时在文档里把 63 标成历史快照" },
+    { "path": "docs/evidence/current/frame-diff.ps1", "action": "加 .gitignore", "owner": "j4（统一改 .gitignore）或我", "note": "canvas-owner.mjs 每次运行都会重写，仓库副本无人读取" },
+    { "path": "docs/evidence/current/t27-control.png", "action": "加 .gitignore", "owner": "j4 或我", "note": "t27 每次运行都会覆盖；与另外三张同 hash，无独立信息" },
+    { "path": "docs/evidence/current/t27-staggered.png", "action": "加 .gitignore", "owner": "j4 或我", "note": "同上，t27 运行产物" },
+    { "path": "docs/evidence/current/t27-probe-before.png", "action": "加 .gitignore", "owner": "j4 或我", "note": "已被 13:42 的帧取代" },
+    { "path": "docs/evidence/current/t27-calibration-main.png", "action": "加 .gitignore", "owner": "j4 或我", "note": "187 KB 的单次校准截图，无引用" },
+    { "path": "docs/evidence/current/t27-owner-main.png", "action": "提交", "owner": "画布归属调查的作者（j6 或 j5）", "note": "文档 §14.35.9 直接引用它的 sha256；提交它（12 KB）让引用可核验" },
+    { "path": "docs/evidence/current/t27-owner-probe.png", "action": "提交", "owner": "同上", "note": "与上一条成对，构成『两帧完全相同』的证据" },
+    { "path": "docs/evidence/review/t31-cross-review-t6.mjs", "action": "需作者确认（可弃或按历史探针提交）", "owner": "作者（无法归因，需 j4 询问）", "note": "结论已入库且被 t34 取代；若要保留可复算性则提交，否则弃" },
+    { "path": "docs/evidence/review/t32-cross-review-t10.mjs", "action": "需作者确认（可弃或按历史探针提交）", "owner": "同上", "note": "结论已入库且被 t36 取代" }
+  ],
+  "ignoreRulesProposal": {
+    "applied": false,
+    "note": "仅建议，未写入 .gitignore；等裁决",
+    "generatedOnly": [
+      "# generated evidence artifacts (rewritten by tools, never hand-edited)",
+      "docs/evidence/current/frame-diff.ps1",
+      "docs/evidence/current/frame-diff-*.json",
+      "docs/evidence/current/t27-control.png",
+      "docs/evidence/current/t27-staggered.png",
+      "docs/evidence/current/t27-probe-before.png",
+      "docs/evidence/current/t27-calibration-main.png"
+    ],
+    "deliberatelyNotIgnored": [
+      "docs/evidence/current/t27-owner-main.png",
+      "docs/evidence/current/t27-owner-probe.png"
+    ],
+    "why": "these two are cited by hash in the committed document; ignoring them would make the citation unverifiable, so they should be committed instead"
+  },
+  "selfProof": {
+    "zeroDeletion": {
+      "method": "git status --porcelain before and after every read, plus per-file sha256 before/after",
+      "statusIdentical": true,
+      "itemHashesUnchanged": true
+    },
+    "t53": { "command": "node docs/evidence/review/t53-verify-main.mjs", "exit": 0, "verdict": "PASS, 21/8/13/55, 2 pages" },
+    "freshness": { "command": "node docs/evidence/review/shared/freshness.mjs --check", "exit": 0, "stdout": "{\"status\":\"FRESH\",\"baselineVersion\":3,\"packages\":5,\"files\":21}" },
+    "packagesDirty": 0,
+    "noWriteScriptsRun": ["t27", "t50", "t52", "t55", "t46 --apply", "any --update"]
+  }
+}
