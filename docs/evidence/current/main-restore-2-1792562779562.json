@@ -1,0 +1,153 @@
+{
+ "at": "2026-10-21T06:06:13.995Z",
+ "mode": "EXECUTE",
+ "batch": 2,
+ "planned": 8,
+ "actionable": 8,
+ "batchSize": 24,
+ "main": "b275cd23e45c4271bead56f66d4f98fe",
+ "countsBefore": {
+  "components": 45,
+  "wires": 55,
+  "wireNets": 55,
+  "pages": 2
+ },
+ "preconditions": {
+  "ok": true,
+  "problems": [],
+  "alreadyGone": []
+ },
+ "skipped": [],
+ "deleted": [
+  "0acf43ee4e71871b",
+  "805689cb5af7714c",
+  "090cfaf0181bea37",
+  "9f814ccdbfb3c65e",
+  "788da93783ffbba5",
+  "380c93d5d292d05c",
+  "6b002d29c68ade3d",
+  "de68ab875b2334a6"
+ ],
+ "steps": [
+  {
+   "id": "0acf43ee4e71871b",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 44,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "805689cb5af7714c",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 43,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "090cfaf0181bea37",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 42,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "9f814ccdbfb3c65e",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 41,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "788da93783ffbba5",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 40,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "380c93d5d292d05c",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 39,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "6b002d29c68ade3d",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 38,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "de68ab875b2334a6",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 37,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  }
+ ],
+ "after": {
+  "components": 37,
+  "parts": 8,
+  "netflag": 29,
+  "layoutFlags": 13,
+  "hexFlags": 16,
+  "wires": 55,
+  "wireNets": 55,
+  "pages": 2,
+  "fingerprintDjb2": "c9675851",
+  "remainingWhitelisted": [
+   "0e152f86e0e3485a",
+   "99682fe3ffa5655a",
+   "e26dd4d8c8ecae07",
+   "6d893cb5615d29f1",
+   "84fc50ac3e194cf2",
+   "26efc1a998eb682b",
+   "558d1defc7b3c4fb",
+   "f8d271a0117a3928",
+   "33228756ff0bbb1c",
+   "7732f6445f92c362",
+   "92b8761393efac23",
+   "6c4ed9516041d102",
+   "152a2c672e1bfe14",
+   "adcfa2fdbe6cdfdb",
+   "7ec9f0483fbfd394",
+   "618b3bf01b4103c3"
+  ],
+  "missingLayout": [],
+  "newIds": []
+ },
+ "status": "OK"
+}

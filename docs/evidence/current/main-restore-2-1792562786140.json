@@ -1,0 +1,99 @@
+{
+ "at": "2026-10-21T06:06:26.056Z",
+ "mode": "EXECUTE",
+ "batch": 2,
+ "planned": 8,
+ "actionable": 0,
+ "batchSize": 24,
+ "main": "b275cd23e45c4271bead56f66d4f98fe",
+ "countsBefore": {
+  "components": 37,
+  "wires": 55,
+  "wireNets": 55,
+  "pages": 2
+ },
+ "preconditions": {
+  "ok": false,
+  "problems": [
+   "expected 29 components, read 37"
+  ],
+  "alreadyGone": [
+   "0acf43ee4e71871b",
+   "805689cb5af7714c",
+   "090cfaf0181bea37",
+   "9f814ccdbfb3c65e",
+   "788da93783ffbba5",
+   "380c93d5d292d05c",
+   "6b002d29c68ade3d",
+   "de68ab875b2334a6"
+  ]
+ },
+ "skipped": [
+  {
+   "id": "0acf43ee4e71871b",
+   "reason": "already-gone"
+  },
+  {
+   "id": "805689cb5af7714c",
+   "reason": "already-gone"
+  },
+  {
+   "id": "090cfaf0181bea37",
+   "reason": "already-gone"
+  },
+  {
+   "id": "9f814ccdbfb3c65e",
+   "reason": "already-gone"
+  },
+  {
+   "id": "788da93783ffbba5",
+   "reason": "already-gone"
+  },
+  {
+   "id": "380c93d5d292d05c",
+   "reason": "already-gone"
+  },
+  {
+   "id": "6b002d29c68ade3d",
+   "reason": "already-gone"
+  },
+  {
+   "id": "de68ab875b2334a6",
+   "reason": "already-gone"
+  }
+ ],
+ "deleted": [],
+ "steps": [],
+ "after": {
+  "components": 37,
+  "parts": 8,
+  "netflag": 29,
+  "layoutFlags": 13,
+  "hexFlags": 16,
+  "wires": 55,
+  "wireNets": 55,
+  "pages": 2,
+  "fingerprintDjb2": "c9675851",
+  "remainingWhitelisted": [
+   "0e152f86e0e3485a",
+   "99682fe3ffa5655a",
+   "e26dd4d8c8ecae07",
+   "6d893cb5615d29f1",
+   "84fc50ac3e194cf2",
+   "26efc1a998eb682b",
+   "558d1defc7b3c4fb",
+   "f8d271a0117a3928",
+   "33228756ff0bbb1c",
+   "7732f6445f92c362",
+   "92b8761393efac23",
+   "6c4ed9516041d102",
+   "152a2c672e1bfe14",
+   "adcfa2fdbe6cdfdb",
+   "7ec9f0483fbfd394",
+   "618b3bf01b4103c3"
+  ],
+  "missingLayout": [],
+  "newIds": []
+ },
+ "status": "OK"
+}

@@ -1,0 +1,136 @@
+{
+ "at": "2026-10-21T06:06:42.462Z",
+ "mode": "EXECUTE",
+ "batch": 2,
+ "planned": 8,
+ "actionable": 8,
+ "batchSize": 24,
+ "main": "b275cd23e45c4271bead56f66d4f98fe",
+ "countsBefore": {
+  "components": 29,
+  "wires": 55,
+  "wireNets": 55,
+  "pages": 2
+ },
+ "preconditions": {
+  "ok": true,
+  "problems": [],
+  "alreadyGone": []
+ },
+ "skipped": [],
+ "deleted": [
+  "33228756ff0bbb1c",
+  "7732f6445f92c362",
+  "92b8761393efac23",
+  "6c4ed9516041d102",
+  "152a2c672e1bfe14",
+  "adcfa2fdbe6cdfdb",
+  "7ec9f0483fbfd394",
+  "618b3bf01b4103c3"
+ ],
+ "steps": [
+  {
+   "id": "33228756ff0bbb1c",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 28,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "7732f6445f92c362",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 27,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "92b8761393efac23",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 26,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "6c4ed9516041d102",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 25,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "152a2c672e1bfe14",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 24,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "adcfa2fdbe6cdfdb",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 23,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "7ec9f0483fbfd394",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 22,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  {
+   "id": "618b3bf01b4103c3",
+   "ret": "true",
+   "error": null,
+   "gone": true,
+   "delta": 1,
+   "components": 21,
+   "wires": 55,
+   "wireNets": 55,
+   "active": "b275cd23e45c4271bead56f66d4f98fe"
+  }
+ ],
+ "after": {
+  "components": 21,
+  "parts": 8,
+  "netflag": 13,
+  "layoutFlags": 13,
+  "hexFlags": 0,
+  "wires": 55,
+  "wireNets": 55,
+  "pages": 2,
+  "fingerprintDjb2": "bc029cb6",
+  "remainingWhitelisted": [],
+  "missingLayout": [],
+  "newIds": []
+ },
+ "status": "OK"
+}
