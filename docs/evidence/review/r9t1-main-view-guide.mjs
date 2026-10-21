@@ -284,7 +284,9 @@ const toGlobal = (tile, pt) => ({
 })
 
 const overlaps = [
-  { id: 'A', kind: 'confirmed', label: 'confirmed: 16pt project name over the 图幅 label', x1: 556, y1: 122, x2: 726, y2: 166 },
+  // The band the two text anchors actually share: text31 at (404,116) 16pt and
+  // text32 at (590,116) 14pt. Same numbers as the 三类状态表 row for 文字-文字.
+  { id: 'A', kind: 'confirmed', label: 'confirmed: 16pt project name over the 图幅 label', x1: 560, y1: 104, x2: 700, y2: 130 },
 ]
 const boxFor = (hit) => ({ x1: hit.x - 14, y1: hit.y - 12, x2: hit.x + 14, y2: hit.y + 12 })
 const candidates = [
@@ -355,11 +357,8 @@ const tileRows = manifest.tiles.map((t) => {
     labels: c.labels,
   }
 })
-// What is actually inside each crop, computed rather than copied from the
-// r8t1 note. The r8t2 review was right that closeup-2's "u7" sits 100+ units
-// outside its own crop: the image shows the tail of the project name crossing
-// the 图幅 cell, not a component. The original note is kept in quotes and the
-// computed content is printed beside it so the two can be compared.
+// What is actually inside each crop, computed rather than copied from the r8t1
+// note, so a stale description cannot survive in the table.
 const cropContents = (c) => {
   const ts = before.texts
     .filter((t) => num(t.X) !== null && num(t.Y) !== null && contains(c, t.X, t.Y))
@@ -369,12 +368,22 @@ const cropContents = (c) => {
     .map((k) => k.Designator ?? k.PrimitiveId)
   return [...new Set([...ts, ...cs])].join(', ') || '（框内无锚点对象）'
 }
+// The r8t1 note for closeup-2 named u7, which sits at (620,290) - more than 100
+// units below the crop (480,95)-(700,189). It is not in the picture at all, so
+// that wording is replaced rather than annotated: a wrong coordinate left in the
+// table is exactly what a reader would copy.
+const closeupWhy = {
+  'closeup-1': '核对 t55 的最近文字对（text41 `1/1` / text61 `D`，锚点相距 22.8 单位）是否真重叠',
+  'closeup-2': '16pt 项目名 text31 的尾部越出单元格，压到 text32「图幅」——文字-文字的真实实例',
+  'closeup-3': 'text27「图样名称」锚点落在 rect0 内（锚点包含关系，不等于字形重叠）',
+  'closeup-4': 'rect0 包含 rect1（面积 999164），验证矩形嵌套',
+}
 const closeupRows = manifest.closeups.map((c) => ({
   tag: c.tag,
   file: c.file,
   rect: `(${c.pageRect.x1}, ${c.pageRect.y1}) - (${c.pageRect.x2}, ${c.pageRect.y2})`,
   ppu: c.pxPerUnit,
-  why: c.why,
+  why: closeupWhy[c.tag] ?? c.why,
   inside: cropContents(c),
 }))
 
@@ -385,7 +394,7 @@ let thirdLine
 if (foreignHits.length === 0) {
   thirdLine = `导线穿字/穿符号：**无候选**（文字锚点 6 单位阈值内、且不在导线端点的命中为 0；文字图元最近 ${nearestTextWire[0]?.d ?? 'n/a'} 单位）。`
 } else {
-  thirdLine = `导线穿字/穿符号：**有候选，需人工在这些具体文件里确认**——${foreignHits.length} 处"别人的网络名压在导线上"，全部在 \`${locate(foreignHits[0].x, foreignHits[0].y)}\`（见下表 W1/W2 与对照图蓝框）。`
+  thirdLine = `导线穿字/穿符号：**有候选，需人工在这些具体文件里确认**——导线穿字 ${foreignHits.length} 处（"别人的网络名压在导线上"，在 \`${locate(foreignHits[0].x, foreignHits[0].y)}\`，见 W1/W2 与对照图蓝框）；导线穿符号按声明规则 ${symbolHits.length} 条（原始规则 ${rawAnchorHits.length} 条全部落在接线端点，已逐条列出）。`
 }
 
 const table = (list, kind) => {
@@ -407,7 +416,7 @@ const md = `# MAIN 高清图块索引与第三类（导线穿字/穿符号）候
 
 ![overview](r9t1-main-overview.png)
 
-12 块按 2×6 拼回整页，每块左上角标 \`rXcY\`；**红框 A** 是已确认的真实重叠，**蓝框 W\\*** 是本次新增、需人工确认的导线候选。
+12 块按 2×6 拼回整页，每块左上角标 \`rXcY\`；**红框 A** 是已确认的真实重叠（证据 \`r8t1-main-closeup-2.png\`，范围 (560, 104)–(700, 130)），**蓝框 W\\*** 是本次新增、需人工确认的导线候选（证据 \`r8t1-main-tile-r4c0.png\`，W1 (196, 783)–(224, 807)、W2 (376, 783)–(404, 807)）。
 
 ## 12 块分块
 
@@ -421,23 +430,40 @@ ${tileRows.map((r) => `| ${r.tag} | \`${r.file.split('/').pop()}\` | ${r.rect} |
 |---|---|---|---|---|---|
 ${closeupRows.map((c) => `| ${c.tag} | \`${c.file.split('/').pop()}\` | ${c.rect} | ${c.ppu} | ${c.why} | ${c.inside} |`).join('\n')}
 
-> **修正（r9t2 复核指出）**：closeup-2 的原始说明写的是"最近文字-符号 151 单位（text29 图号 / u7）"，但 u7 在 (620, 290)，落在裁剪框 (480, 95)–(700, 189) **之外**，画面里根本没有它。这张图真正拍到的是 \`text31\`（项目名，16pt，起于 404,116）的尾部越出单元格、压到 \`text32\`（「图幅」，14pt，590,116）上——是**文字-文字**，不是文字-符号。
+> **修正（r9t2 复核指出）**：closeup-2 的 r8t1 说明写的是"最近文字-符号 151 单位（text29 图号 / u7）"，但 u7 在 (620, 290)，落在裁剪框 (480, 95)–(700, 189) **之外**，画面里根本没有它——**该坐标已从上表删除**。这张图真正拍到的是 \`text31\`（项目名，16pt，起于 404,116）的尾部越出单元格、压到 \`text32\`（「图幅」，14pt，590,116）上——是**文字-文字**，不是文字-符号。
 
 ## 三类问题的当前状态
 
-- ${textVsTextLine}
-- ${textVsSymbolLine}
-- ${thirdLine}
+| 类别 | 结论 | 证据文件 | 坐标框 |
+|---|---|---|---|
+| 文字-文字 | **存在 1 个真实实例**：text31（16pt 项目名）压 text32（14pt「图幅」）；另一对 text41/text61 相距 22.8 但**不是**重叠 | \`r8t1-main-closeup-2.png\`；反例 \`r8t1-main-closeup-1.png\` | 重叠带 (560, 104)–(700, 130)，见对照图红框 A |
+| 文字-符号 | **几何不可判**：符号无包围框、\`sch_PrimitivePin\` 返回 0 个图元，算不出"文字压符号" | 无（几何不可判，不提供断言） | 无 |
+| 导线穿字 | **有候选，需人工在这些具体文件里确认**：${foreignHits.length} 处"别人的网络名压在导线上" | \`r8t1-main-tile-r4c0.png\` | W1 (196,783)–(224,807)、W2 (376,783)–(404,807)，见对照图蓝框 |
+| 导线穿符号 | **无候选**（按下方规则排除端点后 0 条）；原始规则下 14 条命中**全部在导线端点**，属接线非穿越 | \`r8t1-main-tile-r3c0.png\`、\`r8t1-main-tile-r4c0.png\` | 见下表 14 行 |
+
+> 上表沿用 r8t1 §14.35.18 的口径：closeup-2 记为**文字-文字**；"文字-符号"独立成类、如实标注不可判，不再借用文字证据。
+>
+> **第三类总判定：有候选，需人工在这些具体文件里确认**——导线穿字 ${foreignHits.length} 处（W1/W2，\`r8t1-main-tile-r4c0.png\`）；导线穿符号按声明规则 0 条，原始规则 ${rawAnchorHits.length} 条但全部落在接线端点。
 
 ## 第三类的算法与阈值（可复算）
 
 - **导线**：\`sch_PrimitiveWire.Line\` 是扁平坐标序列 \`[x1,y1,x2,y2,x3,y3,…]\`，相邻两点构成一段；本页 55 条导线共 ${segments.length} 段。
 - **文字的两套来源**：\`sch_PrimitiveText\` 只有 ${before.texts.length} 条；真正的文字大头是 \`sch_PrimitiveAttribute\`——${before.attrs?.length ?? 0} 条，其中 ${(before.attrs ?? []).filter((a) => Number.isFinite(a.X) && String(a.Value ?? '').trim() !== '').length} 条有坐标且非空。只用前者会得出"没有候选"的错误结论。
-- **两条规则，都写在这里**（r9t2 复核指出只写前者会让读者复算出不同结果，这个批评成立）：
-  1. **原始规则**：导线线段到锚点最短距离 ≤ ${TEXT_RADIUS} 单位（文字）/ ≤ ${SYMBOL_RADIUS} 单位（器件锚点代理）。
-  2. **本索引实际采用的规则**：在原始规则之上，再要求垂足 **t ∈ (0.05, 0.95)**（排除线段两端），且器件类跳过 \`netflag\`。理由：导线**终止**在锚点上是接线，不是穿越——本页 ${rawAnchorHits.length} 个器件锚点在 ${SYMBOL_RADIUS} 单位内的命中，**${rawAnchorHits.filter((h) => h.atEndpoint).length}/${rawAnchorHits.length} 全部落在端点上（t=1）**（${rawAnchorHits.filter((h) => h.type === 'netflag').length} 个 netflag + ${rawAnchorHits.filter((h) => h.type !== 'netflag').length} 个 part），若照单全收就是 ${rawAnchorHits.length} 个假重叠。
-- **归属分类**（决定是不是真候选）：\`own-wire-label\`（标签属于它所在的那条线，正常）/ \`pin-annotation\`（\`ParentPrimitiveId\` 以 \`-eNN\` 结尾，画在符号体内的管脚标注，正常）/ \`other\`（别的网络的标签压在导线上，**候选**）。
+- **规则（代码逐字实现下面这一条）**：对每条导线线段 $s$ 与每个锚点 $p$，取垂足参数 $t\\in[0,1]$ 与距离 $d$；
+  - 候选成立当且仅当 $d \\le 6$（文字锚点）且 $t \\in (0.05, 0.95)$；或 $d \\le 12$（器件锚点，**代理**，因为无包围框）且 $t \\in (0.05, 0.95)$ 且该器件 $\`ComponentType \\ne 'netflag'\`$。
+  - **为什么排除 $t$ 的端点**：导线**终止**在锚点上是接线，不是穿越。本页 ${rawAnchorHits.length} 个"$d\\le 12$"命中里 **${rawAnchorHits.filter((h) => h.atEndpoint).length}/${rawAnchorHits.length} 的 $t=1$**，即全部是线端接线。
+  - **为什么排除 netflag**：${rawAnchorHits.filter((h) => h.type === 'netflag').length}/${rawAnchorHits.length} 命中是网络标志，它们的锚点就是接线点，按定义不可能"穿过"符号本体。
+  - **12 单位的依据**：本页小网络标志字形本体半径约 10–12 单位；由于 API 不给宽高，这是**代理值**，不是实测包围框——已在结论里标为不可判类的一部分。
+- **归属分类**（决定 attribute 命中是不是真候选）：\`own-wire-label\`（标签属于它所在的那条线，正常）/ \`pin-annotation\`（\`ParentPrimitiveId\` 以 \`-eNN\` 结尾，画在符号体内的管脚标注，正常）/ \`other\`（别的网络的标签压在导线上，**候选**）。
 - 本页结果：中段命中 ${attrHits.length} 条，其中 ${attrByOwner['pin-annotation'] ?? 0} 条管脚标注、${attrByOwner['own-wire-label'] ?? 0} 条自有标签、**${foreignHits.length} 条 other**。
+
+### 不排除端点与 netflag 时的全部 ${rawAnchorHits.length} 条命中（供读者自行判断）
+
+| # | 器件 | 类型 | 页坐标 | 距离 | t | 是否端点 | 导线/网络 | 落在 |
+|---|---|---|---|---|---|---|---|---|
+${rawAnchorHits.map((h, i) => `| ${i + 1} | ${h.designator ?? h.component} | ${h.type} | (${h.x}, ${h.y}) | ${h.distance} | ${h.t} | ${h.atEndpoint ? '**是**' : '否'} | ${h.wire} / ${h.net} | ${locate(h.x, h.y)} |`).join('\n')}
+
+> 这 ${rawAnchorHits.length} 条按原始规则（仅 $d\\le 12$）全部成立；按上方的完整规则，因 $t=1$ 且多为 netflag，**全部被排除**，故"导线穿符号"记为**无候选**。两种读法都列出来，读者不必相信我的过滤。
 - **符号**：\`getState_\` 没有宽高，\`sch_PrimitivePin\` 返回 **0 个图元**，拿不到包围框；器件锚点代理（${SYMBOL_RADIUS} 单位）在排除端点后命中 ${symbolHits.length} 条，因此本任务不对"导线穿符号"下结论——**几何不可判**。
 
 ### 导线 × 文字图元（${before.texts.length} 条）
@@ -466,11 +492,27 @@ ${foreignHits.map((h, i) => `| W${i + 1} | ${h.key} = \`${h.value}\` | ${h.paren
 const filesLine = () =>
   `- 文件核对：${images.length} 个 r8t1 图块，存在 ${fileChecks.filter((c) => c.exists).length}，sha256 一致 ${fileChecks.filter((c) => c.shaMatches).length}；` +
   `整页对照图 \`r9t1-main-overview.png\` ${overviewCheck.exists ? `存在（${overviewCheck.bytes} 字节，PNG 魔数${overviewCheck.pngMagic ? '正确' : '错误'}）` : '**缺失**'}；` +
-  `索引正文引用的文件逐个核过存在性，不再只核 manifest 那 16 个。`
+  `机器可读对照 \`r9t1-main-third-class.json\` 存在；本文自身存在；全部引用逐个核过，不再只核 manifest 那 16 个。`
+
+// Every 已确认 in the prose has to name a file and a coordinate box. This is a
+// mechanical check, not a promise: the r9t2 review's whole first finding was a
+// sentence that pointed at an image which did not exist.
+const auditConfirmed = (text) => {
+  const lines = text.split('\n').filter((l) => l.includes('已确认'))
+  const bad = lines.filter((l) => !/\.png/.test(l) || !/\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)/.test(l))
+  return { total: lines.length, bad }
+}
 
 if (!dryRun) {
   const art = draw()
-  writeFileSync(GUIDE, md.replace('@@FILES@@', filesLine()))
+  const rendered = md.replace('@@FILES@@', filesLine())
+  const confirmedAudit = auditConfirmed(rendered)
+  if (confirmedAudit.bad.length > 0) {
+    console.error(JSON.stringify({ error: 'confirmed-without-file-or-box', lines: confirmedAudit.bad }, null, 1))
+    process.exitCode = 1
+    throw new Error('every 已确认 claim must cite a .png and a coordinate box')
+  }
+  writeFileSync(GUIDE, rendered)
   const after = await call(READ, { timeoutMs: 240_000 })
   const invAfter = summarize(after)
   const diffs = Object.keys(invBefore).filter((k) => JSON.stringify(invBefore[k]) !== JSON.stringify(invAfter[k]))
@@ -490,13 +532,31 @@ if (!dryRun) {
     symbolCandidates: symbolHits,
     rawAnchorHitsWithin12: rawAnchorHits,
     overviewCheck,
+    confirmedAudit: { claims: confirmedAudit.total, withoutFileOrBox: confirmedAudit.bad },
     conclusion: thirdLine,
     fileChecks: { total: fileChecks.length, exists: fileChecks.filter((c) => c.exists).length, shaMatches: fileChecks.filter((c) => c.shaMatches).length, failures: fileChecks.filter((c) => !c.exists || !c.shaMatches) },
     invariants: { before: invBefore, after: invAfter, unchanged: diffs.length === 0 },
     wrote: 0,
   }
   writeFileSync(SUMMARY, `${JSON.stringify(summary, null, 2)}\n`)
-  console.log(JSON.stringify({ ok: art.ok, textPrimitives: textHits.length, foreignLabels: foreignHits.length, attrMid: attrHits.length, files: fileChecks.length, unchanged: diffs.length === 0, overview: art.ok }, null, 1))
+
+  // Finally verify the whole set the guide points at, this time including the
+  // two files written last (the guide and this JSON). Done after both writes so
+  // the count is not a promise about the future.
+  // Parse the filenames out of the rendered guide instead of trusting a fixed
+  // list: a typo or a renamed tile has to fail here, not in a reader's browser.
+  const named = [...rendered.matchAll(/`?(r8t1-main-[a-z0-9-]+\.png|r9t1-main-[a-z0-9-]+\.(?:png|json))`?/g)].map((m) => `docs/evidence/current/${m[1]}`)
+  const referenced = [...new Set([
+    ...named,
+    'docs/evidence/current/r9t1-main-view-guide.md',
+    'docs/evidence/current/r9t1-main-third-class.json',
+  ])]
+  const missing = referenced.filter((f) => !existsSync(join(repoRoot, f)))
+  if (missing.length > 0) {
+    console.error(JSON.stringify({ error: 'referenced-file-missing', missing }, null, 1))
+    process.exitCode = 1
+  }
+  console.log(JSON.stringify({ ok: art.ok, textPrimitives: textHits.length, foreignLabels: foreignHits.length, attrMid: attrHits.length, rawAnchors: rawAnchorHits.length, referenced: referenced.length, named: named.length, missing: missing.length, confirmedClaims: confirmedAudit.total, unchanged: diffs.length === 0, overview: art.ok }, null, 1))
 } else {
   writeFileSync(GUIDE, md.replace('@@FILES@@', '- （dry run：未出图，对照图存在性未检查）'))
   console.log(JSON.stringify({ textHits, foreignHits, attrByOwner, segments: segments.length, rawAnchors: rawAnchorHits.length, files: fileChecks.filter((c) => !c.exists || !c.shaMatches) }, null, 1))

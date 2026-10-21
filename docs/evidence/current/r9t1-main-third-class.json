@@ -1,6 +1,6 @@
 {
   "task": "r9t1",
-  "at": "2026-10-21T09:26:08.752Z",
+  "at": "2026-10-21T09:29:44.300Z",
   "guide": "docs/evidence/current/r9t1-main-view-guide.md",
   "overview": "docs/evidence/current/r9t1-main-overview.png",
   "overviewDrawn": true,
@@ -323,10 +323,14 @@
   "overviewCheck": {
     "file": "docs/evidence/current/r9t1-main-overview.png",
     "exists": true,
-    "bytes": 730797,
+    "bytes": 730125,
     "pngMagic": true
   },
-  "conclusion": "导线穿字/穿符号：**有候选，需人工在这些具体文件里确认**——2 处\"别人的网络名压在导线上\"，全部在 `tile-r4c0`（见下表 W1/W2 与对照图蓝框）。",
+  "confirmedAudit": {
+    "claims": 1,
+    "withoutFileOrBox": []
+  },
+  "conclusion": "导线穿字/穿符号：**有候选，需人工在这些具体文件里确认**——导线穿字 2 处（\"别人的网络名压在导线上\"，在 `tile-r4c0`，见 W1/W2 与对照图蓝框）；导线穿符号按声明规则 0 条（原始规则 14 条全部落在接线端点，已逐条列出）。",
   "fileChecks": {
     "total": 16,
     "exists": 16,
