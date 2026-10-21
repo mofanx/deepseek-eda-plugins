@@ -1,0 +1,58 @@
+{
+ "task": "r9t3",
+ "at": "2026-10-21T09:36:00Z",
+ "reviewed": {
+  "task": "r9t1",
+  "head": "430f3be",
+  "blobs": {
+   "docs/evidence/current/r9t1-main-view-guide.md": "1c77c475d3ccd1e623b973fa49b0380bfa7c2e66",
+   "docs/evidence/current/r9t1-main-overview.png": "4e82b00892551021fed31c39d792cbb03aec14de",
+   "docs/evidence/current/r9t1-main-third-class.json": "b39ce11c175223f3abc02a8b7923fe4b7738f23d",
+   "docs/evidence/review/r9t1-main-view-guide.mjs": "9b27bb01d2a164ec91665892b10056b46c0fb290",
+   "docs/evidence/current/r8t1-main-hires-tiles.json": "4a187736c9ddc74883a85441b1951964a80e8ba9"
+  },
+  "drift": "HEAD moved during this review: d02a5c7 at 17:26 -> 430f3be at 17:31. Blobs changed from guide 99bce0b8 / overview 3c10fcae / json de6eadbe / mjs a62ba834 to the values above; overview 730797 -> 730125 bytes. Everything below was re-done against 430f3be; the d02a5c7 numbers are not used"
+ },
+ "claims": {
+  "references": {
+   "verdict": "pass",
+   "detail": "the committed guide references 17 PNGs; all 17 exist. The 16 r8t1 images match the manifest sha256 16/16 (0 mismatches). The overview is 730125 bytes with PNG magic 89 50 4E 47, exactly the size the guide states. r9t1-main-third-class.json exists",
+   "selfCheck": "the guide now also checks the overview and itself, not just the 16 manifest images"
+  },
+  "coordinates": {
+   "verdict": "pass",
+   "mappings": "three page->image transforms recomputed from the manifest canvasBox (1189x508 at 308,89) and fitRect (left -904.86, right 1814.86, top 1166, bottom 4), scale 0.4372 px/unit: r1c1 -> x=878.5 y=420.3; r3c0 -> x=702.7 y=252.9; r5c1 -> x=878.5 y=85.5; all w=223.7 h=95.6, all inside 1752x782",
+   "contentCheck": "cropped the r3c0 box from the t55 PNG; it shows the same U1.1 region (VIN, PA11-PA15, PC14/PC15, PF0/PF1, BOOT0, NRST) as r8t1-main-tile-r3c0.png",
+   "labelAlignment": "verified at 1:1, not on the downscaled preview: the top-left label reads r5c0 and the bottom-left reads r0c0. Pixel comparison confirms the top cell holds r5c0's image (MAE 2.80 vs 14.7 for r0c0) and the bottom cell holds r0c0 (MAE 2.81). Labels and cells agree; the vertical order is r5 at the top because the page y axis grows upward",
+   "annotationBoxes": "the red A box sits exactly on the text31/text32 overlap (crop shows 'c-17924255966' running into 图幅); the blue W1 box sits on the MCU-34 label inside the r4c0 cell. Both are drawn on the content they describe",
+   "u7": "fixed: the guide now states u7 is at (620,290), outside the crop (480,95)-(700,189), and the actual contents are text31 vs text32"
+  },
+  "classification": {
+   "verdict": "pass",
+   "detail": "the three-class table now says 文字-文字 存在 1 个真实实例 (text31, 16pt project name, over text32, 14pt 图幅), and the counter-example text41/text61 is marked as not overlapping; 文字-符号 is 几何不可判 with no assertion; wire-vs-text is 有候选 with W1/W2; wire-vs-symbol is 无候选 after endpoint exclusion, with all 14 raw hits listed for the reader",
+   "consistency": "agrees with r8t1 §14.35.18, which also calls closeup-2 a text-vs-text overlap; no candidate is presented as confirmed"
+  },
+  "recompute": {
+   "verdict": "fail",
+   "candidatesReproduced": "2/2 exactly: attr111 Name=MCU-34 at (210,795), parent layout:wire:MCU_34:flags, sits on layout:wire:_3V3:flags / +3V3, d=0, t=0.25; attr102 Name=MCU-26 at (390,795), parent layout:wire:MCU_26:flags, sits on layout:wire:GND:flags / GND, d=0, t=0.25. My independent run produced these two and nothing else in the 'other' class",
+   "endpointTable": "the guide's 14 raw d<=12 hits match my list item for item (same ids, coordinates, distances 0, t=1, same wires/nets)",
+   "countMismatch": "the guide says '中段命中 34 条，其中 32 条管脚标注'. Applying the stated rule (d<=6 for text anchors, t in (0.05,0.95)) to the stated anchor set (39 texts + 342 attributes with coordinates and non-empty value) gives 47 hits: 45 pin-annotation and 2 other",
+   "cause": "the generator also does 'if (a.ValueVisible === false) continue' (committed mjs L134). 13 of the 47 hits are invisible attributes (ValueVisible=false); excluding them gives exactly 34 = 32 pin + 2 other. Visible attribute anchors with coordinates: 188 of 342",
+   "whyItFails": "the guide writes '规则（代码逐字实现下面这一条）' and states only the distance and t conditions. That verbatim claim is false: the code has one more condition that changes the headline count by 13. The JSON thresholds field also lists only textRadius/symbolRadius",
+   "notFatalToTheConclusion": "the visibility filter is semantically right (an undrawn label cannot overlap anything), and it does not touch the two candidates. The defect is that the rule text cannot reproduce the number"
+  },
+  "zeroWriteAndScene": {
+   "verdict": "pass",
+   "readOnly": "the in-page READ block uses getAll/getState_* and the two page getters; no save/delete/create/modify/clear/openDocument; no zoom call",
+   "live": "at 09:29:12Z: active MAIN, pages [MAIN,P1], 21 components (8 part + 13 netflag), 55 wires, 55 wire nets, 39 texts",
+   "gates": "t53 5/5 PASS exit 0; freshness --check FRESH exit 0 (baselineVersion 4)",
+   "json": "wrote=0 and invariants unchanged=true in the committed third-class.json"
+  }
+ },
+ "measurementNotes": [
+  "on the downscaled overview preview I first read the top-left label as r0c0; a 1:1 crop shows r5c0, and the pixel comparison agrees. Recorded here so the near-miss is not mistaken for a defect"
+ ],
+ "overall": "unsound",
+ "scopeOfVerdict": "the data is right: the 2 wire-vs-label candidates, the 14 endpoint hits, the three-class table and the overview annotations are all independently reproduced. The verdict is unsound because the guide claims its rule is implemented verbatim while the code carries an undeclared ValueVisible filter, so the stated 34 cannot be reproduced (47 without it)",
+ "fix": "add 'and ValueVisible is not false (13 of 47 hits are undrawn attributes)' to the rule, or change the count to 47 and mark the 13 invisible ones"
+}
