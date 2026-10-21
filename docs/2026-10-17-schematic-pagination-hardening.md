@@ -2763,3 +2763,24 @@ node docs/evidence/review/t53-verify-main.mjs --json   # 机器读
 **兼容性**：v1/v2 基线仍可读——`--check --baseline <v1>` → `FRESH_V1_READ` exit 0，v2 → `FRESH_V2_READ` exit 0。共享模块消费者 `t44`/`t45`/`t48`/`t51` 自测全部 exit 0；`t53` PASS（MAIN 21/55）、`t54` 10/10 通过。
 
 **遗留（未改，避免夹带）**：`--update --baseline <path>` 仍写默认 `BASELINE_PATH`，只有 `--check` 认 `--baseline`。这是既有不一致，与本任务无关，已记在证据 JSON 的 notes 里。
+
+### 14.35.15 给一次性 codemod 上锁（r3t1）
+
+**事故**：r2t4 以 write 模式跑了 `t46-codemod-mtime-gate.mjs`，它删掉 `t29-flag-stagger-readback.mjs` 一个空行；用 `git checkout` 还原后文件与 HEAD 一致，但**只要再有人不带参数跑一次，还会再删一次**。
+
+**为什么还会再删**：旧代码无论有没有匹配到要移除的 gate 块，都会执行 `text.replace(/\n{3,}/g, '\n\n')`。实测（旧代码 `--check`）：t29 `changed: true, removedChars: 1` —— 文件已与 HEAD 逐字节相同，仍被判为"要改 1 个字符"。所以这不是"已还原就没事"，而是**工具本身还在持续制造脏改动**。
+
+**两处改动**：
+1. **加锁**：默认 dry-run，**零写入**；只有显式 `--apply` 才写。`--check` 保留为别名。退出码：dry-run `0`=无待改、`1`=有待改；`--apply` `0`=写成、`1`=fixup 失败。新增 `--dir <path>`，便于在副本上验证。
+2. **幂等**：只有真正匹配到要移除的块时，才做 fixup / 补 import / 空白归一；否则报 `ALREADY MIGRATED` 直接跳过。这样已迁移文件不会再被"顺手"改一个字符。
+
+**双向自证**：
+
+| 操作 | 结果 |
+|---|---|
+| 不带参数跑（真仓库） | `mode: dry-run`, `pending: []`, exit **0**；t29 sha256 前后同为 `6244e7f9…` |
+| `--apply --dir <临时副本>`（t29 用 `0c31e96^` 迁移前版本，其余 12 个用 HEAD） | `pending: [t29]`, exit 0；t29 副本 sha256 `c3cd15b6…`→`8afd272a…`，`gateFreshness(` 出现 1 次，mtime helper 归零；副本已删除 |
+
+**字节核对**：`git hash-object t29` = `git rev-parse HEAD:t29` = `1461daf24d01453140646d45256d21567f50d574`。
+
+**整树状态需要如实说明**：`git status --porcelain` **不为空**，共 11 项，其中只有 1 项是我的（`M t46-codemod-mtime-gate.mjs`），其余 10 项是其他成员未提交的证据产物（`main-inventory.json` 与 9 个未跟踪文件）。这些都不是 codemod 的 13 个目标，我未触碰；为了让 status 变空而删除它们，等于毁掉别人的工作。

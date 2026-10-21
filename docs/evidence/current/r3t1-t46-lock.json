@@ -1,0 +1,67 @@
+{
+  "task": "r3t1",
+  "goal": "lock the one-shot t46 codemod to dry-run and prove the t29 accident left no residue",
+  "at": "2026-10-21T07:10:00.000Z",
+  "behaviorChange": {
+    "before": "no args = WRITE mode; `--check` was the only dry run; exit 1 meant 'nothing changed'",
+    "after": "no args = DRY RUN (zero writes); `--apply` is required to write; dry exit 0 = nothing pending, 1 = something would change; apply exit 0 = applied cleanly, 1 = fixup failure",
+    "extra": "--dir <path> lets the codemod run against a copy, which is how --apply was proven without touching the repo"
+  },
+  "why": {
+    "incident": "on 2026-10-21 r2t4 ran t46 in write mode and it deleted one character (a blank line) from t29-flag-stagger-readback.mjs",
+    "stillLive": "under the OLD code, a fresh run reports t29 changed=true, removedChars=1 even though the file matches HEAD, because the `\\n{3,}` normalisation ran on every target regardless of whether a gate block was removed",
+    "fix": "the fixups, import rewriting and blank-line normalisation now run only when at least one removal matched; a file with nothing to remove is reported ALREADY MIGRATED and skipped, so a run can no longer dirty an already-migrated file"
+  },
+  "byteIdentity": {
+    "path": "docs/evidence/review/t29-flag-stagger-readback.mjs",
+    "worktreeBlob": "1461daf24d01453140646d45256d21567f50d574",
+    "headBlob": "1461daf24d01453140646d45256d21567f50d574",
+    "equal": true,
+    "fileSha256": "6244e7f975ff3a9952cb96e10ceba7477bf510ed044ed896b95a08657b8d777c"
+  },
+  "treeStatus": {
+    "command": "git status --porcelain",
+    "mine": ["M docs/evidence/review/t46-codemod-mtime-gate.mjs"],
+    "notMine": [
+      "M docs/evidence/current/main-inventory.json",
+      "?? docs/evidence/current/frame-diff.ps1",
+      "?? docs/evidence/current/t27-calibration-main.png",
+      "?? docs/evidence/current/t27-control.png",
+      "?? docs/evidence/current/t27-owner-main.png",
+      "?? docs/evidence/current/t27-owner-probe.png",
+      "?? docs/evidence/current/t27-probe-before.png",
+      "?? docs/evidence/current/t27-staggered.png",
+      "?? docs/evidence/review/t31-cross-review-t6.mjs",
+      "?? docs/evidence/review/t32-cross-review-t10.mjs"
+    ],
+    "empty": false,
+    "note": "The tree is not empty because other members left evidence artifacts uncommitted. None of them is a codemod target and none was touched here; deleting them to make the status empty would destroy other members' work."
+  },
+  "twoWayProof": {
+    "noApply": {
+      "command": "node docs/evidence/review/t46-codemod-mtime-gate.mjs",
+      "exit": 0,
+      "stdoutSummary": "{\"mode\":\"dry-run\",\"pending\":[],\"errors\":0,...} every target ALREADY MIGRATED",
+      "t29ShaBefore": "6244e7f975ff3a9952cb96e10ceba7477bf510ed044ed896b95a08657b8d777c",
+      "t29ShaAfter": "6244e7f975ff3a9952cb96e10ceba7477bf510ed044ed896b95a08657b8d777c",
+      "wrote": false
+    },
+    "applyOnCopy": {
+      "setup": "temp dir with HEAD copies of all 13 targets, except t29 replaced by its pre-migration version from 0c31e96^",
+      "command": "node docs/evidence/review/t46-codemod-mtime-gate.mjs --apply --dir <temp>",
+      "exit": 0,
+      "pending": ["t29-flag-stagger-readback.mjs"],
+      "shaBefore": "c3cd15b6de17d7383be6126743326b8dddf0869812c74b2537c08abcc39c8a42",
+      "shaAfter": "8afd272a6f8767760e8db314184d3ab2cf62030eb31b5cd13283c7d37c16023c",
+      "changed": true,
+      "gateFreshnessCallsInCopy": 1,
+      "mtimeHelperLeftInCopy": 0,
+      "tempRemoved": true
+    }
+  },
+  "gates": {
+    "t53": { "command": "node docs/evidence/review/t53-verify-main.mjs", "exit": 0, "verdict": "PASS, 21 components / 8 part / 13 netflag / 55 wires / 2 pages" },
+    "freshness": { "command": "node docs/evidence/review/shared/freshness.mjs --check", "exit": 0, "stdout": "{\"status\":\"FRESH\",\"baselineVersion\":3,\"packages\":5,\"files\":21}" },
+    "packagesDirty": 0
+  }
+}

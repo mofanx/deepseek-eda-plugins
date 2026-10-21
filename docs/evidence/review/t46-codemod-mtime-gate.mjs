@@ -2,12 +2,26 @@
 // content-hash gate. Read the notes at the bottom for the shapes it could not
 // unify and why the reported gate state changes shape.
 //
-// Run: node docs/evidence/review/t46-codemod-mtime-gate.mjs [--check]
+// LOCKED: the migration is finished (all 13 scripts are on gateFreshness), so this
+// script is dry-run by default and writes nothing unless you pass --apply. On
+// 2026-10-21 it was run in write mode by mistake and silently deleted a blank line
+// from t29-flag-stagger-readback.mjs; a codemod that still writes on a bare `node`
+// invocation is a trap, not a tool.
+//
+// Run: node docs/evidence/review/t46-codemod-mtime-gate.mjs            # dry run
+//      node docs/evidence/review/t46-codemod-mtime-gate.mjs --apply    # write
+//      node docs/evidence/review/t46-codemod-mtime-gate.mjs --dir <p>  # other dir
+//
+// Exit codes (dry run): 0 = nothing to change, 1 = some file would change.
+// Exit codes (--apply): 0 = applied cleanly, 1 = a fixup could not be applied.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
-const dir = join(repoRoot, 'docs/evidence/review')
+const dirArg = process.argv.indexOf('--dir')
+const dir = dirArg >= 0 && process.argv[dirArg + 1] !== undefined
+  ? resolve(process.argv[dirArg + 1])
+  : join(repoRoot, 'docs/evidence/review')
 
 const TARGETS = [
   't26-wire-net-guard.mjs', 't27-flag-stagger.mjs', 't28-label-overlap.mjs', 't29-flag-stagger-readback.mjs',
@@ -76,9 +90,9 @@ const FIXUPS = {
 }
 const REPO_VAR = { 't26-wire-net-guard.mjs': 'repo' }
 
-const check = process.argv.includes('--check')
+const APPLY = process.argv.includes('--apply')
 const results = []
-let failed = false
+let errors = 0
 
 for (const name of TARGETS) {
   const path = join(dir, name)
@@ -91,6 +105,15 @@ for (const name of TARGETS) {
     if (next !== text) { text = next; applied.push(label) }
   }
 
+  // Nothing to remove means the file is already migrated. Stop here: the fixups and
+  // the blank-line normalisation below only make sense on a file we actually
+  // rewrote, and running them anyway is what deleted a blank line from t29 after
+  // the migration had already landed.
+  if (!applied.length) {
+    results.push({ name, changed: false, removedChars: 0, applied, report: ['ALREADY MIGRATED'] })
+    continue
+  }
+
   const repoVar = REPO_VAR[name] ?? 'repoRoot'
   const report = []
   for (const [find, repl] of FIXUPS[name] ?? []) {
@@ -98,8 +121,6 @@ for (const name of TARGETS) {
     text = text.replace(find, repl)
     report.push('fixup')
   }
-
-  if (!applied.length) { report.push('NO REMOVAL MATCHED') }
 
   const importLine = "import { gateFreshness } from './shared/freshness.mjs'\n"
   if (!text.includes(importLine)) {
@@ -130,10 +151,16 @@ for (const name of TARGETS) {
   text = text.replace(/\n{3,}/g, '\n\n')
 
   const changed = text !== before
-  if (!check && changed) writeFileSync(path, text)
+  if (APPLY && changed) writeFileSync(path, text)
+  if (report.some((r) => /^(MISSING FIXUP|NO IMPORT ANCHOR|NO REPO ANCHOR)/.test(r))) errors++
   results.push({ name, changed, removedChars: before.length - text.length, applied, report })
-  if (!changed) failed = true
 }
 
-console.log(JSON.stringify({ mode: check ? 'check' : 'write', results, failed }, null, 1))
-process.exitCode = failed ? 1 : 0
+const pending = results.filter((r) => r.changed)
+const mode = APPLY ? 'apply' : 'dry-run'
+console.log(JSON.stringify({ mode, pending: pending.map((r) => r.name), errors, results }, null, 1))
+if (!APPLY && pending.length > 0) {
+  console.error(`DRY RUN: ${pending.length} file(s) would change. Nothing was written. Re-run with --apply to write.`)
+}
+if (APPLY && pending.length > 0) console.error(`APPLIED: ${pending.length} file(s) written.`)
+process.exitCode = (APPLY ? (errors > 0 ? 1 : 0) : (pending.length > 0 || errors > 0 ? 1 : 0))
