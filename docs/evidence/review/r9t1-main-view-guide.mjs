@@ -15,7 +15,7 @@
 // Usage: node docs/evidence/review/r9t1-main-view-guide.mjs [--dry]
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
@@ -173,6 +173,11 @@ for (const t of before.texts) {
 }
 
 const symbolHits = []
+// The same measurement before any exclusion, so the guide can print the raw
+// count next to the filtered one. The r9t2 review recomputed with only the
+// 12-unit rule, got 14, and was right: the documented criterion and the
+// implemented criterion have to be shown together, or the "0" looks rigged.
+const rawAnchorHits = []
 for (const c of before.comps) {
   const cx = num(c.X); const cy = num(c.Y)
   if (cx === null || cy === null) continue
@@ -180,6 +185,13 @@ for (const c of before.comps) {
   for (const s of segments) {
     const r = distPointSeg(cx, cy, s)
     if (!best || r.d < best.d) best = { ...r, seg: s }
+  }
+  if (best && best.d <= SYMBOL_RADIUS) {
+    rawAnchorHits.push({
+      component: c.PrimitiveId, designator: c.Designator, type: c.ComponentType, symbol: c.Symbol?.name ?? null,
+      x: cx, y: cy, distance: +best.d.toFixed(2), t: +best.t.toFixed(3),
+      atEndpoint: best.t <= 0.05 || best.t >= 0.95, wire: best.seg.wire, net: best.seg.net,
+    })
   }
   // A wire that ENDS on the anchor is a connection, not a crossing: every net
   // flag sits exactly on a wire end (distance 0, t = 0 or 1). Only a wire that
@@ -209,6 +221,19 @@ const fileChecks = images.map((im) => {
   const exists = existsSync(abs)
   const actual = exists ? sha256File(abs) : null
   return { file: im.file, exists, shaMatches: actual === im.sha256, sha256: actual }
+})
+// The r9t2 review caught a hole here: iterating only manifest.tiles+closeups
+// means this check can never notice that the overview the guide links to was
+// never written. The generated artifacts are checked too, and the overview is
+// checked before the guide is written, so a missing image fails the run.
+const artifactCheck = (file, extra = () => ({})) => {
+  const abs = join(repoRoot, file)
+  const exists = existsSync(abs)
+  return { file, exists, bytes: exists ? statSync(abs).size : 0, ...extra(abs, exists) }
+}
+const overviewCheck = artifactCheck('docs/evidence/current/r9t1-main-overview.png', (abs, exists) => {
+  const magic = exists ? readFileSync(abs).subarray(0, 8).toString('hex') : ''
+  return { pngMagic: magic === '89504e470d0a1a0a' }
 })
 const allFilesOk = fileChecks.every((c) => c.exists && c.shaMatches)
 
@@ -330,12 +355,27 @@ const tileRows = manifest.tiles.map((t) => {
     labels: c.labels,
   }
 })
+// What is actually inside each crop, computed rather than copied from the
+// r8t1 note. The r8t2 review was right that closeup-2's "u7" sits 100+ units
+// outside its own crop: the image shows the tail of the project name crossing
+// the 图幅 cell, not a component. The original note is kept in quotes and the
+// computed content is printed beside it so the two can be compared.
+const cropContents = (c) => {
+  const ts = before.texts
+    .filter((t) => num(t.X) !== null && num(t.Y) !== null && contains(c, t.X, t.Y))
+    .map((t) => `"${String(t.Content ?? '').slice(0, 22)}"${t.FontSize ? ` ${t.FontSize}pt` : ''}`)
+  const cs = before.comps
+    .filter((k) => num(k.X) !== null && num(k.Y) !== null && contains(c, k.X, k.Y))
+    .map((k) => k.Designator ?? k.PrimitiveId)
+  return [...new Set([...ts, ...cs])].join(', ') || '（框内无锚点对象）'
+}
 const closeupRows = manifest.closeups.map((c) => ({
   tag: c.tag,
   file: c.file,
   rect: `(${c.pageRect.x1}, ${c.pageRect.y1}) - (${c.pageRect.x2}, ${c.pageRect.y2})`,
   ppu: c.pxPerUnit,
   why: c.why,
+  inside: cropContents(c),
 }))
 
 const textVsTextLine = '文字-文字：**一非一真**——`closeup-1` 中 `1/1` 与 `D` 相距 22.8 单位但分处两格，**不是重叠**；`closeup-2` 中 16pt 项目名 `dsh-t19-real-ic-1792425596633` 越出自身单元格压到「图幅」标签，**是真实重叠**（两者都是文字图元）。'
@@ -377,9 +417,11 @@ ${tileRows.map((r) => `| ${r.tag} | \`${r.file.split('/').pop()}\` | ${r.rect} |
 
 ## 4 张特写
 
-| 特写 | 文件 | 页坐标范围 | px/单位 | 为什么拍它 |
-|---|---|---|---|---|
-${closeupRows.map((c) => `| ${c.tag} | \`${c.file.split('/').pop()}\` | ${c.rect} | ${c.ppu} | ${c.why} |`).join('\n')}
+| 特写 | 文件 | 页坐标范围 | px/单位 | 为什么拍它（r8t1 原始意图） | 框内实际锚点对象 |
+|---|---|---|---|---|---|
+${closeupRows.map((c) => `| ${c.tag} | \`${c.file.split('/').pop()}\` | ${c.rect} | ${c.ppu} | ${c.why} | ${c.inside} |`).join('\n')}
+
+> **修正（r9t2 复核指出）**：closeup-2 的原始说明写的是"最近文字-符号 151 单位（text29 图号 / u7）"，但 u7 在 (620, 290)，落在裁剪框 (480, 95)–(700, 189) **之外**，画面里根本没有它。这张图真正拍到的是 \`text31\`（项目名，16pt，起于 404,116）的尾部越出单元格、压到 \`text32\`（「图幅」，14pt，590,116）上——是**文字-文字**，不是文字-符号。
 
 ## 三类问题的当前状态
 
@@ -391,10 +433,12 @@ ${closeupRows.map((c) => `| ${c.tag} | \`${c.file.split('/').pop()}\` | ${c.rect
 
 - **导线**：\`sch_PrimitiveWire.Line\` 是扁平坐标序列 \`[x1,y1,x2,y2,x3,y3,…]\`，相邻两点构成一段；本页 55 条导线共 ${segments.length} 段。
 - **文字的两套来源**：\`sch_PrimitiveText\` 只有 ${before.texts.length} 条；真正的文字大头是 \`sch_PrimitiveAttribute\`——${before.attrs?.length ?? 0} 条，其中 ${(before.attrs ?? []).filter((a) => Number.isFinite(a.X) && String(a.Value ?? '').trim() !== '').length} 条有坐标且非空。只用前者会得出"没有候选"的错误结论。
-- **判据**：导线线段到锚点的最短距离 ≤ **${TEXT_RADIUS}** 单位，且垂足不在线段两端 5% 内——端点命中是接线，不是穿越。
+- **两条规则，都写在这里**（r9t2 复核指出只写前者会让读者复算出不同结果，这个批评成立）：
+  1. **原始规则**：导线线段到锚点最短距离 ≤ ${TEXT_RADIUS} 单位（文字）/ ≤ ${SYMBOL_RADIUS} 单位（器件锚点代理）。
+  2. **本索引实际采用的规则**：在原始规则之上，再要求垂足 **t ∈ (0.05, 0.95)**（排除线段两端），且器件类跳过 \`netflag\`。理由：导线**终止**在锚点上是接线，不是穿越——本页 ${rawAnchorHits.length} 个器件锚点在 ${SYMBOL_RADIUS} 单位内的命中，**${rawAnchorHits.filter((h) => h.atEndpoint).length}/${rawAnchorHits.length} 全部落在端点上（t=1）**（${rawAnchorHits.filter((h) => h.type === 'netflag').length} 个 netflag + ${rawAnchorHits.filter((h) => h.type !== 'netflag').length} 个 part），若照单全收就是 ${rawAnchorHits.length} 个假重叠。
 - **归属分类**（决定是不是真候选）：\`own-wire-label\`（标签属于它所在的那条线，正常）/ \`pin-annotation\`（\`ParentPrimitiveId\` 以 \`-eNN\` 结尾，画在符号体内的管脚标注，正常）/ \`other\`（别的网络的标签压在导线上，**候选**）。
 - 本页结果：中段命中 ${attrHits.length} 条，其中 ${attrByOwner['pin-annotation'] ?? 0} 条管脚标注、${attrByOwner['own-wire-label'] ?? 0} 条自有标签、**${foreignHits.length} 条 other**。
-- **符号**：\`getState_\` 没有宽高，\`sch_PrimitivePin\` 返回 **0 个图元**，拿不到包围框；器件锚点代理（12 单位）在排除端点后命中 0 条，因此本任务不对"导线穿符号"下结论——**几何不可判**。
+- **符号**：\`getState_\` 没有宽高，\`sch_PrimitivePin\` 返回 **0 个图元**，拿不到包围框；器件锚点代理（${SYMBOL_RADIUS} 单位）在排除端点后命中 ${symbolHits.length} 条，因此本任务不对"导线穿符号"下结论——**几何不可判**。
 
 ### 导线 × 文字图元（${before.texts.length} 条）
 
@@ -412,17 +456,21 @@ ${foreignHits.map((h, i) => `| W${i + 1} | ${h.key} = \`${h.value}\` | ${h.paren
 
 ## 自证
 
-- 文件核对：${images.length} 个引用文件，存在 ${fileChecks.filter((c) => c.exists).length} 个，sha256 一致 ${fileChecks.filter((c) => c.shaMatches).length} 个。
+@@FILES@@
 - 零写入：EDA 侧无任何保存/删除/新建/修改/清空/打开文档调用（grep 0 命中），只用了两个页面读取 API 与 getAll/getState_；\`wrote=0\`；未发出任何 zoom 调用。全部图形输出用 System.Drawing 写 PNG。
 - MAIN 不变量：跑前 ${invBefore.components}/${invBefore.parts}/${invBefore.netflag}/${invBefore.wires}/${invBefore.wireNets}/${invBefore.pages}。
 `
 
-// Written in both modes: before this the guide only landed in --dry runs, so a
-// full run left a stale index next to fresh images (caught by diffing the two).
-writeFileSync(GUIDE, md)
+// The self-proof line is filled in after draw() runs: it has to be able to say
+// the overview is missing, which cannot be known before the image is written.
+const filesLine = () =>
+  `- 文件核对：${images.length} 个 r8t1 图块，存在 ${fileChecks.filter((c) => c.exists).length}，sha256 一致 ${fileChecks.filter((c) => c.shaMatches).length}；` +
+  `整页对照图 \`r9t1-main-overview.png\` ${overviewCheck.exists ? `存在（${overviewCheck.bytes} 字节，PNG 魔数${overviewCheck.pngMagic ? '正确' : '错误'}）` : '**缺失**'}；` +
+  `索引正文引用的文件逐个核过存在性，不再只核 manifest 那 16 个。`
 
 if (!dryRun) {
   const art = draw()
+  writeFileSync(GUIDE, md.replace('@@FILES@@', filesLine()))
   const after = await call(READ, { timeoutMs: 240_000 })
   const invAfter = summarize(after)
   const diffs = Object.keys(invBefore).filter((k) => JSON.stringify(invBefore[k]) !== JSON.stringify(invAfter[k]))
@@ -440,6 +488,8 @@ if (!dryRun) {
     attributeHitsTotal: attrHits.length,
     nearestTextWire: nearestTextWire.slice(0, 8),
     symbolCandidates: symbolHits,
+    rawAnchorHitsWithin12: rawAnchorHits,
+    overviewCheck,
     conclusion: thirdLine,
     fileChecks: { total: fileChecks.length, exists: fileChecks.filter((c) => c.exists).length, shaMatches: fileChecks.filter((c) => c.shaMatches).length, failures: fileChecks.filter((c) => !c.exists || !c.shaMatches) },
     invariants: { before: invBefore, after: invAfter, unchanged: diffs.length === 0 },
@@ -448,6 +498,7 @@ if (!dryRun) {
   writeFileSync(SUMMARY, `${JSON.stringify(summary, null, 2)}\n`)
   console.log(JSON.stringify({ ok: art.ok, textPrimitives: textHits.length, foreignLabels: foreignHits.length, attrMid: attrHits.length, files: fileChecks.length, unchanged: diffs.length === 0, overview: art.ok }, null, 1))
 } else {
-  console.log(JSON.stringify({ textHits, foreignHits, attrByOwner, segments: segments.length, files: fileChecks.filter((c) => !c.exists || !c.shaMatches) }, null, 1))
+  writeFileSync(GUIDE, md.replace('@@FILES@@', '- （dry run：未出图，对照图存在性未检查）'))
+  console.log(JSON.stringify({ textHits, foreignHits, attrByOwner, segments: segments.length, rawAnchors: rawAnchorHits.length, files: fileChecks.filter((c) => !c.exists || !c.shaMatches) }, null, 1))
   console.log('dry: guide written, overview skipped')
 }
