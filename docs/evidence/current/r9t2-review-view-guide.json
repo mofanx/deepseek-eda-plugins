@@ -1,0 +1,68 @@
+{
+ "task": "r9t2",
+ "at": "2026-10-21T09:26:00Z",
+ "reviewed": {
+  "task": "r9t1",
+  "head": "8cca0c953c2ef0b04fb3624abb5db515558256e2",
+  "guide": "docs/evidence/current/r9t1-main-view-guide.md",
+  "guideSha256": "BD15E8CE1970ACF531554F12C3512101E55DFCCD266416B2193B43B631A26FE2",
+  "generator": "docs/evidence/review/r9t1-main-view-guide.mjs",
+  "generatorSha256PrefixAtFirstRead": "56A64B46349E",
+  "generatorSha256PrefixAtCommit": "B036E9406FBC",
+  "generatorDrift": "the generator was edited during this review (mtime 17:20:28). Both versions carry the same logic for the two failing items: L182-183 still requires 0.05<t<0.95 and skips netflags, and L330-331 still call closeup-2 a text-vs-symbol confirmation. Only line numbers and an extra console line moved, so the findings below apply to the current generator too",
+  "state": "untracked at review time (git status ??), so this review is pinned to the guide hash above; the guide had not changed when this JSON was written, and a re-review is needed if it is regenerated"
+ },
+ "claims": {
+  "references": {
+   "verdict": "fail",
+   "detail": "the guide references 17 PNGs; 16 exist and their sha256 all match the r8t1 manifest (16/16), but the 17th - r9t1-main-overview.png, the guide's headline '一眼定位' image - does not exist",
+   "missing": ["r9t1-main-overview.png"],
+   "selfCheckGap": "the guide says '文件核对：16 个引用文件，存在 16 个，sha256 一致 16 个'. That is true but incomplete: the generator's fileChecks loop only iterates manifest.tiles + manifest.closeups (16), so by construction it can never notice that the overview it links to was never written",
+   "related": "its machine-readable companion r9t1-main-third-class.json is also absent, so the wrote=0 / candidate counts exist only as prose"
+  },
+  "coordinates": {
+   "verdict": "partial",
+   "pageRanges": "all 16 page ranges quoted in the guide (12 tiles + 4 closeups) match the r8t1 manifest exactly - 0 mismatches",
+   "labelAlignment": "not verifiable: the rXcY contact sheet that the claim refers to is the missing overview PNG",
+   "contentAnnotation": "the closeup-2 row says 't55 最近文字-符号 151 单位（text29 图号 / u7）'. u7 is at (620,290) but the crop is (480,95)-(700,189), so u7 is 100+ units outside the crop and cannot be what the image shows; text29 图号 (590,142) is inside"
+  },
+  "noExaggeration": {
+   "verdict": "fail",
+   "detail": "the guide states '文字-符号：已确认真实重叠——closeup-2 中 16pt 项目名 dsh-t19-real-ic-1792425596633 压到「图幅」标签上'. Both participants are text primitives: text31 (content dsh-t19-real-ic-1792425596633, FontSize 16, at 404,116) and text32 (content 图幅, FontSize 14, at 590,116). This is a text-vs-text overlap",
+   "contradictsSource": "r8t1's own doc §14.35.18 calls the same image '真实的文字-文字重叠'",
+   "internalContradiction": "the same guide's next line declares '文字-文字：已确认非重叠' from closeup-1, so class 1 is simultaneously confirmed non-overlapping and (misclassified) confirmed overlapping",
+   "consequence": "class 2 gains a 'confirmed' status from evidence that belongs to class 1; a reader would conclude symbol-vs-text collisions were proven, which the cited pixels do not show"
+  },
+  "thirdClassRecompute": {
+   "verdict": "fail",
+   "statedRule": "'导线线段到锚点的最短距离 <= 6 单位' for text and '<= 12 单位' for symbols (device anchors)",
+   "recomputeWithStatedRule": "text anchors: 0 hits (nearest is 130 units, so the text half is clean). component anchors within 12 units: 14 hits - 13 netflags (all sit on wire ends, distance 0) plus layout:flag:_3V3:bus:240 (distance 0, t=1)",
+   "implementedRule": "the generator additionally requires 0.05 < t < 0.95 (endpoint excluded) and skips ComponentType==='netflag'; with that filter the count is 0",
+   "whyItMatters": "the documented criterion and the implemented criterion are not the same. Recomputing '按索引给的阈值' yields 14 hits, not '（无）'; the 0 result only reproduces with an exclusion the guide never states",
+   "fairness": "excluding wire endpoints and netflags is semantically defensible (a wire terminating on a pin is a connection, not a crossing), but it is a rule change and must be written next to the threshold"
+  },
+  "zeroWriteAndScene": {
+   "verdict": "pass",
+   "readBlock": "the in-page READ script only uses getAll / getState_* / getCurrentSchematicPageInfo / getAllSchematicPagesInfo; no save/delete/create/modify/clear/openDocument",
+   "zoom": "the generator issues no zoom call (grep for zoomTo in the .mjs: none)",
+   "liveInvariants": "at 09:18:53Z: active MAIN, pages [MAIN,P1], 21 components (8 part + 13 netflag), 55 wires, 55 wire nets, 39 texts",
+   "gates": "t53 5/5 PASS exit 0; freshness --check FRESH exit 0 (baselineVersion 4)",
+   "note": "wrote=0 is asserted in prose only - the summary JSON that would carry it is missing"
+  }
+ },
+ "measurements": {
+  "wires": 55,
+  "segments": 69,
+  "pins": 0,
+  "texts": 39,
+  "components": 21,
+  "nearestTextAnchor": 130,
+  "componentAnchorsWithin12": 14
+ },
+ "overall": "unsound",
+ "whatWouldMakeItSound": [
+  "write r9t1-main-overview.png (or drop the link and the rXcY claim) and include it in the self-check count, so the index references nothing that does not exist",
+  "reclassify closeup-2 as text-vs-text (text31 vs text32) and correct the '文字-符号 已确认' line; if no symbol overlap has been confirmed, class 2 stays 'unjudged'",
+  "either state the endpoint/netflag exclusion in the guide next to the 12-unit threshold, or report the 14 anchor hits and explain why they are connections rather than crossings"
+ ]
+}
