@@ -38,10 +38,19 @@ export {
   EASYEDA_BRIDGE_LANDING_URL,
   EASYEDA_BRIDGE_PORT_MAX,
   EASYEDA_BRIDGE_PORT_MIN,
+  EASYEDA_BRIDGE_REMEDIES,
   HttpEasyEdaBridge,
+  bridgeFailureMessage,
+  classifyTransportFailure,
   spawnEasyEdaBridge,
 } from './bridge.ts'
-export type { EasyEdaBridge, EasyEdaBridgeExecuteOptions, HttpEasyEdaBridgeOptions } from './bridge.ts'
+export type {
+  EasyEdaBridge,
+  EasyEdaBridgeExecuteOptions,
+  EasyEdaBridgeFailureCode,
+  EasyEdaBridgeRemedy,
+  HttpEasyEdaBridgeOptions,
+} from './bridge.ts'
 export { diffNetlists, parseDocumentSource, readBackAttrs, readBackNetRegions } from './readback.ts'
 export type { ParsedRecord } from './readback.ts'
 export { EasyEdaLibrary } from './library.ts'

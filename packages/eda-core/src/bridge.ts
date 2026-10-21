@@ -44,7 +44,114 @@ export const EASYEDA_BRIDGE_IMPLEMENTATION = 'dsh-eda-bridge'
 export const EASYEDA_BRIDGE_LANDING_URL = 'https://pro.lceda.cn/api/landing?port=49620'
 
 /** Recovery instruction shared by bridge reachability errors. */
-const EASYEDA_BRIDGE_REGISTER_HINT = `open ${EASYEDA_BRIDGE_LANDING_URL} inside the EasyEDA client to register the editor window`
+const EASYEDA_BRIDGE_REGISTER_HINT = `open ${EASYEDA_BRIDGE_LANDING_URL} as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window`
+
+/**
+ * Stable failure classes a bridge call can end in. Route on the code, never on
+ * the message text. The first six predate t3; the last three split failure
+ * modes that used to collapse into `NO_EDA` / `TIMEOUT` / `EXECUTION`.
+ */
+export type EasyEdaBridgeFailureCode =
+  | 'SCHEMATIC_BRIDGE_UNAVAILABLE'
+  | 'SCHEMATIC_BRIDGE_NO_EDA'
+  | 'SCHEMATIC_BRIDGE_TIMEOUT'
+  | 'SCHEMATIC_BRIDGE_CIRCUIT_OPEN'
+  | 'SCHEMATIC_BRIDGE_EXECUTION'
+  | 'SCHEMATIC_BRIDGE_PROTOCOL'
+  /** TCP/HTTP connect phase timed out: the relay is not answering at all. */
+  | 'SCHEMATIC_BRIDGE_CONNECT_TIMEOUT'
+  /** The relay dropped an established connection (reset / socket closed). */
+  | 'SCHEMATIC_BRIDGE_DISCONNECTED'
+  /** A window was connected earlier in this client, now the relay reports none. */
+  | 'SCHEMATIC_BRIDGE_WINDOW_LOST'
+
+/** What a caller should do next for each failure class. */
+export interface EasyEdaBridgeRemedy {
+  /** True when repeating the same call can succeed without operator action. */
+  readonly retryable: boolean
+  /** Operator-facing next step; already embedded in the thrown message. */
+  readonly nextStep: string
+}
+
+/**
+ * Remedy table, one entry per {@link EasyEdaBridgeFailureCode}. Messages are
+ * built from this table so the guidance cannot drift between call sites.
+ */
+export const EASYEDA_BRIDGE_REMEDIES: Record<EasyEdaBridgeFailureCode, EasyEdaBridgeRemedy> = {
+  SCHEMATIC_BRIDGE_UNAVAILABLE: {
+    retryable: true,
+    nextStep: `start the relay with "dsh-eda-bridge" (the bin ships inside @deepseek-ai/dsh-plugin-eda-core), then ${EASYEDA_BRIDGE_REGISTER_HINT}`,
+  },
+  SCHEMATIC_BRIDGE_NO_EDA: {
+    retryable: false,
+    nextStep: `the relay is up but no editor is registered — ${EASYEDA_BRIDGE_REGISTER_HINT}; confirm /health reports edaConnected:true before retrying`,
+  },
+  SCHEMATIC_BRIDGE_TIMEOUT: {
+    retryable: true,
+    nextStep: `the editor may be busy or wedged — retry once; if timeouts persist, reload the editor tab and re-register it: ${EASYEDA_BRIDGE_REGISTER_HINT}`,
+  },
+  SCHEMATIC_BRIDGE_CONNECT_TIMEOUT: {
+    retryable: true,
+    nextStep: `the relay accepted no connection in time — check that "dsh-eda-bridge" is running and that port 49620 is reachable, then retry; if it still times out, restart the relay, then ${EASYEDA_BRIDGE_REGISTER_HINT}`,
+  },
+  SCHEMATIC_BRIDGE_DISCONNECTED: {
+    retryable: true,
+    nextStep: `an established connection was dropped — retry once; if the relay itself died, restart it with "dsh-eda-bridge", then ${EASYEDA_BRIDGE_REGISTER_HINT}`,
+  },
+  SCHEMATIC_BRIDGE_WINDOW_LOST: {
+    retryable: false,
+    nextStep: `the editor window that was registered earlier is gone (reload or client restart) — ${EASYEDA_BRIDGE_REGISTER_HINT}`,
+  },
+  SCHEMATIC_BRIDGE_CIRCUIT_OPEN: {
+    retryable: true,
+    nextStep: `the fail-fast circuit is open after consecutive timeouts — wait for the cooldown, then reload the editor tab and re-register it: ${EASYEDA_BRIDGE_REGISTER_HINT}`,
+  },
+  SCHEMATIC_BRIDGE_EXECUTION: {
+    retryable: true,
+    nextStep: 'the body ran and failed, or the relay returned an error response — read the original message below, fix the call, then retry',
+  },
+  SCHEMATIC_BRIDGE_PROTOCOL: {
+    retryable: false,
+    nextStep: 'the relay answered with an unrecognized shape — check that "dsh-eda-bridge" is the implementation on that port (another daemon may have squatted it)',
+  },
+}
+
+/** Build the operator-facing message for a failure class. */
+export function bridgeFailureMessage(code: EasyEdaBridgeFailureCode, detail?: string): string {
+  const remedy = EASYEDA_BRIDGE_REMEDIES[code]
+  return detail === undefined ? remedy.nextStep : `${detail} — next: ${remedy.nextStep}`
+}
+
+/** Every string a thrown value carries: its code, message, and chained causes. */
+function failureText(value: unknown): string {
+  const parts: string[] = []
+  let current: unknown = value
+  for (let depth = 0; depth < 5 && current !== undefined && current !== null; depth++) {
+    if (typeof current === 'string') {
+      parts.push(current)
+      break
+    }
+    if (typeof current !== 'object') break
+    const { code, message, cause } = current as { code?: unknown; message?: unknown; cause?: unknown }
+    if (typeof code === 'string') parts.push(code)
+    if (typeof message === 'string') parts.push(message)
+    current = cause
+  }
+  return parts.join(' | ')
+}
+
+/**
+ * Map a transport-level throw to the specific class it belongs to, or
+ * `undefined` when it is a generic execution failure (keep `EXECUTION`).
+ * @param error - the value `fetch` rejected with.
+ * @returns the failure code, or undefined when no known transport cause matches.
+ */
+export function classifyTransportFailure(error: unknown): EasyEdaBridgeFailureCode | undefined {
+  const text = failureText(error)
+  if (/UND_ERR_CONNECT_TIMEOUT|ETIMEDOUT|connect time(?:d )?out/i.test(text)) return 'SCHEMATIC_BRIDGE_CONNECT_TIMEOUT'
+  if (/ECONNRESET|EPIPE|UND_ERR_SOCKET|socket hang up|other side closed|ECONNREFUSED/i.test(text)) return 'SCHEMATIC_BRIDGE_DISCONNECTED'
+  return undefined
+}
 
 /**
  * Spawn the bundled `dsh-eda-bridge` bin detached so a first live call can
@@ -133,6 +240,11 @@ export class HttpEasyEdaBridge implements EasyEdaBridge {
   private readonly circuitCooldownMs: number
   private timeoutStreak = 0
   private circuitOpenUntil = 0
+  /**
+   * Set once this client has completed a call, which proves an editor window was
+   * registered. A later "no window" is then a loss, not an initial state.
+   */
+  private sawWindow = false
 
   /**
    * @param baseUrl - the discovered bridge base URL, e.g. `http://127.0.0.1:49620`.
@@ -276,28 +388,69 @@ export class HttpEasyEdaBridge implements EasyEdaBridge {
         // A window that died between registration and execute (editor reload
         // drops the gateway socket) keeps `/health` claiming edaConnected
         // until the server's heartbeat sweeps it. Re-ask before reporting a
-        // timeout: a drained window list deserves the actionable NO_EDA.
+        // timeout: a drained window list deserves the actionable error. A
+        // client that already completed a call reports WINDOW_LOST; a client
+        // that never reached the editor keeps the initial NO_EDA class.
         if ((await this.probeHealth())?.edaConnected === false) {
+          const code: EasyEdaBridgeFailureCode = this.sawWindow ? 'SCHEMATIC_BRIDGE_WINDOW_LOST' : 'SCHEMATIC_BRIDGE_NO_EDA'
           throw new SchematicError(
-            `easyeda bridge at ${this.baseUrl} lost its EasyEDA window — reopen ${EASYEDA_BRIDGE_LANDING_URL} in the EasyEDA client to re-register it`,
-            'SCHEMATIC_BRIDGE_NO_EDA',
+            bridgeFailureMessage(code, `easyeda bridge at ${this.baseUrl} reports no connected editor window`),
+            code,
+            { cause: error },
           )
         }
-        throw new SchematicError(`easyeda bridge execute timed out after ${timeoutMs}ms — the editor may be busy or wedged; if timeouts persist, reopen ${EASYEDA_BRIDGE_LANDING_URL} to re-register it`, 'SCHEMATIC_BRIDGE_TIMEOUT')
+        throw new SchematicError(
+          bridgeFailureMessage('SCHEMATIC_BRIDGE_TIMEOUT', `easyeda bridge execute timed out after ${timeoutMs}ms`),
+          'SCHEMATIC_BRIDGE_TIMEOUT',
+          { cause: error },
+        )
       }
-      throw new SchematicError(`easyeda bridge execute failed: ${error instanceof Error ? error.message : String(error)}`, 'SCHEMATIC_BRIDGE_EXECUTION')
+      const transport = classifyTransportFailure(error)
+      if (transport !== undefined) {
+        throw new SchematicError(
+          bridgeFailureMessage(transport, `easyeda bridge execute could not reach ${this.baseUrl}`),
+          transport,
+          { cause: error },
+        )
+      }
+      throw new SchematicError(
+        bridgeFailureMessage('SCHEMATIC_BRIDGE_EXECUTION', `easyeda bridge execute failed: ${error instanceof Error ? error.message : String(error)}`),
+        'SCHEMATIC_BRIDGE_EXECUTION',
+        { cause: error },
+      )
     }
     // A completed response — even an error one — means the client-side queue
     // drained; the circuit closes.
     this.timeoutStreak = 0
     if (!res.ok) {
-      throw new SchematicError(`easyeda bridge execute returned HTTP ${res.status}`, 'SCHEMATIC_BRIDGE_EXECUTION')
+      const detail = await res.text().catch(() => '')
+      // The relay answers 503 with an explanatory body when its window list is
+      // empty; that is a loss (or an initial absence), not a body failure.
+      if (res.status === 503 && /no\s+(?:easyeda\s+)?window|eda(?:connected)?\s*[:=]\s*false|not connected/i.test(detail)) {
+        const code: EasyEdaBridgeFailureCode = this.sawWindow ? 'SCHEMATIC_BRIDGE_WINDOW_LOST' : 'SCHEMATIC_BRIDGE_NO_EDA'
+        throw new SchematicError(
+          bridgeFailureMessage(code, `easyeda bridge execute returned HTTP 503: ${detail.slice(0, 200)}`),
+          code,
+          { cause: new Error(`HTTP 503 ${detail.slice(0, 200)}`) },
+        )
+      }
+      throw new SchematicError(
+        bridgeFailureMessage('SCHEMATIC_BRIDGE_EXECUTION', `easyeda bridge execute returned HTTP ${res.status}`),
+        'SCHEMATIC_BRIDGE_EXECUTION',
+        { cause: new Error(`HTTP ${res.status} ${detail.slice(0, 200)}`) },
+      )
     }
     const body = await res.json() as Record<string, unknown>
     if ('error' in body || body.type === 'error') {
-      throw new SchematicError(`easyeda bridge execution error: ${String(body.error ?? body.type)}`, 'SCHEMATIC_BRIDGE_EXECUTION')
+      throw new SchematicError(
+        bridgeFailureMessage('SCHEMATIC_BRIDGE_EXECUTION', `easyeda bridge execution error: ${String(body.error ?? body.type)}`),
+        'SCHEMATIC_BRIDGE_EXECUTION',
+      )
     }
-    if ('result' in body) return body.result
-    throw new SchematicError('easyeda bridge returned an unrecognized response shape', 'SCHEMATIC_BRIDGE_PROTOCOL')
+    if ('result' in body) {
+      this.sawWindow = true
+      return body.result
+    }
+    throw new SchematicError(bridgeFailureMessage('SCHEMATIC_BRIDGE_PROTOCOL'), 'SCHEMATIC_BRIDGE_PROTOCOL')
   }
 }

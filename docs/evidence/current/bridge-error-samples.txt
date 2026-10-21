@@ -1,0 +1,16 @@
+--- window lost after a served call
+code: SCHEMATIC_BRIDGE_WINDOW_LOST
+message: easyeda bridge at http://127.0.0.1:49620 reports no connected editor window — next: the editor window that was registered earlier is gone (reload or client restart) — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window
+cause: SCHEMATIC_BRIDGE_TIMEOUT
+--- relay resets the socket
+code: SCHEMATIC_BRIDGE_DISCONNECTED
+message: easyeda bridge execute could not reach http://127.0.0.1:49620 — next: an established connection was dropped — retry once; if the relay itself died, restart it with "dsh-eda-bridge", then open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window
+cause: fetch failed
+--- connect timeout
+code: SCHEMATIC_BRIDGE_CONNECT_TIMEOUT
+message: easyeda bridge execute could not reach http://127.0.0.1:49620 — next: the relay accepted no connection in time — check that "dsh-eda-bridge" is running and that port 49620 is reachable, then retry; if it still times out, restart the relay, then open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window
+cause: fetch failed
+--- no editor registered
+code: SCHEMATIC_BRIDGE_NO_EDA
+message: easyeda bridge at http://127.0.0.1:49620 reports no connected editor window — next: the relay is up but no editor is registered — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window; confirm /health reports edaConnected:true before retrying
+cause: SCHEMATIC_BRIDGE_TIMEOUT

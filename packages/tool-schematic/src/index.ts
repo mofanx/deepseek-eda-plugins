@@ -281,10 +281,20 @@ async function liveVerify(
   try {
     return await engine.verify(ir, { symbolPins, pageSize, titleBlock, ...(netLabelFontSize === undefined ? {} : { netLabelFontSize }) })
   } catch (error) {
+    // A bridge failure is not "verification unavailable": it names a connection
+    // class an operator can act on. Keep the code and the original message, and
+    // add the next step; only non-bridge failures fall back to the generic code.
+    const bridgeCode = error instanceof SchematicError && error.code.startsWith('SCHEMATIC_BRIDGE_') ? error.code : undefined
+    const detail = error instanceof Error ? error.message : String(error)
     return [{
-      code: 'SCHEMATIC_VERIFY_UNAVAILABLE',
+      code: bridgeCode ?? 'SCHEMATIC_VERIFY_UNAVAILABLE',
       severity: 'error',
-      message: `live verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: bridgeCode === undefined
+        ? `live verification failed: ${detail}`
+        : `live verification could not reach the editor (${bridgeCode}): ${detail}`,
+      ...(bridgeCode === undefined
+        ? {}
+        : { suggestion: 'Fix the bridge connection as the message describes, confirm /health reports edaConnected:true, then re-run verification.' }),
     }]
   }
 }

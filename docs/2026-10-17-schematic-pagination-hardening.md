@@ -2726,3 +2726,21 @@ node docs/evidence/review/t53-verify-main.mjs --json   # 机器读
 | 还原后复跑 | **0** | 与首跑一致 |
 
 自证过程中抓到一个真 bug：`fail()` 原先用 `setTimeout` 退出，代码继续往下执行，于是 `CANNOT JUDGE` 之后又打印了一整屏 `PASS`——退出码仍是对的，但输出自相矛盾，看日志的人会以为门通过了。已改为 `fail()` 抛出哨兵异常、主流程收进 `main()`，exit 2 路径现在只打印一行结论。
+
+### 14.35.13 桥/窗口掉线的可判定错误码（t3，产品侧）
+
+**新增三码（原有六码不变）**：
+
+| 码 | 语义 | 与旧行为的差别 |
+|---|---|---|
+| `SCHEMATIC_BRIDGE_CONNECT_TIMEOUT` | 连接阶段超时，中继根本没应答 | 以前混进 `TIMEOUT`（看起来像"编辑器忙"） |
+| `SCHEMATIC_BRIDGE_DISCONNECTED` | 已建立的连接被重置/关闭（`ECONNRESET`/`EPIPE`/`ECONNREFUSED`/`UND_ERR_SOCKET`） | 以前混进 `EXECUTION` 或 `UNAVAILABLE` |
+| `SCHEMATIC_BRIDGE_WINDOW_LOST` | 本客户端**曾经成功执行过**，之后 /health 报无窗口 | 以前一律 `NO_EDA`，与"从没连上"无法区分 |
+
+原有码：`SCHEMATIC_BRIDGE_UNAVAILABLE`（中继不在）、`NO_EDA`（中继在、无编辑器）、`TIMEOUT`（执行超时）、`CIRCUIT_OPEN`（连续超时熔断）、`EXECUTION`（body 报错或 HTTP 错误）、`PROTOCOL`（响应形状不认识）。全部写进 `EasyEdaBridgeFailureCode` 联合类型与 `EASYEDA_BRIDGE_REMEDIES` 表，消息由 `bridgeFailureMessage()` 从表里生成，避免各调用点各写一套。
+
+**落地规则**：①每条消息都给出"下一步做什么"，且都写明 landing 前置——**必须在持有网页版编辑器标签的同一个浏览器里、以新标签打开 landing，且要等编辑器标签加载完**；②原始错误一律作为 `cause` 保留（`ErrorOptions`），不吞细节；③成功路径未改，只改失败分类；④`tool-schematic` 的 `liveVerify` 遇到 `SCHEMATIC_BRIDGE_*` 时**原样透出该码**并附 `suggestion`，不再统一压成 `SCHEMATIC_VERIFY_UNAVAILABLE`。
+
+**验收**：`tsc -b` 0 → `tsdown --config-loader native` 0 → 全量 **641/641** 通过（基线 634，新增 7 例：连接超时、断连且保留 cause、窗口丢失、未连过仍是 NO_EDA、503 无窗口升级为 WINDOW_LOST、分类函数、补救表完整性）。内容指纹 `--update` 后 `--check` **FRESH**，eda-core `lib/index.js` = `e99eb71943092c76ba1d16e5c3e97c35dbef3cd62398b6035b1dc2d0123c3d44`。
+
+**踩到的坑（值得记住）**：`tsdown` 的入口是 **`lib/types/index.js`（tsc 产物）**，不是 `src`。我第一次先 `tsc -b`、后改文案、再 `tsdown`，结果打出来的 `lib` 里还是旧文案——是"用运行时样例对照源码"才发现，而不是看退出码。正确顺序永远是 **改源码 → `tsc -b` → `tsdown`**。真实掉线样例（测试桩，不靠断网）见 `docs/evidence/current/bridge-error-samples.txt`。

@@ -37,9 +37,9 @@
   "packages": {
     "eda-core": {
       "files": 10,
-      "sha256": "d367acbb499a0ae1b94284584ef903a00d406c6a811062e24867e6627245e4a2",
+      "sha256": "a82d48e2a09f8b7b9f8804659d32225432858aa758c502fe2fdc0127b3dfc1b9",
       "hasLib": true,
-      "lib": "6c5a6d678f74056358eb10541dd7fbf14f8daee2b67251e8a661aee482e75c48"
+      "lib": "e99eb71943092c76ba1d16e5c3e97c35dbef3cd62398b6035b1dc2d0123c3d44"
     },
     "schematic": {
       "files": 7,
@@ -61,10 +61,10 @@
     },
     "tool-schematic": {
       "files": 1,
-      "sha256": "e867f82583d21f9b412c851ec4c5262b249de32850b45476206b8e807c81ca2b",
+      "sha256": "5a1fdfa3cdd130e24cc1b6dc3a6ba2838b7945576acfcc16f5d2c2cd5e4ae98f",
       "hasLib": true,
-      "lib": "26f49a38f9efdc708febd5ddc6b844f2ae4709107702baf30dc7b28df6eb73a3"
+      "lib": "b28ed986a1e2ee7d092a9f0f7909f6a4c5adbb03fb18adf178abdc458d4889ec"
     }
   },
-  "generatedAt": "2026-10-20T13:14:42.515Z"
+  "generatedAt": "2026-10-21T06:30:38.637Z"
 }
