@@ -312,16 +312,40 @@ return { deleted, probeGone: !pages.includes(probe), pages: pages.length, main: 
 }
 
 // The canvas is the instrument, and this client's zoom calls return ok without
-// changing what is painted (measured 2026-10-20: zoomToAllPrimitives / zoomTo /
-// zoom all left the frame within 1% ink). So before trusting any pixel verdict,
-// prove the canvas is actually painting THIS page: take a frame, write 96
-// primitives to the page, take another frame. Identical frames mean the canvas
-// is showing some other document, whatever the API says the active page is.
+// changing what is painted (measured 2026-10-20). It also does not necessarily
+// paint the page the API calls active: two earlier runs wrote 96 netflags each
+// into MAIN, because createNetFlag goes to the document on screen rather than
+// to getCurrentSchematicPageInfo(). Ownership is therefore decided BEFORE any
+// write, and without writing: take a frame with MAIN active, take a frame with
+// the empty probe active, and compare. Identical frames mean the canvas is not
+// following the active page, so this run places nothing, resizes nothing, and
+// reports who owns the pixels instead of calibrating on them.
 const probeTabs = pageStep.tabs ?? []
-const shotBefore = shoot('t27-probe-before.png')
-const pixelBefore = shotBefore ? analyse(shotBefore, join(work, 'before.json'), CANVAS) : { error: 'no screenshot' }
+const sig = (px) => ((px?.columns ?? []).map((c) => `${c.xFrom}:${c.xTo}:${c.bands}:${c.medianHeight}`).join('|'))
+const frameOf = (label) => {
+  const file = shoot(`t27-owner-${label}.png`)
+  return { file, pixel: file ? analyse(file, join(work, `owner-${label}.json`), CANVAS) : { error: 'no screenshot' } }
+}
+const pinMain = await callWithRetry(`
+try { await eda.dmt_EditorControl.openDocument(${JSON.stringify(pageStep.backTo)}) } catch (e) {}
+await new Promise(r => setTimeout(r, 1600));
+const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+return { active: c && c.uuid };
+`, { timeoutMs: 60_000 })
+const ownerMain = frameOf('main')
+const pinProbe = await callWithRetry(`
+try { await eda.dmt_EditorControl.openDocument(${JSON.stringify(pageStep.pageUuid)}) } catch (e) {}
+await new Promise(r => setTimeout(r, 1600));
+const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+return { active: c && c.uuid };
+`, { timeoutMs: 60_000 })
+const ownerProbe = frameOf('probe')
+const canvasFollows = sig(ownerMain.pixel) !== sig(ownerProbe.pixel)
+const pixelBefore = ownerProbe.pixel
 
-const madeStep = await callWithRetry(`
+const madeStep = !canvasFollows
+  ? { status: 'SKIPPED_CANVAS_NOT_ON_PROBE', created: 0, ids: [] }
+  : await callWithRetry(`
 // Safety: the wipe below is only legitimate on the throwaway page this run
 // created. Refuse if the active page drifted back to MAIN or anywhere else.
 const probe = ${JSON.stringify(pageStep.pageUuid)};
@@ -346,6 +370,7 @@ return { status: 'OK', created: made.length, ids: made };
 `, { timeoutMs: 240_000 })
 
 const sizedStep = await callWithRetry(`
+if (!${JSON.stringify(canvasFollows)}) return { status: 'SKIPPED_CANVAS_NOT_ON_PROBE', sized: 0 };
 let sized = 0;
 for (const a of (await eda.sch_PrimitiveAttribute.getAll()) || []) {
   try {
@@ -360,6 +385,7 @@ return { status: 'OK', sized };
 
 // Geometry read-back places the pixel strip on the text, not on the flag glyph.
 const boxStep = await callWithRetry(`
+if (!${JSON.stringify(canvasFollows)}) return { status: 'SKIPPED_CANVAS_NOT_ON_PROBE', boxes: [], total: 0 };
 const boxes = [];
 for (const a of (await eda.sch_PrimitiveAttribute.getAll()) || []) {
   try {
@@ -383,7 +409,7 @@ const setup = {
   boxes: boxStep?.boxes ?? [],
   boxCount: boxStep?.total ?? 0,
 }
-if (setup.created < 96) console.error(`WARN only ${setup.created}/96 flags placed`)
+if (canvasFollows && setup.created < 96) console.error(`WARN only ${setup.created}/96 flags placed`)
 
 const shots = {}
 // The control strip is the calibration target: 48 flags one per 10 units.
@@ -401,11 +427,20 @@ return true;
 // frame can tell whether the canvas paints it. A page that just gained 96
 // primitives must look different. If it does not, the canvas is showing another
 // document and every pixel verdict below would be about that document.
-const sig = (px) => ((px?.columns ?? []).map((c) => `${c.xFrom}:${c.xTo}:${c.bands}:${c.medianHeight}`).join('|'))
 const frameChanged = sig(pixelBefore) !== sig(shots.control.pixel)
+const reasonCode = canvasFollows
+  ? 'canvas-did-not-change-after-96-primitives'
+  : 'canvas-did-not-change-between-MAIN-and-empty-probe'
 const otherTabs = probeTabs.filter((t) => t.uuid !== setup.pageUuid)
 const canvasOccupier = otherTabs.length === 1
-  ? { uuid: otherTabs[0].uuid, name: otherTabs[0].title, source: 'inferred', evidence: 'canvas frame did not change after 96 primitives were added to the active probe page' }
+  ? {
+      uuid: otherTabs[0].uuid,
+      name: otherTabs[0].title,
+      source: 'inferred',
+      evidence: canvasFollows
+        ? 'canvas frame did not change after 96 primitives were added to the active probe page'
+        : 'canvas painted the same frame with MAIN active and with the empty probe active; this run wrote nothing',
+    }
   : { uuid: null, name: null, source: 'unknown', candidates: otherTabs }
 
 const calCols = shots.control.pixel?.columns ?? []
@@ -414,7 +449,7 @@ const calMedian = calHeights.length ? calHeights[Math.floor(calHeights.length / 
 // OK: the frame shows text bands of a plausible height. FAILED: we own the
 // active document and the frame still has nothing measurable - a real failure.
 // UNAVAILABLE: the frame provably belongs to another document (see above).
-const calStatus = !frameChanged
+const calStatus = !canvasFollows || !frameChanged
   ? 'UNAVAILABLE'
   : (calCols.length === 0 || calMedian === null ? 'FAILED' : (calMedian >= 1 && calMedian <= 80 ? 'OK' : 'FAILED'))
 const calibrationOk = calStatus === 'OK'
@@ -440,6 +475,7 @@ return true;
 // called unless the active document is provably this run's probe.
 const cleanupA = await callWithRetry(`
 const ids = ${JSON.stringify(setup.ids)};
+if (!ids.length) return { status: 'NOTHING_WRITTEN' };
 const probe = ${JSON.stringify(setup.pageUuid)};
 const cur = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
 if (!cur || cur.uuid !== probe) return { status: 'WRONG_PAGE', probe, active: cur && cur.uuid };
@@ -532,6 +568,10 @@ const out = {
     // Evidence, not a guess: the canvas must change when the active page gains
     // 96 primitives. If it does not, the frame belongs to another document.
     canvasTracking: {
+      canvasFollows,
+      reason: reasonCode,
+      pinnedActive: { main: pinMain?.active ?? null, probe: pinProbe?.active ?? null },
+      ownerFrames: { main: sig(ownerMain.pixel), probe: sig(ownerProbe.pixel) },
       frameChanged,
       occupier: calStatus === 'UNAVAILABLE' ? canvasOccupier : null,
       activeProbe: setup.pageUuid,
@@ -578,7 +618,7 @@ if (calStatus === 'UNAVAILABLE') {
   out.status = 'CALIBRATION_UNAVAILABLE'
   out.occupier = canvasOccupier
   const occ = canvasOccupier
-  console.error(`CALIBRATION_UNAVAILABLE occupier=${occ?.uuid ?? 'unknown'} name=${JSON.stringify(occ?.name ?? null)} reason=canvas-did-not-change-after-96-primitives activeProbe=${setup.pageUuid} frames=${canvasOccupier?.evidence ?? 'n/a'}`)
+  console.error(`CALIBRATION_UNAVAILABLE occupier=${occ?.uuid ?? 'unknown'} name=${JSON.stringify(occ?.name ?? null)} reason=${reasonCode} activeProbe=${setup.pageUuid} wrote=${setup.created} frames=${canvasOccupier?.evidence ?? 'n/a'}`)
   console.log(JSON.stringify(out, null, 1))
   process.exit(2)
 }
