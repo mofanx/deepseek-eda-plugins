@@ -1,0 +1,748 @@
+{
+  "at": "2026-10-21T05:55:46.5926007Z",
+  "task": "r3t2",
+  "reviewer": "independent re-check of r2t1 docs/evidence/current/main-restore-whitelist.json",
+  "sourceWhitelist": "docs/evidence/current/main-restore-whitelist.json",
+  "baselineSource": "docs/evidence/current/t31-dataset.json (comps[21])",
+  "criteria": {
+    "p1": "ComponentType === 'netflag' (live read)",
+    "p2": "id matches ^[0-9a-f]{16}$ (runtime namespace, not layout:*)",
+    "p3": "net duplicates a retained layout:* flag net OR the net has no wire (literal wording)",
+    "p4": "not present in the pre-pollution baseline dataset (t31 comps[21]); coordinates also match the t27/t28 test grid"
+  },
+  "summary": {
+    "reviewed": 42,
+    "certified": 18,
+    "held": 24,
+    "agreeWithR2t1": 18,
+    "removedByMe": 24,
+    "mineOnly": 0,
+    "r2t1Only": 0
+  },
+  "certified": [
+    {
+      "id": "cec711d292aba398",
+      "net": "MCU-8",
+      "x": 470,
+      "y": 165,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "reason": "net MCU-8 has no wire; flag is the only representation",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "4fba4bce9fe1f078",
+      "net": "MCU-9",
+      "x": 400,
+      "y": 180,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "reason": "net MCU-9 has no wire; flag is the only representation",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "472dfa805fbf5db7",
+      "net": "MCU-17",
+      "x": 400,
+      "y": 260,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-17 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "384746d51bf1a51a",
+      "net": "MCU-22",
+      "x": 470,
+      "y": 305,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-22 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "460ed8f59c818191",
+      "net": "MCU-23",
+      "x": 400,
+      "y": 320,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "reason": "net MCU-23 has no wire; flag is the only representation",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "3047d0a47abc4375",
+      "net": "MCU-24",
+      "x": 470,
+      "y": 325,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "reason": "net MCU-24 has no wire; flag is the only representation",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "f2b01588d6bc8f18",
+      "net": "MCU-25",
+      "x": 400,
+      "y": 340,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-25 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "1aa4f55b1f5bc93a",
+      "net": "MCU-26",
+      "x": 470,
+      "y": 345,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-26 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "72e4d475a2ff6caa",
+      "net": "MCU-27",
+      "x": 400,
+      "y": 360,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-27 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "578744e2a2f209b2",
+      "net": "MCU-28",
+      "x": 470,
+      "y": 365,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-28 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "a059327831efcc9a",
+      "net": "MCU-29",
+      "x": 400,
+      "y": 380,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-29 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "75075921f60035a6",
+      "net": "MCU-30",
+      "x": 470,
+      "y": 385,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-30 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "547a051c6e4fa0dc",
+      "net": "MCU-31",
+      "x": 400,
+      "y": 400,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-31 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "f739c69c3e792310",
+      "net": "MCU-32",
+      "x": 470,
+      "y": 405,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-32 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "f5a6526a43def088",
+      "net": "MCU-33",
+      "x": 400,
+      "y": 420,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-33 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "08df64f0715e48a6",
+      "net": "MCU-34",
+      "x": 470,
+      "y": 425,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": true,
+      "reason": "net MCU-34 already named by retained layout:flag; this hex flag is a duplicate",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "ccaf9f3bbf02c38a",
+      "net": "MCU-47",
+      "x": 400,
+      "y": 560,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "reason": "net MCU-47 has no wire; flag is the only representation",
+      "verdict": "certified-delete"
+    },
+    {
+      "id": "e372755eaefac34c",
+      "net": "MCU-48",
+      "x": 470,
+      "y": 565,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": true,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "reason": "net MCU-48 has no wire; flag is the only representation",
+      "verdict": "certified-delete"
+    }
+  ],
+  "held": [
+    {
+      "id": "0acf43ee4e71871b",
+      "net": "MCU-7",
+      "x": 400,
+      "y": 160,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-7 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "805689cb5af7714c",
+      "net": "MCU-10",
+      "x": 470,
+      "y": 185,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-10 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "090cfaf0181bea37",
+      "net": "MCU-11",
+      "x": 400,
+      "y": 200,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-11 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "9f814ccdbfb3c65e",
+      "net": "MCU-12",
+      "x": 470,
+      "y": 205,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-12 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "788da93783ffbba5",
+      "net": "MCU-13",
+      "x": 400,
+      "y": 220,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-13 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "380c93d5d292d05c",
+      "net": "MCU-14",
+      "x": 470,
+      "y": 225,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-14 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "6b002d29c68ade3d",
+      "net": "MCU-15",
+      "x": 400,
+      "y": 240,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-15 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "de68ab875b2334a6",
+      "net": "MCU-16",
+      "x": 470,
+      "y": 245,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-16 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "0e152f86e0e3485a",
+      "net": "MCU-18",
+      "x": 470,
+      "y": 265,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-18 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "99682fe3ffa5655a",
+      "net": "MCU-19",
+      "x": 400,
+      "y": 280,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-19 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "e26dd4d8c8ecae07",
+      "net": "MCU-20",
+      "x": 470,
+      "y": 285,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-20 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "6d893cb5615d29f1",
+      "net": "MCU-21",
+      "x": 400,
+      "y": 300,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-21 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "84fc50ac3e194cf2",
+      "net": "MCU-35",
+      "x": 400,
+      "y": 440,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-35 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "26efc1a998eb682b",
+      "net": "MCU-36",
+      "x": 470,
+      "y": 445,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-36 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "558d1defc7b3c4fb",
+      "net": "MCU-37",
+      "x": 400,
+      "y": 460,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-37 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "f8d271a0117a3928",
+      "net": "MCU-38",
+      "x": 470,
+      "y": 465,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-38 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "33228756ff0bbb1c",
+      "net": "MCU-39",
+      "x": 400,
+      "y": 480,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-39 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "7732f6445f92c362",
+      "net": "MCU-40",
+      "x": 470,
+      "y": 485,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-40 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "92b8761393efac23",
+      "net": "MCU-41",
+      "x": 400,
+      "y": 500,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-41 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "6c4ed9516041d102",
+      "net": "MCU-42",
+      "x": 470,
+      "y": 505,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-42 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "152a2c672e1bfe14",
+      "net": "MCU-43",
+      "x": 400,
+      "y": 520,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-43 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "adcfa2fdbe6cdfdb",
+      "net": "MCU-44",
+      "x": 470,
+      "y": 525,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-44 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "7ec9f0483fbfd394",
+      "net": "MCU-45",
+      "x": 400,
+      "y": 540,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-45 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    },
+    {
+      "id": "618b3bf01b4103c3",
+      "net": "MCU-46",
+      "x": 470,
+      "y": 545,
+      "p1_componentTypeNetflag": true,
+      "p2_hexNamespace": true,
+      "p3_netRedundantOrNoWire": false,
+      "p4_notInBaselineDataset": true,
+      "inBaselineDataset": false,
+      "gridMatchesTestLayout": true,
+      "r2t1_duplicateOfLayoutNet": false,
+      "failed": [
+        "p3"
+      ],
+      "reason": "p3 fails under the literal wording: net MCU-46 has a wire and is not named by any retained layout:flag",
+      "verdict": "hold-do-not-delete"
+    }
+  ],
+  "diff": {
+    "r2t1Count": 42,
+    "agree": "18 条完全一致",
+    "removed": "24 条被我标为不动，全部只因 p3",
+    "note": "p1/p2/p4 在 42 条上全部成立；分歧集中在 p3。"
+  },
+  "caveats": [
+    "p3 按字面会放过 6 条无导线网（MCU-8/9/23/24/47/48）：删掉后该网没有任何导线/flag 表示，网会消失；而 24 条有导线的 flag 被拦下，可它们删除后网仍由导线保留——判据与电气依赖方向相反。",
+    "引脚级网名经 getAllPins() 读不到（8 个 part 共 53 个引脚，net 全为 null），因此无法证明这 6 个无导线网未被任何器件引脚使用。",
+    "本文件只是清单，不含任何删除动作。"
+  ],
+  "counts": {
+    "total": 63,
+    "part": 8,
+    "netflag": 55,
+    "wires": 55,
+    "nets": 55,
+    "afterCertified": 45,
+    "afterAll42": 21
+  }
+}

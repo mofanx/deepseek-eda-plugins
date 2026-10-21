@@ -1,0 +1,1490 @@
+{
+  "at": "2026-10-21T05:54:46.324Z",
+  "task": "r3t2",
+  "page": {
+    "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+    "name": "MAIN"
+  },
+  "fingerprint": "7814e2dd",
+  "fingerprintMethod": "djb2(5381) over S1 + '#' + S2, S1 = sorted 'id|type' of components joined by ';', S2 = sorted 'id|net' of wires joined by ';'",
+  "counts": {
+    "components": 63,
+    "part": 8,
+    "netflag": 55,
+    "wires": 55,
+    "nets": 55
+  },
+  "howToUse": [
+    "冷读 MAIN 后重算同一指纹：与 fingerprint 相同 => 与本次导出的内容一致；不同 => 已被改动，禁止按本快照回滚。",
+    "恢复到 21/55 的判据：components=21 且 part=8 且 netflag=13 且 wires=55 且 nets=55，且 fingerprint 等于基线快照（本文件是污染后快照，不是基线，不能作为 21/55 的对照）。",
+    "回滚只能用 components[].id + wires[].id 作为期望值逐条比对；不要按坐标或序号恢复。"
+  ],
+  "components": [
+    {
+      "id": "u1",
+      "type": "part",
+      "x": 300,
+      "y": 780,
+      "net": "",
+      "designator": "U1",
+      "name": "={Manufacturer Part}",
+      "symbol": {
+        "uuid": "0d76bbb2881e4a95",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "STM32F030C8T6"
+      },
+      "manufacturerId": "STM32F030C8T6",
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "u2",
+      "type": "part",
+      "x": 620,
+      "y": 910,
+      "net": "",
+      "designator": "U2",
+      "name": "={Value}",
+      "symbol": {
+        "uuid": "2ae29ef80b5a481e",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "0603WAF1002T5E"
+      },
+      "manufacturerId": "0603WAF1002T5E",
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "u3",
+      "type": "part",
+      "x": 620,
+      "y": 810,
+      "net": "",
+      "designator": "U3",
+      "name": "={Value}",
+      "symbol": {
+        "uuid": "2ae29ef80b5a481e",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "0603WAF1002T5E"
+      },
+      "manufacturerId": "0603WAF1002T5E",
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "u4",
+      "type": "part",
+      "x": 300,
+      "y": 390,
+      "net": "",
+      "designator": "U4",
+      "name": "={Value}",
+      "symbol": {
+        "uuid": "2ae29ef80b5a481e",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "0603WAF1002T5E"
+      },
+      "manufacturerId": "0603WAF1002T5E",
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "u5",
+      "type": "part",
+      "x": 300,
+      "y": 290,
+      "net": "",
+      "designator": "U5",
+      "name": "={Value}",
+      "symbol": {
+        "uuid": "2ae29ef80b5a481e",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "0603WAF1002T5E"
+      },
+      "manufacturerId": "0603WAF1002T5E",
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "u6",
+      "type": "part",
+      "x": 620,
+      "y": 390,
+      "net": "",
+      "designator": "U6",
+      "name": "={Value}",
+      "symbol": {
+        "uuid": "2ae29ef80b5a481e",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "0603WAF1002T5E"
+      },
+      "manufacturerId": "0603WAF1002T5E",
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "u7",
+      "type": "part",
+      "x": 620,
+      "y": 290,
+      "net": "",
+      "designator": "U7",
+      "name": "={Value}",
+      "symbol": {
+        "uuid": "2ae29ef80b5a481e",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "0603WAF1002T5E"
+      },
+      "manufacturerId": "0603WAF1002T5E",
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:_3V3:bus:240",
+      "type": "part",
+      "x": 200,
+      "y": 720,
+      "net": "",
+      "designator": "U?",
+      "name": "+3V3",
+      "symbol": {
+        "uuid": "c9005ae335ba4650",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "AM1D-0505S-NZ"
+      },
+      "manufacturerId": "AM1D-0505S-NZ",
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:GND:bus:360",
+      "type": "netflag",
+      "x": 400,
+      "y": 840,
+      "net": "GND",
+      "designator": null,
+      "name": "GND",
+      "symbol": {
+        "uuid": "79b2caad17fd45c5",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Ground-GND"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_17:0",
+      "type": "netflag",
+      "x": 250,
+      "y": 725,
+      "net": "MCU-17",
+      "designator": null,
+      "name": "MCU-17",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_22:0",
+      "type": "netflag",
+      "x": 350,
+      "y": 775,
+      "net": "MCU-22",
+      "designator": null,
+      "name": "MCU-22",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_25:0",
+      "type": "netflag",
+      "x": 350,
+      "y": 785,
+      "net": "MCU-25",
+      "designator": null,
+      "name": "MCU-25",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_26:0",
+      "type": "netflag",
+      "x": 350,
+      "y": 795,
+      "net": "MCU-26",
+      "designator": null,
+      "name": "MCU-26",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_27:0",
+      "type": "netflag",
+      "x": 350,
+      "y": 805,
+      "net": "MCU-27",
+      "designator": null,
+      "name": "MCU-27",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_28:0",
+      "type": "netflag",
+      "x": 350,
+      "y": 815,
+      "net": "MCU-28",
+      "designator": null,
+      "name": "MCU-28",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_29:0",
+      "type": "netflag",
+      "x": 250,
+      "y": 745,
+      "net": "MCU-29",
+      "designator": null,
+      "name": "MCU-29",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_30:0",
+      "type": "netflag",
+      "x": 250,
+      "y": 755,
+      "net": "MCU-30",
+      "designator": null,
+      "name": "MCU-30",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_31:0",
+      "type": "netflag",
+      "x": 250,
+      "y": 765,
+      "net": "MCU-31",
+      "designator": null,
+      "name": "MCU-31",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_32:0",
+      "type": "netflag",
+      "x": 250,
+      "y": 775,
+      "net": "MCU-32",
+      "designator": null,
+      "name": "MCU-32",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_33:0",
+      "type": "netflag",
+      "x": 250,
+      "y": 785,
+      "net": "MCU-33",
+      "designator": null,
+      "name": "MCU-33",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:flag:MCU_34:0",
+      "type": "netflag",
+      "x": 250,
+      "y": 795,
+      "net": "MCU-34",
+      "designator": null,
+      "name": "MCU-34",
+      "symbol": {
+        "uuid": "d7291beffb24449f",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-VCC"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "0acf43ee4e71871b",
+      "type": "netflag",
+      "x": 400,
+      "y": 160,
+      "net": "MCU-7",
+      "designator": null,
+      "name": "MCU-7",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "cec711d292aba398",
+      "type": "netflag",
+      "x": 470,
+      "y": 165,
+      "net": "MCU-8",
+      "designator": null,
+      "name": "MCU-8",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "4fba4bce9fe1f078",
+      "type": "netflag",
+      "x": 400,
+      "y": 180,
+      "net": "MCU-9",
+      "designator": null,
+      "name": "MCU-9",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "805689cb5af7714c",
+      "type": "netflag",
+      "x": 470,
+      "y": 185,
+      "net": "MCU-10",
+      "designator": null,
+      "name": "MCU-10",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "090cfaf0181bea37",
+      "type": "netflag",
+      "x": 400,
+      "y": 200,
+      "net": "MCU-11",
+      "designator": null,
+      "name": "MCU-11",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "9f814ccdbfb3c65e",
+      "type": "netflag",
+      "x": 470,
+      "y": 205,
+      "net": "MCU-12",
+      "designator": null,
+      "name": "MCU-12",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "788da93783ffbba5",
+      "type": "netflag",
+      "x": 400,
+      "y": 220,
+      "net": "MCU-13",
+      "designator": null,
+      "name": "MCU-13",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "380c93d5d292d05c",
+      "type": "netflag",
+      "x": 470,
+      "y": 225,
+      "net": "MCU-14",
+      "designator": null,
+      "name": "MCU-14",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "6b002d29c68ade3d",
+      "type": "netflag",
+      "x": 400,
+      "y": 240,
+      "net": "MCU-15",
+      "designator": null,
+      "name": "MCU-15",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "de68ab875b2334a6",
+      "type": "netflag",
+      "x": 470,
+      "y": 245,
+      "net": "MCU-16",
+      "designator": null,
+      "name": "MCU-16",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "472dfa805fbf5db7",
+      "type": "netflag",
+      "x": 400,
+      "y": 260,
+      "net": "MCU-17",
+      "designator": null,
+      "name": "MCU-17",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "0e152f86e0e3485a",
+      "type": "netflag",
+      "x": 470,
+      "y": 265,
+      "net": "MCU-18",
+      "designator": null,
+      "name": "MCU-18",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "99682fe3ffa5655a",
+      "type": "netflag",
+      "x": 400,
+      "y": 280,
+      "net": "MCU-19",
+      "designator": null,
+      "name": "MCU-19",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "e26dd4d8c8ecae07",
+      "type": "netflag",
+      "x": 470,
+      "y": 285,
+      "net": "MCU-20",
+      "designator": null,
+      "name": "MCU-20",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "6d893cb5615d29f1",
+      "type": "netflag",
+      "x": 400,
+      "y": 300,
+      "net": "MCU-21",
+      "designator": null,
+      "name": "MCU-21",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "384746d51bf1a51a",
+      "type": "netflag",
+      "x": 470,
+      "y": 305,
+      "net": "MCU-22",
+      "designator": null,
+      "name": "MCU-22",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "460ed8f59c818191",
+      "type": "netflag",
+      "x": 400,
+      "y": 320,
+      "net": "MCU-23",
+      "designator": null,
+      "name": "MCU-23",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "3047d0a47abc4375",
+      "type": "netflag",
+      "x": 470,
+      "y": 325,
+      "net": "MCU-24",
+      "designator": null,
+      "name": "MCU-24",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "f2b01588d6bc8f18",
+      "type": "netflag",
+      "x": 400,
+      "y": 340,
+      "net": "MCU-25",
+      "designator": null,
+      "name": "MCU-25",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "1aa4f55b1f5bc93a",
+      "type": "netflag",
+      "x": 470,
+      "y": 345,
+      "net": "MCU-26",
+      "designator": null,
+      "name": "MCU-26",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "72e4d475a2ff6caa",
+      "type": "netflag",
+      "x": 400,
+      "y": 360,
+      "net": "MCU-27",
+      "designator": null,
+      "name": "MCU-27",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "578744e2a2f209b2",
+      "type": "netflag",
+      "x": 470,
+      "y": 365,
+      "net": "MCU-28",
+      "designator": null,
+      "name": "MCU-28",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "a059327831efcc9a",
+      "type": "netflag",
+      "x": 400,
+      "y": 380,
+      "net": "MCU-29",
+      "designator": null,
+      "name": "MCU-29",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "75075921f60035a6",
+      "type": "netflag",
+      "x": 470,
+      "y": 385,
+      "net": "MCU-30",
+      "designator": null,
+      "name": "MCU-30",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "547a051c6e4fa0dc",
+      "type": "netflag",
+      "x": 400,
+      "y": 400,
+      "net": "MCU-31",
+      "designator": null,
+      "name": "MCU-31",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "f739c69c3e792310",
+      "type": "netflag",
+      "x": 470,
+      "y": 405,
+      "net": "MCU-32",
+      "designator": null,
+      "name": "MCU-32",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "f5a6526a43def088",
+      "type": "netflag",
+      "x": 400,
+      "y": 420,
+      "net": "MCU-33",
+      "designator": null,
+      "name": "MCU-33",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "08df64f0715e48a6",
+      "type": "netflag",
+      "x": 470,
+      "y": 425,
+      "net": "MCU-34",
+      "designator": null,
+      "name": "MCU-34",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "84fc50ac3e194cf2",
+      "type": "netflag",
+      "x": 400,
+      "y": 440,
+      "net": "MCU-35",
+      "designator": null,
+      "name": "MCU-35",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "26efc1a998eb682b",
+      "type": "netflag",
+      "x": 470,
+      "y": 445,
+      "net": "MCU-36",
+      "designator": null,
+      "name": "MCU-36",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "558d1defc7b3c4fb",
+      "type": "netflag",
+      "x": 400,
+      "y": 460,
+      "net": "MCU-37",
+      "designator": null,
+      "name": "MCU-37",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "f8d271a0117a3928",
+      "type": "netflag",
+      "x": 470,
+      "y": 465,
+      "net": "MCU-38",
+      "designator": null,
+      "name": "MCU-38",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "33228756ff0bbb1c",
+      "type": "netflag",
+      "x": 400,
+      "y": 480,
+      "net": "MCU-39",
+      "designator": null,
+      "name": "MCU-39",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "7732f6445f92c362",
+      "type": "netflag",
+      "x": 470,
+      "y": 485,
+      "net": "MCU-40",
+      "designator": null,
+      "name": "MCU-40",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "92b8761393efac23",
+      "type": "netflag",
+      "x": 400,
+      "y": 500,
+      "net": "MCU-41",
+      "designator": null,
+      "name": "MCU-41",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "6c4ed9516041d102",
+      "type": "netflag",
+      "x": 470,
+      "y": 505,
+      "net": "MCU-42",
+      "designator": null,
+      "name": "MCU-42",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "152a2c672e1bfe14",
+      "type": "netflag",
+      "x": 400,
+      "y": 520,
+      "net": "MCU-43",
+      "designator": null,
+      "name": "MCU-43",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "adcfa2fdbe6cdfdb",
+      "type": "netflag",
+      "x": 470,
+      "y": 525,
+      "net": "MCU-44",
+      "designator": null,
+      "name": "MCU-44",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "7ec9f0483fbfd394",
+      "type": "netflag",
+      "x": 400,
+      "y": 540,
+      "net": "MCU-45",
+      "designator": null,
+      "name": "MCU-45",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "618b3bf01b4103c3",
+      "type": "netflag",
+      "x": 470,
+      "y": 545,
+      "net": "MCU-46",
+      "designator": null,
+      "name": "MCU-46",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "ccaf9f3bbf02c38a",
+      "type": "netflag",
+      "x": 400,
+      "y": 560,
+      "net": "MCU-47",
+      "designator": null,
+      "name": "MCU-47",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "e372755eaefac34c",
+      "type": "netflag",
+      "x": 470,
+      "y": 565,
+      "net": "MCU-48",
+      "designator": null,
+      "name": "MCU-48",
+      "symbol": {
+        "uuid": "76b7e88fa7a25480",
+        "libraryUuid": "0819f05c4eef4c71ace90d822a990e87",
+        "name": "Power-5V"
+      },
+      "manufacturerId": null,
+      "rotation": 0,
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    }
+  ],
+  "wires": [
+    {
+      "id": "layout:wire:_3V3:flags",
+      "net": "+3V3",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:CLK_A0",
+      "net": "CLK-A0",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:CLK_A1",
+      "net": "CLK-A1",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:CLK_B0",
+      "net": "CLK-B0",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:CLK_B1",
+      "net": "CLK-B1",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:GND:flags",
+      "net": "GND",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:IO_A0",
+      "net": "IO-A0",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:IO_A1",
+      "net": "IO-A1",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:IO_B0",
+      "net": "IO-B0",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:IO_B1",
+      "net": "IO-B1",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_10",
+      "net": "MCU-10",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_11",
+      "net": "MCU-11",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_12",
+      "net": "MCU-12",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_13",
+      "net": "MCU-13",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_14",
+      "net": "MCU-14",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_15",
+      "net": "MCU-15",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_16",
+      "net": "MCU-16",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_17:flags",
+      "net": "MCU-17",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_18",
+      "net": "MCU-18",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_19",
+      "net": "MCU-19",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_2",
+      "net": "MCU-2",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_20",
+      "net": "MCU-20",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_21",
+      "net": "MCU-21",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_22:flags",
+      "net": "MCU-22",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_25:flags",
+      "net": "MCU-25",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_26:flags",
+      "net": "MCU-26",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_27:flags",
+      "net": "MCU-27",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_28:flags",
+      "net": "MCU-28",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_29:flags",
+      "net": "MCU-29",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_3",
+      "net": "MCU-3",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_30:flags",
+      "net": "MCU-30",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_31:flags",
+      "net": "MCU-31",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_32:flags",
+      "net": "MCU-32",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_33:flags",
+      "net": "MCU-33",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_34:flags",
+      "net": "MCU-34",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_35",
+      "net": "MCU-35",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_36",
+      "net": "MCU-36",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_37",
+      "net": "MCU-37",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_38",
+      "net": "MCU-38",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_39",
+      "net": "MCU-39",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_4",
+      "net": "MCU-4",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_40",
+      "net": "MCU-40",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_41",
+      "net": "MCU-41",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_42",
+      "net": "MCU-42",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_43",
+      "net": "MCU-43",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_44",
+      "net": "MCU-44",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_45",
+      "net": "MCU-45",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_46",
+      "net": "MCU-46",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_5",
+      "net": "MCU-5",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_6",
+      "net": "MCU-6",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:MCU_7",
+      "net": "MCU-7",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:POWER_A0",
+      "net": "POWER-A0",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:POWER_A1",
+      "net": "POWER-A1",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:POWER_B0",
+      "net": "POWER-B0",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    },
+    {
+      "id": "layout:wire:POWER_B1",
+      "net": "POWER-B1",
+      "page": "b275cd23e45c4271bead56f66d4f98fe",
+      "pageName": "MAIN"
+    }
+  ]
+}
