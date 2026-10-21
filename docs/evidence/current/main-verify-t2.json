@@ -1,0 +1,120 @@
+{
+  "at": "2026-10-21T06:09:49.8972973Z",
+  "task": "t2 (independent read-only review of the t1 recovery)",
+  "mode": "READ-ONLY; no save/delete/create/modify/openDocument",
+  "live": {
+    "page": "MAIN",
+    "pageId": "b275cd23e45c4271bead56f66d4f98fe",
+    "components": 21,
+    "parts": 8,
+    "netflag": 13,
+    "layoutFlags": 13,
+    "hexFlags": 0,
+    "wires": 55,
+    "wireNets": 55,
+    "pages": 2,
+    "ids": [
+      "u1",
+      "u2",
+      "u3",
+      "u4",
+      "u5",
+      "u6",
+      "u7",
+      "layout:flag:_3V3:bus:240",
+      "layout:flag:GND:bus:360",
+      "layout:flag:MCU_17:0",
+      "layout:flag:MCU_22:0",
+      "layout:flag:MCU_25:0",
+      "layout:flag:MCU_26:0",
+      "layout:flag:MCU_27:0",
+      "layout:flag:MCU_28:0",
+      "layout:flag:MCU_29:0",
+      "layout:flag:MCU_30:0",
+      "layout:flag:MCU_31:0",
+      "layout:flag:MCU_32:0",
+      "layout:flag:MCU_33:0",
+      "layout:flag:MCU_34:0"
+    ]
+  },
+  "item1_idSets": {
+    "liveCount": 21,
+    "baselineCount": 21,
+    "liveOnly": [],
+    "baselineOnly": [],
+    "whitelistedStillPresent": [],
+    "whitelistedGoneCount": 42,
+    "layoutIdsPresent": 14,
+    "partsIdentity": [
+      "u1:U1:300,780",
+      "u2:U2:620,910",
+      "u3:U3:620,810",
+      "u4:U4:300,390",
+      "u5:U5:300,290",
+      "u6:U6:620,390",
+      "u7:U7:620,290",
+      "layout:flag:_3V3:bus:240:U?:200,720"
+    ],
+    "verdict": "PASS: live id set equals the t31 baseline id set exactly (both diff directions empty); all 42 whitelisted ids gone; 13 layout:* netflags + 1 layout:* part (_3V3, 14 layout-prefixed ids total) and 8 parts all present",
+    "layoutNetflagIds": 13,
+    "layoutPartIds": 1
+  },
+  "item2_nets": {
+    "wirePairsIdenticalToBaseline": true,
+    "liveWireNets": 55,
+    "baselineWireNets": 55,
+    "wireNetsLiveOnly": [],
+    "wireNetsBaselineOnly": [],
+    "held24": 24,
+    "held24WithoutWire": [],
+    "sixFlagOnlyGone": [],
+    "sixAbsentFromBaseline": [],
+    "verdict": "PASS: every one of the 24 wired nets still has its wire carrying the same Net; the 6 flag-only nets are gone and were absent from the baseline (wires and component names)"
+  },
+  "item3_criterion": {
+    "r3t2_inversion_claim": "literal p3 rejects the 24 wired-net flags (safe: wire keeps the net) and accepts the 6 wire-less flags (the only ones whose deletion can destroy a net)",
+    "inversion_holds_as_rule_critique": true,
+    "B_decision_validated_by_outcome": "live id set == baseline id set; the 6 nets never existed in the baseline",
+    "conclusion": "B 成立（逐 id 对得上，无差异）；同时 r3t2 的③反转作为规则设计批评成立。二者不矛盾：结果正确不等于判据逻辑正确。"
+  },
+  "item4_fingerprints": {
+    "djb2_xor": {
+      "definition": "h=5381; h=((h*33) XOR c)>>>0 over s1+'#'+s2; s1=sorted 'id|type'; s2=sorted 'id|net' of wires",
+      "polluted": "7814e2dd",
+      "live": "83844f24"
+    },
+    "djb2_add": {
+      "definition": "h=5381; h=((h<<5)+h+c)>>>0, padStart(8,'0') over s1+'#'+s2",
+      "polluted": "d7374e55",
+      "live": "bc029cb6"
+    },
+    "sha256_lines": {
+      "definition": "sha256 over sorted lines 'id|type|x|y|net' joined by LF",
+      "polluted": "8178c7cfd8e45be8d00b8998148c6d88a1168be1e886dc78f8513ab30b31430e",
+      "live": "efc87c6faec9205c5fff7610d1520f5471309a37c82edf834a1fe63b3fd3f726e"
+    },
+    "md5_polluted": "e69ce96aeffac521083858281565a03d",
+    "sha1_polluted": "03ff490692597ffa2341341a76644431303e7b9d",
+    "invariant": "id sets (components and wires) are the invariant; a fingerprint is only meaningful together with its exact algorithm name"
+  },
+  "staticReview_t52": {
+    "whitelist": "all42.includes(id) checked in preconditions and again before every delete",
+    "type": "row.type === 'netflag' checked in preconditions and again before every delete",
+    "parentPage": "proxy: active document === MAIN before every delete + row must exist in the focused getAll + coords equal to the snapshot + component delta must be exactly 1; otherwise abort",
+    "perDelete": "re-read before, delete one id, re-read after, require gone && delta===1 && active===MAIN && wires unchanged",
+    "honestLimitation": "the object has no parent-page field, so ownership is proven at page level, not object level",
+    "verdict": "conditions implemented and fail-closed; limitation disclosed"
+  },
+  "anomaly": {
+    "id": "cec711d292aba398",
+    "net": "MCU-8",
+    "what": "reported already-gone before its delete call; the run read 62 components / 41 hex flags, consistent with exactly one id disappearing",
+    "impact": "none on the final id set (it is absent from both whitelist residual and new ids)",
+    "status": "cause still unknown; disclosed by t1"
+  },
+  "selfProof": {
+    "writes": 0,
+    "beforeAfter": "MAIN 21/55 before and after this review (see the two cold reads)"
+  },
+  "overall": "SOUND"
+}
