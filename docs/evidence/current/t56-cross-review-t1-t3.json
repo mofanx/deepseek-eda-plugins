@@ -1,0 +1,74 @@
+{
+ "task": "t5",
+ "at": "2026-10-21T06:41:00Z",
+ "reviewer": "independent read-only cross-review",
+ "reviewed": {
+  "t1": { "commit": "80bfa37", "file": "docs/evidence/review/t53-verify-main.mjs" },
+  "t3": { "commit": "11619af", "files": ["packages/eda-core/src/bridge.ts", "packages/eda-core/src/index.ts", "packages/tool-schematic/src/index.ts"] }
+ },
+ "t1": {
+  "zeroWrites": {
+   "verdict": "pass",
+   "method": "static grep + runtime invariants",
+   "evidence": "only write-side token in the file is `bridge.execute(READ)`; READ performs getAll on components/wires + page getters. grep for save|delete|create|modify|openDocument returns only the header comment. MAIN read before and after the six runs is identical."
+  },
+  "comparesSetsNotTotals": {
+   "verdict": "pass",
+   "evidence": "L142-145 build extraIds/missingIds and extraPairs/missingPairs; L152-163 assert both directions empty. Counts are checked separately and cannot mask a swap."
+  },
+  "deviations": [
+   { "case": "extra id", "env": "T53_INJECT_EXTRA_ID=deadbeefdeadbeef", "exit": 1,
+     "stdout": "FAIL components = 21: 22 / expected 21 | FAIL component id set ... extra=1 missing=0 | + deadbeefdeadbeef (not in baseline)" },
+   { "case": "missing id", "env": "T53_DROP_COMPONENT=u1", "exit": 1,
+     "stdout": "FAIL components = 21: 20 / expected 21 | FAIL part = 8, netflag = 13: part=7 netflag=13 | - u1 (missing from MAIN)" },
+   { "case": "missing wire", "env": "T53_DROP_WIRE=layout:wire:_3V3:flags", "exit": 1,
+     "stdout": "FAIL wires = 55 ...: wires=54 pairs=54 extra=0 missing=1 | - layout:wire:_3V3:flags|+3V3 (wire pair missing)" },
+   { "case": "changed net", "method": "in-place TEMP copy with one added in-memory hook (the reviewed file exposes no net hook; copy deleted after the run)",
+     "env": "T53_REWRITE_WIRE_NET=layout:wire:_3V3:flags|+3V3X", "exit": 1,
+     "stdout": "FAIL wires = 55 ...: wires=55 pairs=55 extra=1 missing=1 | + layout:wire:_3V3:flags|+3V3X (unexpected wire pair) | - layout:wire:_3V3:flags|+3V3 (wire pair missing)" },
+   { "case": "restore", "env": "", "exit": 0, "stdout": "5/5 PASS" }
+  ],
+  "exit2Paths": [
+   { "env": "T53_FORCE_UNREACHABLE=1", "exit": 2, "stdout": "CANNOT JUDGE (BRIDGE_UNREACHABLE) ... this is exit 2, not a pass" },
+   { "env": "T53_FORCE_NO_EDA=1", "exit": 2, "stdout": "CANNOT JUDGE (EDA_NOT_CONNECTED) ... this is exit 2, not a pass" }
+  ],
+  "measurementNote": "A first pass piped the run through Select-String and read EXIT=0 for the failing cases; that was a PowerShell $LASTEXITCODE artifact of the pipeline, not a gate bug. Re-running unpiped gave exit 1 for all three deviations. Recorded so the raw numbers are reproducible.",
+  "verdict": "pass"
+ },
+ "t3": {
+  "codesAdditiveAndStable": {
+   "verdict": "pass",
+   "evidence": "EASYEDA_BRIDGE_REMEDIES has 9 keys = the 6 pre-existing codes + CONNECT_TIMEOUT, DISCONNECTED, WINDOW_LOST. git show 11619af: no code string is deleted from the union; the only removed lines are the old throw sites, whose codes still exist."
+  },
+  "successPathUnchanged": {
+   "verdict": "pass",
+   "evidence": "fake fetch returning {result:7} -> execute() returns 7 (typeof number). No new branch on the success path."
+  },
+  "originalErrorPreserved": {
+   "verdict": "pass",
+   "evidence": "CONNECT_TIMEOUT causeIsOriginal=true; DISCONNECTED causeIsOriginal=true; 503 branch synthesizes cause=new Error('HTTP 503 <body>') so the body survives."
+  },
+  "dropoutMessage": {
+   "verdict": "pass",
+   "evidence": "each message ends with '— next: ...' and states the landing precondition verbatim: open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window"
+  },
+  "classification": {
+   "verdict": "pass",
+   "evidence": "UND_ERR_CONNECT_TIMEOUT -> CONNECT_TIMEOUT; ECONNRESET -> DISCONNECTED; 503 'no easyeda window' before any success -> NO_EDA; after one success -> WINDOW_LOST; body {error:'boom'} -> EXECUTION"
+  },
+  "buildAndTests": {
+   "verdict": "pass",
+   "evidence": "tsc -b --dry: all projects 'is up to date', exit 0 (no rebuild, shared state untouched); vitest run: 22 files / 641 tests passed, 9.85s; lib sha256 e99eb71943092c76ba1d16e5c3e97c35dbef3cd62398b6035b1dc2d0123c3d44 equals the freshness baseline's eda-core lib pin."
+  },
+  "updateAfterTests": {
+   "verdict": "partial",
+   "evidence": "baseline generatedAt 06:30:38Z is later than the lib build (14:30:14 local = 06:30:14Z), and it pins the live lib hash that passes the suite. Strict chronology of the original vitest run vs --update is not recorded in the repo, so the ordering claim is consistent but not provable; the substantive risk (baseline pins an artifact that does not run the new code) is disproved by the runtime probe, which emitted the new texts from lib."
+  },
+  "verdict": "pass"
+ },
+ "scene": {
+  "verdict": "pass",
+  "evidence": "independent read (own code path, not t53): 21 components (8 part + 13 netflag), 55 wires, 55 wire nets, 2 pages [MAIN b275cd23, P1 d224f8d1], active MAIN; freshness --check FRESH; git status -- packages 0."
+ },
+ "overall": "sound"
+}
