@@ -1,0 +1,44 @@
+{
+ "task": "r7t1",
+ "at": "2026-10-21T08:12:00Z",
+ "subject": "close the three declared boundaries of the content-hash freshness gate",
+ "change": {
+  "file": "docs/evidence/review/shared/freshness.mjs",
+  "version": "3 -> 4",
+  "items": [
+   "extends cycle: chain-aware DFS; a node still on the current chain yields {reason:'cycle', chain}; gateFreshness reports EXTENDS_CYCLE (exit 1). A fully expanded node is not revisited, so diamonds stay silent.",
+   "tsconfig discovery: recursive inside each package (skip node_modules/lib/dist/coverage/.turbo); the repository root stays non-recursive so node_modules is never walked.",
+   "fingerprint: .d.ts outside src/ is pinned under an outside-src/ prefix (skip lib/dist/node_modules); a package with none hashes byte-identically."
+  ]
+ },
+ "zeroDrift": {
+  "tsconfigs": 7,
+  "sourceFiles": 21,
+  "outsideSrcDts": 0,
+  "baselineDiff": "two lines only: version 3 -> 4 and generatedAt",
+  "baselineShaAfterUpdate": "DA8EA6656CC40AC0BF93417F79AA018D7B5FFA342EBA8478AAC25FEE3840DBB3"
+ },
+ "fixtures": [
+  { "case": "cycle tsconfig -> a -> b -> a", "result": "warning {reason:cycle, chain:[a.json,b.json,a.json]}; gateFreshness EXTENDS_CYCLE exit 1" },
+  { "case": "packages/p/src/tsconfig.json", "result": "closure includes packages/p/src/tsconfig.json" },
+  { "case": "packages/p/types/global.d.ts", "result": "files 1 -> 2, sha changes; after removal sha returns to the original value" },
+  { "case": "diamond a->{b,c}->d", "result": "no warnings" },
+  { "case": "extends ./nope.json", "result": "EXTENDS_UNRESOLVED exit 1 (unchanged)" }
+ ],
+ "realTreeMutations": [
+  { "mutation": "add packages/eda-core/src/tsconfig.json", "check": "STALE_BUILD config-added", "exit": 1 },
+  { "mutation": "remove it", "check": "FRESH", "exit": 0 },
+  { "mutation": "add packages/eda-core/types/probe.d.ts", "check": "STALE_BUILD content", "exit": 1 },
+  { "mutation": "remove it", "check": "FRESH", "exit": 0 }
+ ],
+ "compatibility": {
+  "v3Baseline": "FRESH_V3_READ exit 0 (compatibility mode; the closure was not verified under v4 rules)",
+  "harnesses": { "t44": 0, "t45": 0 }
+ },
+ "remainingLimits": [
+  "extends package specifiers resolve from the repository-root node_modules only (a package-local node_modules is not consulted)",
+  ".d.ts under lib/ is treated as build output and not pinned",
+  "per-package tsdown/test configs are outside ROOT_CONFIGS"
+ ],
+ "scene": "t53 PASS exit 0; --check FRESH exit 0; packages 0"
+}

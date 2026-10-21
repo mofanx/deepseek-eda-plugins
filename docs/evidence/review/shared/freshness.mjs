@@ -11,15 +11,17 @@
 //     STALE_BUILD output, so the operator cannot tell "rebuild needed" from
 //     "you touched the clock".
 //
-// What this module pins instead (baseline version 3, all content hashes, no
+// What this module pins instead (baseline version 4, all content hashes, no
 // mtime anywhere):
-//   - `src/**/*.{ts,tsx,mts,cts}` per package (the compiled input);
+//   - `src/**/*.{ts,tsx,mts,cts}` per package (the compiled input), plus any
+//     `.d.ts` outside `src/` (ambient declarations are compiled input too; they
+//     are pinned under an `outside-src/` prefix);
 //   - build configuration: root `package.json`, `pnpm-workspace.yaml`,
 //     `tsdown.config.ts`, plus each package's `package.json`;
-//   - the **recursive tsconfig closure**: every `tsconfig*.json` at the root
-//     and in each package, expanded along `extends` (relative paths and
-//     node_modules package specifiers). A file reached only through `extends`
-//     is pinned too, so editing it cannot pass unnoticed;
+//   - the **recursive tsconfig closure**: every `tsconfig*.json` at the root and
+//     every one inside a package at any depth, expanded along `extends`
+//     (relative paths and node_modules package specifiers). A file reached only
+//     through `extends` is pinned too, so editing it cannot pass unnoticed;
 //   - `lib/index.js` digest, compared only with `--strict-lib` (or
 //     `DSH_FRESHNESS_STRICT_LIB=1`). Daily runs keep it off so a legitimate
 //     rebuild does not force a baseline update; release/CI runs turn it on to
@@ -27,7 +29,9 @@
 //
 // An `extends` target that cannot be resolved (or a tsconfig that cannot be
 // parsed) is never skipped silently: the gate exits 1 with `EXTENDS_UNRESOLVED`
-// and lists every offending file.
+// and lists every offending file. A cycle in the `extends` chain is reported as
+// `EXTENDS_CYCLE` (exit 1) with the chain: TypeScript rejects circular configs,
+// so collapsing the cycle into a dedup would certify a tree tsc cannot build.
 //
 // Baseline v1/v2 remain readable. They predate the tsconfig closure, so a check
 // against them reports `FRESH_V1_READ` / `FRESH_V2_READ` (compatibility mode)
@@ -55,7 +59,7 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const VERSION = 3
+const VERSION = 4
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', '.turbo'])
 const EXTS = ['.ts', '.tsx', '.mts', '.cts']
 const ROOT_CONFIGS = ['package.json', 'pnpm-workspace.yaml', 'tsdown.config.ts']
@@ -156,17 +160,30 @@ export function resolveExtends(spec, fromFile, repoRoot) {
   return tryFile(rootCandidate) ?? tryFile(`${rootCandidate}.json`)
 }
 
-/** Every `tsconfig*.json` that the closure starts from. */
+function walkTsconfigs(dir, out) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (!SKIP_DIRS.has(entry.name) && entry.name !== 'lib') walkTsconfigs(full, out)
+    } else if (TSCONFIG_RE.test(entry.name)) {
+      out.push(full)
+    }
+  }
+  return out
+}
+
+/**
+ * Every `tsconfig*.json` that the closure starts from: the root files plus every
+ * one inside a package, at any depth (a `src/tsconfig.json` or a per-feature one
+ * is a project root too; only node_modules/lib/dist are skipped).
+ */
 function tsconfigRoots(repoRoot) {
   const roots = []
   for (const entry of readdirSync(repoRoot, { withFileTypes: true })) {
     if (entry.isFile() && TSCONFIG_RE.test(entry.name)) roots.push(join(repoRoot, entry.name))
   }
   for (const name of packageNames(repoRoot)) {
-    const dir = join(repoRoot, 'packages', name)
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isFile() && TSCONFIG_RE.test(entry.name)) roots.push(join(dir, entry.name))
-    }
+    walkTsconfigs(join(repoRoot, 'packages', name), roots)
   }
   return roots.sort()
 }
@@ -174,15 +191,29 @@ function tsconfigRoots(repoRoot) {
 /**
  * Recursive tsconfig closure: every file reachable through `extends`, plus any
  * file that could not be resolved or parsed (reported as a warning, never dropped).
+ *
+ * A node already fully expanded is not visited twice (a diamond is fine). A node
+ * that reappears while it is still on the current chain is a cycle: TypeScript
+ * rejects those, so the gate reports it instead of silently collapsing it.
  */
 export function tsconfigClosure(repoRoot) {
   const files = {}
   const warnings = []
-  const stack = tsconfigRoots(repoRoot)
-  while (stack.length > 0) {
-    const file = stack.pop()
+  const seenCycles = new Set()
+  const visit = (file, chain) => {
     const rel = toPosix(relative(repoRoot, file))
-    if (files[rel] !== undefined) continue
+    if (files[rel] !== undefined) {
+      const at = chain.indexOf(rel)
+      if (at >= 0) {
+        const cycle = [...chain.slice(at), rel]
+        const key = cycle.join(' -> ')
+        if (!seenCycles.has(key)) {
+          seenCycles.add(key)
+          warnings.push({ file: rel, reason: 'cycle', chain: cycle })
+        }
+      }
+      return
+    }
     const raw = readFileSync(file)
     files[rel] = sha256(raw)
     let parsed
@@ -190,7 +221,7 @@ export function tsconfigClosure(repoRoot) {
       parsed = parseJsonc(raw.toString('utf8'))
     } catch (error) {
       warnings.push({ file: rel, reason: 'parse', message: String(error?.message ?? error) })
-      continue
+      return
     }
     const extendsList = parsed?.extends
     const specs = Array.isArray(extendsList) ? extendsList : extendsList == null ? [] : [extendsList]
@@ -201,9 +232,10 @@ export function tsconfigClosure(repoRoot) {
       }
       const resolved = resolveExtends(spec, file, repoRoot)
       if (resolved === null) warnings.push({ file: rel, reason: 'unresolved', extends: spec })
-      else stack.push(resolved)
+      else visit(resolved, [...chain, rel])
     }
   }
+  for (const root of tsconfigRoots(repoRoot)) visit(root, [])
   const sorted = {}
   for (const key of Object.keys(files).sort()) sorted[key] = files[key]
   return { files: sorted, warnings: warnings.sort((a, b) => (a.file < b.file ? -1 : 1)) }
@@ -230,16 +262,36 @@ export function configSnapshot(repoRoot) {
   return { root, packages, tsconfig: tsconfig.files, warnings: tsconfig.warnings }
 }
 
+function walkOutsideDeclarations(pkg, dir, out) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (SKIP_DIRS.has(entry.name) || entry.name === 'lib') continue
+      if (dir === pkg && entry.name === 'src') continue
+      walkOutsideDeclarations(pkg, full, out)
+    } else if (entry.name.endsWith('.d.ts')) {
+      out.push(full)
+    }
+  }
+  return out
+}
+
 /**
  * Digest of one package's source content plus its emitted bundle, independent of
  * file timestamps. `hasLib` is kept for baseline-v1 compatibility.
+ *
+ * Ambient declarations outside `src/` (e.g. `types/global.d.ts`) are compiled
+ * input too, so they are pinned under an `outside-src/` prefix; a package with
+ * none hashes exactly as before.
  */
 export function fingerprint(repoRoot, name) {
   const pkg = join(repoRoot, 'packages', name)
   const src = join(pkg, 'src')
-  const files = walkSource(src, [])
+  const inside = walkSource(src, [])
     .map((file) => ({ rel: relative(src, file).split(sep).join('/'), hash: sha256(readFileSync(file)) }))
-    .sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0))
+  const outside = walkOutsideDeclarations(pkg, pkg, [])
+    .map((file) => ({ rel: `outside-src/${relative(pkg, file).split(sep).join('/')}`, hash: sha256(readFileSync(file)) }))
+  const files = [...inside, ...outside].sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0))
   const digest = sha256(files.map((file) => `${file.rel}\u0000${file.hash}\n`).join(''))
   const lib = hashFile(join(pkg, 'lib/index.js'))
   return { files: files.length, sha256: digest, hasLib: lib !== null, lib }
@@ -337,6 +389,16 @@ export function gateFreshness(repoRoot, { baselinePath = BASELINE_PATH, strictLi
   }
   const current = snapshot(repoRoot)
   if (current.config.warnings.length > 0) {
+    const cycles = current.config.warnings.filter((w) => w.reason === 'cycle')
+    if (cycles.length > 0) {
+      console.error(JSON.stringify({
+        status: 'EXTENDS_CYCLE',
+        reason: 'a tsconfig extends chain loops back on itself; TypeScript rejects a circular config, so this tree cannot be certified fresh',
+        cycles,
+        hint: 'break the cycle (or drop the redundant extends) and re-run; a circular project must not pass as FRESH',
+      }, null, 1))
+      process.exit(1)
+    }
     console.error(JSON.stringify({
       status: 'EXTENDS_UNRESOLVED',
       reason: 'a tsconfig extends target could not be resolved or parsed; the closure is incomplete',

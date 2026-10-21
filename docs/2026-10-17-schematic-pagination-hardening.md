@@ -2784,3 +2784,49 @@ node docs/evidence/review/t53-verify-main.mjs --json   # 机器读
 **字节核对**：`git hash-object t29` = `git rev-parse HEAD:t29` = `1461daf24d01453140646d45256d21567f50d574`。
 
 **整树状态需要如实说明**：`git status --porcelain` **不为空**，共 11 项，其中只有 1 项是我的（`M t46-codemod-mtime-gate.mjs`），其余 10 项是其他成员未提交的证据产物（`main-inventory.json` 与 9 个未跟踪文件）。这些都不是 codemod 的 13 个目标，我未触碰；为了让 status 变空而删除它们，等于毁掉别人的工作。
+
+### 14.35.16 内容哈希门的收口：循环、子目录 tsconfig、`src` 外 `.d.ts`（r7t1）
+
+**三处已声明边界**（此前只写在注释里，没有判定力）：
+
+1. `extends` 链成环时，闭包用 `files[rel] !== undefined` 静默去重，既不报警也不失败——而 TypeScript 本身会拒绝环形配置，等于门替一个 `tsc` 编译不了的树发了 FRESH。
+2. 只扫描仓库根与每个包的**根层** `tsconfig*.json`，包内子目录（如 `src/tsconfig.json`）不进入闭包。
+3. 指纹只走 `src/`，`src` 外的环境声明（如 `types/global.d.ts`）不参与哈希。
+
+**改动**（`freshness.mjs`，基线版本 3 → 4）：
+
+- 闭包改成带链的 DFS：只有**仍在当前链上**的节点才算环，报 `EXTENDS_CYCLE`（exit 1）并给出 `chain`；已完全展开的节点不重复访问，所以菱形依赖（`a→b`、`a→c`、`b→d`、`c→d`）不误报。
+- `tsconfigRoots` 在包内**递归**发现 `tsconfig*.json`，跳过 `node_modules`/`lib`/`dist`/`coverage`/`.turbo`；仓库根仍只取根层，避免扫进 `node_modules`。
+- 指纹追加 `src` 外的 `.d.ts`（跳过 `lib`/`dist`/`node_modules`），以 `outside-src/` 前缀参与同一摘要；包里没有这类文件时摘要逐字节不变。
+
+**零漂移**：本仓库当前 7 个 tsconfig（5 包根 + 2 仓库根）、21 个源文件、`src` 外 `.d.ts` 为 0，因此重建基线只有两行变化：
+
+```
+-  "version": 3,
++  "version": 4,
+-  "generatedAt": "2026-10-21T06:42:16.394Z"
++  "generatedAt": "2026-10-21T08:10:49.452Z"
+```
+
+**夹具自证**（`%TEMP%`，直接调用导出函数）：
+
+| 夹具 | 结果 |
+|---|---|
+| `tsconfig.json → a → b → a` | warning `{reason:"cycle", chain:["a.json","b.json","a.json"]}`；`gateFreshness` 报 `EXTENDS_CYCLE`，**exit 1** |
+| `packages/p/src/tsconfig.json` | 闭包含该文件（递归发现生效） |
+| `packages/p/types/global.d.ts` | 指纹文件数 1→2、sha 变化；删除后 sha **回到原值** |
+| 菱形 `a→{b,c}→d` | warnings 为空（不误报） |
+| `extends: "./nope.json"` | 仍报 `EXTENDS_UNRESOLVED`，**exit 1**（无回归） |
+
+**真实树双向变异**（改一处必红、还原必绿、基线字节不变）：
+
+| 操作 | `--check` | exit |
+|---|---|---|
+| 加 `packages/eda-core/src/tsconfig.json` | `STALE_BUILD`（config-added） | 1 |
+| 删除后 | `FRESH` | 0 |
+| 加 `packages/eda-core/types/probe.d.ts` | `STALE_BUILD`（content） | 1 |
+| 删除后 | `FRESH` | 0 |
+
+两次变异前后基线 sha256 均为 `DA8EA6656CC40AC0BF93417F79AA018D7B5FFA342EBA8478AAC25FEE3840DBB3`。旧 v3 基线仍可读：`--check` 返回 `FRESH_V3_READ`、exit 0（兼容模式，明确表示闭包未按 v4 验证）。`t44`、`t45` 均 exit 0。
+
+**仍未纳入的**（明确声明，不再算"待修"）：`extends` 的 node_modules 包说明符只从仓库根 `node_modules` 解析（包内私有 `node_modules` 不查）；`lib/` 下的 `.d.ts` 视为构建产物不钉；包级 `tsdown`/测试配置不在 `ROOT_CONFIGS` 内。
