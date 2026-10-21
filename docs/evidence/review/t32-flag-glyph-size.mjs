@@ -24,7 +24,7 @@
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gateFreshness } from './shared/freshness.mjs'
-import { confirmPageGone } from './shared/page-cleanup.mjs'
+import { confirmPageGone, saveOwnDocument } from './shared/page-cleanup.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const freshSnapshot = gateFreshness(repoRoot)
@@ -250,18 +250,23 @@ out.verdict = {
 }
 
 // ---- 6. two-way residue assertion ----------------------------------------
-const cleanup = await call(`
+// The save is guarded in Node: sch_Document.save() writes the ACTIVE document,
+// so it may only run while that document is this run's probe.
+const saveResult = await saveOwnDocument({
+  probe: pageStep.probe,
+  main: base.main,
+  readActive: () => call(`const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo(); return c && c.uuid;`),
+  openDocument: () => call(`try { await eda.dmt_EditorControl.openDocument(${JSON.stringify(pageStep.probe)}) } catch (e) {} return true;`),
+  save: () => call(`const r = await eda.sch_Document.save(); return r === undefined ? null : r;`),
+})
+
+const cleanupB = await call(`
 const probe = ${JSON.stringify(pageStep.probe)};
 const main = ${JSON.stringify(base.main)};
 const expected = ${JSON.stringify([...new Set(out.residueBefore)])};
 const probeId = probe;
 if (probe === main) return { status: 'REFUSED_DELETE_MAIN' };
 const exists = async (u) => { try { const r = await eda.dmt_Schematic.getSchematicPageInfo(u); return !!(r && r.uuid) } catch (e) { return 'ERR' } };
-// Unsaved edits keep deleteSchematicPage returning true while the page survives
-// (measured 2026-10-20, t27 differential). Save while the probe is still active.
-let saved = null;
-try { saved = JSON.stringify(await eda.sch_Document.save()) } catch (e) { saved = 'ERR ' + String(e && e.message || e).slice(0, 80) }
-await new Promise(r => setTimeout(r, 700));
 let closed = null, deleted = null;
 try { closed = JSON.stringify(await eda.dmt_EditorControl.closeDocument(probe)) } catch (e) { closed = 'ERR' }
 await new Promise(r => setTimeout(r, 900));
@@ -280,8 +285,9 @@ for (const u of expected) existence[u] = await exists(u);
 const extra = listed.filter(u => u !== probeId && !expected.includes(u));
 const missingFromList = expected.filter(u => !listed.includes(u));
 const missingReal = expected.filter(u => existence[u] !== true);
-return { saved, closed, deleted, listed, existence, probePresent: listed.includes(probeId), extra, missingFromList, missingReal, mainStillThere: pages.includes(main) };
+return { closed, deleted, listed, existence, probePresent: listed.includes(probeId), extra, missingFromList, missingReal, mainStillThere: pages.includes(main) };
 `)
+const cleanup = { save: saveResult, ...(cleanupB ?? {}) }
 out.cleanup = cleanup
 
 // The two-way assertion above counts our own probe as expected, so it cannot

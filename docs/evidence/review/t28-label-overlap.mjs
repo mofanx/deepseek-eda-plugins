@@ -17,7 +17,7 @@
 import { pathToFileURL } from 'node:url'
 import { join, resolve } from 'node:path'
 import { gateFreshness } from './shared/freshness.mjs'
-import { confirmPageGone } from './shared/page-cleanup.mjs'
+import { confirmPageGone, saveOwnDocument } from './shared/page-cleanup.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 gateFreshness(repoRoot)
@@ -189,19 +189,33 @@ out.ab = {
 }
 
 // ---- 4. cleanup: only ids this run created ---------------------------------
-const cleanup = await call(`
+// Split so the save can be guarded: sch_Document.save() writes the ACTIVE
+// document, so it may only run while the active document is this run's probe.
+const cleanupA = await call(`
 const ids = ${JSON.stringify(measure.ids ?? [])};
 const probe = ${JSON.stringify(page.probe)};
 const main = ${JSON.stringify(base.main)};
 if (probe === main) return { status: 'REFUSED_DELETE_MAIN' };
+const cur = await eda.dmt_Schematic.getCurrentSchematicPageInfo();
+if (!cur || cur.uuid !== probe) return { status: 'WRONG_PAGE', probe, active: cur && cur.uuid };
 let del = null;
 try { del = await eda.sch_PrimitiveComponent.delete(ids.length === 1 ? ids[0] : ids) } catch (e) { del = String((e && e.message) || e) }
 await new Promise(r => setTimeout(r, 700));
-// Unsaved edits keep deleteSchematicPage returning true while the page survives
-// (measured 2026-10-20, t27 differential). Save while the probe is still active.
-let saved = null;
-try { saved = JSON.stringify(await eda.sch_Document.save()) } catch (e) { saved = 'ERR ' + String((e && e.message) || e) }
-await new Promise(r => setTimeout(r, 700));
+return { status: 'OK', del: JSON.stringify(del) };
+`, 180_000)
+
+const saveResult = await saveOwnDocument({
+  probe: page.probe,
+  main: base.main,
+  readActive: () => call(`const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo(); return c && c.uuid;`, 60_000),
+  openDocument: () => call(`try { await eda.dmt_EditorControl.openDocument(${JSON.stringify(page.probe)}) } catch (e) {} return true;`, 60_000),
+  save: () => call(`const r = await eda.sch_Document.save(); return r === undefined ? null : r;`, 90_000),
+})
+
+const cleanupB = await call(`
+const probe = ${JSON.stringify(page.probe)};
+const main = ${JSON.stringify(base.main)};
+if (probe === main) return { status: 'REFUSED_DELETE_MAIN' };
 try { await eda.dmt_EditorControl.openDocument(main) } catch (e) {}
 await new Promise(r => setTimeout(r, 1200));
 let closed = null, deleted = null;
@@ -216,8 +230,9 @@ for (let i = 0; i < 5; i++) {
   if (!pages.includes(probe)) break;
   await new Promise(r => setTimeout(r, 1000));
 }
-return { del: JSON.stringify(del), saved, closed, deleted, pages, residue: pages.filter(u => u !== main), probeGone: !pages.includes(probe) };
+return { closed, deleted, pages, residue: pages.filter(u => u !== main), probeGone: !pages.includes(probe) };
 `, 180_000)
+const cleanup = { ...(cleanupA ?? {}), save: saveResult, ...(cleanupB ?? {}) }
 out.cleanup = cleanup
 
 // Superset assertion: the four P1 orphans that predate this script are known
