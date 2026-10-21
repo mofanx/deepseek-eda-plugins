@@ -1,0 +1,48 @@
+{
+ "task": "t3",
+ "at": "2026-10-21T07:01:30Z",
+ "reviewed": { "task": "t2", "file": "docs/evidence/current/r4t2-working-tree-inventory.json", "commit": "60171a8" },
+ "claims": {
+  "statusComplete": {
+   "verdict": "pass",
+   "evidence": "git status --porcelain = 10 entries; git status --porcelain -uall = the same 10 entries in the same order (no hidden nested untracked paths); Compare-Object against t2's snapshot.entries returns nothing. The 10 paths are exactly t2's list: no omission, no over-report.",
+   "deletedEntries": "none (no ' D', 'D ', 'AD', 'MD' lines)"
+  },
+  "filesUnchanged": {
+   "verdict": "pass",
+   "evidence": "recomputed SHA-256 for all 10 paths; every one equals t2's recorded sha256 (10/10)"
+  },
+  "attributionMainInventory": {
+   "verdict": "pass",
+   "evidence": "grep for 'main-inventory' across review scripts finds one writer: docs/evidence/review/t50-main-inventory.mjs L81 `const outPath = process.argv[2] ?? resolve(repo, 'docs/evidence/current/main-inventory.json')`. It is the only writer and its default target is this file, so the attribution 'a t50 run, member not identifiable' holds."
+  },
+  "attributionFrameDiff": {
+   "verdict": "pass",
+   "evidence": "extracted the template between `const PS = String.raw`` and its closing backtick: 1556 bytes; docs/evidence/current/frame-diff.ps1 is 1556 bytes and byte-identical. canvas-owner.mjs L86-88 writes exactly that file name with writeFileSync(ps1, PS). No committed or untracked script reads 'frame-diff.ps1' (repo-wide grep hits only canvas-owner.mjs L86).",
+   "note": "the stronger half of t2's sentence (generated duplicate, nothing reads the repo copy) is verified. The specific 'workDir=docs/evidence/current' invocation has no committed caller: frameDiff has zero callers in the repo and defaults to tmpdir(), so that file came from an ad-hoc call. Mechanism holds; the exact invocation is not in the tree."
+  },
+  "attributionT27Pngs": {
+   "verdict": "pass",
+   "evidence": "t27-flag-stagger.mjs L422 `shoot('t27-control.png')` and L464 `shoot('t27-staggered.png')` are the writers of those two. calibration-main and probe-before appear in no script (only in docs/evidence JSON), so 'no committed script writes this name' holds. Four files share sha256 59a13a6d45eb329536d25880efaf11406101c5cb2aadee1cc50dea2d49c4df61 (control, owner-main, owner-probe, staggered) — t2's 'four PNGs same sha' is accurate; calibration-main is fa372d78… and probe-before is 69c89276…."
+  },
+  "mainInventoryFork": {
+   "verdict": "pass",
+   "evidence": "field-by-field: worktree at=2026-10-21T06:07:32Z total=21 byType={part 8, netflag 13} wires=55; HEAD at=2026-10-21T05:52:55Z total=63 byType={part 8, netflag 55} wires=55. The live document right now is 21 components (8/13), 55 wires, active MAIN, so the worktree version is the truthful post-recovery snapshot and the HEAD blob is the pre-deletion polluted one. t2's 'trust the worktree version' conclusion is correct."
+  },
+  "untrackedCrossReviews": {
+   "verdict": "partial",
+   "evidence": "both scripts are probe-only: t31 enumerates the component/attribute API surface and prints JSON; t32 reads pages/projects and prints JSON; neither embeds a verdict string, so they carry no conclusion text that could be lost. Their subjects are covered by committed t34 (cross-review of t6) and t36 (recomputation of t10), and no committed document cites their numbers.",
+   "correction": "t2's clause '无任何提交文档引用其文件名' is false: git grep HEAD lists four committed files that name them — r3t1-t46-lock.json, r3t2-t46-lock-review.json, r4t1-t46-lock-recheck.json and t2's own r4t2-working-tree-inventory.json. The references are inventory listings, not citations of results, so the disposition (do not commit now; author confirmation) still stands."
+  },
+  "noDeletion": {
+   "verdict": "pass",
+   "evidence": "commit 60171a8 touches one file, +204 lines, no deletions (git show --stat). All 10 paths still exist; git status has no deletion entries; every sha256 equals t2's record; the status is line-identical to t2's snapshot."
+  },
+  "scene": {
+   "verdict": "pass",
+   "evidence": "t53 5/5 PASS exit 0 (21 components, 8 part + 13 netflag, id sets equal both ways, 55 wires and 55 pairs, 2 pages, MAIN present); independent bridge read: active MAIN, pages [MAIN, P1], 21 / part 8 / netflag 13 / 55 wires / 55 wire nets; freshness --check FRESH exit 0; git status -- packages 0."
+  }
+ },
+ "overall": "sound",
+ "overallNote": "The inventory is complete, the attributions hold, the fork judgement is right and nothing was deleted. One factual clause is wrong (committed files do reference the two untracked scripts) and one mechanism detail is asserted beyond the evidence (the workDir that generated frame-diff.ps1); neither changes the recommended dispositions."
+}
