@@ -47,6 +47,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gateFreshness } from './shared/freshness.mjs'
 import { confirmPageGone, saveOwnDocument } from './shared/page-cleanup.mjs'
+import { assertOwnCanvas, reportForeignCanvas } from './shared/canvas-owner.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const freshSnapshot = gateFreshness(repoRoot)
@@ -115,6 +116,45 @@ out.probe = { uuid: pageStep.probe, differsFromMain: pageStep.probe !== base.mai
 if (pageStep.probe === base.main) {
   console.error(JSON.stringify({ ...out, status: 'REFUSED_PROBE_IS_MAIN' }))
   process.exit(1)
+}
+
+// ---- 1b. canvas ownership gate (r2t1) --------------------------------------
+// createNetFlag writes to the document the canvas is PAINTING, not to the page the
+// API reports as active (measured: 96 flags landed on MAIN while the API named a
+// probe). Nothing below may run until a pixel test proves the canvas moved when the
+// active page changed; if it did not, this run writes nothing and exits 2.
+const ownCanvas = await assertOwnCanvas({
+  probe: pageStep.probe,
+  main: base.main,
+  readActive: () => call(`const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo(); return c && c.uuid;`, 60_000),
+  openDocument: (id) => call(`try { await eda.dmt_EditorControl.openDocument(${JSON.stringify(id)}) } catch (e) {} return true;`, 60_000),
+  readTabs: () => call(`const t = await eda.dmt_EditorControl.getSplitScreenTree(); return ((t && t.tabs) || []).filter(x => x && x.data && x.data['data-model-sheet-uuid']).map(x => ({ uuid: x.data['data-model-sheet-uuid'], title: x.title }));`, 60_000),
+  evidenceDir: resolve('docs', 'evidence', 'current'),
+  forceForeign: process.env.T29_FORCE_FOREIGN_CANVAS === '1',
+})
+out.canvasOwner = {
+  ok: ownCanvas.ok,
+  reason: ownCanvas.reason,
+  occupier: ownCanvas.occupier,
+  frameRatio: ownCanvas.frames?.diff?.ratio ?? null,
+}
+if (!ownCanvas.ok) {
+  reportForeignCanvas('T29', ownCanvas)
+  const leftover = await call(`
+const probe = ${JSON.stringify(pageStep.probe)};
+const main = ${JSON.stringify(base.main)};
+if (probe === main) return { refused: 'TARGET_IS_MAIN' };
+let del = null;
+try { del = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(probe)) } catch (e) { del = 'ERR ' + String((e && e.message) || e).slice(0, 80) }
+await new Promise(r => setTimeout(r, 900));
+const pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid);
+return { del, probeGone: !pages.includes(probe) };
+`, 120_000)
+  out.cleanup = leftover
+  out.status = 'FOREIGN_CANVAS'
+  out.wrote = 0
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(2)
 }
 
 // ---- 2. the two layouts ----------------------------------------------------

@@ -18,6 +18,7 @@ import { pathToFileURL } from 'node:url'
 import { join, resolve } from 'node:path'
 import { gateFreshness } from './shared/freshness.mjs'
 import { confirmPageGone, saveOwnDocument } from './shared/page-cleanup.mjs'
+import { assertOwnCanvas, reportForeignCanvas } from './shared/canvas-owner.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 gateFreshness(repoRoot)
@@ -98,6 +99,47 @@ if (FORBIDDEN.has(page.probe)) {
   process.exit(1)
 }
 log('probe-created', { probe: page.probe, isMain: page.probe === base.main })
+
+// ---- 2b. canvas ownership gate (r2t1) --------------------------------------
+// createNetFlag / sch_PrimitiveAttribute.modify act on the document the canvas is
+// PAINTING, not on the page getCurrentSchematicPageInfo() reports. Measured: 96
+// flags went into MAIN while the API called this run's probe active. So the first
+// write is preceded by a pixel test - pin MAIN, shoot, pin the probe, shoot - and
+// if the frame does not change the canvas is not ours and this run writes nothing.
+const ownCanvas = await assertOwnCanvas({
+  probe: page.probe,
+  main: base.main,
+  readActive: () => call(`const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo(); return c && c.uuid;`, 60_000),
+  openDocument: (id) => call(`try { await eda.dmt_EditorControl.openDocument(${JSON.stringify(id)}) } catch (e) {} return true;`, 60_000),
+  readTabs: () => call(`const t = await eda.dmt_EditorControl.getSplitScreenTree(); return ((t && t.tabs) || []).filter(x => x && x.data && x.data['data-model-sheet-uuid']).map(x => ({ uuid: x.data['data-model-sheet-uuid'], title: x.title }));`, 60_000),
+  evidenceDir: resolve('docs', 'evidence', 'current'),
+  forceForeign: process.env.T28_FORCE_FOREIGN_CANVAS === '1',
+})
+out.canvasOwner = {
+  ok: ownCanvas.ok,
+  reason: ownCanvas.reason,
+  occupier: ownCanvas.occupier,
+  frameRatio: ownCanvas.frames?.diff?.ratio ?? null,
+}
+if (!ownCanvas.ok) {
+  // Nothing was placed, so the only thing to remove is the empty page this run
+  // created; it is clean, so the delete does not need a save first.
+  reportForeignCanvas('T28', ownCanvas)
+  out.probePage = page.probe
+  const leftover = await call(`
+if (${JSON.stringify(page.probe)} === ${JSON.stringify(base.main)}) return { refused: 'TARGET_IS_MAIN' };
+let del = null;
+try { del = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(${JSON.stringify(page.probe)})) } catch (e) { del = 'ERR ' + String((e && e.message) || e).slice(0, 80) }
+await new Promise(r => setTimeout(r, 900));
+const pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid);
+return { del, probeGone: !pages.includes(${JSON.stringify(page.probe)}) };
+`, 120_000)
+  out.cleanup = leftover
+  out.status = 'FOREIGN_CANVAS'
+  out.wrote = 0
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(2)
+}
 
 // ---- 3. layout + label geometry --------------------------------------------
 const NETS = Array.from({ length: 48 }, (_, i) => `MCU-${i + 1}`)

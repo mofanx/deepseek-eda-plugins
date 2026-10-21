@@ -2568,3 +2568,34 @@ ccaf9f3bbf02c38a e372755eaefac34c
 - HEAD `7f057d8`：`t28` L113、`t29` L134、`t32` L157 仍是裸 `createNetFlag`，写前没有画布归属判定。
 - 工作树（未提交）：`t28`/`t29` 已接 `shared/canvas-owner.mjs` 的两帧判定，`t32` 尚未接。
 - **在 `t32` 补齐并提交前，不得再运行该脚本**；任何依赖 `createNetFlag` 的新脚本都必须先过画布归属门。
+
+### 14.35.9 写前画布归属守卫与 MAIN 取证（r2t1）
+
+**为什么必须写前判定**：`createNetFlag`、`sch_PrimitiveAttribute.modify`、`sch_PrimitiveComponent.delete` 作用于**画布正在绘制的文档**，不是 `getCurrentSchematicPageInfo()` 报告的页。本轮实测代价：两次 `t27`、一次 `t28` 各把 96 个测试 flag 写进 MAIN，MAIN 从 21 变成 117。`getAll()` 也读同一份"被绘制"的文档，所以**写错与读错会互相印证**，只能用像素证。
+
+**共享模块** `docs/evidence/review/shared/canvas-owner.mjs`：`assertOwnCanvas()` 只调 `openDocument` 与读接口，不写任何页。步骤：钉住 MAIN → 截帧 → 钉住本次探针页 → 截帧 → 在画布矩形内逐像素求差；`ratio < 0.002` 即"画布不跟随活动页"，返回 `ok:false`。失败原因码：`CANVAS_NOT_ON_PROBE`、`MAIN_NOT_ACTIVE`、`PROBE_NOT_ACTIVE`、`FRAME_DIFF_FAILED`、`FORCED_FOREIGN_CANVAS`。`reportForeignCanvas()` 统一打印 `FOREIGN_CANVAS occupier=<id> name=<页名> reason=<码> wrote=0`。
+
+**接入**：`t28`/`t29`/`t32` 在建页之后、**第一次 `createNetFlag` 之前**调用；不通过则只删自己刚建的空探针（`probe === main` 拒绝），打印占位者 id + 页名，`status=FOREIGN_CANVAS`、`wrote=0`、**退出码 2**。测试钩子：`T28_FORCE_FOREIGN_CANVAS=1`、`T29_…`、`T32_…`。`t27` 仍用其内联版本（同一帧比较算法，本会话已实测 `created=0`），未与共享模块合并，属于已知重复，留待下一轮统一。
+
+**双向实测（2026-10-21）**，MAIN 内容哈希 `SHA256(id|type|x|y|net 排序行)`：
+
+| 运行 | 退出码 | status | reason | frameRatio | comps | wires | hash |
+|---|---|---|---|---|---|---|---|
+| t28 钩子 | 2 | FOREIGN_CANVAS | FORCED_FOREIGN_CANVAS | — | 63→63 | 55→55 | 不变 |
+| t29 钩子 | 2 | FOREIGN_CANVAS | FORCED_FOREIGN_CANVAS | — | 63→63 | 55→55 | 不变 |
+| t32 钩子 | 2 | FOREIGN_CANVAS | FORCED_FOREIGN_CANVAS | — | 63→63 | 55→55 | 不变 |
+| t28 正常 | 2 | FOREIGN_CANVAS | CANVAS_NOT_ON_PROBE | 0 | 63→63 | 55→55 | 不变 |
+| t29 正常 | 2 | FOREIGN_CANVAS | CANVAS_NOT_ON_PROBE | 0 | 63→63 | 55→55 | 不变 |
+| t32 正常 | 2 | FOREIGN_CANVAS | CANVAS_NOT_ON_PROBE | 0 | 63→63 | 55→55 | 不变 |
+
+`ratio=0` 不是仪器失灵：两张帧字节数相同（12696 B），且同一对帧在旧实现下也被判"无变化"。修复过程中发现 `param([string]$A)` 与局部 `$a` 在 PowerShell 中**是同一个变量**（大小写不敏感），导致位图宽高读成 0、矩形为空；已改为 `$ImgA/$ImgB` 与 `$bmpA/$bmpB`，并把该失败保留为 `FRAME_DIFF_FAILED` 的 fail-closed 路径——**取帧失败一律视为"不是自己的画布"**。
+
+**只读取证** `t50-main-inventory.mjs`（仅 `getAll` / `getCurrentSchematicPageInfo`，零写入）：MAIN 当前 **63 器件 = 8 个 `part` + 55 个 `netflag`**，导线 **55**。55 个 netflag 中 **13 个是原始 `layout:flag:<NET>:<slot>`**，**42 个是 16 位运行期 hex id**。
+
+- **①63 与 101 的口径**：63 是"当前`getAll` 的器件总数"；101 是本会话早前一次**已落盘**的中间态（8 + 13 + 80）。两者都真实，差 38 = 编辑器崩溃前那轮逐个删除中**已被自动保存的 38 条**（101 − 63 = 38，80 − 42 = 38，两式一致）。不存在"63 与 101 互相矛盾"。
+- **②"80 个残留"与实测 42 的差**：不是把导线或文字算进去——本报告的 55 个 netflag 只统计 `componentType=netflag`，不含 55 条导线，也不含文本图元。差额全部由那 38 条已落盘的删除解释；剩余 42 条即白名单。
+- **③8 个 part 完好**：以 `docs/evidence/current/t31-dataset.json`（污染前快照，同 MAIN `b275cd23`，21 器件 / 55 导线）逐件对照——`u1..u7` 全部在位、坐标未动、`Name` 未变；第 8 个"part"是被存成 `part` 类型的 `layout:flag:_3V3:bus:240`（`+3V3`，坐标 200,720），与此前 C6 记录一致，不是新增。
+
+**恢复白名单** `docs/evidence/current/main-restore-whitelist.json`：**42 条可删、0 条不确定、13 条保留**。每条的证据是三选二以上：①坐标精确落在 `t27`/`t28` 的测试网格（`x=400/470, y=100|105+20k`；42/42 命中，0 条例外）；②网名与原 `layout:flag` 重复（12 条，例如 `MCU-17` 同时存在 `layout:flag:MCU_17:0` 与一个 hex flag，单一布局不可能产生）；③id 是运行期 16 位 hex，而原始 flag 一律是 `layout:flag:<NET>:<slot>`。**没有一条以"看起来多余"为理由**。
+
+**本轮未删除 MAIN 上任何图元**（任务约束）。删除需单独授权，且必须逐条执行：本会话批量 `delete` 曾触发 `HTTP 500` 并导致编辑器标签崩溃、未保存删除丢失；实测"一次一个 + 400–600 ms 间隔"可稳定推进。

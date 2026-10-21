@@ -1,0 +1,662 @@
+{
+ "at": "2026-10-21T05:51:01.759Z",
+ "main": "b275cd23e45c4271bead56f66d4f98fe",
+ "baseline": {
+  "pages": 21,
+  "parts": 8,
+  "flags": 13,
+  "wires": 55,
+  "source": "docs/evidence/current/t31-dataset.json"
+ },
+ "current": {
+  "total": 63,
+  "parts": 8,
+  "flags": 55,
+  "hex": 42,
+  "layout": 13,
+  "wires": 55
+ },
+ "deleteCount": 42,
+ "delete": [
+  {
+   "id": "0acf43ee4e71871b",
+   "net": "MCU-7",
+   "x": 400,
+   "y": 160,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "cec711d292aba398",
+   "net": "MCU-8",
+   "x": 470,
+   "y": 165,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "4fba4bce9fe1f078",
+   "net": "MCU-9",
+   "x": 400,
+   "y": 180,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "805689cb5af7714c",
+   "net": "MCU-10",
+   "x": 470,
+   "y": 185,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "090cfaf0181bea37",
+   "net": "MCU-11",
+   "x": 400,
+   "y": 200,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "9f814ccdbfb3c65e",
+   "net": "MCU-12",
+   "x": 470,
+   "y": 205,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "788da93783ffbba5",
+   "net": "MCU-13",
+   "x": 400,
+   "y": 220,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "380c93d5d292d05c",
+   "net": "MCU-14",
+   "x": 470,
+   "y": 225,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "6b002d29c68ade3d",
+   "net": "MCU-15",
+   "x": 400,
+   "y": 240,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "de68ab875b2334a6",
+   "net": "MCU-16",
+   "x": 470,
+   "y": 245,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "472dfa805fbf5db7",
+   "net": "MCU-17",
+   "x": 400,
+   "y": 260,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-17 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "0e152f86e0e3485a",
+   "net": "MCU-18",
+   "x": 470,
+   "y": 265,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "99682fe3ffa5655a",
+   "net": "MCU-19",
+   "x": 400,
+   "y": 280,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "e26dd4d8c8ecae07",
+   "net": "MCU-20",
+   "x": 470,
+   "y": 285,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "6d893cb5615d29f1",
+   "net": "MCU-21",
+   "x": 400,
+   "y": 300,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "384746d51bf1a51a",
+   "net": "MCU-22",
+   "x": 470,
+   "y": 305,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-22 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "460ed8f59c818191",
+   "net": "MCU-23",
+   "x": 400,
+   "y": 320,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "3047d0a47abc4375",
+   "net": "MCU-24",
+   "x": 470,
+   "y": 325,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "f2b01588d6bc8f18",
+   "net": "MCU-25",
+   "x": 400,
+   "y": 340,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-25 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "1aa4f55b1f5bc93a",
+   "net": "MCU-26",
+   "x": 470,
+   "y": 345,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-26 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "72e4d475a2ff6caa",
+   "net": "MCU-27",
+   "x": 400,
+   "y": 360,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-27 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "578744e2a2f209b2",
+   "net": "MCU-28",
+   "x": 470,
+   "y": 365,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-28 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "a059327831efcc9a",
+   "net": "MCU-29",
+   "x": 400,
+   "y": 380,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-29 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "75075921f60035a6",
+   "net": "MCU-30",
+   "x": 470,
+   "y": 385,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-30 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "547a051c6e4fa0dc",
+   "net": "MCU-31",
+   "x": 400,
+   "y": 400,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-31 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "f739c69c3e792310",
+   "net": "MCU-32",
+   "x": 470,
+   "y": 405,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-32 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "f5a6526a43def088",
+   "net": "MCU-33",
+   "x": 400,
+   "y": 420,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-33 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "08df64f0715e48a6",
+   "net": "MCU-34",
+   "x": 470,
+   "y": 425,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": true,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "net MCU-34 already has an original layout:flag on this page - one flag per net cannot produce a second",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "84fc50ac3e194cf2",
+   "net": "MCU-35",
+   "x": 400,
+   "y": 440,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "26efc1a998eb682b",
+   "net": "MCU-36",
+   "x": 470,
+   "y": 445,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "558d1defc7b3c4fb",
+   "net": "MCU-37",
+   "x": 400,
+   "y": 460,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "f8d271a0117a3928",
+   "net": "MCU-38",
+   "x": 470,
+   "y": 465,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "33228756ff0bbb1c",
+   "net": "MCU-39",
+   "x": 400,
+   "y": 480,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "7732f6445f92c362",
+   "net": "MCU-40",
+   "x": 470,
+   "y": 485,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "92b8761393efac23",
+   "net": "MCU-41",
+   "x": 400,
+   "y": 500,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "6c4ed9516041d102",
+   "net": "MCU-42",
+   "x": 470,
+   "y": 505,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "152a2c672e1bfe14",
+   "net": "MCU-43",
+   "x": 400,
+   "y": 520,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "adcfa2fdbe6cdfdb",
+   "net": "MCU-44",
+   "x": 470,
+   "y": 525,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "7ec9f0483fbfd394",
+   "net": "MCU-45",
+   "x": 400,
+   "y": 540,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "618b3bf01b4103c3",
+   "net": "MCU-46",
+   "x": 470,
+   "y": 545,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "ccaf9f3bbf02c38a",
+   "net": "MCU-47",
+   "x": 400,
+   "y": 560,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  },
+  {
+   "id": "e372755eaefac34c",
+   "net": "MCU-48",
+   "x": 470,
+   "y": 565,
+   "grid": "staggered(x=400/470,y=100|105+20k)",
+   "duplicateOfLayoutNet": false,
+   "verdict": "delete",
+   "evidence": [
+    "coordinates match t27/t28 test layout: staggered(x=400/470,y=100|105+20k)",
+    "id is a runtime 16-hex id; every original flag id is layout:flag:<NET>:<slot>"
+   ]
+  }
+ ],
+ "hold": [],
+ "keep": [
+  {
+   "id": "layout:flag:MCU_17:0",
+   "net": "MCU-17",
+   "x": 250,
+   "y": 725
+  },
+  {
+   "id": "layout:flag:MCU_29:0",
+   "net": "MCU-29",
+   "x": 250,
+   "y": 745
+  },
+  {
+   "id": "layout:flag:MCU_30:0",
+   "net": "MCU-30",
+   "x": 250,
+   "y": 755
+  },
+  {
+   "id": "layout:flag:MCU_31:0",
+   "net": "MCU-31",
+   "x": 250,
+   "y": 765
+  },
+  {
+   "id": "layout:flag:MCU_32:0",
+   "net": "MCU-32",
+   "x": 250,
+   "y": 775
+  },
+  {
+   "id": "layout:flag:MCU_22:0",
+   "net": "MCU-22",
+   "x": 350,
+   "y": 775
+  },
+  {
+   "id": "layout:flag:MCU_33:0",
+   "net": "MCU-33",
+   "x": 250,
+   "y": 785
+  },
+  {
+   "id": "layout:flag:MCU_25:0",
+   "net": "MCU-25",
+   "x": 350,
+   "y": 785
+  },
+  {
+   "id": "layout:flag:MCU_34:0",
+   "net": "MCU-34",
+   "x": 250,
+   "y": 795
+  },
+  {
+   "id": "layout:flag:MCU_26:0",
+   "net": "MCU-26",
+   "x": 350,
+   "y": 795
+  },
+  {
+   "id": "layout:flag:MCU_27:0",
+   "net": "MCU-27",
+   "x": 350,
+   "y": 805
+  },
+  {
+   "id": "layout:flag:MCU_28:0",
+   "net": "MCU-28",
+   "x": 350,
+   "y": 815
+  },
+  {
+   "id": "layout:flag:GND:bus:360",
+   "net": "GND",
+   "x": 400,
+   "y": 840
+  }
+ ],
+ "note": "r2t1 只产出清单，未删除任何图元。删除需单独授权，且必须逐条执行（批量 delete 曾导致 HTTP 500 与编辑器崩溃）。"
+}
