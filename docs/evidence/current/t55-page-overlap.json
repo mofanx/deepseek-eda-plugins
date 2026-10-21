@@ -1,0 +1,498 @@
+{
+ "at": "2026-10-21T06:35:15.579Z",
+ "script": "t55-page-overlap.mjs",
+ "page": {
+  "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+  "name": "MAIN"
+ },
+ "readOnly": true,
+ "wrote": 0,
+ "counts": {
+  "components": 21,
+  "parts": 8,
+  "netflags": 13,
+  "wires": 55,
+  "texts": 39,
+  "rects": 31,
+  "attributes": 662
+ },
+ "geometryLimits": {
+  "rect": "TopLeftX/TopLeftY/Width/Height read back -> exact, extends downward (proven in t31)",
+  "wire": "Line polyline + LineWidth read back -> exact",
+  "text": "X/Y/FontSize/Content/AlignMode only -> NO width/height, extent not measurable",
+  "component": "X/Y/Rotation/Symbol only -> NO bounding box, extent not measurable"
+ },
+ "exact": {
+  "anchorCollisions": {
+   "textText": [],
+   "textComponent": []
+  },
+  "textAnchorInsideRect": 85,
+  "textAnchorInsideRectSamples": [
+   {
+    "text": "text27",
+    "rect": "rect0",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text27",
+    "rect": "rect1",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text27",
+    "rect": "rect2",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text28",
+    "rect": "rect0",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text28",
+    "rect": "rect1",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text28",
+    "rect": "rect2",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text29",
+    "rect": "rect0",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text29",
+    "rect": "rect1",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text29",
+    "rect": "rect2",
+    "kind": "anchor-inside"
+   },
+   {
+    "text": "text30",
+    "rect": "rect0",
+    "kind": "anchor-inside"
+   }
+  ],
+  "rectRect": {
+   "total": 11,
+   "containment": 11,
+   "partial": 0,
+   "top": [
+    {
+     "a": "rect0",
+     "b": "rect1",
+     "area": 999164,
+     "kind": "containment"
+    },
+    {
+     "a": "rect0",
+     "b": "rect62",
+     "area": 163200,
+     "kind": "containment"
+    },
+    {
+     "a": "rect1",
+     "b": "rect62",
+     "area": 163200,
+     "kind": "containment"
+    },
+    {
+     "a": "rect0",
+     "b": "rect2",
+     "area": 72800,
+     "kind": "containment"
+    },
+    {
+     "a": "rect1",
+     "b": "rect2",
+     "area": 72800,
+     "kind": "containment"
+    },
+    {
+     "a": "rect0",
+     "b": "rect64",
+     "area": 64000,
+     "kind": "containment"
+    },
+    {
+     "a": "rect0",
+     "b": "rect66",
+     "area": 64000,
+     "kind": "containment"
+    },
+    {
+     "a": "rect0",
+     "b": "rect68",
+     "area": 64000,
+     "kind": "containment"
+    },
+    {
+     "a": "rect1",
+     "b": "rect64",
+     "area": 64000,
+     "kind": "containment"
+    },
+    {
+     "a": "rect1",
+     "b": "rect66",
+     "area": 64000,
+     "kind": "containment"
+    }
+   ]
+  },
+  "wireRectIntersections": 0,
+  "wireRectSamples": []
+ },
+ "unmeasurable": {
+  "textVsText": {
+   "reason": "no text width/height accessor",
+   "nearest": [
+    {
+     "a": "text41",
+     "b": "text61",
+     "d": 22.8,
+     "at": [
+      888,
+      142
+     ],
+     "aText": "1/1",
+     "bText": "D",
+     "sizes": [
+      14,
+      12
+     ]
+    },
+    {
+     "a": "text27",
+     "b": "text30",
+     "d": 26,
+     "at": [
+      340,
+      142
+     ],
+     "aText": "图样名称",
+     "bText": "项目",
+     "sizes": [
+      14,
+      14
+     ]
+    },
+    {
+     "a": "text28",
+     "b": "text31",
+     "d": 26,
+     "at": [
+      404,
+      142
+     ],
+     "aText": "MAIN",
+     "bText": "dsh-t19-real-i",
+     "sizes": [
+      16,
+      16
+     ]
+    },
+    {
+     "a": "text29",
+     "b": "text32",
+     "d": 26,
+     "at": [
+      590,
+      142
+     ],
+     "aText": "图号",
+     "bText": "图幅",
+     "sizes": [
+      14,
+      14
+     ]
+    },
+    {
+     "a": "text30",
+     "b": "text34",
+     "d": 26,
+     "at": [
+      340,
+      116
+     ],
+     "aText": "项目",
+     "bText": "版本",
+     "sizes": [
+      14,
+      14
+     ]
+    },
+    {
+     "a": "text31",
+     "b": "text35",
+     "d": 26,
+     "at": [
+      404,
+      116
+     ],
+     "aText": "dsh-t19-real-i",
+     "bText": "V0.1",
+     "sizes": [
+      16,
+      16
+     ]
+    },
+    {
+     "a": "text32",
+     "b": "text36",
+     "d": 26,
+     "at": [
+      590,
+      116
+     ],
+     "aText": "图幅",
+     "bText": "日期",
+     "sizes": [
+      14,
+      14
+     ]
+    },
+    {
+     "a": "text34",
+     "b": "text37",
+     "d": 26,
+     "at": [
+      340,
+      90
+     ],
+     "aText": "版本",
+     "bText": "设计",
+     "sizes": [
+      14,
+      14
+     ]
+    },
+    {
+     "a": "text36",
+     "b": "text38",
+     "d": 26,
+     "at": [
+      590,
+      90
+     ],
+     "aText": "日期",
+     "bText": "审核",
+     "sizes": [
+      14,
+      14
+     ]
+    },
+    {
+     "a": "text37",
+     "b": "text39",
+     "d": 26,
+     "at": [
+      340,
+      64
+     ],
+     "aText": "设计",
+     "bText": "批准",
+     "sizes": [
+      14,
+      14
+     ]
+    }
+   ]
+  },
+  "textVsSymbol": {
+   "reason": "no component bounding box accessor",
+   "nearest": [
+    {
+     "text": "text29",
+     "comp": "u7",
+     "d": 151,
+     "at": [
+      590,
+      142
+     ],
+     "textContent": "图号",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text65",
+     "comp": "u2",
+     "d": 152.6,
+     "at": [
+      540,
+      1040
+     ],
+     "textContent": "POWER",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text67",
+     "comp": "u4",
+     "d": 152.6,
+     "at": [
+      220,
+      520
+     ],
+     "textContent": "IO",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text69",
+     "comp": "u6",
+     "d": 152.6,
+     "at": [
+      540,
+      520
+     ],
+     "textContent": "CLK",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text27",
+     "comp": "u5",
+     "d": 153.3,
+     "at": [
+      340,
+      142
+     ],
+     "textContent": "图样名称",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text32",
+     "comp": "u7",
+     "d": 176.6,
+     "at": [
+      590,
+      116
+     ],
+     "textContent": "图幅",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text33",
+     "comp": "u7",
+     "d": 177.3,
+     "at": [
+      654,
+      116
+     ],
+     "textContent": "910×1170",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text30",
+     "comp": "u5",
+     "d": 178.5,
+     "at": [
+      340,
+      116
+     ],
+     "textContent": "项目",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text28",
+     "comp": "u5",
+     "d": 180.9,
+     "at": [
+      404,
+      142
+     ],
+     "textContent": "MAIN",
+     "compType": "part",
+     "compName": "={Value}"
+    },
+    {
+     "text": "text56",
+     "comp": "layout:flag:_3V3:bus:240",
+     "d": 192.4,
+     "at": [
+      8,
+      733
+     ],
+     "textContent": "B",
+     "compType": "part",
+     "compName": "+3V3"
+    }
+   ]
+  }
+ },
+ "candidates": {
+  "total": 0,
+  "textVsFrame": 85,
+  "textVsText": 0,
+  "textVsSymbol": 0,
+  "note": "textVsFrame counts anchors inside a rect and is anchor-level only; it is not ink overlap"
+ },
+ "screenshot": {
+  "file": "D:\\projects\\nodejs\\deepseek-eda-plugins\\docs\\evidence\\current\\t55-page-overlap-2026-10-21T06-35-11-000Z.png",
+  "at": "2026-10-21T06:35:15.517Z",
+  "ok": true,
+  "status": 0,
+  "boundTab": {
+   "id": "D9911A5CD0BF42C9206F4F5A8BF30EF2",
+   "url": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58|5d7a5609f9436320@242b6f26fb2e4d198d575355dd271c58|d224f8d13804e759@242b6f26fb2e4d198d575355dd271c58",
+   "selected": true
+  },
+  "note": "captured from the tab bound to dpx; verified by a human against the JSON counts"
+ },
+ "invariants": {
+  "before": {
+   "components": 21,
+   "parts": 8,
+   "netflag": 13,
+   "wires": 55,
+   "wireNets": 55,
+   "pages": 2,
+   "active": "MAIN"
+  },
+  "after": {
+   "components": 21,
+   "parts": 8,
+   "netflag": 13,
+   "wires": 55,
+   "wireNets": 55,
+   "pages": 2,
+   "active": "MAIN"
+  },
+  "unchanged": true,
+  "missing": [],
+  "extra": [],
+  "pagesBefore": [
+   {
+    "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+    "name": "MAIN"
+   },
+   {
+    "uuid": "d224f8d13804e759",
+    "name": "P1"
+   }
+  ],
+  "pagesAfter": [
+   {
+    "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+    "name": "MAIN"
+   },
+   {
+    "uuid": "d224f8d13804e759",
+    "name": "P1"
+   }
+  ]
+ },
+ "conclusion": "几何不可判（需人工看截图）"
+}
