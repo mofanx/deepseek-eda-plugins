@@ -1,0 +1,56 @@
+{
+ "task": "r8t2",
+ "at": "2026-10-21T09:17:20Z",
+ "reviewed": { "task": "r8t1", "commit": "4912ef7", "manifest": "docs/evidence/current/r8t1-main-hires-tiles.json", "script": "docs/evidence/review/r8t1-main-hires.mjs" },
+ "claims": {
+  "zeroWrite": {
+   "verdict": "pass",
+   "apiAudit": "the script's only eda calls are dmt_EditorControl.zoomToRegion, dmt_EditorControl.zoomToAllPrimitives, dmt_Schematic.getCurrentSchematicPageInfo and dmt_Schematic.getAllSchematicPagesInfo. A grep for save/delete/create/modify/openDocument/clear returns three hits, all harmless: createHash from node:crypto (L19), its use for file hashing (L58), and Bitmap.Save writing the PNG (L123). No schematic write path exists.",
+   "manifest": "wrote=0",
+   "invariants": "before and after are field-identical: 21 components / 8 part / 13 netflag / 55 wires / 55 wire nets / 2 pages / active MAIN",
+   "independent": "my own live read after the review start is identical (see scene), so no change was carried into or out of the capture"
+  },
+  "coverage": {
+   "verdict": "pass",
+   "method": "independent dense sampling of the page rect at 1-unit steps against every tile's pageRect",
+   "samplePoints": 1076955,
+   "coveredPoints": 1076955,
+   "coveragePct": 100,
+   "holes": 0,
+   "columnOverlap": "109.6 units (21.4% of a 511.8-wide tile)",
+   "rowOverlap": "27.2 units (12.44% of a 218.7-tall tile); row pitch 191.5",
+   "union": "x -2..912, y -2..1174 = the page rect exactly",
+   "note": "full rectangle coverage means there is no 'only the nice tiles' selection: every page coordinate is in at least one tile, and adjacent tiles overlap more than the declared 12% (columns 21.4%)"
+  },
+  "hashesAndMapping": {
+   "verdict": "pass",
+   "hashes": "recomputed sha256 for all 16 images (12 tiles + 4 closeups): 16/16 equal to the manifest, 0 mismatches",
+   "mapping": {
+    "derivation": "page->image transform from the manifest's canvasBox (1189x508 at 308,89) and the pre-run fit rect (left -904.86, right 1814.86, top 1166, bottom 4)",
+    "scale": "0.4372 px/unit horizontal and vertical; matches the declared ~0.43 baseline density",
+    "bounds": "all 12 mapped boxes lie inside the 1752x782 image",
+    "visualCheck": "cropped the mapped box for two tiles from t55's PNG: r0c0 shows the same title block (图样名称 MAIN / 项目 / 版本 V0.1 / 设计 / 批准) and left 'D' border as the hi-res tile; r4c1 shows the same two POWER_62/POWER_80 and POWER_49/POWER_81 wires with red netflags. The mapping is self-consistent."
+   }
+  },
+  "sameStateAsT55": {
+   "verdict": "pass",
+   "evidence": "page uuid b275cd23e45c4271bead56f66d4f98fe and name MAIN match t55; counts match t55 exactly: components 21, parts 8, netflags 13, wires 55, wire nets 55, texts 39, rects 31, attributes 662, pages 2, active MAIN. My live read at 09:17Z repeats the same numbers, so MAIN did not change between t55, the tile capture and this review."
+  },
+  "boundaryHonesty": {
+   "verdict": "pass",
+   "manifestClaim": "the manifest does not claim 'unavailable + neighbourhood crop' anywhere; the closeups are declared as real re-renders at 5.405 px/unit",
+   "closeupCheck": "closeup-2 is sharp vector text (1189x508, 33 KB), not an upscale of the 0.43 px/unit crop; it genuinely shows the 16pt project name running into the 图幅 label",
+   "docStatement": "§14.35.18 states explicitly that zoomToRegion returns no rect, that labels are requested rects rather than editor-reported ones, that content was checked by two end anchors visually rather than numerically, and that glyph width/height remain unavailable",
+   "verdictDetail": "the boundary is declared where it exists and no cropped image is passed off as high resolution"
+  },
+  "scene": {
+   "verdict": "pass",
+   "evidence": "t53 5/5 PASS exit 0; freshness --check FRESH exit 0 (baselineVersion 4); live read: active MAIN, pages [MAIN, P1], 21 components (8 part + 13 netflag), 55 wires, 55 wire nets, texts 39, rects 31, attributes 662"
+  }
+ },
+ "measurementNotes": [
+  "my first check script imported createHash from node:fs and crashed; corrected to node:crypto",
+  "my first row-overlap print used a reversed subtraction (-27.2); the pairwise overlap table gives the correct 27.2 units"
+ ],
+ "overall": "sound"
+}
