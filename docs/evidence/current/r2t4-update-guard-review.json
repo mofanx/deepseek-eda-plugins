@@ -1,0 +1,77 @@
+{
+ "task": "r2t4",
+ "at": "2026-10-21T06:44:30Z",
+ "reviewed": { "task": "t2", "feature": "--update refuses a dirty pinned scope", "file": "docs/evidence/review/shared/freshness.mjs", "head": "c666826" },
+ "claims": {
+  "cleanUpdateSucceeds": {
+   "verdict": "pass",
+   "command": "node docs/evidence/review/shared/freshness.mjs --update",
+   "exit": 0,
+   "stdout": "{\"status\":\"BASELINE_WRITTEN\",\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7,\"warnings\":0,\"libPinned\":5}",
+   "followUp": "--check -> FRESH (exit 0); baseline sha before 1DF51A34E79FBA36D1E9DB8A845B72EE188FCE0552A4B5E37B0B38911E1CB6B4 -> after C2892B1D3525858C5630CF077FF8ED097E59063004CB1EA9A2C68209F383A2A4 (generatedAt only)"
+  },
+  "dirtyUpdateRefusedBytesUnchanged": {
+   "verdict": "pass",
+   "method": "two independent dirt sources, baseline sha256 recomputed before and after each attempt",
+   "cases": [
+    {
+     "dirt": "untracked file under packages/",
+     "file": "packages/.r2t4-probe.txt",
+     "exit": 3,
+     "stdout": "{\"status\":\"UPDATE_REFUSED_DIRTY_TREE\",\"reason\":\"uncommitted changes inside the pinned scope; the baseline was not written\",\"files\":[\"?? packages/.r2t4-probe.txt\"],\"hint\":\"commit or revert these paths, then re-run --update; --force-dirty pins them anyway and prints a warning\"}",
+     "baselineShaBefore": "C2892B1D3525858C5630CF077FF8ED097E59063004CB1EA9A2C68209F383A2A4",
+     "baselineShaAfter": "C2892B1D3525858C5630CF077FF8ED097E59063004CB1EA9A2C68209F383A2A4",
+     "bytesUnchanged": true
+    },
+    {
+     "dirt": "modified tracked file",
+     "file": "packages/eda-core/README.md (one appended line)",
+     "exit": 3,
+     "stdout": "{\"status\":\"UPDATE_REFUSED_DIRTY_TREE\",\"files\":[\" M packages/eda-core/README.md\"], ...}",
+     "baselineShaBefore": "C2892B1D3525858C5630CF077FF8ED097E59063004CB1EA9A2C68209F383A2A4",
+     "baselineShaAfter": "C2892B1D3525858C5630CF077FF8ED097E59063004CB1EA9A2C68209F383A2A4",
+     "bytesUnchanged": true,
+     "restore": "git checkout -- packages/eda-core/README.md; sha equal to the pre-probe value"
+    }
+   ]
+  },
+  "restoreThenCheckFresh": {
+   "verdict": "pass",
+   "evidence": "copy the pristine baseline back -> sha256 1DF51A34E79FBA36D1E9DB8A845B72EE188FCE0552A4B5E37B0B38911E1CB6B4 (identical to the starting bytes); --check -> FRESH exit 0"
+  },
+  "escapeHatch": {
+   "verdict": "pass",
+   "defaultOff": "no flag -> exit 3 and no write (case above)",
+   "forced": "with a dirty packages/ file, --update --force-dirty -> exit 0, BASELINE_WRITTEN with \"forcedDirty\":true, and a loud stderr banner: '!! WARNING: --force-dirty is pinning an UNCOMMITTED tree.' plus the dirty path",
+   "restore": "baseline restored from backup afterwards; sha equal to the original"
+  },
+  "compatibility": {
+   "verdict": "pass",
+   "legacyBaselines": [
+    { "version": 1, "status": "FRESH_V1_READ", "exit": 0 },
+    { "version": 2, "status": "FRESH_V2_READ", "exit": 0 },
+    { "version": 3, "status": "FRESH", "exit": 0 }
+   ],
+   "harnesses": [
+    { "script": "t44-freshness-recheck.mjs", "exit": 0, "note": "four-state matrix + bypass surface; it mutates serialize.ts and restores from git; packages scope clean afterwards (0 entries)" },
+    { "script": "t45-hints-executable.mjs", "exit": 0, "note": "every hint path checked against the filesystem" }
+   ]
+  },
+  "errorMessageActionable": {
+   "verdict": "pass",
+   "evidence": "the refusal names each dirty path with its porcelain status prefix and tells the operator to commit or revert then re-run; it also states what --force-dirty does, so the operator is not left with a bare boolean"
+  },
+  "sceneUntouched": {
+   "verdict": "pass",
+   "evidence": "independent read: 21 components (8 part + 13 netflag), 55 wires, 55 net wires, pages [MAIN, P1], active MAIN; freshness --check FRESH; git status -- packages 0"
+  }
+ },
+ "incidents": [
+  {
+   "what": "I ran t46-codemod-mtime-gate.mjs without --check; it defaults to write mode and removed one blank line from docs/evidence/review/t29-flag-stagger-readback.mjs",
+   "impact": "one blank line only; restored with git checkout --, git status now shows 0 changes for that file",
+   "note": "t46 is a one-shot codemod, not a gate: its exit 1 comes from unmatched 'MISSING FIXUP / NO REMOVAL MATCHED' target shapes and is independent of the dirty-tree guard (t46 does not import the shared freshness module; it only matches 'freshness' text in its regex targets)"
+  }
+ ],
+ "overall": "sound"
+}
