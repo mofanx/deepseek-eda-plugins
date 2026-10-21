@@ -2744,3 +2744,22 @@ node docs/evidence/review/t53-verify-main.mjs --json   # 机器读
 **验收**：`tsc -b` 0 → `tsdown --config-loader native` 0 → 全量 **641/641** 通过（基线 634，新增 7 例：连接超时、断连且保留 cause、窗口丢失、未连过仍是 NO_EDA、503 无窗口升级为 WINDOW_LOST、分类函数、补救表完整性）。内容指纹 `--update` 后 `--check` **FRESH**，eda-core `lib/index.js` = `e99eb71943092c76ba1d16e5c3e97c35dbef3cd62398b6035b1dc2d0123c3d44`。
 
 **踩到的坑（值得记住）**：`tsdown` 的入口是 **`lib/types/index.js`（tsc 产物）**，不是 `src`。我第一次先 `tsc -b`、后改文案、再 `tsdown`，结果打出来的 `lib` 里还是旧文案——是"用运行时样例对照源码"才发现，而不是看退出码。正确顺序永远是 **改源码 → `tsc -b` → `tsdown`**。真实掉线样例（测试桩，不靠断网）见 `docs/evidence/current/bridge-error-samples.txt`。
+
+### 14.35.14 `--update` 拒绝脏树（r2t2）
+
+**动机（真实事故）**：14:30:38 我在 t3 收尾时先 `--update`、21 秒后才提交 `11619af`——基线钉的是**未提交字节**。字节上恰好与提交一致，`--check` 仍 FRESH，但这类"先认证、后提交"的顺序，只要中间再改一笔，基线就会永久证明一份**任何提交里都不存在**的内容。j5 在 t55 复核时指出该窗口并拒绝在脏树上出证据，是对的。
+
+**改动**：`--update` 在写基线前先跑 `git status --porcelain`，只看**受钉范围**（`packages/**`、根 `package.json`/`pnpm-workspace.yaml`/`tsdown.config.ts`、所有 `tsconfig*.json`）。范围内有任何 modified/staged/deleted/renamed/untracked → **不写基线**，exit **3**，输出 `UPDATE_REFUSED_DIRTY_TREE` 并列出脏文件。git 本身不可用 → `UPDATE_REFUSED_GIT_UNAVAILABLE`（"无法证明干净"不等于"干净"）。逃生阀 `--force-dirty` 可写，但打四行警告横幅，并在 JSON 里带 `forcedDirty:true`，让"强制钉脏树"这件事永久留在产物里。`docs/**` 的改动不拦，因为证据文件本来就不进哈希。
+
+**双向自证（原始输出见 `docs/evidence/current/r2t2-update-guard.json`）**：
+
+| # | 操作 | 结果 |
+|---|---|---|
+| A | 干净树 `--update` → `--check` | `BASELINE_WRITTEN` exit 0 → `FRESH` exit 0 |
+| B | 向 `packages/schematic/src/types.ts` 追加一行、不提交，再 `--update` | **exit 3**，`UPDATE_REFUSED_DIRTY_TREE`，`files:[" M packages/schematic/src/types.ts"]`，基线 sha256 前后同为 `d09e4038…` |
+| C | `git checkout` 还原 → `--check` | `FRESH` exit 0，受钉范围脏文件 0 |
+| D | 再弄脏 + `--update --force-dirty` | 写入成功、`forcedDirty:true`、打印警告；随后还原文件 `--check` **STALE_BUILD exit 1**（正好证明它真把脏字节钉进去了）；再干净 `--update` → `FRESH` exit 0 |
+
+**兼容性**：v1/v2 基线仍可读——`--check --baseline <v1>` → `FRESH_V1_READ` exit 0，v2 → `FRESH_V2_READ` exit 0。共享模块消费者 `t44`/`t45`/`t48`/`t51` 自测全部 exit 0；`t53` PASS（MAIN 21/55）、`t54` 10/10 通过。
+
+**遗留（未改，避免夹带）**：`--update --baseline <path>` 仍写默认 `BASELINE_PATH`，只有 `--check` 认 `--baseline`。这是既有不一致，与本任务无关，已记在证据 JSON 的 notes 里。

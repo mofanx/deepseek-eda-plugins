@@ -36,12 +36,23 @@
 // `--update` rewrites the baseline; run it only after a successful build
 // (`npx tsc -b && npx tsdown`) on a tree whose sources are what you intend to pin.
 //
+// `--update` refuses to pin an uncommitted tree. If any file in the pinned scope
+// (anything under `packages/`, the root `package.json` / `pnpm-workspace.yaml` /
+// `tsdown.config.ts`, and every `tsconfig*.json`) is modified, staged, deleted or
+// untracked, it exits 3 with `UPDATE_REFUSED_DIRTY_TREE` and lists those paths —
+// the baseline is not touched. Pinning uncommitted bytes is how a baseline ends up
+// certifying content that never existed in any commit, so the default is refusal;
+// `--force-dirty` is the deliberate escape hatch and prints a loud warning.
+// A tree where `git status` cannot run at all also refuses
+// (`UPDATE_REFUSED_GIT_UNAVAILABLE`), because "cannot prove clean" is not clean.
+//
 // The gate runs before any bridge discovery and never performs network I/O, so
 // a stale tree fails fast without touching the client.
 
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const VERSION = 3
@@ -349,8 +360,42 @@ export function gateFreshness(repoRoot, { baselinePath = BASELINE_PATH, strictLi
   return { ...current, baselineVersion: baseline.version }
 }
 
-const invokedDirectly = process.argv[1] !== undefined && pathToFileURL(process.argv[1]).href === import.meta.url
+/** True for the paths `--update` would pin: packages/**, root configs, any tsconfig. */
+export function isPinnedPath(path) {
+  const posix = path.split(sep).join('/')
+  if (posix.startsWith('packages/')) return true
+  if (ROOT_CONFIGS.includes(posix)) return true
+  return TSCONFIG_RE.test(posix.split('/').pop() ?? '')
+}
 
+/**
+ * Report uncommitted changes inside the pinned scope.
+ *
+ * "Dirty" means modified, staged, deleted, renamed or untracked — anything whose
+ * bytes are not what a fresh clone of HEAD would contain. A git failure is
+ * reported separately: refusing is safer than pinning unverifiable content.
+ * @param repoRoot - repository root to inspect.
+ * @returns `{ok:true, dirty:string[]}` or `{ok:false, error:string}`.
+ */
+export function dirtyPinnedPaths(repoRoot) {
+  const res = spawnSync('git', ['-C', repoRoot, 'status', '--porcelain'], { encoding: 'utf8' })
+  if (res.error !== undefined || res.status !== 0) {
+    const detail = res.error?.message ?? res.stderr ?? `git exited ${String(res.status)}`
+    return { ok: false, error: detail.trim() }
+  }
+  const dirty = []
+  for (const line of res.stdout.split('\n')) {
+    if (line.trim() === '') continue
+    let path = line.slice(3)
+    const arrow = path.indexOf(' -> ')
+    if (arrow >= 0) path = path.slice(arrow + 4)
+    path = path.replace(/^"|"$/g, '')
+    if (isPinnedPath(path)) dirty.push(`${line.slice(0, 2)} ${path}`)
+  }
+  return { ok: true, dirty }
+}
+
+const invokedDirectly = process.argv[1] !== undefined && pathToFileURL(process.argv[1]).href === import.meta.url
 if (invokedDirectly) {
   const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..')
   const args = process.argv.slice(2)
@@ -358,20 +403,50 @@ if (invokedDirectly) {
   const baselineArg = args.indexOf('--baseline')
   const baselinePath = baselineArg >= 0 && args[baselineArg + 1] !== undefined ? resolve(args[baselineArg + 1]) : BASELINE_PATH
   if (args.includes('--update')) {
-    if (strictLib) console.error('note: --update always pins lib/index.js; --strict-lib only affects --check')
-    const current = snapshot(repoRoot)
-    const payload = { ...current, generatedAt: new Date().toISOString() }
-    writeFileSync(BASELINE_PATH, `${JSON.stringify(payload, null, 2)}\n`)
-    console.log(JSON.stringify({
-      status: 'BASELINE_WRITTEN',
-      path: BASELINE_PATH,
-      packages: Object.keys(current.packages).length,
-      files: Object.values(current.packages).reduce((sum, pkg) => sum + pkg.files, 0),
-      configs: Object.keys(current.config.root).length + Object.values(current.config.packages).reduce((sum, cfg) => sum + Object.keys(cfg).length, 0),
-      tsconfigs: Object.keys(current.config.tsconfig).length,
-      warnings: current.config.warnings.length,
-      libPinned: Object.values(current.packages).filter((pkg) => pkg.lib !== null).length,
-    }))
+    const forceDirty = args.includes('--force-dirty')
+    const dirty = dirtyPinnedPaths(repoRoot)
+    const blocked = !dirty.ok || dirty.dirty.length > 0
+    if (blocked && !forceDirty) {
+      if (!dirty.ok) {
+        console.error(JSON.stringify({
+          status: 'UPDATE_REFUSED_GIT_UNAVAILABLE',
+          reason: 'git status could not be read, so a clean tree cannot be proven',
+          error: dirty.error,
+          hint: 'run this inside the git checkout; --force-dirty overrides, but the baseline then certifies unverifiable bytes',
+        }, null, 1))
+      } else {
+        console.error(JSON.stringify({
+          status: 'UPDATE_REFUSED_DIRTY_TREE',
+          reason: 'uncommitted changes inside the pinned scope; the baseline was not written',
+          files: dirty.dirty,
+          hint: 'commit or revert these paths, then re-run --update; --force-dirty pins them anyway and prints a warning',
+        }, null, 1))
+      }
+      process.exitCode = 3
+    } else {
+      if (blocked) {
+        console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        console.error('!! WARNING: --force-dirty is pinning an UNCOMMITTED tree.           !!')
+        console.error('!! The baseline will certify bytes that are in no commit.           !!')
+        for (const entry of dirty.ok ? dirty.dirty : [`git status failed: ${dirty.error}`]) console.error(`!!   ${entry}`)
+        console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+      }
+      if (strictLib) console.error('note: --update always pins lib/index.js; --strict-lib only affects --check')
+      const current = snapshot(repoRoot)
+      const payload = { ...current, generatedAt: new Date().toISOString() }
+      writeFileSync(BASELINE_PATH, `${JSON.stringify(payload, null, 2)}\n`)
+      console.log(JSON.stringify({
+        status: 'BASELINE_WRITTEN',
+        path: BASELINE_PATH,
+        packages: Object.keys(current.packages).length,
+        files: Object.values(current.packages).reduce((sum, pkg) => sum + pkg.files, 0),
+        configs: Object.keys(current.config.root).length + Object.values(current.config.packages).reduce((sum, cfg) => sum + Object.keys(cfg).length, 0),
+        tsconfigs: Object.keys(current.config.tsconfig).length,
+        warnings: current.config.warnings.length,
+        libPinned: Object.values(current.packages).filter((pkg) => pkg.lib !== null).length,
+        ...(blocked ? { forcedDirty: true } : {}),
+      }))
+    }
   } else if (args.includes('--check')) {
     const current = gateFreshness(repoRoot, { strictLib, baselinePath })
     const compat = current.baselineVersion < VERSION
@@ -385,7 +460,7 @@ if (invokedDirectly) {
       tsconfigs: Object.keys(current.config.tsconfig).length,
     }))
   } else {
-    console.log('usage: node docs/evidence/review/shared/freshness.mjs --update | --check [--strict-lib] [--baseline <path>]')
+    console.log('usage: node docs/evidence/review/shared/freshness.mjs --update [--force-dirty] | --check [--strict-lib] [--baseline <path>]')
     process.exitCode = 2
   }
 }

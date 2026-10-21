@@ -1,0 +1,85 @@
+{
+  "task": "r2t2",
+  "goal": "make --update refuse to pin an uncommitted tree in the pinned scope",
+  "at": "2026-10-21T06:55:00.000Z",
+  "pinnedScope": [
+    "packages/**",
+    "package.json",
+    "pnpm-workspace.yaml",
+    "tsdown.config.ts",
+    "**/tsconfig*.json"
+  ],
+  "exitCodes": { "fresh": 0, "stale": 1, "usage": 2, "updateRefused": 3 },
+  "scenarios": [
+    {
+      "id": "A",
+      "what": "clean tree --update writes, --check FRESH",
+      "commands": [
+        "node docs/evidence/review/shared/freshness.mjs --update",
+        "node docs/evidence/review/shared/freshness.mjs --check"
+      ],
+      "exit": [0, 0],
+      "stdout": [
+        "{\"status\":\"BASELINE_WRITTEN\",\"path\":\"...freshness-baseline.json\",\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7,\"warnings\":0,\"libPinned\":5}",
+        "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":3,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+      ]
+    },
+    {
+      "id": "B",
+      "what": "one uncommitted packages/** source edit --update must refuse and leave the baseline byte-identical",
+      "mutation": "appended '// r2t2 dirty-tree probe' to packages/schematic/src/types.ts",
+      "command": "node docs/evidence/review/shared/freshness.mjs --update",
+      "exit": 3,
+      "stdout": "{\"status\":\"UPDATE_REFUSED_DIRTY_TREE\",\"reason\":\"uncommitted changes inside the pinned scope; the baseline was not written\",\"files\":[\" M packages/schematic/src/types.ts\"],\"hint\":\"commit or revert these paths, then re-run --update; --force-dirty pins them anyway and prints a warning\"}",
+      "baselineShaBefore": "d09e4038d686ece3b9e20e2af7c7d101cf150ab78c4123c982a97f264b870b6d",
+      "baselineShaAfter": "d09e4038d686ece3b9e20e2af7c7d101cf150ab78c4123c982a97f264b870b6d",
+      "baselineUnchanged": true
+    },
+    {
+      "id": "C",
+      "what": "restore the probe edit, --check returns to FRESH",
+      "command": "git checkout -- packages/schematic/src/types.ts && node docs/evidence/review/shared/freshness.mjs --check",
+      "exit": 0,
+      "stdout": "{\"status\":\"FRESH\",...}",
+      "pinnedScopeDirtyAfterRestore": 0
+    },
+    {
+      "id": "D",
+      "what": "escape hatch writes despite a dirty tree, prints a banner, and really pins the dirty bytes",
+      "command": "node docs/evidence/review/shared/freshness.mjs --update --force-dirty",
+      "exit": 0,
+      "stdout": "{\"status\":\"BASELINE_WRITTEN\",...,\"forcedDirty\":true}",
+      "stderr": "!!!! WARNING: --force-dirty is pinning an UNCOMMITTED tree. / !! The baseline will certify bytes that are in no commit. / !!    M packages/schematic/src/types.ts",
+      "afterRestoreCheck": {
+        "command": "node docs/evidence/review/shared/freshness.mjs --check",
+        "exit": 1,
+        "status": "STALE_BUILD",
+        "why": "proof the escape hatch pinned the uncommitted bytes: restoring the file makes the tree differ from what was pinned"
+      },
+      "recovery": {
+        "command": "node docs/evidence/review/shared/freshness.mjs --update && node docs/evidence/review/shared/freshness.mjs --check",
+        "exit": [0, 0],
+        "status": ["BASELINE_WRITTEN", "FRESH"]
+      }
+    }
+  ],
+  "compat": [
+    { "baselineVersion": 1, "command": "freshness.mjs --check --baseline <v1>", "exit": 0, "stdout": "{\"status\":\"FRESH_V1_READ\",\"baselineVersion\":1,...}" },
+    { "baselineVersion": 2, "command": "freshness.mjs --check --baseline <v2>", "exit": 0, "stdout": "{\"status\":\"FRESH_V2_READ\",\"baselineVersion\":2,...}" }
+  ],
+  "existingScripts": [
+    { "script": "t44-freshness-recheck.mjs", "exit": 0 },
+    { "script": "t45", "exit": 0 },
+    { "script": "t48", "exit": 0 },
+    { "script": "t51-canvas-guard-selftest.mjs", "exit": 0 },
+    { "script": "t53-verify-main.mjs", "exit": 0, "verdict": "PASS 21 comps / 8 part / 13 netflag / 55 wires / 2 pages" },
+    { "script": "t54-restore-selftest.mjs", "exit": 0, "verdict": "TOTAL 10/10 passed" }
+  ],
+  "git": { "packagesDirtyAfterRestore": 0 },
+  "notes": [
+    "The guard reuses the same notion of 'pinned' as snapshot(): packages/**, root configs, every tsconfig*.json. docs/** dirt does not block, which is deliberate: evidence files are not hashed into the baseline.",
+    "--force-dirty is the only override and it prints a four-line banner plus forcedDirty:true in the JSON, so a forced pin is visible in the artifact forever.",
+    "A git failure refuses with UPDATE_REFUSED_GIT_UNAVAILABLE (cannot prove clean is not clean).",
+    "Pre-existing quirk not touched: --update always writes BASELINE_PATH even when --baseline <path> is passed; --check honours --baseline. Out of scope for this task."
+  ]
+}
