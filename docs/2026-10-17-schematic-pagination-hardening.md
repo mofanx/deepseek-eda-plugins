@@ -2691,3 +2691,38 @@ ccaf9f3bbf02c38a e372755eaefac34c
 **口径说明（不变量以三者为准）**：器件数 + id 集合 + 导线数；指纹仅作辅助。两个指纹的算法不同：`8178C7CF…` 是 **sha256** over 排序后的 `id|type|x|y|net` 行（我在 r3t1 用的口径）；`7814e2dd` 是 **djb2(5381)** over `S1#S2`，`S1`=`id|type` 排序拼接、`S2`=导线 `id|net` 排序拼接（快照文件 `fingerprintMethod` 字段自述的口径，本文件已按此复算）。恢复后同一 djb2 口径的值为 `bc029cb6`，与用基线导线复算的结果相同。
 
 **更正（t3，2026-10-21）**：末句"恢复后同一 djb2 口径的值为 `bc029cb6`"**不成立**——`7814e2dd` 与 `bc029cb6` 分属两个变体：前者 djb2 异或（`h=((h*33) XOR c)`），后者 djb2 加法（`h=((h<<5)+h+c)`）。同一现场（21 条 + 快照导线）按异或算得 `83844f24`、按加法算得 `bc029cb6`，由 t2 独立复算确认。本条标记「**未收敛**」，定论与三个数值见 §14.35.8.8。
+
+### 14.35.12 MAIN 不变量门 `t53-verify-main.mjs`（只读，以退出码判定）
+
+**用法（写进脚本头部，也应写进每轮纪律）**：任何桥脚本**跑之前与跑之后各执行一次**。
+
+```
+node docs/evidence/review/t53-verify-main.mjs          # 人读
+node docs/evidence/review/t53-verify-main.mjs --json   # 机器读
+```
+
+| 退出码 | 含义 |
+|---|---|
+| 0 | 五项不变量全部成立 |
+| 1 | 至少一项破坏，打印具体差异 id / 导线对的清单 |
+| 2 | 门本身没跑成（桥不可达 `BRIDGE_UNREACHABLE` / 编辑器未连接 `EDA_NOT_CONNECTED` / 调用失败 `BRIDGE_CALL_FAILED`）——**2 不是通过，是没证据** |
+
+**五项断言**：①器件总数=21；②`part=8`、`netflag=13`；③器件 id 集合与 t31 基线**双向差集为空**（不是只比总数，换掉一个 id 也会红）；④导线 55 且 `id|net` 配对集合与基线一致；⑤页数未变、MAIN 页 id 仍在。
+
+**只读**：仅 `getAll(undefined,false)`、`sch_PrimitiveWire.getAll()`、`getAllSchematicPagesInfo()`、`getCurrentSchematicPageInfo()`；不 save/delete/create/modify/openDocument。注入钩子只改内存里的读数，不碰文档。
+
+**页数口径的诚实说明**：t31 当时记录的是 18 页（MAIN + 17 个不可删孤儿页，见 §14.35.8），页 id 还会随窗口重注册失效；若把 18 钉死，这门永远红。故当前钉定为 **2 页（MAIN + 一个 P1）**，MAIN id 直接取 t31 的 `b275cd23…`；页数可用 `--pages=N` 覆盖，但改动必须是有意为之，不能靠漂移。
+
+**自证（2026-10-21，全部实跑）**：
+
+| 场景 | 退出码 | 输出要点 |
+|---|---|---|
+| 正常（恢复后的 MAIN） | **0** | 五项全 PASS，21/8/13/55/55，pages=2 |
+| `T53_INJECT_EXTRA_ID=deadbeefdeadbeef` | **1** | `+ deadbeefdeadbeef (not in baseline)`，且计数 22、netflag 14 同时红 |
+| `T53_DROP_WIRE=layout:wire:_3V3:flags` | **1** | `- layout:wire:_3V3:flags|+3V3 (wire pair missing)` |
+| `T53_DROP_COMPONENT=u1` | **1** | `- u1 (missing from MAIN)` |
+| `T53_FORCE_UNREACHABLE=1` | **2** | `BRIDGE_UNREACHABLE`，不打印任何 PASS |
+| `T53_FORCE_NO_EDA=1` | **2** | `EDA_NOT_CONNECTED`，JSON 里 `checks:[]`、`ok:false` |
+| 还原后复跑 | **0** | 与首跑一致 |
+
+自证过程中抓到一个真 bug：`fail()` 原先用 `setTimeout` 退出，代码继续往下执行，于是 `CANNOT JUDGE` 之后又打印了一整屏 `PASS`——退出码仍是对的，但输出自相矛盾，看日志的人会以为门通过了。已改为 `fail()` 抛出哨兵异常、主流程收进 `main()`，exit 2 路径现在只打印一行结论。
