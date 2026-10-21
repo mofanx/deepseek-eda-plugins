@@ -1,0 +1,74 @@
+{
+ "task": "r3t1",
+ "at": "2026-10-21T07:09:30Z",
+ "reviewed": { "task": "r2t3 disposition execution", "commits": ["a0a7823", "546fb3d", "3cc30ee"] },
+ "refs": {
+  "headAtReview": "449782b",
+  "originMasterAtReview": "449782b",
+  "headEqualsOrigin": true,
+  "dispositionHead": "3cc30eef974ac5941eab9b01322a1731166ad6c3",
+  "commitsOnBoth": { "a0a7823": true, "546fb3d": true, "3cc30ee": true },
+  "previousBase": "7f355a7 (r2t3 was blocked against this tree) is an ancestor of HEAD",
+  "log": [
+   "449782b test(evidence): close the blob-identity premise for the t46 verdicts",
+   "3cc30ee chore(evidence): ignore the generated artifacts and fix two false statements",
+   "546fb3d docs(evidence): adopt the two cited frames and the two historical probes",
+   "a0a7823 docs(evidence): pin the post-restore MAIN inventory",
+   "e08dac5 test(evidence): independently re-run the t46 apply lock",
+   "7f355a7 test(evidence): independently review the working-tree inventory"
+  ],
+  "note": "HEAD moved from 3cc30ee to 449782b while this review was running (another member's commit). The three disposition commits are unaffected; one count below differs between the two trees and is reported for both."
+ },
+ "claims": {
+  "commitScopes": {
+   "verdict": "pass",
+   "a0a7823": { "files": ["M docs/evidence/current/main-inventory.json"], "stat": "+5 / -299", "note": "only the inventory; no stray files" },
+   "546fb3d": { "files": ["A t27-owner-main.png", "A t27-owner-probe.png", "A t31-cross-review-t6.mjs", "A t32-cross-review-t10.mjs"], "stat": "133 insertions, two binaries 12696 bytes each", "note": "only the two cited frames and the two probes" },
+   "3cc30ee": { "files": ["M .gitignore", "M r4t2-working-tree-inventory.json"], "stat": "+40 / -5", "note": "only the ignore rules and the correction" },
+   "noUnrelatedChanges": true
+  },
+  "mainInventoryContent": {
+   "verdict": "pass",
+   "fields": { "at": "2026-10-21T06:07:32Z", "total": 21, "byType": { "part": 8, "netflag": 13 }, "wires": 55, "active": "b275cd23e45c4271bead56f66d4f98fe/MAIN" },
+   "hexIds": 0,
+   "hexNote": "the file contains two 16-hex matches, both substrings of the page uuid b275cd23e45c4271bead56f66d4f98fe; no component id is a hex id (others list: 0 hex)",
+   "crossCheck": "live bridge read is 21 components (8 part + 13 netflag), 55 wires, 55 nets, active MAIN; t53 PASS. The committed file is the post-restore state, not the 63/55 polluted snapshot."
+  },
+  "gitignore": {
+   "verdict": "pass",
+   "hits": [
+    ".gitignore:8:docs/evidence/current/frame-diff.ps1 -> docs/evidence/current/frame-diff.ps1",
+    ".gitignore:10:docs/evidence/current/t27-control.png -> docs/evidence/current/t27-control.png",
+    ".gitignore:11:docs/evidence/current/t27-staggered.png -> docs/evidence/current/t27-staggered.png",
+    ".gitignore:12:docs/evidence/current/t27-probe-before.png -> docs/evidence/current/t27-probe-before.png",
+    ".gitignore:13:docs/evidence/current/t27-calibration-main.png -> docs/evidence/current/t27-calibration-main.png"
+   ],
+   "frameDiffJsonRule": ".gitignore:9 docs/evidence/current/frame-diff-*.json",
+   "ownerFrames": { "t27-owner-main.png": "check-ignore exit 1 (not ignored)", "t27-owner-probe.png": "check-ignore exit 1 (not ignored)" },
+   "noFalsePositives": "git ls-files -ci --exclude-standard is empty: no tracked file matches any ignore rule. No tracked script under docs/evidence/review is ignored (checked one by one)."
+  },
+  "r4t2Correction": {
+   "verdict": "pass",
+   "diffScope": "two referencedByCommitted arrays filled with five committed JSON paths plus a note each; one 'no committed document names...' line replaced with a CORRECTED line; ignoreRulesProposal.applied false->true; an execution block appended",
+   "conclusionsUnchanged": "carriesUnpublishedConclusion, conclusionWhere, supersededBy, advice and the dispositions are untouched; the file's overall judgement is unchanged",
+   "countAt3cc30ee": 5,
+   "countAtReviewHead": 6,
+   "countNote": "at 3cc30ee the five JSONs are r3t1, r3t2, r4t1, r4t2, r5t1 — the correction is exact for its own tree. At HEAD 449782b a sixth file, r6t2-t46-blob-identity.json, also names the two scripts, so the live count is six. The statement is not wrong where it was committed; it is one behind the newest tree."
+  },
+  "zeroLoss": {
+   "verdict": "pass",
+   "status": "git status --porcelain is empty",
+   "filesOnDisk": "all six ignored artifacts plus the two adopted frames exist; every sha256 equals the catalog value in r4t2 (7/7 MATCH)",
+   "tracking": "the four ignored PNGs and frame-diff.ps1 are untracked; the two owner frames are tracked",
+   "nothingDeleted": "no path from the r4t2 catalog is missing"
+  },
+  "scene": {
+   "verdict": "pass",
+   "evidence": "t53 5/5 PASS exit 0; live read active MAIN, pages [MAIN, P1], 21 components (8 part + 13 netflag), 55 wires, 55 wire nets; freshness --check FRESH exit 0; git status -- packages 0"
+  }
+ },
+ "measurementNotes": [
+  "my first direct bridge read returned null because the ad-hoc snippet had a misplaced bracket; the corrected snippet returned the numbers above. No repo file was involved."
+ ],
+ "overall": "sound"
+}
