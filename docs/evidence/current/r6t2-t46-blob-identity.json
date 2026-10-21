@@ -1,0 +1,105 @@
+{
+  "task": "r3t2",
+  "at": "2026-10-21T08:10:00.000Z",
+  "subject": "close the premise r2t1 left open: is t46 byte-identical between the commit r4t1 measured and current HEAD?",
+  "question": "r4t1 measured t46 at 0d1a08b; r2t1 re-ran it at 7f355a7 and wrote that it still had to confirm the two were the same bytes, then did not. If they differ, r4t1's PASS and r2t1's re-run describe different code.",
+  "versionRelationship": {
+    "head": "3cc30eef974ac5941eab9b01322a1731166ad6c3",
+    "originMaster": "3cc30eef974ac5941eab9b01322a1731166ad6c3",
+    "headEqualsOriginMaster": true,
+    "commitsSinceTheLock": ["d0ee028", "60171a8", "7f355a7", "e08dac5", "a0a7823", "546fb3d", "3cc30ee"],
+    "filesChangedSinceTheLock": [
+      ".gitignore",
+      "docs/evidence/current/main-inventory.json",
+      "docs/evidence/current/r4t1-t46-lock-recheck.json",
+      "docs/evidence/current/r4t2-working-tree-inventory.json",
+      "docs/evidence/current/r4t3-review-inventory.json",
+      "docs/evidence/current/r5t1-review-t46-recheck.json",
+      "docs/evidence/current/t27-owner-main.png",
+      "docs/evidence/current/t27-owner-probe.png",
+      "docs/evidence/review/t31-cross-review-t6.mjs",
+      "docs/evidence/review/t32-cross-review-t10.mjs"
+    ],
+    "noFileUnderReviewDirChanged": true
+  },
+  "t46History": {
+    "command": "git log --oneline -- docs/evidence/review/t46-codemod-mtime-gate.mjs",
+    "commits": [
+      "0d1a08b fix(evidence): make the t46 codemod dry-run by default and idempotent",
+      "0c31e96 test(evidence): migrate the last 13 mtime gates to the content baseline"
+    ],
+    "reading": "exactly two commits ever touched the file: it was created in 0c31e96 and last changed in 0d1a08b. Nothing after the lock touches it."
+  },
+  "blobIdentity": {
+    "command": "git rev-parse <commit>:docs/evidence/review/t46-codemod-mtime-gate.mjs",
+    "path": "docs/evidence/review/t46-codemod-mtime-gate.mjs",
+    "blobs": [
+      { "commit": "0d1a08b", "role": "what r4t1 measured", "blob": "30d1fa2a07f3ffe9b29c4475fd0346f52676bb76" },
+      { "commit": "7f355a7", "role": "what r2t1 re-ran against", "blob": "30d1fa2a07f3ffe9b29c4475fd0346f52676bb76" },
+      { "commit": "3cc30ee", "role": "current HEAD", "blob": "30d1fa2a07f3ffe9b29c4475fd0346f52676bb76" }
+    ],
+    "allEqual": true,
+    "identityValue": "30d1fa2a07f3ffe9b29c4475fd0346f52676bb76",
+    "conclusion": "identical in all three, so r4t1's verdict and r2t1's re-run describe the same bytes and the same code"
+  },
+  "t29Identity": {
+    "command": "git rev-parse <commit>:docs/evidence/review/t29-flag-stagger-readback.mjs",
+    "blobs": [
+      { "commit": "0d1a08b", "blob": "1461daf24d01453140646d45256d21567f50d574" },
+      { "commit": "7f355a7", "blob": "1461daf24d01453140646d45256d21567f50d574" },
+      { "commit": "3cc30ee", "blob": "1461daf24d01453140646d45256d21567f50d574" }
+    ],
+    "worktreeBlob": "1461daf24d01453140646d45256d21567f50d574",
+    "allEqual": true,
+    "conclusion": "t29 has not been touched since the lock; the file r4t1 and r2t1 both hashed is still the one HEAD holds"
+  },
+  "targetsIdentity": {
+    "beyondScope": true,
+    "why": "r4t1's '0/13 changed' claim is about the 13 codemod targets, so the premise only closes if those targets are also unchanged; the dispatch asked only for t29, but leaving this out would leave a second hole of the same shape",
+    "command": "git rev-parse <commit>:docs/evidence/review/<target> for all 13",
+    "compared": "0d1a08b vs HEAD",
+    "identical": "13/13",
+    "targetListLocation": "TARGETS is a literal array inside t46 (L26), so the set of files is part of the identical blob as well"
+  },
+  "boundary": {
+    "commit": "3cc30ee",
+    "filesTouched": [".gitignore", "docs/evidence/current/r4t2-working-tree-inventory.json"],
+    "touchesAnyCode": false,
+    "touchesReviewDir": false,
+    "gitignoreRules": [
+      "docs/evidence/current/frame-diff.ps1",
+      "docs/evidence/current/frame-diff-*.json",
+      "docs/evidence/current/t27-control.png",
+      "docs/evidence/current/t27-staggered.png",
+      "docs/evidence/current/t27-probe-before.png",
+      "docs/evidence/current/t27-calibration-main.png"
+    ],
+    "rulePrefix": "every new rule is rooted at docs/evidence/current/; no rule mentions docs/evidence/review",
+    "checkIgnoreTargets": {
+      "command": "git check-ignore -q docs/evidence/review/<target> for all 13",
+      "results": "13/13 exit 1 (not ignored)",
+      "ignoredOrError": 0
+    },
+    "checkIgnoreT46": { "exit": 1, "meaning": "t46 itself is not ignored" },
+    "whyBehaviourCannotDiffer": "3cc30ee changes no executable file and no path under docs/evidence/review; .gitignore affects only what git tracks, not what the filesystem contains or what a node process does. A codemod reads and writes the filesystem, so an ignore rule cannot change its behaviour even if it did name the file."
+  },
+  "verdictChain": [
+    "r4t1 measured t46 at 0d1a08b and reported PASS on four sandbox cases plus a static audit",
+    "the t46 blob at 0d1a08b, 7f355a7 and 3cc30ee is 30d1fa2a07f3ffe9b29c4475fd0346f52676bb76 in all three",
+    "t46's only two commits are 0c31e96 (create) and 0d1a08b (lock); no later commit touches the file",
+    "the 13 targets are also byte-identical across 0d1a08b..HEAD, and the target list itself lives inside the identical blob",
+    "the only later change to the tree that could plausibly matter, 3cc30ee, touches .gitignore and an evidence JSON, and its ignore rules do not name any review-dir file",
+    "therefore r4t1's PASS and r2t1's independent re-run both describe exactly the code that runs at HEAD 3cc30ee"
+  ],
+  "gates": {
+    "t53": { "command": "node docs/evidence/review/t53-verify-main.mjs", "exit": 0, "summary": "PASS: 21 components (8 part + 13 netflag), 55 wires, 2 pages" },
+    "freshness": { "command": "node docs/evidence/review/shared/freshness.mjs --check", "exit": 0, "stdout": "{\"status\":\"FRESH\",\"baselineVersion\":3,\"packages\":5,\"files\":21}" },
+    "packagesDirty": 0
+  },
+  "readOnly": {
+    "claim": "no real file was modified by this task; every command was a git query, a hash query or a read-only gate",
+    "statusBeforeEvidence": 0,
+    "statusAfterEvidence": "1 (this file, then committed)"
+  },
+  "overall": "pass — the premise holds; r4t1's PASS still applies to current HEAD"
+}
