@@ -1,0 +1,453 @@
+{
+  "task": "r8t1",
+  "at": "2026-10-21T09:13:23.144Z",
+  "page": {
+    "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+    "name": "MAIN",
+    "confirmedAgainstT55": true
+  },
+  "method": {
+    "resolution": "editor-side zoom (dmt_EditorControl.zoomToRegion) then canvas-only capture; no interpolation was used anywhere",
+    "canvasBox": {
+      "w": 1189,
+      "h": 508,
+      "x": 308,
+      "y": 89
+    },
+    "pageRect": {
+      "x1": -2,
+      "y1": -2,
+      "x2": 912,
+      "y2": 1174
+    },
+    "contentBbox": {
+      "x1": 8,
+      "y1": 18,
+      "x2": 894,
+      "y2": 1164
+    },
+    "grid": {
+      "columns": 2,
+      "rows": 6,
+      "overlap": 0.12
+    },
+    "baselineDensity": "t55 put the whole sheet into the same canvas box, about 0.43 px per unit"
+  },
+  "tiles": [
+    {
+      "tag": "tile-r0c0",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r0c0.png",
+      "pageRect": {
+        "x1": -2,
+        "y1": -2,
+        "x2": 509.8,
+        "y2": 216.7,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "b1561700395bdfcfba6a329f5e5b6c0af622b0d54c508979c1da95c928888680",
+      "bytes": 61017,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r0c1",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r0c1.png",
+      "pageRect": {
+        "x1": 400.2,
+        "y1": -2,
+        "x2": 912,
+        "y2": 216.7,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "6ed3feb88c787561c9dc727ef1a045d6620e690ea4b63dc538856572eeb1ee44",
+      "bytes": 65345,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r1c0",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r1c0.png",
+      "pageRect": {
+        "x1": -2,
+        "y1": 189.5,
+        "x2": 509.8,
+        "y2": 408.1,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "9bdb6a7da4604b693339cc50f07d29c4f161ff0d25c61d72bd9b66b01b7000d1",
+      "bytes": 45148,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r1c1",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r1c1.png",
+      "pageRect": {
+        "x1": 400.2,
+        "y1": 189.5,
+        "x2": 912,
+        "y2": 408.1,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "479fb6ff5d37bcf7d2fd931871d35c2c3988c53b22517f5e59b82b6c61e14ad7",
+      "bytes": 46416,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r2c0",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r2c0.png",
+      "pageRect": {
+        "x1": -2,
+        "y1": 380.9,
+        "x2": 509.8,
+        "y2": 599.6,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "bd3b0273404d2250da2ded52bc5734533c71dcf30867cf45875de36b03d2b665",
+      "bytes": 46724,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r2c1",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r2c1.png",
+      "pageRect": {
+        "x1": 400.2,
+        "y1": 380.9,
+        "x2": 912,
+        "y2": 599.6,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "c857f264f63a7ba5738f56113395e8fc09cab1d0c4c86746f658e4408d30de45",
+      "bytes": 49181,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r3c0",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r3c0.png",
+      "pageRect": {
+        "x1": -2,
+        "y1": 572.4,
+        "x2": 509.8,
+        "y2": 791.1,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "ea1b242ab4db6177dda210e75ffb96d3adee139fdb9d1f23724a7515cb98018b",
+      "bytes": 75403,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r3c1",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r3c1.png",
+      "pageRect": {
+        "x1": 400.2,
+        "y1": 572.4,
+        "x2": 912,
+        "y2": 791.1,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "7c66fdfb8dccfdd09af1f9b1976e65f9b0c3c3ec8370b97c8c69bbb507aa295f",
+      "bytes": 49401,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r4c0",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r4c0.png",
+      "pageRect": {
+        "x1": -2,
+        "y1": 763.9,
+        "x2": 509.8,
+        "y2": 982.5,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "4486f6769f10c1243bb5f8d4065a30f5b641b70bcc15409401c75c75657778f2",
+      "bytes": 73197,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r4c1",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r4c1.png",
+      "pageRect": {
+        "x1": 400.2,
+        "y1": 763.9,
+        "x2": 912,
+        "y2": 982.5,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "4b7227e7ad49e28ed4dd0db7b5fd60470e28cba5512c11becd9c61aeaf4e6aef",
+      "bytes": 48725,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r5c0",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r5c0.png",
+      "pageRect": {
+        "x1": -2,
+        "y1": 955.3,
+        "x2": 509.8,
+        "y2": 1174,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "9e8f897b4ac2e9fdba7d9308083b0cd964ee6a5bc4fa51c4ae90b6e69df893b7",
+      "bytes": 48606,
+      "zoomAccepted": true
+    },
+    {
+      "tag": "tile-r5c1",
+      "kind": "tile",
+      "file": "docs/evidence/current/r8t1-main-tile-r5c1.png",
+      "pageRect": {
+        "x1": 400.2,
+        "y1": 955.3,
+        "x2": 912,
+        "y2": 1174,
+        "w": 511.8,
+        "h": 218.7
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 2.323,
+      "sha256": "81a4288b1136abd9480473d15dadd985ba446f12c2f0e9236616aadba83e76c3",
+      "bytes": 51036,
+      "zoomAccepted": true
+    }
+  ],
+  "closeups": [
+    {
+      "tag": "closeup-1",
+      "kind": "closeup",
+      "file": "docs/evidence/current/r8t1-main-closeup-1.png",
+      "pageRect": {
+        "x1": 778,
+        "y1": 95,
+        "x2": 998,
+        "y2": 189,
+        "w": 220,
+        "h": 94
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 5.405,
+      "sha256": "37a2eb86deb127f771fadeb876dfe24423756f25cc4bd708c334cd9f2fafe54f",
+      "bytes": 17972,
+      "zoomAccepted": true,
+      "why": "t55 最近文字对 22.8 单位（text41 \"1/1\" / text61 \"D\"）"
+    },
+    {
+      "tag": "closeup-2",
+      "kind": "closeup",
+      "file": "docs/evidence/current/r8t1-main-closeup-2.png",
+      "pageRect": {
+        "x1": 480,
+        "y1": 95,
+        "x2": 700,
+        "y2": 189,
+        "w": 220,
+        "h": 94
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 5.405,
+      "sha256": "236b74fdf1adc59164d5728c43041c6ef6075c7b5cdba53c0218f9415519eee0",
+      "bytes": 33267,
+      "zoomAccepted": true,
+      "why": "t55 最近文字-符号 151 单位（text29 \"图号\" / u7）"
+    },
+    {
+      "tag": "closeup-3",
+      "kind": "closeup",
+      "file": "docs/evidence/current/r8t1-main-closeup-3.png",
+      "pageRect": {
+        "x1": 230,
+        "y1": 95,
+        "x2": 450,
+        "y2": 189,
+        "w": 220,
+        "h": 94
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 5.405,
+      "sha256": "65aaae9c1be48e001e2d24d46ea8b4ce417434a30370fdcdc4801a53a9fd0293",
+      "bytes": 30737,
+      "zoomAccepted": true,
+      "why": "t55 锚点落在矩形内（text27 \"图样名称\" 在 rect0 内）"
+    },
+    {
+      "tag": "closeup-4",
+      "kind": "closeup",
+      "file": "docs/evidence/current/r8t1-main-closeup-4.png",
+      "pageRect": {
+        "x1": -42,
+        "y1": 21,
+        "x2": 178,
+        "y2": 115,
+        "w": 220,
+        "h": 94
+      },
+      "rectSource": "requested (zoomToRegion returns true, not a rect)",
+      "pixels": {
+        "w": 1189,
+        "h": 508
+      },
+      "pxPerUnit": 5.405,
+      "sha256": "94280bf43ba7d6f8eb31627ff83fc1df7e009111bd3003c7bbe072b5610700bd",
+      "bytes": 14038,
+      "zoomAccepted": true,
+      "why": "t55 矩形包含 11 对（rect0 包 rect1，面积 999164）"
+    }
+  ],
+  "coverage": {
+    "tiles": 12,
+    "failed": 0,
+    "unionCoversPage": true,
+    "pageUnion": {
+      "x1": -2,
+      "y1": -2,
+      "x2": 912,
+      "y2": 1174
+    },
+    "distinctImages": 12
+  },
+  "restoreCheck": {
+    "ok": true,
+    "file": "docs/evidence/current/r8t1-main-restored-view.png",
+    "sha256": "2bb16181a7eb8d0ddcc970e35d1f74e436f48b909d462d83b09d53d8bd80bda5",
+    "visibleRect": {
+      "left": -904.8602362204722,
+      "right": 1814.8602362204726,
+      "bottom": 4.000000000000455,
+      "top": 1166.0000000000005
+    },
+    "fitRectBefore": {
+      "left": -904.8602362204724,
+      "right": 1814.8602362204724,
+      "bottom": 4,
+      "top": 1166
+    },
+    "cameraRestored": true,
+    "note": "fitRectBefore is the visible world rect captured before the first tile; cameraRestored compares the rect after zoomToAllPrimitives against it"
+  },
+  "invariants": {
+    "before": {
+      "components": 21,
+      "parts": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wireNets": 55,
+      "pages": 2,
+      "active": "MAIN",
+      "activeUuid": "b275cd23e45c4271bead56f66d4f98fe"
+    },
+    "after": {
+      "components": 21,
+      "parts": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wireNets": 55,
+      "pages": 2,
+      "active": "MAIN",
+      "activeUuid": "b275cd23e45c4271bead56f66d4f98fe"
+    },
+    "unchanged": true,
+    "differingKeys": []
+  },
+  "wrote": 0,
+  "conclusion": "high-resolution tiles produced; every tile is a real re-render at 2.3-5.9 px/unit, the union covers the page, and MAIN is unchanged"
+}
