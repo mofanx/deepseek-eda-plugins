@@ -120,7 +120,14 @@
       "mtime": "2026-10-20 08:58:45 +08",
       "summary": "read-only probe that enumerates the API prototype to test whether a flag's symbol box has a size; it is the script behind the 'text/symbol expose no width or height' conclusion",
       "attribution": "无法归因到具体成员（10-20 08:58，早于当天的 t34/t36 复核批次；无提交记录）",
-      "referencedByCommitted": [],
+      "referencedByCommitted": [
+        "docs/evidence/current/r3t1-t46-lock.json",
+        "docs/evidence/current/r3t2-t46-lock-review.json",
+        "docs/evidence/current/r4t1-t46-lock-recheck.json",
+        "docs/evidence/current/r4t2-working-tree-inventory.json",
+        "docs/evidence/current/r5t1-review-t46-recheck.json"
+      ],
+      "referencedByCommittedNote": "corrected in r2t2: this file previously said 'no committed reference'. Five committed JSON files name this path (each also names the t32 script), so the earlier statement was wrong.",
       "carriesUnpublishedConclusion": false,
       "conclusionWhere": "docs/2026-10-17-schematic-pagination-hardening.md: 文本原语只暴露 X/Y/FontSize/Content（无宽高），组件只暴露 X/Y（无本体框）",
       "supersededBy": "docs/evidence/review/t34-cross-review-t6b.mjs (committed, same subject, four claims)"
@@ -133,7 +140,14 @@
       "mtime": "2026-10-20 09:02:58 +08",
       "summary": "read-only probe of the live document checking t10's two claims: the render/activation causality is gone from t29's notes, and the damaged project is gone while the healthy one is intact",
       "attribution": "无法归因到具体成员（10-20 09:02，无提交记录）",
-      "referencedByCommitted": [],
+      "referencedByCommitted": [
+        "docs/evidence/current/r3t1-t46-lock.json",
+        "docs/evidence/current/r3t2-t46-lock-review.json",
+        "docs/evidence/current/r4t1-t46-lock-recheck.json",
+        "docs/evidence/current/r4t2-working-tree-inventory.json",
+        "docs/evidence/current/r5t1-review-t46-recheck.json"
+      ],
+      "referencedByCommittedNote": "corrected in r2t2: five committed JSON files name this path, not zero.",
       "carriesUnpublishedConclusion": false,
       "conclusionWhere": "docs/2026-10-17-schematic-pagination-hardening.md: 渲染/激活耦合不成立，脏状态耦合成立（页上有未保存修改时 deleteSchematicPage 静默失败）",
       "supersededBy": "docs/evidence/review/t36-cross-review-t10.mjs (committed, recomputes every number in t10)"
@@ -155,7 +169,7 @@
         "each file states its subject and read-only nature in its header",
         "both conclusions are already in committed prose (no width/height; render/activation decoupled but dirty-state coupled)",
         "both subjects were later re-done by committed scripts: t34 for t6, t36 for t10",
-        "no committed document names t31-cross-review-t6.mjs or t32-cross-review-t10.mjs"
+        "CORRECTED in r2t2: this list previously said no committed document names these two paths. Five committed JSON files do name them (r3t1, r3t2, r4t1, r4t2, r5t1), which is why they were adopted as reference anchors instead of discarded"
       ],
       "advice": "do not treat them as lost review work; either discard them or commit them as historical probes, but do not cite them as the source of a conclusion they no longer uniquely hold"
     }
@@ -173,8 +187,9 @@
     { "path": "docs/evidence/review/t32-cross-review-t10.mjs", "action": "需作者确认（可弃或按历史探针提交）", "owner": "同上", "note": "结论已入库且被 t36 取代" }
   ],
   "ignoreRulesProposal": {
-    "applied": false,
-    "note": "仅建议，未写入 .gitignore；等裁决",
+    "applied": true,
+    "appliedIn": "r2t2: written to .gitignore at the end of the generated-artifact block, and the six files then disappeared from git status",
+    "note": "the proposal below is exactly what was written; the two t27-owner frames stay out of it on purpose",
     "generatedOnly": [
       "# generated evidence artifacts (rewritten by tools, never hand-edited)",
       "docs/evidence/current/frame-diff.ps1",
@@ -189,6 +204,18 @@
       "docs/evidence/current/t27-owner-probe.png"
     ],
     "why": "these two are cited by hash in the committed document; ignoring them would make the citation unverifiable, so they should be committed instead"
+  },
+  "execution": {
+    "by": "r2t2, following this file plus r4t3 (both judged sound)",
+    "actions": [
+      "committed docs/evidence/current/main-inventory.json as the post-restore state (21 devices / 8 part + 13 netflag / 0 hex / 55 wires); did not re-run t50, because the on-disk file already matches t53's reading and another run would only refresh the timestamp",
+      "committed docs/evidence/current/t27-owner-main.png and t27-owner-probe.png, the pair the hardening note cites by hash",
+      "committed docs/evidence/review/t31-cross-review-t6.mjs and t32-cross-review-t10.mjs as historical probes and reference anchors",
+      "added the six generated artifacts to .gitignore (frame-diff.ps1, frame-diff-*.json, t27-control / t27-staggered / t27-probe-before / t27-calibration-main)",
+      "corrected the two false statements in this file: the t31/t32 entries claimed no committed file referenced them, when five committed JSON files do"
+    ],
+    "deviationFromTheDispatch": "the dispatch said four committed JSONs reference the two scripts; the measured count is five (r3t1, r3t2, r4t1, r4t2, r5t1). The reason for adopting them still holds, and the recount is recorded here rather than quietly repeated",
+    "nothingDeleted": true
   },
   "selfProof": {
     "zeroDeletion": {

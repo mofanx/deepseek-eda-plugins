@@ -3,3 +3,11 @@ lib/
 coverage/
 *.tsbuildinfo
 .tmp-temp/
+
+# generated evidence artifacts (rewritten by tools, never hand-edited)
+docs/evidence/current/frame-diff.ps1
+docs/evidence/current/frame-diff-*.json
+docs/evidence/current/t27-control.png
+docs/evidence/current/t27-staggered.png
+docs/evidence/current/t27-probe-before.png
+docs/evidence/current/t27-calibration-main.png
