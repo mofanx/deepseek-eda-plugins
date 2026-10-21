@@ -1,0 +1,64 @@
+{
+ "task": "t1",
+ "at": "2026-10-21T06:52:00Z",
+ "subject": "t46 fail-closed re-check on the real current HEAD",
+ "refs": {
+  "head": "0d1a08bef102a287fef88c24bf831e050678fd7a",
+  "originMaster": "0d1a08bef102a287fef88c24bf831e050678fd7a",
+  "commit0d1a08b": "0d1a08bef102a287fef88c24bf831e050678fd7a",
+  "headEqualsOriginMaster": true,
+  "ancestorOfOriginMaster": true,
+  "fetch": "git fetch origin succeeded on retry; origin/master:docs/evidence/review/t46-codemod-mtime-gate.mjs is readable as a blob",
+  "log": [
+   "0d1a08b fix(evidence): make the t46 codemod dry-run by default and idempotent",
+   "ab560f6 test(evidence): record that the t46 apply-lock is absent at HEAD",
+   "3ea92aa test(evidence): cross-review the t54 mid-run coverage"
+  ],
+  "ordering": "0d1a08b's parent is ab560f6, so it was committed after the r3t2 review commit. The r3t2 verdict was measured on 3ea92aa and cannot describe this tree."
+ },
+ "staleConclusion": "r3t2's unsound verdict is a stale-tree conclusion: it measured HEAD 3ea92aa, where t46 had no --apply gate. It is hereby invalidated as a statement about the current tree. The actual verdict on current HEAD 0d1a08b is PASS (the lock holds).",
+ "claims": {
+  "dryRunZeroWrites": {
+   "verdict": "pass",
+   "method": "sandbox: 13 targets copied to %TEMP%\\t46a, real t46 invoked with --dir, my own SHA-256 before/after",
+   "casePristine": { "stdout": "mode=dry-run pending=[] errors=0", "exit": 0, "shaChanged": "0 / 13" },
+   "casePending": {
+    "setup": "appended one removable old-shape line to the t35 copy (const gate = { src: newestMtime(join(repo, 'x')) })",
+    "stdout": "mode=dry-run pending=[t35-count-definitions.mjs] errors=0",
+    "exit": 1,
+    "shaChanged": "0 / 13",
+    "note": "pending is reported honestly and the exit code is 1, yet nothing is written"
+   }
+  },
+  "applyStillWrites": {
+   "verdict": "pass",
+   "case": "same copy, --apply",
+   "stdout": "mode=apply pending=[t35-count-definitions.mjs] errors=0; applied: gate via newestMtime()",
+   "exit": 0,
+   "shaChanged": "1 / 13 (t35-count-definitions.mjs)",
+   "extra": "after the write the file's sha256 equals the pristine sha256, i.e. the codemod removed exactly the injected line"
+  },
+  "alreadyMigratedIsIdempotent": {
+   "verdict": "pass",
+   "case": "fresh pristine copy, --apply",
+   "stdout": "mode=apply pending=[] errors=0; ALREADY MIGRATED 13 / 13",
+   "exit": 0,
+   "shaChanged": "0 / 13",
+   "note": "this is the exact mechanism that caused the r2t4 blank-line loss: a re-run on an already-migrated file must not touch it. The early return at L112-114 prevents the fixups and the blank-line normalisation from running."
+  },
+  "noWritePathWithoutApply": {
+   "verdict": "pass",
+   "evidence": "the only write call in the file is L154 `if (APPLY && changed) writeFileSync(path, text)`; grep for writeFileSync|appendFile|createWriteStream|unlink|rmSync|renameSync|copyFile returns exactly two lines: the import (L17) and L154. APPLY is set only by the literal '--apply' at L93."
+  },
+  "t29MatchesHead": {
+   "verdict": "pass",
+   "evidence": "git hash-object = 1461daf24d01453140646d45256d21567f50d574; git rev-parse HEAD:docs/evidence/review/t29-flag-stagger-readback.mjs = 1461daf24d01453140646d45256d21567f50d574"
+  },
+  "scene": {
+   "verdict": "pass",
+   "evidence": "t53: 5/5 PASS (21 components, 8 part + 13 netflag, id sets equal, 55 wires and pairs, 2 pages, MAIN present), exit 0; freshness --check FRESH exit 0; git status -- packages 0"
+  }
+ },
+ "repoHygiene": "No real repository file was modified for this check: the sandbox lived in %TEMP% and was deleted; docs/evidence/review still shows only the two pre-existing untracked files owned by the canvas work (t31-cross-review-t6.mjs, t32-cross-review-t10.mjs).",
+ "overall": "pass"
+}
