@@ -1,0 +1,79 @@
+{
+  "task": "r2t3",
+  "reviewed": {
+    "commit": "c666826",
+    "subject": "docs/evidence/review/t54-restore-selftest.mjs: cases 09/10 covering mid-run state changes",
+    "note": "The Hub input described t1 as 'added t53-verify-main.mjs', but the commit that actually changed the t54 mid-run cases is c666826 (14:42:08). This review targets the code that exists: the two new cases and the loop guards they are meant to pin. t53's injection hooks, also mentioned in that input, were re-verified as a secondary check."
+  },
+  "items": [
+    {
+      "id": 1,
+      "claim": "mutating the loop-local type guard and the loop-local coordinate guard makes the new cases fail (they did not before this commit)",
+      "verdict": "成立",
+      "method": "byte-level line replacement in docs/evidence/review/t52-main-restore.mjs, one guard at a time, then node docs/evidence/review/t54-restore-selftest.mjs",
+      "runs": [
+        {
+          "label": "type-in-loop",
+          "line": 172,
+          "from": "if (row.type !== 'netflag') {",
+          "to": "if (row.type === '__never__') {",
+          "exit": 2,
+          "stdout": "FAIL 09 abort: ComponentType changes DURING the run -> exitCode 0; TOTAL 9/10 passed",
+          "restoredByteIdentical": true
+        },
+        {
+          "label": "coords-in-loop",
+          "line": 183,
+          "from": "if (rec && (rec.x !== row.x || rec.y !== row.y)) {",
+          "to": "if (false && (rec.x !== row.x || rec.y !== row.y)) {",
+          "exit": 2,
+          "stdout": "FAIL 10 abort: coordinates drift DURING the run -> exitCode 0; TOTAL 9/10 passed",
+          "restoredByteIdentical": true
+        }
+      ],
+      "sha256Before": "36cd83f416220dd805fcfccac078dd7d5290b121df0ca4ecbb09a86bba83e5e9",
+      "sha256AfterRestore": "36cd83f416220dd805fcfccac078dd7d5290b121df0ca4ecbb09a86bba83e5e9",
+      "afterRestoreRun": "TOTAL 10/10 passed, exit 0"
+    },
+    {
+      "id": 2,
+      "claim": "both new cases assert exitCode, abort reason, deleted count/content, deleteOne calls, and that no later id was deleted",
+      "verdict": "成立",
+      "evidence": [
+        "case 09: check(rep.exitCode === 2); check(rep.aborted === 'WRONG_TYPE_part'); check(rep.deleted.length === 1 && rep.deleted[0] === 'a'); check(w.calls() === 1); check(['b','c'].every(id => w.state.rows.some(r => r.id === id)), 'kept deleting after the type changed')",
+        "case 10: same five assertions with aborted === 'COORDS_MOVED' and 'kept deleting after the coordinates moved'",
+        "the mid-run change is injected after deleting 'a' via makeWorld({ afterDelete }), a test-local hook with default null; nothing is read from process.env"
+      ]
+    },
+    {
+      "id": 3,
+      "claim": "new injection hooks are off by default and the normal path is unchanged",
+      "verdict": "成立",
+      "evidence": [
+        "t54 greps for process.env / HttpEasyEdaBridge / fetch( / discover( -> no matches; the fake world never touches the bridge",
+        "t52's bridge CLI is guarded by isMain (L253-261), so importing runRestore does not connect",
+        "node t54-restore-selftest.mjs (no env) -> TOTAL 10/10 passed, exit 0",
+        "node t53-verify-main.mjs (no hooks) -> PASS, exit 0",
+        "T53_INJECT_EXTRA_ID=deadbeefdeadbeef node t53-verify-main.mjs -> FAIL, exit 1 (hook active only when set)",
+        "node t52-main-restore.mjs --batch=1 --limit=1 --expect=21 (DRY, no --execute) -> exit 2 ALREADY_GONE_PREFLIGHT, deleted=[], countsBefore {components:21, wires:55, wireNets:55, pages:2}, no crash"
+      ]
+    },
+    {
+      "id": 4,
+      "claim": "MAIN and page count are unpolluted; freshness is FRESH",
+      "verdict": "成立",
+      "evidence": [
+        "t53 before: PASS exit 0",
+        "t53 after: PASS exit 0 — 21 components (8 part + 13 netflag), 55 wires with id|net pairs matching baseline, 2 pages, MAIN b275cd23e45c4271bead56f66d4f98fe intact",
+        "freshness --check -> {status: FRESH, baselineVersion: 3, packages: 5, files: 21}",
+        "git status -- packages -> 0 dirty paths after the probes"
+      ]
+    }
+  ],
+  "verdict": "sound",
+  "notes": [
+    "Case 09 under the type mutation failed at its first assertion with exitCode 0, meaning the run completed and deleted all three ids; that is exactly the 'kept deleting' failure the case exists to catch.",
+    "Case 08 still records deleted=['a'] by design: 'a' was already deleted before the anomaly was observed, and the abort stops the remaining ids.",
+    "The reviewed commit adds 51 lines and changes no production code."
+  ]
+}
