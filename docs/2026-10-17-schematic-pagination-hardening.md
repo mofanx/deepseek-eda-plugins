@@ -2830,3 +2830,39 @@ node docs/evidence/review/t53-verify-main.mjs --json   # 机器读
 两次变异前后基线 sha256 均为 `DA8EA6656CC40AC0BF93417F79AA018D7B5FFA342EBA8478AAC25FEE3840DBB3`。旧 v3 基线仍可读：`--check` 返回 `FRESH_V3_READ`、exit 0（兼容模式，明确表示闭包未按 v4 验证）。`t44`、`t45` 均 exit 0。
 
 **仍未纳入的**（明确声明，不再算"待修"）：`extends` 的 node_modules 包说明符只从仓库根 `node_modules` 解析（包内私有 `node_modules` 不查）；`lib/` 下的 `.d.ts` 视为构建产物不钉；包级 `tsdown`/测试配置不在 `ROOT_CONFIGS` 内。
+
+### 14.35.17 边界收口的可复跑自测与独立复核（r7t2）
+
+r7t1 把三条边界关掉了（提交 `07117de`），但它的夹具是**一次性的**：跑完就删，仓库里没有能重跑的东西。这一轮补上可复跑的 14 例，并对 `07117de` 做独立复核——复核对象是该提交里的 blob `117b0d85`，与工作树逐字节相同。
+
+**为什么必须能在仓库里重跑**：门禁改动一旦只靠一次性的终端记录，"以后还会不会再犯"就只能靠信任。`docs/evidence/review/shared/freshness-selftest.mjs` 把 14 例固化下来，`node` 直跑，全部在 `%TEMP%` 里建临时仓库、拷真实脚本、起子进程，不写真实仓库。
+
+| 用例 | 断言 | 结果 |
+|---|---|---|
+| A1 | `--update` 写出 v4 基线 | PASS |
+| A2 | 深层 `nested/tsconfig.base.json` 被算作 root（计 2，不是 1） | PASS |
+| A3 | 干净树 `FRESH`、exit 0 | PASS |
+| A4 | **环**：`tsconfig → nested → 回到 tsconfig` 报 `EXTENDS_CYCLE`、exit 1，且 chain 首尾同一文件 | PASS |
+| A5 | 还原成无环后重新 `FRESH`（检测器不粘滞） | PASS |
+| A6 | **菱形** `a→{b,c}→d` 不误报环 | PASS |
+| A7 | 无法解析的 `extends` 仍报 `EXTENDS_UNRESOLVED`（无回归） | PASS |
+| B1/B2 | 无声明时基线写出、源文件计 1 | PASS |
+| B3 | 新增 `src` 外 `.d.ts` → `STALE_BUILD`（不再被忽略） | PASS |
+| B4/B5 | 钉住后文件计 2、`FRESH` | PASS |
+| B6 | 改动该 `.d.ts` → `STALE_BUILD`（真的被钉住，不只是被容忍） | PASS |
+| B7 | 字节还原 → `FRESH` | PASS |
+
+**双向变异**（`--gate` 指向副本，真实文件全程未改）：把环判断 `if (at >= 0)` 改成 `if (at >= 0 && false)`，单点破坏后 **A4 变红**（13/14、exit 1），且失败形态退化成 `STALE_BUILD`——这正是"把环并进普通漂移"的旧行为，说明该用例测的是环本身，不是别的。从原文重新拷贝后 sha256 **完全一致**（`38e04f76…`），14/14 恢复。
+
+**对 r7t1 三条断言的独立核对**（不看它的数字，自己算）：
+
+| 断言 | 我的复核 | 结论 |
+|---|---|---|
+| 基线零漂移，只改 `version` 与 `generatedAt` | `git diff 07117de^ 07117de -- freshness-baseline.json` 只有这两处 | 成立 |
+| 旧 v3 基线仍可读 | 用 `07117de^` 的基线跑 `--check --baseline` → `FRESH_V3_READ`、exit 0 | 成立 |
+| 既有 harness 不受影响 | `t44`、`t45` 均 exit 0 | 成立 |
+| 真实树计数不变 | `--check` → 7 个 tsconfig、21 个源文件、5 个包 | 成立 |
+
+**这一轮不做真实树变异**：r7t1 已做过（加/删 `src/tsconfig.json` 与 `types/probe.d.ts`），重复一次不会增加信息，反而要在 `packages/` 里留下临时文件。自测用临时仓库覆盖同一条路径。
+
+**仍未纳入的**（沿用 r7t1 的声明，不算"待修"）：包内私有 `node_modules` 的 `extends` 说明符不解析；`lib/` 下 `.d.ts` 视为产物；包级 `tsdown`/测试配置不在 `ROOT_CONFIGS`。

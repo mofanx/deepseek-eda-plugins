@@ -1,0 +1,84 @@
+{
+  "task": "r7t2",
+  "at": "2026-10-21T08:22:00Z",
+  "subject": "independent verification of the freshness boundary closure (r7t1 / 07117de), plus a repeatable 14-case selftest",
+  "whyThisRound": "r7t1 closed the three boundaries but its fixtures were ad hoc: they ran once in a terminal and left nothing in the repository. A gate change that only exists as a pasted transcript cannot be re-checked later, so this round pins the cases as a script and re-derives r7t1's claims independently.",
+  "objectUnderTest": {
+    "commit": "07117de feat(evidence): close the freshness gate's cycle, nested tsconfig and d.ts boundaries",
+    "file": "docs/evidence/review/shared/freshness.mjs",
+    "blobAtHead": "117b0d8514255a99a557dda9612f8aabb838f3f3",
+    "blobInWorktree": "117b0d8514255a99a557dda9612f8aabb838f3f3",
+    "identity": "the script the cases exercise is byte-identical to the committed one",
+    "baselineVersion": 4
+  },
+  "addedSelftest": {
+    "path": "docs/evidence/review/shared/freshness-selftest.mjs",
+    "method": "each case builds a throwaway workspace under the OS temp dir, copies the real freshness.mjs into <fixture>/docs/evidence/review/shared/, and spawns that copy; the real repository is never written to",
+    "cases": 14,
+    "exit": 0,
+    "result": "14/14 passed"
+  },
+  "cases": [
+    { "id": "A1", "assertion": "--update writes a v4 baseline", "pass": true },
+    { "id": "A2", "assertion": "a tsconfig two levels deep is discovered as a root (2 counted, not 1)", "pass": true },
+    { "id": "A3", "assertion": "clean tree is FRESH, exit 0", "pass": true },
+    { "id": "A4", "assertion": "extends cycle reports EXTENDS_CYCLE, exit 1, chain first == last", "pass": true },
+    { "id": "A5", "assertion": "restoring the acyclic config restores FRESH (detector is not sticky)", "pass": true },
+    { "id": "A6", "assertion": "diamond a->{b,c}->d is not reported as a cycle", "pass": true },
+    { "id": "A7", "assertion": "unresolved extends still reports EXTENDS_UNRESOLVED", "pass": true },
+    { "id": "B1", "assertion": "baseline written with no declaration present", "pass": true },
+    { "id": "B2", "assertion": "one source file before the declaration", "pass": true },
+    { "id": "B3", "assertion": "a new .d.ts outside src is STALE_BUILD, not ignored", "pass": true },
+    { "id": "B4", "assertion": "pinning includes the declaration (files 1 -> 2)", "pass": true },
+    { "id": "B5", "assertion": "pinned declaration is FRESH", "pass": true },
+    { "id": "B6", "assertion": "editing the declaration is STALE_BUILD", "pass": true },
+    { "id": "B7", "assertion": "restoring the bytes restores FRESH", "pass": true }
+  ],
+  "mutation": {
+    "target": "the cycle branch, single point: `if (at >= 0) {` -> `if (at >= 0 && false) {`",
+    "appliedTo": "a copy of the file in %TEMP%, selected with `--gate`; the repository file was never edited",
+    "red": { "exit": 1, "passed": "13/14", "failedCase": "A4", "failureShape": "STALE_BUILD instead of EXTENDS_CYCLE, i.e. the cycle degrades into ordinary drift — exactly the old silent behaviour" },
+    "greenAfterRestore": { "exit": 0, "passed": "14/14", "shaEqualAfterRestore": true, "sha": "38e04f766bee2c424376de7f457c0aac4306c51211d7e3b6ba423eefcf0712c2" }
+  },
+  "independentClaimChecks": [
+    {
+      "claim": "the baseline diff is two lines only (version 3 -> 4, generatedAt)",
+      "command": "git diff 07117de^ 07117de -- docs/evidence/review/shared/freshness-baseline.json",
+      "observed": "exactly those two hunks; every package and tsconfig digest is unchanged",
+      "agrees": true
+    },
+    {
+      "claim": "a v3 baseline stays readable",
+      "command": "node freshness.mjs --check --baseline <07117de^ baseline>",
+      "observed": "{\"status\":\"FRESH_V3_READ\",\"baselineVersion\":3,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0",
+      "agrees": true
+    },
+    {
+      "claim": "existing harnesses still pass",
+      "command": "t44-freshness-recheck.mjs, t45-hints-executable.mjs",
+      "observed": "both exit 0",
+      "agrees": true
+    },
+    {
+      "claim": "the real tree is unchanged in count",
+      "command": "node freshness.mjs --check",
+      "observed": "FRESH, 5 packages / 21 files / 8 configs / 7 tsconfigs",
+      "agrees": true
+    }
+  ],
+  "notRepeated": {
+    "realTreeMutations": "r7t1 already added and removed packages/eda-core/src/tsconfig.json and packages/eda-core/types/probe.d.ts against the real tree. Repeating that adds no information and would leave probe files in packages/, so the selftest covers the same path in throwaway workspaces instead. This is a deliberate difference in method, not a skipped check."
+  },
+  "remainingLimits": [
+    "extends package specifiers resolve from the repository-root node_modules only; a package-local node_modules is not consulted",
+    ".d.ts under lib/ is treated as build output and is not pinned",
+    "per-package tsdown/test configs are outside ROOT_CONFIGS"
+  ],
+  "blockingLeftovers": "none: the three declared boundaries now fail closed or are pinned, and the cases are in the repository so the next change can be held to them",
+  "gates": {
+    "t53": { "exit": 0, "summary": "PASS: 21 components (8 part + 13 netflag), 55 wires, 2 pages" },
+    "freshness": { "exit": 0, "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}" },
+    "packagesDirty": 0
+  },
+  "overall": "pass — r7t1's three boundaries are real and closed; its claims reproduce; the cases are now runnable from the repository"
+}
