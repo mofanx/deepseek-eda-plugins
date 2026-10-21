@@ -1,4 +1,22 @@
-// r2t1: prove the canvas is painting OUR probe page before writing anything.
+// r2t1/r3t1: prove the canvas is painting OUR probe page before writing anything.
+//
+// THIS IS A SCREENSHOT HEURISTIC, NOT A PROOF.
+// The test compares two PNG frames pixel by pixel and calls the canvas "ours" when
+// the fraction of differing pixels in the canvas rectangle is >= 0.002. It can be
+// wrong in both directions: a nearly-empty probe (one flag) may differ from MAIN by
+// less than the threshold, and a repaint that only changes off-canvas chrome may
+// differ by more. Because it can be wrong, every failure mode - no frame, unreadable
+// frame, failed diff, unreadable active id - is treated as "NOT ours". The guard is
+// fail-closed on purpose: refusing a run costs one retry, writing to the user's page
+// costs their work.
+//
+// Why it is nevertheless the ONLY usable criterion here: the API's active-page id and
+// the document the canvas paints can disagree. Measured 2026-10-20 - with the API
+// reporting the run's own probe as active, two successive screenshots of the canvas
+// (MAIN pinned vs probe pinned) were byte-identical, SHA256 59A13A6D..., and 96
+// netflags landed in MAIN. `getAll()` reads that same painted document, so a wrong
+// write and a wrong read agree with each other and cannot detect the error. Pixels
+// are the only thing left.
 //
 // Why a pixel test and not an API test: `createNetFlag` / `sch_PrimitiveComponent.delete`
 // / `sch_PrimitiveAttribute.modify` all act on the document the canvas is painting,
@@ -102,6 +120,8 @@ export async function assertOwnCanvas({
   settleMs = 1600,
   forceForeign = false,
   minRatio = 0.002,
+  shoot = shootWindow,
+  diff = frameDiff,
 }) {
   if (typeof probe !== 'string' || probe === '') return { ok: false, reason: 'NO_PROBE' }
   if (probe === main) return { ok: false, reason: 'PROBE_IS_MAIN', probe }
@@ -143,7 +163,7 @@ export async function assertOwnCanvas({
   if (activeMain !== main) {
     return { ok: false, reason: 'MAIN_NOT_ACTIVE', active: activeMain, occupier: await describe(activeMain), frames: null, wrote: 0 }
   }
-  const shotMain = shootWindow(join(dir, 'own-canvas-main.png'))
+  const shotMain = await shoot(join(dir, 'own-canvas-main.png'))
   if (!shotMain) return { ok: false, reason: 'SHOT_FAILED', which: 'main', frames: null, wrote: 0 }
 
   // Frame 2: our empty probe pinned.
@@ -154,17 +174,17 @@ export async function assertOwnCanvas({
   if (activeProbe !== probe) {
     return { ok: false, reason: 'PROBE_NOT_ACTIVE', active: activeProbe, occupier: await describe(activeProbe), frames: null, wrote: 0 }
   }
-  const shotProbe = shootWindow(join(dir, 'own-canvas-probe.png'))
+  const shotProbe = await shoot(join(dir, 'own-canvas-probe.png'))
   if (!shotProbe) return { ok: false, reason: 'SHOT_FAILED', which: 'probe', frames: null, wrote: 0 }
 
-  const diff = frameDiff(shotMain, shotProbe, canvas, dir)
-  if (diff.error) return { ok: false, reason: 'FRAME_DIFF_FAILED', error: diff.error, frames: { main: shotMain, probe: shotProbe }, wrote: 0 }
-  const ok = (diff.ratio ?? 0) >= minRatio
+  const frame = await diff(shotMain, shotProbe, canvas, dir)
+  if (frame.error) return { ok: false, reason: 'FRAME_DIFF_FAILED', error: frame.error, frames: { main: shotMain, probe: shotProbe }, wrote: 0 }
+  const ok = (frame.ratio ?? 0) >= minRatio
   return {
     ok,
     reason: ok ? 'CANVAS_ON_PROBE' : 'CANVAS_NOT_ON_PROBE',
     occupier: ok ? null : await describe(main),
-    frames: { main: shotMain, probe: shotProbe, diff: { ratio: diff.ratio, diffPixels: diff.diffPixels, totalPixels: diff.totalPixels } },
+    frames: { main: shotMain, probe: shotProbe, diff: { ratio: frame.ratio, diffPixels: frame.diffPixels, totalPixels: frame.totalPixels } },
     wrote: 0,
   }
 }
@@ -177,4 +197,81 @@ export function reportForeignCanvas(tag, verdict) {
     `${tag} FOREIGN_CANVAS occupier=${occ.uuid ?? 'unknown'} name=${JSON.stringify(occ.name ?? null)} ` +
     `reason=${verdict?.reason ?? 'unknown'} wrote=0` + (ratio === undefined ? '' : ` frameRatio=${ratio}`),
   )
+}
+
+/**
+ * Wrap assertOwnCanvas() so that EVERY write path can call it cheaply.
+ *
+ * The pixel test costs two screenshots (~2-4 s). A 96-flag loop cannot afford one
+ * per primitive, so the verdict is cached for `ttlMs` (default 20 s) and re-used -
+ * but only after re-reading the active document id, which is one cheap bridge call.
+ * A page switch between two writes therefore still refuses, even inside the cache
+ * window; the cache only skips the screenshots, never the ownership decision.
+ *
+ * Call this immediately before every bridge call that creates, modifies or deletes
+ * anything. If it returns ok:false the caller must abort before that call runs.
+ */
+export function makeWriteGuard(opts) {
+  const ttlMs = opts.ttlMs ?? 20_000
+  const log = opts.log ?? (() => {})
+  let last = null
+  let lastAt = 0
+  return async function guard(label = 'write') {
+    const now = Date.now()
+    if (last && last.ok && now - lastAt < ttlMs) {
+      let active = null
+      try {
+        active = (await opts.readActive()) ?? null
+      } catch (e) {
+        // An unreadable active id invalidates the cache instead of trusting it.
+        active = null
+      }
+      if (active === opts.probe) {
+        return { ...last, ok: true, cached: true, label, active }
+      }
+      last = null
+    }
+    const verdict = await assertOwnCanvas(opts)
+    last = verdict
+    lastAt = Date.now()
+    log(label, { ok: verdict.ok, reason: verdict.reason })
+    return { ...verdict, cached: false, label }
+  }
+}
+
+/**
+ * Refuse a run: print the occupier, try to remove only the empty probe this run
+ * created, and hand the caller an object to print before `process.exit(2)`.
+ *
+ * A probe that already received partial writes is left alone on purpose: deleting
+ * it would need `sch_Document.save()` first, and saving is exactly what we must not
+ * do while ownership is unproven.
+ */
+export async function abortForeign({ tag, verdict, probe, main, call = null, out = {}, deleteProbe = true }) {
+  reportForeignCanvas(tag, verdict)
+  let leftover = null
+  if (deleteProbe && typeof call === 'function' && typeof probe === 'string' && probe !== '') {
+    if (probe === main) {
+      leftover = { refused: 'TARGET_IS_MAIN' }
+    } else {
+      try {
+        leftover = await call(`
+const probe = ${JSON.stringify(probe)};
+const main = ${JSON.stringify(main)};
+if (probe === main) return { refused: 'TARGET_IS_MAIN' };
+let del = null;
+try { del = JSON.stringify(await eda.dmt_Schematic.deleteSchematicPage(probe)) } catch (e) { del = 'ERR ' + String((e && e.message) || e).slice(0, 80) }
+await new Promise(r => setTimeout(r, 900));
+const pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => p.uuid);
+return { del, probeGone: !pages.includes(probe) };
+`, 120_000)
+      } catch (e) {
+        leftover = { error: String((e && e.message) || e) }
+      }
+    }
+  }
+  out.status = 'FOREIGN_CANVAS'
+  out.wrote = 0
+  out.cleanup = leftover
+  return { out, leftover }
 }

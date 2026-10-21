@@ -2599,3 +2599,26 @@ ccaf9f3bbf02c38a e372755eaefac34c
 **恢复白名单** `docs/evidence/current/main-restore-whitelist.json`：**42 条可删、0 条不确定、13 条保留**。每条的证据是三选二以上：①坐标精确落在 `t27`/`t28` 的测试网格（`x=400/470, y=100|105+20k`；42/42 命中，0 条例外）；②网名与原 `layout:flag` 重复（12 条，例如 `MCU-17` 同时存在 `layout:flag:MCU_17:0` 与一个 hex flag，单一布局不可能产生）；③id 是运行期 16 位 hex，而原始 flag 一律是 `layout:flag:<NET>:<slot>`。**没有一条以"看起来多余"为理由**。
 
 **本轮未删除 MAIN 上任何图元**（任务约束）。删除需单独授权，且必须逐条执行：本会话批量 `delete` 曾触发 `HTTP 500` 并导致编辑器标签崩溃、未保存删除丢失；实测"一次一个 + 400–600 ms 间隔"可稳定推进。
+
+### 14.35.10 守卫推进到每条写路径 + 离线自测（r3t1）
+
+**粒度**：像素证明很贵（两次截屏 + 两次 pin，约 3–5 s），96 个 flag 的循环不可能逐图元做一次。因此 `makeWriteGuard()` 把判定缓存 `ttlMs`（默认 20 s），但**每次写之前仍重新读一次活动页 id**：活动页一离开探针就作废缓存并重跑整张判定。缓存只省截屏，不省判定。三个脚本的写路径现状：`t28` = 首个 `createNetFlag`/`modify` 批 + `cleanupA` 删除批；`t29` = 首个 `place(control)` + `place(staggered)` + `cleanupA`；`t32` = `createNetFlag`/`modify`/逐条 `delete` 同一批 + `saveOwnDocument`（其自带活动页断言）。中途拒绝时**不保存、不删脏页**，只打印占位者与 `wrote:'partial-before-<site>'` 后 exit 2——保存一份归属不明的文档比留下一个探针页危险得多。
+
+**这是启发式，不是证明**：判据是两帧像素差 `ratio >= 0.002`。它可能双向误判（空探针与 MAIN 的差异可能低于阈值；窗口重绘也可能抬高比值），所以**所有失败模式一律 fail-closed**：截帧失败 `SHOT_FAILED`、比对失败 `FRAME_DIFF_FAILED`、活动页钉不住 `MAIN_NOT_ACTIVE`/`PROBE_NOT_ACTIVE`，都按"不是我的画布"处理。它是当前唯一可用判据，因为 API 活动页与画布文档可以不一致——2026-10-20 实测：API 报探针为活动页时，两张截图**字节相同**（SHA256 `59A13A6D…`），96 个 flag 落进 MAIN；`getAll()` 读同一份被绘制的文档，写错与读错会互相印证，只有像素能分开。
+
+**离线自测** `t51-canvas-guard-selftest.mjs`（无桥、注入假帧）：**7/7 通过、exit 0**——①画布=探针→放行；②画布=MAIN（两帧相同）→拒绝；③`ratio=0.001 < 0.002`→拒绝；④截帧返回 null→`SHOT_FAILED` 拒绝；⑤`probe===MAIN`→拒绝且不调用 `openDocument`、不截屏；⑥缓存命中后被切页→缓存作废并重测；⑦客户端钉不住探针→`PROBE_NOT_ACTIVE` 拒绝。自测首轮实际抓到两个真 bug：注入的 `diff`/`shoot` 是 async 而调用处漏了 `await`（`frame.ratio` 变成 `undefined`，全部误判为拒绝）；缓存用例的断言在第三次调用之后才取值（测的是三轮之后的截屏数）。两处都已修正，日志保留。
+
+**六轮实测（2026-10-21）**：MAIN 内容指纹 sha256 `8178C7CF…`（同 md5 `E69CE96A…`、sha1 `03FF4906…`），六轮前后**全部不变**，器件 63→63、导线 55→55、页数 2→2。
+
+| 运行 | exit | status | reason | frameRatio |
+|---|---|---|---|---|
+| t28 钩子 | 2 | FOREIGN_CANVAS | FORCED_FOREIGN_CANVAS | — |
+| t29 钩子 | 2 | FOREIGN_CANVAS | FORCED_FOREIGN_CANVAS | — |
+| t32 钩子 | 2 | FOREIGN_CANVAS | FORCED_FOREIGN_CANVAS | — |
+| t28 正常 | 0 | OK | **CANVAS_ON_PROBE** | 0.723 |
+| t29 正常 | 0 | OK_WITH_KNOWN_RESIDUE | **CANVAS_ON_PROBE** | 0.601 |
+| t32 正常 | 0 | OK | **CANVAS_ON_PROBE** | 0.601 |
+
+**与 r2t1 的关键差异，必须记录**：r2t1 那轮三条正常路径都是 `ratio=0` → `CANVAS_NOT_ON_PROBE` → exit 2；本轮三条正常路径 `ratio=0.60–0.72` → 放行并跑完。这不是判据变松，而是**环境变了**：中途桥进程与编辑器标签重建过，重注册后 `openDocument` 真的切换了画布。旁证是 MAIN 指纹未变——若画布仍停留在 MAIN，这 96×3 个 flag 会写进 MAIN 并改变指纹。因此"六轮全部 exit 2"在当前环境**不可复现**，能复现的是：**钩子三轮 exit 2，正常三轮在画布确属探针时放行**。判据本身的双向性（该拒的拒、该放的放）反而由此得到一次正面验证。
+
+**已知口子**：`t29` 正常路径返回 `OK_WITH_KNOWN_RESIDUE`，即它自认容忍既有残留页；本轮页数仍为 2（MAIN + P1），未新增。

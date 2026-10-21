@@ -18,7 +18,7 @@ import { pathToFileURL } from 'node:url'
 import { join, resolve } from 'node:path'
 import { gateFreshness } from './shared/freshness.mjs'
 import { confirmPageGone, saveOwnDocument } from './shared/page-cleanup.mjs'
-import { assertOwnCanvas, reportForeignCanvas } from './shared/canvas-owner.mjs'
+import { assertOwnCanvas, makeWriteGuard, abortForeign, reportForeignCanvas } from './shared/canvas-owner.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 gateFreshness(repoRoot)
@@ -106,7 +106,7 @@ log('probe-created', { probe: page.probe, isMain: page.probe === base.main })
 // flags went into MAIN while the API called this run's probe active. So the first
 // write is preceded by a pixel test - pin MAIN, shoot, pin the probe, shoot - and
 // if the frame does not change the canvas is not ours and this run writes nothing.
-const ownCanvas = await assertOwnCanvas({
+const guard = makeWriteGuard({
   probe: page.probe,
   main: base.main,
   readActive: () => call(`const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo(); return c && c.uuid;`, 60_000),
@@ -115,6 +115,7 @@ const ownCanvas = await assertOwnCanvas({
   evidenceDir: resolve('docs', 'evidence', 'current'),
   forceForeign: process.env.T28_FORCE_FOREIGN_CANVAS === '1',
 })
+const ownCanvas = await guard('initial')
 out.canvasOwner = {
   ok: ownCanvas.ok,
   reason: ownCanvas.reason,
@@ -233,6 +234,16 @@ out.ab = {
 // ---- 4. cleanup: only ids this run created ---------------------------------
 // Split so the save can be guarded: sch_Document.save() writes the ACTIVE
 // document, so it may only run while the active document is this run's probe.
+
+// r3t1: every write path passes the guard, not just the first one.
+const gv1 = await guard('cleanupA')
+if (!gv1.ok) {
+  await abortForeign({ tag: 'T28', verdict: gv1, probe: out.probe?.uuid ?? pageStep?.probe ?? out.probePage, main: base.main, call, deleteProbe: false, out })
+  out.status = 'FOREIGN_CANVAS_MIDWAY'
+  out.wrote = 'partial-before-cleanupA'
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(2)
+}
 const cleanupA = await call(`
 const ids = ${JSON.stringify(measure.ids ?? [])};
 const probe = ${JSON.stringify(page.probe)};

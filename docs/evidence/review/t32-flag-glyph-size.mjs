@@ -25,7 +25,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gateFreshness } from './shared/freshness.mjs'
 import { confirmPageGone, saveOwnDocument } from './shared/page-cleanup.mjs'
-import { assertOwnCanvas, reportForeignCanvas } from './shared/canvas-owner.mjs'
+import { assertOwnCanvas, makeWriteGuard, abortForeign, reportForeignCanvas } from './shared/canvas-owner.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const freshSnapshot = gateFreshness(repoRoot)
@@ -156,7 +156,7 @@ if (pageStep.probe === base.main) {
 // API reports as active (measured: 96 flags landed on MAIN while the API named a
 // probe). The first write must therefore be preceded by a pixel test; if the canvas
 // does not move when the active page changes, this run writes nothing and exits 2.
-const ownCanvas = await assertOwnCanvas({
+const guard = makeWriteGuard({
   probe: pageStep.probe,
   main: base.main,
   readActive: () => call(`const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo(); return c && c.uuid;`, 60_000),
@@ -165,6 +165,7 @@ const ownCanvas = await assertOwnCanvas({
   evidenceDir: resolve('docs', 'evidence', 'current'),
   forceForeign: process.env.T32_FORCE_FOREIGN_CANVAS === '1',
 })
+const ownCanvas = await guard('initial')
 out.canvasOwner = {
   ok: ownCanvas.ok,
   reason: ownCanvas.reason,

@@ -47,7 +47,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gateFreshness } from './shared/freshness.mjs'
 import { confirmPageGone, saveOwnDocument } from './shared/page-cleanup.mjs'
-import { assertOwnCanvas, reportForeignCanvas } from './shared/canvas-owner.mjs'
+import { assertOwnCanvas, makeWriteGuard, abortForeign, reportForeignCanvas } from './shared/canvas-owner.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const freshSnapshot = gateFreshness(repoRoot)
@@ -123,7 +123,7 @@ if (pageStep.probe === base.main) {
 // API reports as active (measured: 96 flags landed on MAIN while the API named a
 // probe). Nothing below may run until a pixel test proves the canvas moved when the
 // active page changed; if it did not, this run writes nothing and exits 2.
-const ownCanvas = await assertOwnCanvas({
+const guard = makeWriteGuard({
   probe: pageStep.probe,
   main: base.main,
   readActive: () => call(`const c = await eda.dmt_Schematic.getCurrentSchematicPageInfo(); return c && c.uuid;`, 60_000),
@@ -132,6 +132,7 @@ const ownCanvas = await assertOwnCanvas({
   evidenceDir: resolve('docs', 'evidence', 'current'),
   forceForeign: process.env.T29_FORCE_FOREIGN_CANVAS === '1',
 })
+const ownCanvas = await guard('initial')
 out.canvasOwner = {
   ok: ownCanvas.ok,
   reason: ownCanvas.reason,
@@ -166,6 +167,16 @@ const staggered = NETS.map((net, i) => ({
   y: 100 + (i % 2 === 0 ? 0 : 5) + Math.floor(i / 2) * 20,
 }))
 
+
+// r3t1: every write path passes the guard, not just the first one.
+const gv2 = await guard('place-control')
+if (!gv2.ok) {
+  await abortForeign({ tag: 'T29', verdict: gv2, probe: out.probe?.uuid ?? pageStep?.probe ?? out.probePage, main: base.main, call, deleteProbe: false, out })
+  out.status = 'FOREIGN_CANVAS_MIDWAY'
+  out.wrote = 'partial-before-place-control'
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(2)
+}
 const place = (rows) => call(`
 const rows = ${JSON.stringify(rows)};
 const made = [];
@@ -180,7 +191,23 @@ await new Promise(r => setTimeout(r, 500));
 return { made };
 `, 240_000)
 
+const gCtl = await guard('place-control')
+if (!gCtl.ok) {
+  await abortForeign({ tag: 'T29', verdict: gCtl, probe: out.probe?.uuid, main: base.main, call, deleteProbe: false, out })
+  out.status = 'FOREIGN_CANVAS_MIDWAY'
+  out.wrote = 'partial-before-place-control'
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(2)
+}
 const placedControl = await place(control)
+const gStag = await guard('place-staggered')
+if (!gStag.ok) {
+  await abortForeign({ tag: 'T29', verdict: gStag, probe: out.probe?.uuid, main: base.main, call, deleteProbe: false, out })
+  out.status = 'FOREIGN_CANVAS_MIDWAY'
+  out.wrote = 'partial-after-control-before-staggered'
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(2)
+}
 const placedStaggered = await place(staggered)
 const placed = [...(placedControl?.made ?? []), ...(placedStaggered?.made ?? [])]
 out.placement = { control: placedControl?.made?.length ?? 0, staggered: placedStaggered?.made?.length ?? 0, total: placed.length }
@@ -336,6 +363,16 @@ out.verdict = {
 // ---- 5. cleanup: only what this run created, and only a page != MAIN -------
 // Split so the save can be guarded: sch_Document.save() writes the ACTIVE
 // document, so it may only run while the active document is this run's probe.
+
+// r3t1: every write path passes the guard, not just the first one.
+const gv3 = await guard('cleanupA')
+if (!gv3.ok) {
+  await abortForeign({ tag: 'T29', verdict: gv3, probe: out.probe?.uuid ?? pageStep?.probe ?? out.probePage, main: base.main, call, deleteProbe: false, out })
+  out.status = 'FOREIGN_CANVAS_MIDWAY'
+  out.wrote = 'partial-before-cleanupA'
+  console.log(JSON.stringify(out, null, 1))
+  process.exit(2)
+}
 const cleanupA = await call(`
 const ids = ${JSON.stringify(placed.map((p) => p.id))};
 const probe = ${JSON.stringify(pageStep.probe)};
