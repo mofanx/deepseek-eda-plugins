@@ -13,6 +13,13 @@
 //   6. delta !== 1 after a delete           -> COMPONENT_DELTA_2, 0 recorded
 //   7. already gone BEFORE the run          -> ALREADY_GONE_PREFLIGHT, 0 deleted
 //   8. already gone DURING the run          -> ALREADY_GONE_DURING_RUN, abort
+//   9. ComponentType changes DURING the run -> WRONG_TYPE_*, abort, later ids untouched
+//  10. coordinates drift DURING the run     -> COORDS_MOVED, abort, later ids untouched
+//
+// 9 and 10 exist because r2t1/t6 showed the loop-local guards were untested: with
+// both guards disabled the old 8 cases still passed. They assert the four things
+// that make an abort real: exitCode, aborted reason, deleted count/content, and
+// the number of deleteOne calls (a "refusal" that keeps deleting cannot pass).
 //
 // Run: node docs/evidence/review/t54-restore-selftest.mjs
 
@@ -136,6 +143,50 @@ const cases = [
       check(rep.exitCode === 2 && rep.aborted === 'ALREADY_GONE_DURING_RUN', `exit=${rep.exitCode} aborted=${rep.aborted}`)
       check(rep.deleted.length === 1 && rep.deleted[0] === 'a', `deleted=${JSON.stringify(rep.deleted)}`)
       check(!rep.deleted.includes('b'), 'b was recorded as deleted after it had vanished')
+      return rep
+    }
+  },
+  {
+    name: '09 abort: ComponentType changes DURING the run',
+    async run () {
+      // 'a' is deleted normally; between that delete and the next read, 'b' stops
+      // being a netflag. The loop re-reads before every delete and must stop, not
+      // go on to delete 'b' or 'c'.
+      const w = makeWorld({
+        rows: [row('a'), row('b'), row('c')],
+        afterDelete: (s, id) => {
+          if (id !== 'a') return
+          const b = s.rows.find((r) => r.id === 'b')
+          if (b) b.type = 'part'
+        }
+      })
+      const rep = await runRestore({ readAll: w.readAll, deleteOne: w.deleteOne, set: ['a', 'b', 'c'], all42: ['a', 'b', 'c'], snapshot: { components: [row('a'), row('b'), row('c')], wires: [] }, limit: 3, execute: true, sleep: async () => {} })
+      check(rep.exitCode === 2, `exitCode ${rep.exitCode}`)
+      check(rep.aborted === 'WRONG_TYPE_part', `aborted ${rep.aborted}`)
+      check(rep.deleted.length === 1 && rep.deleted[0] === 'a', `deleted=${JSON.stringify(rep.deleted)}`)
+      check(w.calls() === 1, `deleteOne called ${w.calls()} times`)
+      check(['b', 'c'].every((id) => w.state.rows.some((r) => r.id === id)), 'kept deleting after the type changed')
+      return rep
+    }
+  },
+  {
+    name: '10 abort: coordinates drift DURING the run',
+    async run () {
+      // Same shape, but the later id moves instead of changing type.
+      const w = makeWorld({
+        rows: [row('a'), row('b'), row('c')],
+        afterDelete: (s, id) => {
+          if (id !== 'a') return
+          const b = s.rows.find((r) => r.id === 'b')
+          if (b) b.x = 999
+        }
+      })
+      const rep = await runRestore({ readAll: w.readAll, deleteOne: w.deleteOne, set: ['a', 'b', 'c'], all42: ['a', 'b', 'c'], snapshot: { components: [row('a'), row('b'), row('c')], wires: [] }, limit: 3, execute: true, sleep: async () => {} })
+      check(rep.exitCode === 2, `exitCode ${rep.exitCode}`)
+      check(rep.aborted === 'COORDS_MOVED', `aborted ${rep.aborted}`)
+      check(rep.deleted.length === 1 && rep.deleted[0] === 'a', `deleted=${JSON.stringify(rep.deleted)}`)
+      check(w.calls() === 1, `deleteOne called ${w.calls()} times`)
+      check(['b', 'c'].every((id) => w.state.rows.some((r) => r.id === id)), 'kept deleting after the coordinates moved')
       return rep
     }
   }
