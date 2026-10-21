@@ -1,0 +1,40 @@
+{
+ "task": "r3t2",
+ "at": "2026-10-21T06:47:40Z",
+ "reviewed": { "task": "t1", "claim": "t46 requires --apply to write; without it the codemod is read-only", "file": "docs/evidence/review/t46-codemod-mtime-gate.mjs" },
+ "head": { "local": "3ea92aa", "originMaster": "3ea92aa", "fetched": true },
+ "findings": {
+  "applyGateAbsent": {
+   "verdict": "fail",
+   "evidence": "no '--apply' string anywhere under docs/evidence/review (grep across *.mjs and shared/*.mjs returns nothing); origin/master:docs/evidence/review/t46-codemod-mtime-gate.mjs still contains `const check = process.argv.includes('--check')` and `if (!check && changed) writeFileSync(path, text)`; its only commit touching the file is 0c31e96. There is also no unmerged branch or stash (git branch -a / git stash list / git log --all all show master only)."
+  },
+  "noArgWrites": {
+   "verdict": "fail",
+   "method": "sandbox: copied the 13 targets plus t46 into %TEMP%\\t46sb\\docs\\evidence\\review so repoRoot resolves inside the sandbox, then ran with no arguments and compared my own SHA-256 before/after",
+   "exit": 1,
+   "stdout": "{\n \"mode\": \"write\",",
+   "changedFiles": ["t29-flag-stagger-readback.mjs"],
+   "changedCount": "1 / 13",
+   "repoUntouched": "repo targets show no ' M' entries; the only entries under docs/evidence/review are the two pre-existing untracked j6 files"
+  },
+  "failClosed": {
+   "verdict": "fail",
+   "evidence": "the write call at L133 is guarded only by `!check`, so any invocation without --check reaches writeFileSync. The sandbox run proves it: mode=write and one file rewritten. This is the same path that altered t29 during an earlier no-arg run; that change was restored."
+  },
+  "t29MatchesHead": {
+   "verdict": "pass",
+   "evidence": "git hash-object docs/evidence/review/t29-flag-stagger-readback.mjs = 1461daf24d01453140646d45256d21567f50d574; git rev-parse HEAD:docs/evidence/review/t29-flag-stagger-readback.mjs = 1461daf24d01453140646d45256d21567f50d574; git status --porcelain -- <t29> is empty"
+  },
+  "worktreeClean": {
+   "verdict": "fail",
+   "evidence": "git status shows ' M docs/evidence/current/main-inventory.json' plus 9 untracked files (frame-diff.ps1, seven t27-*.png, t31-cross-review-t6.mjs, t32-cross-review-t10.mjs). None belong to this review and none are t29; they pre-date it and are attributed to the canvas-script work in the same tree."
+  },
+  "scene": {
+   "verdict": "pass",
+   "evidence": "independent read: 21 components (8 part + 13 netflag), 55 wires, 55 wire nets, pages [MAIN, P1], active MAIN; freshness --check FRESH exit 0"
+  }
+ },
+ "overall": "unsound",
+ "overallReason": "The reviewed artifact is not in HEAD or origin: there is no --apply gate, and a no-argument run still writes (sandbox: 1/13 files rewritten). The claim cannot be reviewed as delivered; the review is of the absent implementation, not of a buggy one.",
+ "request": "t1's delivery commit hash (or a note that the --apply lock is still pending)"
+}
