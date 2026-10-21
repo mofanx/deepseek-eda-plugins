@@ -1,0 +1,120 @@
+{
+  "task": "r2t1",
+  "at": "2026-10-21T07:40:00.000Z",
+  "subject": "independent re-run of the t46 apply-lock verification, reviewing j5's r4t1 conclusion",
+  "versionRelationship": {
+    "fetch": "git fetch origin succeeded on the first attempt",
+    "head": "7f355a7828f278a5e0f49f0b4e21ae6ce48c3718",
+    "originMaster": "7f355a7828f278a5e0f49f0b4e21ae6ce48c3718",
+    "headEqualsOriginMaster": true,
+    "headIsNewerThanTheLock": true,
+    "lockCommit": "0d1a08b",
+    "r4t1EvidenceCommit": "d0ee028 (test(evidence): re-check the t46 apply lock on current HEAD and retire the stale verdict)",
+    "commitsAfterTheLock": ["d0ee028", "60171a8", "7f355a7"],
+    "t46UnchangedSinceTheLock": {
+      "command": "git diff --stat 0d1a08b..HEAD -- docs/evidence/review/t46-codemod-mtime-gate.mjs",
+      "output": "empty",
+      "blobAtHead": "30d1fa2a07f3ffe9b29c4475fd0346f52676bb76",
+      "meaning": "the object r4t1 measured is byte-identical to the one at current HEAD, so a re-run now is a re-run of the same code"
+    }
+  },
+  "sandbox": {
+    "root": "%TEMP%\\r5t1-sandbox",
+    "method": "13 targets copied out of the repo, the repo's real t46 invoked with --dir; every sha256 computed here, none taken from j5",
+    "targets": 13
+  },
+  "cases": [
+    {
+      "id": "clean-dry-run",
+      "setup": "13 HEAD targets, no injected content",
+      "command": "node docs/evidence/review/t46-codemod-mtime-gate.mjs --dir <clean>",
+      "exit": 0,
+      "mode": "dry-run",
+      "pending": [],
+      "changedInReport": "0/13",
+      "filesChangedOnDisk": "0/13",
+      "verdict": "pass"
+    },
+    {
+      "id": "pending-dry-run",
+      "setup": "same copy with t29 replaced by its pre-migration version from 0c31e96^ (sha256 c3cd15b6..), i.e. real migratable content",
+      "command": "node docs/evidence/review/t46-codemod-mtime-gate.mjs --dir <inject>",
+      "exit": 1,
+      "mode": "dry-run",
+      "pending": ["t29-flag-stagger-readback.mjs"],
+      "changedInReport": "1/13",
+      "filesChangedOnDisk": "0/13",
+      "stderr": "DRY RUN: 1 file(s) would change. Nothing was written. Re-run with --apply to write.",
+      "verdict": "pass"
+    },
+    {
+      "id": "apply-writes",
+      "setup": "same injected copy",
+      "command": "node docs/evidence/review/t46-codemod-mtime-gate.mjs --dir <inject> --apply",
+      "exit": 0,
+      "mode": "apply",
+      "pending": ["t29-flag-stagger-readback.mjs"],
+      "filesChangedOnDisk": "1/13",
+      "shaBefore": "c3cd15b6de17d7383be6126743326b8dddf0869812c74b2537c08abcc39c8a42",
+      "shaAfter": "8afd272a6f8767760e8db314184d3ab2cf62030eb31b5cd13283c7d37c16023c",
+      "gateFreshnessCallsInResult": 1,
+      "mtimeHelpersLeftInResult": 0,
+      "verdict": "pass"
+    },
+    {
+      "id": "migrated-apply-is-idempotent",
+      "setup": "fresh copy of the 13 already-migrated HEAD targets",
+      "command": "node docs/evidence/review/t46-codemod-mtime-gate.mjs --dir <migrated> --apply",
+      "exit": 0,
+      "mode": "apply",
+      "pending": [],
+      "alreadyMigrated": "13/13",
+      "filesChangedOnDisk": "0/13",
+      "note": "this is the path that lost t29's blank line in the r2t4 accident: --apply on an already-migrated tree must be a no-op, and now it is",
+      "verdict": "pass"
+    }
+  ],
+  "staticAudit": {
+    "writeCalls": [
+      { "line": 17, "text": "import { readFileSync, writeFileSync } from 'node:fs'", "kind": "import only" },
+      { "line": 154, "text": "if (APPLY && changed) writeFileSync(path, text)", "kind": "the only write" }
+    ],
+    "applyFlagDefinedAt": 93,
+    "sideChannelsSearched": ["appendFileSync", "unlink", "rename", "rmSync", "createWriteStream", "copyFile", "truncate", "openSync"],
+    "sideChannelsFound": 0,
+    "idempotenceEarlyReturn": "L112-115: if (!applied.length) { push ALREADY MIGRATED; continue } — fixups and the blank-line normalisation at the end are unreachable for an already-migrated file",
+    "verdict": "pass"
+  },
+  "t29Identity": {
+    "worktreeBlob": "1461daf24d01453140646d45256d21567f50d574",
+    "headBlob": "1461daf24d01453140646d45256d21567f50d574",
+    "equal": true
+  },
+  "reviewOfR4t1": {
+    "file": "docs/evidence/current/r4t1-t46-lock-recheck.json",
+    "commit": "d0ee028",
+    "staleConclusionStatedExplicitly": true,
+    "quote": "r3t2's unsound verdict is a stale-tree conclusion: it measured HEAD 3ea92aa, where t46 had no --apply gate. It is hereby invalidated as a statement about the current tree.",
+    "claimByClaim": [
+      { "claim": "dryRunZeroWrites", "r4t1": "pristine 0/13, pending case 0/13", "mine": "pristine 0/13, pending case 0/13", "agree": true },
+      { "claim": "applyStillWrites", "r4t1": "1/13 changed (t35 injected line)", "mine": "1/13 changed (t29 pre-migration copy)", "agree": true },
+      { "claim": "alreadyMigratedIsIdempotent", "r4t1": "13/13 ALREADY MIGRATED, 0/13", "mine": "13/13 ALREADY MIGRATED, 0/13", "agree": true },
+      { "claim": "noWritePathWithoutApply", "r4t1": "only L154, guarded by APPLY", "mine": "only L154, guarded by APPLY, no side channels", "agree": true },
+      { "claim": "t29MatchesHead", "r4t1": "1461daf2..", "mine": "1461daf2..", "agree": true },
+      { "claim": "scene", "r4t1": "t53 5/5 PASS, FRESH, packages 0", "mine": "t53 PASS exit 0, FRESH, packages 0", "agree": true }
+    ],
+    "differenceInMethodOnly": "r4t1 injected a removable line into t35; I used the genuine pre-migration t29. Different injection, same three conclusions; the resulting sha after --apply differs (8afd272a.. vs pristine) only because the pre-migration file is a different vintage, not because the codemod behaved differently.",
+    "verdict": "pass"
+  },
+  "repoUntouched": {
+    "evidence": "all runs used --dir into %TEMP%; `git status --porcelain -- docs/evidence/review` still shows only the two pre-existing untracked files (t31-cross-review-t6.mjs, t32-cross-review-t10.mjs); no repository file was written",
+    "sandboxRemoved": true
+  },
+  "gates": {
+    "t53": { "exit": 0, "summary": "PASS: 21 components (8 part + 13 netflag), id sets equal, 55 wires and id|net pairs, 2 pages, MAIN present" },
+    "freshness": { "exit": 0, "stdout": "{\"status\":\"FRESH\",\"baselineVersion\":3,\"packages\":5,\"files\":21}" },
+    "packagesDirty": 0
+  },
+  "overall": "pass",
+  "openIssue": "r4t1's own verdict has no independent review before this one; this file is that review, and it agrees item by item."
+}
