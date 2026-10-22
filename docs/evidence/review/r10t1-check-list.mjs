@@ -159,6 +159,48 @@ const mustSee = MUST_SEE.map((id) => candidates.find((c) => c.attribute === id) 
 // picked them with a text-box test this script does not reproduce.
 const columnHits = candidates.length
 
+// The 13 is one step of a funnel, and the guide has to print the whole chain or
+// the number looks arbitrary. Definitions, in the order they are applied:
+//   base   - an attribute that is drawn (X/Y, non-empty value, ValueVisible not false)
+//   step A - base anchors within 6 units of some segment, foot in (0.05,0.95),
+//            counting every wire, i.e. the nearest segment may be the label's own
+//   step B - same, but the label's own wire is skipped (a label drawn on its own
+//            wire is normal, not an overlap)
+//   step C - restrict to net labels in scope (Key=Name, attached to a net flag or a
+//            wire) - this is the set the checklist reports
+const baseAnchors = before.attrs.filter((a) =>
+  a.X !== null && a.Y !== null && String(a.Value ?? '').trim() !== '' && a.ValueVisible !== false)
+let hitAnyNearest = 0
+let hitForeignExclOwn = 0
+for (const a of baseAnchors) {
+  let bestAny = null
+  let bestForeign = null
+  for (const w of before.wires) {
+    const isOwn = w.PrimitiveId === a.ParentPrimitiveId
+    for (const [ax, ay, bx, by] of segmentsOf(w.Line)) {
+      const { d, t } = segDist(a.X, a.Y, ax, ay, bx, by)
+      if (bestAny === null || d < bestAny.d) bestAny = { d, t }
+      if (!isOwn && (bestForeign === null || d < bestForeign.d)) bestForeign = { d, t }
+    }
+  }
+  if (bestAny && bestAny.d <= 6 && bestAny.t > 0.05 && bestAny.t < 0.95) hitAnyNearest += 1
+  if (bestForeign && bestForeign.d <= 6 && bestForeign.t > 0.05 && bestForeign.t < 0.95) hitForeignExclOwn += 1
+}
+const funnel = {
+  base: baseAnchors.length,
+  nearestWithOwn: hitAnyNearest,
+  skipOwn: hitForeignExclOwn,
+  netNameLabels: labels.length,
+  candidates: columnHits,
+  definitions: {
+    base: 'X/Y 非空、Value 非空、ValueVisible !== false 的属性',
+    nearestWithOwn: 'base 中「最近段距离 ≤6 且垂足在 (0.05,0.95)」的条数，不排除标签自身的导线',
+    skipOwn: '同上，但跳过该标签自身的导线',
+    netNameLabels: '父级是网络标志或导线、Key=Name、值非空的标签（在册的网络名标签总数）',
+    candidates: 'netNameLabels 中「最近的别的网络的段 ≤6 且垂足在中段」的条数',
+  },
+}
+
 // ------------------------------------------------------------------ the table
 const manifest = JSON.parse(readFileSync(join(outDir, 'r8t1-main-hires-tiles.json'), 'utf8'))
 const sha256File = (abs) => createHash('sha256').update(readFileSync(abs)).digest('hex')
@@ -309,7 +351,19 @@ ${allRows.map((r) => r.abs).join('\n')}
 
 **与 r9t1 证据的差异（必须说清）**：\`r9t1-main-third-class.json\` 把这两条的 \`distance\` 记为 **0**。本次按导线折线（\`Line\` 每段 4 个数）逐段复算，最近的外网络线段距离是 **${mustSee[0].dist ?? '?'}**、垂足 t=${mustSee[0].t ?? '?'}——因为标签锚点落在**自己导线**的端点上，与 +3V3/GND 的水平段还差半个线宽。**结论（这两条是候选）不变，但那个 0 应读作 5.0**；以像素为准：\`tile-r4c0\` 中 (210,795) 与 (390,795) 处的 MCU-xx 标签确实与外网络的 \`+3V3\`/\`GND\` 字样及竖线相叠。
 
-**选条依据的边界**：若只用「≤6 单位 + 垂足在中段」两条，会命中 **${columnHits}** 条——MCU 标签是整列排布的，相邻标签到同一条 +3V3/GND 竖段的距离都是 5。也就是说**几何本身挑不出 W1/W2**；r9t1 的「2 条」用了文字框相交判据，本清单不复现那个判据，只复算锚点距离。所以最终判定请以 \`tile-r4c0\` 的像素为准：这里列的 ${columnHits} 条是「同列全部候选」，不是「只有 2 条」。
+**${funnel.candidates} 条是怎么筛出来的（每一步都能复算）**：
+
+| 步骤 | 条件 | 条数 |
+|---|---|---|
+| 0 | 会绘制的属性锚点（X/Y 非空、值非空、\`ValueVisible !== false\`） | ${funnel.base} |
+| 1 | 其中「最近导线段距离 ≤6 且垂足在 (0.05, 0.95)」，**不**排除标签自身的导线 | ${funnel.nearestWithOwn} |
+| 2 | 同上，但**跳过标签自身的导线** | ${funnel.skipOwn} |
+| 3 | 再限定为网络名标签（\`Key=Name\`，父级是网络标志或导线） | ${funnel.netNameLabels} |
+| 4 | 其中「最近的**别的网络**的段 ≤6 且垂足在中段」——本清单报告的候选 | ${funnel.candidates} |
+
+> 关键一步在第 2 行：**不**排除自身导线时只有 ${funnel.nearestWithOwn} 条（全是管脚标注）；跳过自身导线后变成 ${funnel.skipOwn} 条，**多出来的 ${funnel.skipOwn - funnel.nearestWithOwn} 条正好就是第 4 步的 ${funnel.candidates} 条**——因为 ${funnel.candidates} 个网络名标签的最近段都是自己那条线（d=0、t=0），先被 t 判据剔掉，跳过自身导线后才露出来。所以「≤6 且垂足在中段」这两条单独用**得不到** ${funnel.candidates}；必须同时有 \`Key=Name\` 与「排除自身导线」两个条件。这一点此前写漏了，现按代码更正。
+>
+> 还要说清：这 ${funnel.candidates} 条是**同一列**的网络名（MCU 标签整列排布，相邻标签到同一条 +3V3/GND 竖段都是 5 单位），所以**几何本身挑不出 W1/W2**；r9t1 的「2 条」用了文字框相交判据，本清单不复现那个判据。最终判定请以 \`tile-r4c0\` 的像素为准：这里列的是「同列全部候选」，不是「只有 2 条」。
 
 ## 4. 自证
 
@@ -334,6 +388,7 @@ const summary = {
     stage3_thisRun: { tabsBefore, tabsAfter, currentBefore, currentAfter, readyBefore: before.ready, readyAfter: after.ready, openDocument: openResult.openDocument ?? null, waitForDocumentReady: openResult.waitForDocumentReady ?? null, activateDocument: openResult.activateDocument ?? null, changed: tabChanged },
   },
   invariants: { before: invBefore, after: invAfter, equal: invariantsEqual },
+  funnel,
   candidates: { mustSee, allForeignLabels: candidates, columnHits, note: '几何条件命中整列 13 条；W1/W2 由 r9t1 的文字框判据选出，本脚本只复算锚点距离' },
   textAnchors: { projectName: text31 ? { x: text31.X, y: text31.Y, size: text31.FontSize } : null, tuFu: text32 ? { x: text32.X, y: text32.Y, size: text32.FontSize } : null },
   fileChecks: {
@@ -355,6 +410,36 @@ const reread2 = [GUIDE, SUMMARY, join(repoRoot, SHOT)].filter((p) => !existsSync
 // .png named anywhere in the guide (table, prose, screenshot) must exist on disk.
 const namedInGuide = [...new Set([...readFileSync(GUIDE, 'utf8').matchAll(/([A-Za-z0-9_.-]+\.png)/g)].map((m) => m[1]))]
 const namedMissing = namedInGuide.filter((name) => !existsSync(join(outDir, name)))
+
+// The guide may only print numbers that came out of this run: read each one back
+// out of the rendered text and compare it with the JSON. A hand-edited digit in
+// the funnel fails here, and the key says which sentence lies.
+const guideText = readFileSync(GUIDE, 'utf8')
+const statFails = []
+const statSpecs = [
+  { key: 'base', re: /\| 0 \| 会绘制的属性锚点[^|]*\| (\d+) \|/, want: funnel.base },
+  { key: 'nearestWithOwn', re: /\| 1 \| 其中「最近导线段距离[^|]*\| (\d+) \|/, want: funnel.nearestWithOwn },
+  { key: 'skipOwn', re: /\| 2 \| 同上，但[^|]*\| (\d+) \|/, want: funnel.skipOwn },
+  { key: 'netNameLabels', re: /\| 3 \| 再限定为网络名标签[^|]*\| (\d+) \|/, want: funnel.netNameLabels },
+  { key: 'candidates', re: /\| 4 \| 其中「最近的\*\*别的网络\*\*的段[^|]*\| (\d+) \|/, want: funnel.candidates },
+  { key: 'proseNearest', re: /不\*\*排除自身导线时只有 (\d+) 条/, want: funnel.nearestWithOwn },
+  { key: 'proseSkip', re: /跳过自身导线后变成 (\d+) 条/, want: funnel.skipOwn },
+]
+for (const spec of statSpecs) {
+  const m = guideText.match(spec.re)
+  if (!m) { statFails.push({ key: spec.key, problem: 'not-found-in-guide' }); continue }
+  if (Number(m[1]) !== spec.want) statFails.push({ key: spec.key, inGuide: Number(m[1]), inJson: spec.want })
+}
+const diffLine = guideText.match(/多出来的 (\d+) 条正好就是第 4 步的 (\d+) 条/)
+if (!diffLine) {
+  statFails.push({ key: 'funnelDelta', problem: 'not-found-in-guide' })
+} else if (Number(diffLine[1]) !== funnel.skipOwn - funnel.nearestWithOwn || Number(diffLine[2]) !== funnel.candidates) {
+  statFails.push({ key: 'funnelDelta', inGuide: [Number(diffLine[1]), Number(diffLine[2])], expected: [funnel.skipOwn - funnel.nearestWithOwn, funnel.candidates] })
+}
+if (statFails.length > 0) {
+  console.error(JSON.stringify({ error: 'guide-number-out-of-sync', statFails }, null, 1))
+  process.exitCode = 1
+}
 
 const ok = missing.length === 0 && mismatched.length === 0 && invariantsEqual &&
   reread.length === 0 && reread2.length === 0 && mustSee.every((c) => !c.missing) && namedMissing.length === 0

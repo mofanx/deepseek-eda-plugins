@@ -1,6 +1,6 @@
 {
   "task": "r10t1",
-  "at": "2026-10-22T14:46:35.834Z",
+  "at": "2026-10-22T15:15:28.391Z",
   "guide": "docs/evidence/current/r10t1-check-list.md",
   "docUuid": "1ebf04a8860345ca8be2f73438086217",
   "visibility": {
@@ -61,6 +61,20 @@
     },
     "equal": true
   },
+  "funnel": {
+    "base": 188,
+    "nearestWithOwn": 32,
+    "skipOwn": 45,
+    "netNameLabels": 68,
+    "candidates": 13,
+    "definitions": {
+      "base": "X/Y 非空、Value 非空、ValueVisible !== false 的属性",
+      "nearestWithOwn": "base 中「最近段距离 ≤6 且垂足在 (0.05,0.95)」的条数，不排除标签自身的导线",
+      "skipOwn": "同上，但跳过该标签自身的导线",
+      "netNameLabels": "父级是网络标志或导线、Key=Name、值非空的标签（在册的网络名标签总数）",
+      "candidates": "netNameLabels 中「最近的别的网络的段 ≤6 且垂足在中段」的条数"
+    }
+  },
   "candidates": {
     "mustSee": [
       {
@@ -88,44 +102,11 @@
     ],
     "allForeignLabels": [
       {
-        "attribute": "attr107",
-        "parent": "layout:wire:MCU_30:flags",
-        "value": "MCU-30",
+        "attribute": "attr114",
+        "parent": "layout:wire:MCU_37",
+        "value": "MCU-37",
         "x": 210,
-        "y": 755,
-        "dist": 5,
-        "t": 0.75,
-        "wireNet": "+3V3",
-        "wire": "layout:wire:_3V3:flags"
-      },
-      {
-        "attribute": "attr108",
-        "parent": "layout:wire:MCU_31:flags",
-        "value": "MCU-31",
-        "x": 210,
-        "y": 765,
-        "dist": 5,
-        "t": 0.75,
-        "wireNet": "+3V3",
-        "wire": "layout:wire:_3V3:flags"
-      },
-      {
-        "attribute": "attr109",
-        "parent": "layout:wire:MCU_32:flags",
-        "value": "MCU-32",
-        "x": 210,
-        "y": 775,
-        "dist": 5,
-        "t": 0.75,
-        "wireNet": "+3V3",
-        "wire": "layout:wire:_3V3:flags"
-      },
-      {
-        "attribute": "attr110",
-        "parent": "layout:wire:MCU_33:flags",
-        "value": "MCU-33",
-        "x": 210,
-        "y": 785,
+        "y": 805,
         "dist": 5,
         "t": 0.75,
         "wireNet": "+3V3",
@@ -143,11 +124,44 @@
         "wire": "layout:wire:_3V3:flags"
       },
       {
-        "attribute": "attr114",
-        "parent": "layout:wire:MCU_37",
-        "value": "MCU-37",
+        "attribute": "attr110",
+        "parent": "layout:wire:MCU_33:flags",
+        "value": "MCU-33",
         "x": 210,
-        "y": 805,
+        "y": 785,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr109",
+        "parent": "layout:wire:MCU_32:flags",
+        "value": "MCU-32",
+        "x": 210,
+        "y": 775,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr108",
+        "parent": "layout:wire:MCU_31:flags",
+        "value": "MCU-31",
+        "x": 210,
+        "y": 765,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr107",
+        "parent": "layout:wire:MCU_30:flags",
+        "value": "MCU-30",
+        "x": 210,
+        "y": 755,
         "dist": 5,
         "t": 0.75,
         "wireNet": "+3V3",
@@ -172,8 +186,8 @@
         "y": 800,
         "dist": 5,
         "t": 0.75,
-        "wireNet": "MCU-26",
-        "wire": "layout:wire:MCU_26:flags"
+        "wireNet": "MCU-27",
+        "wire": "layout:wire:MCU_27:flags"
       },
       {
         "attribute": "attr99",
@@ -187,22 +201,11 @@
         "wire": "layout:wire:GND:flags"
       },
       {
-        "attribute": "attr100",
-        "parent": "layout:wire:MCU_22:flags",
-        "value": "MCU-22",
+        "attribute": "attr103",
+        "parent": "layout:wire:MCU_27:flags",
+        "value": "MCU-27",
         "x": 390,
-        "y": 775,
-        "dist": 5,
-        "t": 0.75,
-        "wireNet": "GND",
-        "wire": "layout:wire:GND:flags"
-      },
-      {
-        "attribute": "attr101",
-        "parent": "layout:wire:MCU_25:flags",
-        "value": "MCU-25",
-        "x": 390,
-        "y": 785,
+        "y": 805,
         "dist": 5,
         "t": 0.75,
         "wireNet": "GND",
@@ -220,11 +223,22 @@
         "wire": "layout:wire:GND:flags"
       },
       {
-        "attribute": "attr103",
-        "parent": "layout:wire:MCU_27:flags",
-        "value": "MCU-27",
+        "attribute": "attr101",
+        "parent": "layout:wire:MCU_25:flags",
+        "value": "MCU-25",
         "x": 390,
-        "y": 805,
+        "y": 785,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "GND",
+        "wire": "layout:wire:GND:flags"
+      },
+      {
+        "attribute": "attr100",
+        "parent": "layout:wire:MCU_22:flags",
+        "value": "MCU-22",
+        "x": 390,
+        "y": 775,
         "dist": 5,
         "t": 0.75,
         "wireNet": "GND",

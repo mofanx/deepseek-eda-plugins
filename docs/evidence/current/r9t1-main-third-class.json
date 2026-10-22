@@ -1,6 +1,6 @@
 {
   "task": "r9t1",
-  "at": "2026-10-21T09:29:44.300Z",
+  "at": "2026-10-22T15:15:27.850Z",
   "guide": "docs/evidence/current/r9t1-main-view-guide.md",
   "overview": "docs/evidence/current/r9t1-main-overview.png",
   "overviewDrawn": true,
@@ -8,6 +8,284 @@
     "textRadius": 6,
     "symbolRadius": 12,
     "note": "symbol is an anchor proxy: no bounding box and no pin primitives are readable"
+  },
+  "ruleFunnel": {
+    "attrsTotal": 662,
+    "withXY": 342,
+    "withValue": 342,
+    "hitsIgnoringVisibility": 47,
+    "hitsVisible": 34,
+    "hitsInvisible": 13,
+    "byOwner": {
+      "pin-annotation": 32,
+      "other": 2
+    },
+    "rawAnchorsWithin12": 14,
+    "wireSegments": 69,
+    "lineRefs": {
+      "xy": 147,
+      "value": 150,
+      "threshold": 162,
+      "visible": 169
+    },
+    "visibilityChoice": "kept: ValueVisible === false means the attribute is not drawn, so it cannot overlap anything on screen; every excluded hit is listed in the guide so a reader can add them back"
+  },
+  "suppressedByVisibility": [
+    {
+      "attribute": "379e7e26aef45c70",
+      "parent": "u1-e44",
+      "key": "Pin Type",
+      "value": "BI",
+      "x": 210,
+      "y": 795,
+      "distance": 0,
+      "t": 0.25,
+      "at": [
+        210,
+        795
+      ],
+      "wire": "layout:wire:_3V3:flags",
+      "net": "+3V3",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "afb2f2b3dbc67474",
+      "parent": "u1-e108",
+      "key": "Pin Type",
+      "value": "BI",
+      "x": 390,
+      "y": 795,
+      "distance": 0,
+      "t": 0.25,
+      "at": [
+        390,
+        795
+      ],
+      "wire": "layout:wire:GND:flags",
+      "net": "GND",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "4792e27d3ce4e44a",
+      "parent": "layout:flag:_3V3:bus:240-e9",
+      "key": "Pin Type",
+      "value": "Undefined",
+      "x": 155,
+      "y": 715,
+      "distance": 0,
+      "t": 0.92,
+      "at": [
+        155,
+        715
+      ],
+      "wire": "layout:wire:MCU_16",
+      "net": "MCU-16",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "5856aa1d5119f4b9",
+      "parent": "layout:flag:_3V3:bus:240-e17",
+      "key": "Pin Type",
+      "value": "Undefined",
+      "x": 245,
+      "y": 725,
+      "distance": 0,
+      "t": 0.88,
+      "at": [
+        245,
+        725
+      ],
+      "wire": "layout:wire:MCU_17:flags",
+      "net": "MCU-17",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "47143b57776db1e2",
+      "parent": "layout:flag:GND:bus:360-e15",
+      "key": "Pin Name",
+      "value": "Pin1",
+      "x": 400,
+      "y": 830,
+      "distance": 0,
+      "t": 0.86,
+      "at": [
+        400,
+        830
+      ],
+      "wire": "layout:wire:GND:flags",
+      "net": "GND",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "f48d24f68e95cc3e",
+      "parent": "layout:flag:GND:bus:360-e15",
+      "key": "Pin Number",
+      "value": "1",
+      "x": 399,
+      "y": 830,
+      "distance": 1,
+      "t": 0.86,
+      "at": [
+        400,
+        830
+      ],
+      "wire": "layout:wire:GND:flags",
+      "net": "GND",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "f9c91d843d4c4f0d",
+      "parent": "layout:flag:MCU_17:0-e11",
+      "key": "Pin Type",
+      "value": "IN",
+      "x": 236,
+      "y": 723,
+      "distance": 2,
+      "t": 0.65,
+      "at": [
+        236,
+        725
+      ],
+      "wire": "layout:wire:MCU_17:flags",
+      "net": "MCU-17",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "60fdc482b070f3d0",
+      "parent": "layout:flag:MCU_29:0-e11",
+      "key": "Pin Type",
+      "value": "IN",
+      "x": 236,
+      "y": 743,
+      "distance": 2,
+      "t": 0.65,
+      "at": [
+        236,
+        745
+      ],
+      "wire": "layout:wire:MCU_29:flags",
+      "net": "MCU-29",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "ff1cb68bf276794c",
+      "parent": "layout:flag:MCU_30:0-e11",
+      "key": "Pin Type",
+      "value": "IN",
+      "x": 236,
+      "y": 753,
+      "distance": 2,
+      "t": 0.65,
+      "at": [
+        236,
+        755
+      ],
+      "wire": "layout:wire:MCU_30:flags",
+      "net": "MCU-30",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "afcfd249d9f5b070",
+      "parent": "layout:flag:MCU_31:0-e11",
+      "key": "Pin Type",
+      "value": "IN",
+      "x": 236,
+      "y": 763,
+      "distance": 1.94,
+      "t": 0.89,
+      "at": [
+        235.5,
+        761.1
+      ],
+      "wire": "layout:wire:_3V3:flags",
+      "net": "+3V3",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "e53904ba70b24fad",
+      "parent": "layout:flag:MCU_32:0-e11",
+      "key": "Pin Type",
+      "value": "IN",
+      "x": 236,
+      "y": 773,
+      "distance": 1.94,
+      "t": 0.89,
+      "at": [
+        235.5,
+        771.1
+      ],
+      "wire": "layout:wire:_3V3:flags",
+      "net": "+3V3",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "682ecca3d82574c5",
+      "parent": "layout:flag:MCU_33:0-e11",
+      "key": "Pin Type",
+      "value": "IN",
+      "x": 236,
+      "y": 783,
+      "distance": 0.89,
+      "t": 0.89,
+      "at": [
+        235.6,
+        782.2
+      ],
+      "wire": "layout:wire:_3V3:flags",
+      "net": "+3V3",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    },
+    {
+      "attribute": "56d794c058111f23",
+      "parent": "layout:flag:MCU_34:0-e11",
+      "key": "Pin Type",
+      "value": "IN",
+      "x": 236,
+      "y": 793,
+      "distance": 2,
+      "t": 0.65,
+      "at": [
+        236,
+        795
+      ],
+      "wire": "layout:wire:MCU_34:flags",
+      "net": "MCU-34",
+      "owner": "pin-annotation",
+      "valueVisible": false
+    }
+  ],
+  "strideProbe": {
+    "stride2": {
+      "segments": 69,
+      "diagonals": 5,
+      "mid": 34,
+      "owners": {
+        "pin-annotation": 32,
+        "other": 2
+      },
+      "other": 2
+    },
+    "stride4": {
+      "segments": 62,
+      "diagonals": 0,
+      "mid": 32,
+      "owners": {
+        "pin-annotation": 32
+      },
+      "other": 0
+    }
   },
   "wireSegments": 69,
   "textPrimitiveCandidates": [],
@@ -20,13 +298,15 @@
       "x": 210,
       "y": 795,
       "distance": 0,
+      "t": 0.25,
       "at": [
         210,
         795
       ],
       "wire": "layout:wire:_3V3:flags",
       "net": "+3V3",
-      "owner": "other"
+      "owner": "other",
+      "valueVisible": true
     },
     {
       "attribute": "attr102",
@@ -36,13 +316,15 @@
       "x": 390,
       "y": 795,
       "distance": 0,
+      "t": 0.25,
       "at": [
         390,
         795
       ],
       "wire": "layout:wire:GND:flags",
       "net": "GND",
-      "owner": "other"
+      "owner": "other",
+      "valueVisible": true
     }
   ],
   "attributeHitsByOwner": {

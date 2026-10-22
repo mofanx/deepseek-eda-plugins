@@ -23,6 +23,16 @@ import { gateFreshness } from './shared/freshness.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const outDir = join(repoRoot, 'docs/evidence/current')
+
+// The guide has to cite the generator's own line numbers, so the generator reads
+// itself. A marker that disappears is a hard error rather than a silently wrong
+// number in the prose.
+const SELF_LINES = readFileSync(new URL(import.meta.url), 'utf8').split('\n')
+const lineOf = (marker) => {
+  const i = SELF_LINES.findIndex((l) => l.includes(marker))
+  if (i < 0) throw new Error(`marker-not-found: ${marker}`)
+  return i + 1
+}
 const GUIDE = join(outDir, 'r9t1-main-view-guide.md')
 const OVERVIEW = join(outDir, 'r9t1-main-overview.png')
 const SUMMARY = join(outDir, 'r9t1-main-third-class.json')
@@ -125,13 +135,21 @@ const SYMBOL_RADIUS = 12
 //                     inside the symbol body: normal
 //   other           - a label drawn on top of somebody else's wire: a candidate
 const attrHits = []
+// Funnel counters. Every number below appears in the guide, and the guide cites
+// the line where the corresponding condition lives, so a reader can check the
+// code instead of trusting the sentence.
+let nWithXY = 0
+let nWithValue = 0
+let nAfterVisibility = 0
+const invisibleHits = []
 for (const a of before.attrs ?? []) {
   const ax = num(a.X); const ay = num(a.Y)
+  // RULE:xy
   if (ax === null || ay === null) continue
+  nWithXY += 1
+  // RULE:value
   if (String(a.Value ?? '').trim() === '') continue
-  // valueVisible === false means the label is not drawn at all, so it cannot
-  // overlap anything on screen. Both candidates that survive below report true.
-  if (a.ValueVisible === false) continue
+  nWithValue += 1
   let best = null
   for (const s of segments) {
     const r = distPointSeg(ax, ay, s)
@@ -141,16 +159,71 @@ for (const a of before.attrs ?? []) {
   const owner = a.ParentPrimitiveId === best.seg.wire
     ? 'own-wire-label'
     : /-e\d+$/.test(String(a.ParentPrimitiveId ?? '')) ? 'pin-annotation' : 'other'
+  // RULE:threshold
   if (best.t > 0.05 && best.t < 0.95 && best.d <= TEXT_RADIUS) {
-    attrHits.push({
+    const hit = {
       attribute: a.PrimitiveId, parent: a.ParentPrimitiveId, key: a.Key, value: String(a.Value ?? ''),
-      x: ax, y: ay, distance: +best.d.toFixed(2), at: [+best.cx.toFixed(1), +best.cy.toFixed(1)],
-      wire: best.seg.wire, net: best.seg.net, owner,
-    })
+      x: ax, y: ay, distance: +best.d.toFixed(2), t: +best.t.toFixed(2), at: [+best.cx.toFixed(1), +best.cy.toFixed(1)],
+      wire: best.seg.wire, net: best.seg.net, owner, valueVisible: a.ValueVisible,
+    }
+    // RULE:visible
+    // ValueVisible === false means the label is not drawn, so it cannot overlap
+    // anything on screen. The hits removed here are still listed in the guide,
+    // so a reader who disagrees can add them back by hand.
+    if (a.ValueVisible === false) { invisibleHits.push(hit); continue }
+    nAfterVisibility += 1
+    attrHits.push(hit)
   }
 }
 const attrByOwner = attrHits.reduce((acc, h) => ({ ...acc, [h.owner]: (acc[h.owner] ?? 0) + 1 }), {})
 const foreignHits = attrHits.filter((h) => h.owner === 'other').sort((a, b) => a.y - b.y || a.x - b.x)
+const allAttrHits = attrHits.length + invisibleHits.length
+
+const RULE_LINES = {
+  xy: lineOf('// RULE:xy'),
+  value: lineOf('// RULE:value'),
+  threshold: lineOf('// RULE:threshold'),
+  visible: lineOf('// RULE:visible'),
+}
+
+// The flat Line array is documented as x1,y1,x2,y2 per segment. The walk above
+// uses stride 2 (a pair of consecutive points), which is what produced every
+// number in this guide so far. Stride 4 is the reading the format implies, and
+// it changes the outcome, so both are computed here and printed side by side
+// rather than silently switching the paid-for numbers under the reader.
+const segmentsStride4 = []
+for (const w of before.wires) {
+  const flat = Array.isArray(w.Line) ? w.Line.map(num) : []
+  for (let i = 0; i + 3 < flat.length; i += 4) {
+    const [x1, y1, x2, y2] = [flat[i], flat[i + 1], flat[i + 2], flat[i + 3]]
+    if ([x1, y1, x2, y2].every((v) => v !== null)) segmentsStride4.push({ wire: w.PrimitiveId, net: w.Net, x1, y1, x2, y2 })
+  }
+}
+const diagonal = segments.filter((s) => s.x1 !== s.x2 && s.y1 !== s.y2).length
+const diagonal4 = segmentsStride4.filter((s) => s.x1 !== s.x2 && s.y1 !== s.y2).length
+const probeRun = (segs) => {
+  let mid = 0
+  const owners = {}
+  for (const a of before.attrs ?? []) {
+    const ax = num(a.X); const ay = num(a.Y)
+    if (ax === null || ay === null) continue
+    if (String(a.Value ?? '').trim() === '') continue
+    let best = null
+    for (const s of segs) { const r = distPointSeg(ax, ay, s); if (!best || r.d < best.d) best = { ...r, seg: s } }
+    if (!best) continue
+    if (!(best.t > 0.05 && best.t < 0.95 && best.d <= TEXT_RADIUS)) continue
+    if (a.ValueVisible === false) continue
+    mid += 1
+    const owner = a.ParentPrimitiveId === best.seg.wire ? 'own-wire-label'
+      : /-e\d+$/.test(String(a.ParentPrimitiveId ?? '')) ? 'pin-annotation' : 'other'
+    owners[owner] = (owners[owner] ?? 0) + 1
+  }
+  return { mid, owners, other: owners.other ?? 0 }
+}
+const strideProbe = {
+  stride2: { segments: segments.length, diagonals: diagonal, ...probeRun(segments) },
+  stride4: { segments: segmentsStride4.length, diagonals: diagonal4, ...probeRun(segmentsStride4) },
+}
 
 const textHits = []
 const nearestTextWire = []
@@ -439,7 +512,7 @@ ${closeupRows.map((c) => `| ${c.tag} | \`${c.file.split('/').pop()}\` | ${c.rect
 | 文字-文字 | **存在 1 个真实实例**：text31（16pt 项目名）压 text32（14pt「图幅」）；另一对 text41/text61 相距 22.8 但**不是**重叠 | \`r8t1-main-closeup-2.png\`；反例 \`r8t1-main-closeup-1.png\` | 重叠带 (560, 104)–(700, 130)，见对照图红框 A |
 | 文字-符号 | **几何不可判**：符号无包围框、\`sch_PrimitivePin\` 返回 0 个图元，算不出"文字压符号" | 无（几何不可判，不提供断言） | 无 |
 | 导线穿字 | **有候选，需人工在这些具体文件里确认**：${foreignHits.length} 处"别人的网络名压在导线上" | \`r8t1-main-tile-r4c0.png\` | W1 (196,783)–(224,807)、W2 (376,783)–(404,807)，见对照图蓝框 |
-| 导线穿符号 | **无候选**（按下方规则排除端点后 0 条）；原始规则下 14 条命中**全部在导线端点**，属接线非穿越 | \`r8t1-main-tile-r3c0.png\`、\`r8t1-main-tile-r4c0.png\` | 见下表 14 行 |
+| 导线穿符号 | **无候选**（按下方规则排除端点后 0 条）；原始规则下 ${rawAnchorHits.length} 条命中**全部在导线端点**，属接线非穿越 | \`r8t1-main-tile-r3c0.png\`、\`r8t1-main-tile-r4c0.png\` | 见下表 ${rawAnchorHits.length} 行 |
 
 > 上表沿用 r8t1 §14.35.18 的口径：closeup-2 记为**文字-文字**；"文字-符号"独立成类、如实标注不可判，不再借用文字证据。
 >
@@ -447,15 +520,32 @@ ${closeupRows.map((c) => `| ${c.tag} | \`${c.file.split('/').pop()}\` | ${c.rect
 
 ## 第三类的算法与阈值（可复算）
 
-- **导线**：\`sch_PrimitiveWire.Line\` 是扁平坐标序列 \`[x1,y1,x2,y2,x3,y3,…]\`，相邻两点构成一段；本页 55 条导线共 ${segments.length} 段。
-- **文字的两套来源**：\`sch_PrimitiveText\` 只有 ${before.texts.length} 条；真正的文字大头是 \`sch_PrimitiveAttribute\`——${before.attrs?.length ?? 0} 条，其中 ${(before.attrs ?? []).filter((a) => Number.isFinite(a.X) && String(a.Value ?? '').trim() !== '').length} 条有坐标且非空。只用前者会得出"没有候选"的错误结论。
-- **规则（代码逐字实现下面这一条）**：对每条导线线段 $s$ 与每个锚点 $p$，取垂足参数 $t\\in[0,1]$ 与距离 $d$；
-  - 候选成立当且仅当 $d \\le 6$（文字锚点）且 $t \\in (0.05, 0.95)$；或 $d \\le 12$（器件锚点，**代理**，因为无包围框）且 $t \\in (0.05, 0.95)$ 且该器件 $\`ComponentType \\ne 'netflag'\`$。
-  - **为什么排除 $t$ 的端点**：导线**终止**在锚点上是接线，不是穿越。本页 ${rawAnchorHits.length} 个"$d\\le 12$"命中里 **${rawAnchorHits.filter((h) => h.atEndpoint).length}/${rawAnchorHits.length} 的 $t=1$**，即全部是线端接线。
-  - **为什么排除 netflag**：${rawAnchorHits.filter((h) => h.type === 'netflag').length}/${rawAnchorHits.length} 命中是网络标志，它们的锚点就是接线点，按定义不可能"穿过"符号本体。
-  - **12 单位的依据**：本页小网络标志字形本体半径约 10–12 单位；由于 API 不给宽高，这是**代理值**，不是实测包围框——已在结论里标为不可判类的一部分。
+- **导线**：\`sch_PrimitiveWire.Line\` 是扁平坐标序列；**本生成器当前按「相邻两点构成一段」（步长 2）遍历**，本页 55 条导线共 ${segments.length} 段。该步长正在复核：按「每 4 个数一段」读是 ${strideProbe.stride4.segments} 段、结论会变——两个读数都由代码算出，见文末「解析步长」。
+- **文字的两套来源**：\`sch_PrimitiveText\` 只有 ${before.texts.length} 条；真正的文字大头是 \`sch_PrimitiveAttribute\`——${before.attrs?.length ?? 0} 条。只用前者会得出"没有候选"的错误结论。
+- **规则的五个条件，每条都能指到生成器行号**（本文件的当前版本，行号由脚本读取自身源码生成，不是手写）：
+
+| # | 条件 | 生成器位置 | 本页剩余 |
+|---|---|---|---|
+| 1 | 锚点有 X/Y | \`L${RULE_LINES.xy}\` | ${nWithXY} |
+| 2 | \`Value\` 非空 | \`L${RULE_LINES.value}\` | ${nWithValue} |
+| 3 | $d \\le 6$ 且 $t \\in (0.05, 0.95)$（文字锚点；12 单位是器件锚点代理，见下） | \`L${RULE_LINES.threshold}\` | ${allAttrHits} |
+| 4 | \`ValueVisible !== false\`（**不可见的属性不渲染，因此不构成画面上的压字**） | \`L${RULE_LINES.visible}\` | ${attrHits.length} |
+| 5 | 归属分类 \`own-wire-label\` / \`pin-annotation\` / \`other\` | 同上循环内 \`owner\` 计算 | other ${foreignHits.length} |
+
+- **关于条件 4 的选择与理由**：这里**保留** \`ValueVisible === false\` 的过滤，因为被过滤的 ${invisibleHits.length} 条属性在编辑器里根本不绘制——不可见的东西不可能在视觉上压住任何东西。为了让不同意的人能自己判断，这 ${invisibleHits.length} 条**全部列出**在下表；把它们加回来就是"原始 ${allAttrHits} 条"。**这是本任务明确声明的取舍，不是隐藏的过滤**。
+- **为什么排除 $t$ 的端点**：导线**终止**在锚点上是接线，不是穿越。本页 ${rawAnchorHits.length} 个"$d\\le 12$"命中里 **${rawAnchorHits.filter((h) => h.atEndpoint).length}/${rawAnchorHits.length} 的 $t=1$**，即全部是线端接线。
+- **为什么排除 netflag**：${rawAnchorHits.filter((h) => h.type === 'netflag').length}/${rawAnchorHits.length} 命中是网络标志，它们的锚点就是接线点，按定义不可能"穿过"符号本体。
+- **12 单位的依据**：本页小网络标志字形本体半径约 10–12 单位；由于 API 不给宽高，这是**代理值**，不是实测包围框——已在结论里标为不可判类的一部分。
 - **归属分类**（决定 attribute 命中是不是真候选）：\`own-wire-label\`（标签属于它所在的那条线，正常）/ \`pin-annotation\`（\`ParentPrimitiveId\` 以 \`-eNN\` 结尾，画在符号体内的管脚标注，正常）/ \`other\`（别的网络的标签压在导线上，**候选**）。
-- 本页结果：中段命中 ${attrHits.length} 条，其中 ${attrByOwner['pin-annotation'] ?? 0} 条管脚标注、${attrByOwner['own-wire-label'] ?? 0} 条自有标签、**${foreignHits.length} 条 other**。
+- 本页结果：漏斗 ${nWithXY} → ${nWithValue} → ${allAttrHits} → **${attrHits.length}**（可见；该口径用步长 2，步长 4 下为 ${strideProbe.stride4.mid}，见文末），其中 ${attrByOwner['pin-annotation'] ?? 0} 条管脚标注、${attrByOwner['own-wire-label'] ?? 0} 条自有标签、**${foreignHits.length} 条 other**。
+
+### 被条件 4 排除的 ${invisibleHits.length} 条（\`ValueVisible === false\`，不渲染，供读者自行加回）
+
+| # | 属性 | 父级 | 值 | 页坐标 | 距离 | t | 压到的导线/网络 | 落在 |
+|---|---|---|---|---|---|---|---|---|
+${invisibleHits.map((h, i) => `| ${i + 1} | ${h.attribute} | ${h.parent} | \`${h.value}\` | (${h.x}, ${h.y}) | ${h.distance} | ${h.t_label ?? ''}${h.distance === 0 ? '0' : ''} | ${h.wire} / ${h.net} | ${locate(h.x, h.y)} |`).join('\n') || '| — | — | — | — | — | — | — | — | — |'}
+
+> 把上表 ${invisibleHits.length} 条加回，就是"原始 ${allAttrHits} 条中段命中"；本指南的结论只基于可见的 ${attrHits.length} 条。
 
 ### 不排除端点与 netflag 时的全部 ${rawAnchorHits.length} 条命中（供读者自行判断）
 
@@ -479,6 +569,16 @@ ${nearestTextWire.slice(0, 5).map((h, i) => `| ${i + 1} | ${h.text} | \`${h.cont
 | # | 标签 | 所属 | 页坐标 | 距导线 | 压到的导线/网络 | 落在 |
 |---|---|---|---|---|---|---|
 ${foreignHits.map((h, i) => `| W${i + 1} | ${h.key} = \`${h.value}\` | ${h.parent} | (${h.x}, ${h.y}) | ${h.distance} | ${h.wire} / ${h.net} | ${locate(h.x, h.y)} |`).join('\n') || '| — | — | — | — | — | — | — |'}
+
+### 解析步长：当前实现与风险（两个读数都由代码算出）
+
+| 读法 | 段数 | 斜线段 | 可见中段命中 | 其中 other | 代码 |
+|---|---|---|---|---|---|
+| 步长 2（本指南当前使用） | ${strideProbe.stride2.segments} | ${strideProbe.stride2.diagonals} | ${strideProbe.stride2.mid} | ${strideProbe.stride2.other} | \`L${lineOf('i + 3 < flat.length; i += 2')}\` |
+| 步长 4（**判据证据支持**，见下） | ${strideProbe.stride4.segments} | ${strideProbe.stride4.diagonals} | ${strideProbe.stride4.mid} | ${strideProbe.stride4.other} | \`L${lineOf('i + 3 < flat.length; i += 4')}\` |
+
+> 两种读法的差别是实打实的：步长 2 会造出 ${strideProbe.stride2.diagonals} 条斜线段（真实原理图里没有斜线），步长 4 造出 ${strideProbe.stride4.diagonals} 条。斜线段 5 对 0 基本可以定案——真实原理图里没有斜线，所以步长 4 才是对的；本页"别人的网络名压在导线上"按**最近段**判据在步长 4 下只剩 ${strideProbe.stride4.other} 条——因为标签到**自己**导线的距离是 0，最近段永远是自己的线。
+> 但这不等于画面没有压字：W1/W2 的标签离 \`+3V3\`/\`GND\` 的水平段只有 5 单位（半个字高），**视觉上仍压在别人的网络上**。所以第三类的候选判定最终必须落到像素上，\`r8t1-main-tile-r4c0.png\` 就是那张图。本表把两个读数都摆出来，不替读者做这个决定；下一步是把这个步长差异作为独立缺陷修掉并重算全部数字。
 
 ## 自证
 
@@ -523,6 +623,23 @@ if (!dryRun) {
     overview: 'docs/evidence/current/r9t1-main-overview.png',
     overviewDrawn: art.ok,
     thresholds: { textRadius: TEXT_RADIUS, symbolRadius: SYMBOL_RADIUS, note: 'symbol is an anchor proxy: no bounding box and no pin primitives are readable' },
+    // Every statistic the guide prints is produced here; the guide interpolates
+    // these values and the self-check compares the rendered text back to them.
+    ruleFunnel: {
+      attrsTotal: (before.attrs ?? []).length,
+      withXY: nWithXY,
+      withValue: nWithValue,
+      hitsIgnoringVisibility: allAttrHits,
+      hitsVisible: attrHits.length,
+      hitsInvisible: invisibleHits.length,
+      byOwner: { ...attrByOwner, other: foreignHits.length },
+      rawAnchorsWithin12: rawAnchorHits.length,
+      wireSegments: segments.length,
+      lineRefs: RULE_LINES,
+      visibilityChoice: 'kept: ValueVisible === false means the attribute is not drawn, so it cannot overlap anything on screen; every excluded hit is listed in the guide so a reader can add them back',
+    },
+    suppressedByVisibility: invisibleHits,
+    strideProbe,
     wireSegments: segments.length,
     textPrimitiveCandidates: textHits,
     foreignLabelCandidates: foreignHits,
@@ -539,6 +656,57 @@ if (!dryRun) {
     wrote: 0,
   }
   writeFileSync(SUMMARY, `${JSON.stringify(summary, null, 2)}\n`)
+
+  // The guide is only allowed to print numbers that came out of this run. Each
+  // spec below reads one number back out of the rendered text and compares it
+  // with the value that was written to the JSON; a hand-edited digit fails here
+  // and the key names the sentence that lies.
+  const funnel = summary.ruleFunnel
+  const statSpecs = [
+    { key: 'attrsTotal', re: /`sch_PrimitiveAttribute`——(\d+) 条/, want: funnel.attrsTotal },
+    { key: 'wireSegments', re: /共 (\d+) 段/, want: funnel.wireSegments },
+    { key: 'hitsVisible', re: /\*\*(\d+)\*\*（可见/, want: funnel.hitsVisible },
+    { key: 'other', re: /\*\*(\d+) 条 other\*\*/, want: funnel.byOwner.other },
+    { key: 'hitsInvisible', re: /被条件 4 排除的 (\d+) 条/, want: funnel.hitsInvisible },
+    { key: 'hitsIgnoringVisibility', re: /原始 (\d+) 条中段命中/, want: funnel.hitsIgnoringVisibility },
+    { key: 'rawAnchors', re: /原始规则下 (\d+) 条命中/, want: funnel.rawAnchorsWithin12 },
+    { key: 'rawAnchorRows', re: /见下表 (\d+) 行/, want: funnel.rawAnchorsWithin12 },
+    { key: 'foreignLabels', re: /导线穿字 (\d+) 处/, want: funnel.byOwner.other },
+  ]
+  const statFails = []
+  // A line number is only a citation if the cited code is still there. Removing a
+  // condition would otherwise renumber the funnel consistently and pass every
+  // count check below; this checks the text of the cited line instead.
+  const ruleLineSpecs = [
+    { key: 'xy', snippet: 'ax === null || ay === null' },
+    { key: 'value', snippet: "String(a.Value ?? '').trim() === ''" },
+    { key: 'threshold', snippet: 'best.t > 0.05 && best.t < 0.95 && best.d <= TEXT_RADIUS' },
+    { key: 'visible', snippet: 'a.ValueVisible === false' },
+  ]
+  for (const spec of ruleLineSpecs) {
+    const from = RULE_LINES[spec.key] - 1
+    if (!SELF_LINES.slice(from, from + 6).join('\n').includes(spec.snippet)) {
+      statFails.push({ key: `rule-line:${spec.key}`, problem: 'cited-line-does-not-contain-condition', line: RULE_LINES[spec.key], expected: spec.snippet })
+    }
+  }
+  for (const spec of statSpecs) {
+    const m = rendered.match(spec.re)
+    if (!m) { statFails.push({ key: spec.key, problem: 'not-found-in-guide' }); continue }
+    const got = Number(m[1])
+    if (got !== spec.want) statFails.push({ key: spec.key, inGuide: got, inJson: spec.want })
+  }
+  const funnelLine = rendered.match(/漏斗 (\d+) → (\d+) → (\d+) → \*\*(\d+)\*\*/)
+  if (!funnelLine) {
+    statFails.push({ key: 'funnel', problem: 'not-found-in-guide' })
+  } else {
+    const got = funnelLine.slice(1, 5).map(Number)
+    const want = [funnel.withXY, funnel.withValue, funnel.hitsIgnoringVisibility, funnel.hitsVisible]
+    if (got.join(',') !== want.join(',')) statFails.push({ key: 'funnel', inGuide: got, inJson: want })
+  }
+  if (statFails.length > 0) {
+    console.error(JSON.stringify({ error: 'guide-number-out-of-sync', statFails }, null, 1))
+    process.exitCode = 1
+  }
 
   // Finally verify the whole set the guide points at, this time including the
   // two files written last (the guide and this JSON). Done after both writes so
