@@ -1,0 +1,69 @@
+{
+ "task": "r10t2",
+ "at": "2026-10-22T22:55:00+08:00",
+ "reviewed": {
+  "task": "r10t1",
+  "head": "9061a18",
+  "blobs": {
+   "docs/evidence/current/r10t1-check-list.md": "committed in 9061a18",
+   "docs/evidence/current/r10t1-check-list.json": "committed in 9061a18",
+   "docs/evidence/current/r10t1-main-visible-20261022-224002.png": "committed in 9061a18",
+   "docs/evidence/review/r10t1-check-list.mjs": "committed in 9061a18"
+  },
+  "tree": "clean; HEAD == origin/master at review time"
+ },
+ "items": {
+  "1_open_action": {
+   "verdict": "pass",
+   "record": "three stages kept apart: stage 1 (only Start Page) openDocument(pageUuid) -> undefined, activateDocument(docUuid) -> false, tabs unchanged; stage 2 manual tree double-click -> tabs [Start Page, MAIN.dsh-t19-real-ic-1792425596633], current MAIN, 39 texts, screenshot; stage 3 script re-test -> no-op by construction because MAIN was already open",
+   "screenshot": "r10t1-main-visible-20261022-224002.png is 1612x750 and really shows the MAIN tab, the tree (MAIN/P1), the MCU/IO/CLK blocks and the title block, zoom 53%",
+   "live": "re-read now: tabs [Start Page, MAIN.dsh-t19-real-ic-1792425596633], current MAIN, ready notLoaded, 39 texts. The visible/active state is real, not claimed",
+   "manualSteps": "executable as written: browser tab URL, project path 个人/eda_ppfgunmg/dsh-t19-real-ic-1792425596633, doc uuid 1ebf04a8860345ca8be2f73438086217, zoomTo(456,586,232.3) = 232.3% = 2.323 px/unit, and two locator points (340,142)/(590,116)",
+   "caveat": "stage 3 cannot discriminate: with MAIN already open a no-op is expected whether or not openDocument works on a closed document. The claim 'the bridge cannot open' rests on stage 1, which the checklist honestly labels as an earlier manual observation, not a re-run in this artifact. The claim is therefore supported but not re-tested here; nothing in the deliverable overstates it"
+  },
+  "2_zeroWrite": {
+   "verdict": "pass",
+   "grep": "no save / delete / modify / clear calls. The only create* hit is node:crypto createHash (2 uses). openDocument/activateDocument appear and are view calls returning undefined/false",
+   "invariants": "before == after == 21 components (8 part + 13 netflag) / 55 wires / 55 wire nets / 2 pages / 39 texts / 662 attrs / 31 rects; live re-read agrees",
+   "wrote": 0
+  },
+  "3_checklistTruth": {
+   "verdict": "pass",
+   "files": "17/17 rows exist",
+   "sha256": "17/17 rows match. The 16 manifest rows match the manifest sha256; row 17 (overview) matches the live hash e3dc5360be861dc4 stated in the table",
+   "pageRanges": "17/17 rows equal the manifest pageRect verbatim (whitespace and the em dash normalised; no numeric drift at any corner). Row 17 carries the page extent (-2,-2)-(912,1174) at 2.323 px/unit",
+   "rowCount": "17, not 16; the overview row is present, unlike the r9t2 finding against r9t1"
+  },
+  "4_mustSee": {
+   "verdict": "pass",
+   "A": "(560,104)-(700,130) lies inside r0c1 (400.2,-2)-(912,216.7) and inside closeup-2 (480,95)-(700,189); mapped through canvasBox 1189x508 at (308,89) and fitRect x[-904.86,1814.86] y[4,1166] at 0.4372 px/unit it lands at (948.4,553.3)-(1009.6,541.9) in the 1752x782 t55 image, inside the frame. Width 140, height 26 as stated",
+   "W1": "(210,795) falls in r4c0 (-2,763.9)-(509.8,982.5); mapped to (795.4,251.2) inside the t55 frame and inside r4c0's mapped rect x[702.7..926.5] y[169.2..264.8]",
+   "W2": "(390,795) falls in the same tile; mapped to (874.1,251.2), inside",
+   "ownWire": "MCU_34 wire runs (210,795)-(250,795) and MCU_26 runs (390,795)-(350,795), so both labels sit exactly on an endpoint of their own wire, as the checklist says",
+   "distance": "with the correct 4-number segment stride, the nearest foreign segment is the +3V3 horizontal at y=800 for W1 and the GND horizontal at y=800 for W2: distance 5.0, t=0.75 for both. t1's correction of r9t1's 0 to 5.0 is right",
+   "wrongImage": "none: W1/W2 point at tile-r4c0, A points at tile-r0c1 and closeup-2, all consistent with their page coordinates"
+  },
+  "5_liveGates": {
+   "verdict": "pass",
+   "live": "MAIN active, pages [MAIN,P1], 21 components (8 part + 13 netflag), 55 wires, 55 nets, 39 texts",
+   "t53": "exit 0, 5/5 PASS",
+   "freshness": "exit 0, FRESH, baselineVersion 4"
+  },
+  "6_selectionBoundaryWording": {
+   "verdict": "partial",
+   "claim": "the checklist says '只用 <=6 单位 + 垂足在中段 两条会命中 13 条'",
+   "measurement": "the code also requires a.Key === 'Name' and skips segments of the label's own wire. With all visible attribute anchors and the own wire skipped, the stated two conditions give 45 hits, not 13; without skipping the own wire they give 32, all pin annotations. The 13 is only reproducible with the two extra conditions",
+   "impact": "the 13 rows themselves are correct (they are the net-label set) and both W1 and W2 are in it, so the conclusion 'geometry cannot single out W1/W2' is untouched; if anything 45 makes it stronger. Only the derivation sentence is unreproducible",
+   "fix": "state 'among Key=Name labels, excluding the label's own wire' before the two conditions"
+  }
+ },
+ "priorReviewCorrection": {
+  "file": "docs/evidence/current/r9t3-review-view-guide-v2.json",
+  "scope": "item 5 numeric reproduction only (47 hits, 13 invisible, d=0, t=0.25)",
+  "why": "r9t1's generator walks the flat Line array with i += 2 (L91), which invents diagonals between the end of one segment and the start of the next. I replicated that stride in r9t2/r3t2, so the 47/13 counts and the 0/0.25 distances in my earlier reviews are artefacts of the same bug",
+  "correct": "stride 4: 62 segments (53 wires of one segment, one of 4, one of 5), not the 69 that the step-2 walk produces. t1's 5.0/0.75 is the correct geometry",
+  "whatStands": "the undeclared ValueVisible filter in r9t1's code (L134) is still a fact and is still absent from its rule text; the candidate identities attr111 MCU-34 over +3V3 and attr102 MCU-26 over GND still stand. Only the numeric comparison is superseded"
+ },
+ "overall": "sound",
+ "scopeNote": "all five assigned items pass. The single defect is the derivation sentence for the 13 in item 6, which does not change the 13-row list, the must-see positions or the candidate conclusion. Recorded separately so it is not lost"
+}
