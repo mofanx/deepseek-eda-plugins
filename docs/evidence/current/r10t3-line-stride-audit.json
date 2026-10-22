@@ -1,0 +1,72 @@
+{
+ "task": "r10t3",
+ "at": "2026-10-22T23:20:00+08:00",
+ "scope": {
+  "head": "aff4b51",
+  "reviewMjs": 62,
+  "packagesMjs": 5,
+  "lineSites": 11,
+  "packagesLineSites": 0,
+  "note": "packages/eda-core/bin/*.mjs only contain formatBannerLine (text banners); no sch_PrimitiveWire.Line access anywhere under packages/"
+ },
+ "groundTruth": {
+  "wires": 55,
+  "numbers": 248,
+  "stride4": { "segments": 62, "diagonals": 0 },
+  "stride2": { "segments": 69, "diagonals": 5 },
+  "perWire": "53 wires carry 4 numbers (one segment); layout:wire:_3V3:flags carries 20 (5 segments: 4x40 horizontal + 1x80 vertical); layout:wire:GND:flags carries 16 (4 segments: 3x40 + 1x70). Reading every 4 numbers is the only parse that yields 0 diagonals",
+  "midpoints": "for all 55 wires the longest-segment midpoint is identical under stride 2 and stride 4: the fake diagonals (41.23 and 44.72) are shorter than the real verticals (80 and 70), so the longest segment does not change",
+  "shapes": "stride 4 gives +3V3 = H-V (5 segments) and GND = H-V (4 segments); stride 2 gives H-D-H-D-H-D-H-V (9) and H-D-H-D-H-V (7). The D segments do not exist"
+ },
+ "sites": [
+  { "file": "docs/evidence/review/r10t1-check-list.mjs", "line": 117, "stride": 4, "role": "segment builder (segmentsOf)", "verdict": "correct", "numbers": "62 segments / 0 diagonals" },
+  { "file": "docs/evidence/review/r9t1-main-view-guide.mjs", "line": 91, "stride": 2, "role": "segment builder (segments)", "verdict": "wrong", "numbers": "69 segments / 5 fake diagonals", "note": "still i += 2 at HEAD aff4b51; this is the generator behind the committed guide" },
+  { "file": "docs/evidence/review/t31-overlap-classify.mjs", "line": 236, "stride": 2, "role": "vertex enumeration for frame-edge proximity", "verdict": "correct for its purpose", "numbers": "124 vertices; stepping 2 over a 4-per-segment array enumerates exactly the segment endpoints" },
+  { "file": "docs/evidence/review/t33-verify-t31-classify.mjs", "line": 128, "stride": 2, "role": "vertex enumeration (pointsOf)", "verdict": "correct for its purpose", "numbers": "124 vertices" },
+  { "file": "docs/evidence/review/t36-cross-review-t10.mjs", "line": 124, "stride": 2, "role": "vertex-in-frame enumeration", "verdict": "correct for its purpose", "numbers": "124 vertices" },
+  { "file": "docs/evidence/review/t38-cross-review-t2.mjs", "line": 34, "stride": 2, "role": "segment builder (segsOf) for longest-segment midpoint", "verdict": "wrong code, same result", "numbers": "69/5 by code, but all 55 midpoints equal the stride-4 midpoints, so its modelB table is unchanged" },
+  { "file": "docs/evidence/review/t39-row805.mjs", "line": 32, "stride": 2, "role": "segment builder for longest segment (model mid)", "verdict": "wrong code, same result", "numbers": "69/5 by code, anchors unchanged" },
+  { "file": "docs/evidence/review/t41-cross-review-t5.mjs", "line": 45, "stride": 2, "role": "segment builder for H/V/D shape runs", "verdict": "wrong, output void", "numbers": "9 and 7 segments with D runs; true is 5 and 4 with H-V only" },
+  { "file": "docs/evidence/review/t42-cross-review-t10.mjs", "line": 39, "stride": 2, "role": "segment builder for anchor models", "verdict": "wrong code, same result", "numbers": "69/5 by code, anchors unchanged" },
+  { "file": "docs/evidence/review/t55-page-overlap.mjs", "line": 149, "stride": "none (assumes array of points or {x,y})", "role": "wire-vs-rectangle test", "verdict": "wrong shape, silent", "numbers": "flat Line elements are numbers, so pts becomes [NaN,NaN] and the test can never fire; reported wireRectIntersections 0 is vacuous even though the true value is also 0" },
+  { "file": "docs/evidence/review/r8t1-main-hires.mjs", "line": 158, "stride": "none (assumes {X,Y} elements)", "role": "wire points feeding the content bbox", "verdict": "wrong shape, no impact", "numbers": "wire contributions silently dropped; recomputed bbox with wires is still (8,18)-(894,1164), identical to the reported one" },
+  { "file": "docs/evidence/review/t36/t38/t39/t41/t42 (capture lines 32/23/17/30/29)", "line": "various", "stride": "none (raw capture)", "role": "store Line verbatim in JSON", "verdict": "neutral", "numbers": "no parse, no wrong number produced; only downstream consumers matter" }
+ ],
+ "voidConclusions": [
+  { "source": "docs/evidence/current/r9t1-main-view-guide.md L54 (committed 1c77c475)", "was": "55 wires / 69 segments", "now": "62 segments", "why": "69 is the stride-2 count; the 5 extra segments are fake diagonals" },
+  { "source": "docs/evidence/current/r9t1-main-view-guide.md L62 + r9t1-main-third-class.json attributeHitsTotal", "was": "34 mid hits (32 pin + 2 other)", "now": "32 mid hits (32 pin + 0 other)", "why": "the 2 'other' hits attr111/attr102 exist only because a fake diagonal passes through their anchors; under stride 4 their nearest segment is their own wire, at t=0, excluded by the mid rule" },
+  { "source": "r9t1-main-third-class.json wireSegments / rawAnchorHitsWithin12", "was": "wireSegments 69; 14 component anchors all t=1; W1/W2 distance 0, t=0.25", "now": "wireSegments 62; 14 anchors with 13 at t=1 and 1 at t=0; W1/W2 distance 5.0, t=0.75", "why": "same stride; the 14 count survives, the t distribution and the two distances do not" },
+  { "source": "docs/2026-10-17-schematic-pagination-hardening.md L2267-2268 (§14.33.2)", "was": "9-segment H-D-H-D-H-D-H-V polyline, 7-segment H-D-H-D-H-V polyline, extra 41.23 / 44.72 diagonal segments", "now": "5-segment H-V and 4-segment H-V; zero diagonals; lengths 40/70/80", "why": "H-D... and the 41.23/44.72 lengths are exactly the fake diagonals of a 4-per-segment array read pairwise" },
+  { "source": "docs/evidence/current/t55-page-overlap.json exact.wireRectIntersections", "was": "0, presented as exact", "now": "0 is the true value but the code path returns 0 for NaN points too", "why": "the number is right by coincidence and is not evidence; only a fixed stride-4 test can support it" },
+  { "source": "docs/evidence/current/r9t3-review-view-guide-v2.json item 5 (my own review)", "was": "47 hits / 13 invisible / d=0 / t=0.25", "now": "62 segments; step-2 47 is an artefact; W1/W2 5.0/0.75", "why": "I replicated the generator's i += 2; the correction is recorded here and was already flagged in r10t2" }
+ ],
+ "unaffected": [
+  { "source": "docs/2026-10-17-...md §14.33.3 (t38 table) and §14.33.1 claim 1", "verdict": "stands", "why": "all 55 longest-segment midpoints are identical under both strides, so the 28 rows / 52 vs 53 pairs / min dx numbers are unchanged; '53 single-segment horizontal wires' also holds" },
+  { "source": "t31 / t33 / t36 vertex counts", "verdict": "stands", "why": "they enumerate vertices, and stride 2 over a 4-per-segment array enumerates exactly the vertices; 124 is correct" },
+  { "source": "r8t1 content bbox", "verdict": "stands", "why": "texts already span (8,18)-(894,1164); adding wire endpoints changes nothing" }
+ ],
+ "otherMultiValueFields": {
+  "checked": ["wire.dots", "sch_PrimitivePolygon", "sch_PrimitiveArc", "sch_PrimitiveCircle", "sch_PrimitiveAttribute rows", "sch_PrimitiveRectangle TopLeftX/Y/Width/Height"],
+  "result": "no second flat coordinate array found. wire.dots is an array of 4-tuples (t9 destructures each element, t33 checks Array.isArray per element), so iterating elements is safe. Polygon/Arc/Circle are only probed for existence in t32/t33, never parsed. Rectangles and attributes expose scalars, not arrays",
+  "verdict": "未发现同类风险"
+ },
+ "stillInUse": [
+  { "file": "docs/evidence/review/r9t1-main-view-guide.mjs", "state": "committed at HEAD with i += 2", "impact": "anyone re-running it regenerates 69/34 and 0.0 distances; its third-class section is not trustworthy until the stride is fixed" },
+  { "file": "docs/evidence/review/t55-page-overlap.mjs", "state": "committed, wrong shape", "impact": "two of its 'exact' numbers (wireRectIntersections, wireRectSamples) are unconditional; the rest of the file does not read Line" },
+  { "file": "docs/evidence/review/r8t1-main-hires.mjs", "state": "committed, wrong shape", "impact": "no number changed here, but the wire branch is dead code and would mislead if the bbox ever depended on wires" }
+ ],
+ "driftDuringAudit": {
+  "observedAt": "2026-10-22T23:11:36+08:00",
+  "files": "working tree modified r9t1-main-view-guide.md / .json / .mjs (uncommitted); overview back to 730125 bytes",
+  "warning": "the WIP guide now says '4 numbers per segment' and 'the page really has 0 diagonals', but the WIP generator still runs i += 2 at L101 and prints segments.length, so the same paragraph would read '4 numbers per segment ... 69 segments ... 0 diagonals' — self-contradictory. Not reviewed as committed; HEAD is the audit target"
+ },
+ "selfCheck": {
+  "t53": "exit 0, 5/5 PASS",
+  "freshness": "exit 0, FRESH, baselineVersion 4",
+  "packagesLineSites": 0,
+  "wrote": 0,
+  "tree": "HEAD aff4b51; only this JSON is added"
+ },
+ "overall": "fail",
+ "summary": "11 Line sites: 1 correct segment builder (r10t1), 3 correct vertex enumerators (t31/t33/t36), 4 wrong segment builders whose midpoint results happen to be unchanged (t38/t39/t42) or whose shape output is void (t41), 2 wrong-shape readers (t55/r8t1) and 1 wrong committed generator (r9t1). 69 -> 62 segments, 5 fake diagonals, 34 -> 32 hits, 2 -> 0 other, 0.0 -> 5.0 distance, and the §14.33.2 shape inventory is void"
+}
