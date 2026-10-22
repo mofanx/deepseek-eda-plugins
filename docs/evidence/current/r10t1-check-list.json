@@ -1,0 +1,258 @@
+{
+  "task": "r10t1",
+  "at": "2026-10-22T14:46:35.834Z",
+  "guide": "docs/evidence/current/r10t1-check-list.md",
+  "docUuid": "1ebf04a8860345ca8be2f73438086217",
+  "visibility": {
+    "stage1_whenNothingOpen": {
+      "tabs": [
+        "Start Page"
+      ],
+      "ready": "notLoaded",
+      "openDocument": "undefined",
+      "activateDocument": false,
+      "texts": 0,
+      "source": "本会话早先的人工观察记录"
+    },
+    "stage2_projectTree": {
+      "tabs": [
+        "Start Page",
+        "MAIN.dsh-t19-real-ic-1792425596633"
+      ],
+      "current": "MAIN",
+      "texts": 39,
+      "screenshot": "docs/evidence/current/r10t1-main-visible-20261022-224002.png"
+    },
+    "stage3_thisRun": {
+      "tabsBefore": "Start Page | MAIN.dsh-t19-real-ic-1792425596633",
+      "tabsAfter": "Start Page | MAIN.dsh-t19-real-ic-1792425596633",
+      "currentBefore": "MAIN",
+      "currentAfter": "MAIN",
+      "readyBefore": "notLoaded",
+      "readyAfter": "notLoaded",
+      "openDocument": null,
+      "waitForDocumentReady": false,
+      "activateDocument": false,
+      "changed": false
+    }
+  },
+  "invariants": {
+    "before": {
+      "components": 21,
+      "parts": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wireNets": 55,
+      "pages": 2,
+      "texts": 39,
+      "attrs": 662,
+      "rects": 31
+    },
+    "after": {
+      "components": 21,
+      "parts": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wireNets": 55,
+      "pages": 2,
+      "texts": 39,
+      "attrs": 662,
+      "rects": 31
+    },
+    "equal": true
+  },
+  "candidates": {
+    "mustSee": [
+      {
+        "attribute": "attr111",
+        "parent": "layout:wire:MCU_34:flags",
+        "value": "MCU-34",
+        "x": 210,
+        "y": 795,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr102",
+        "parent": "layout:wire:MCU_26:flags",
+        "value": "MCU-26",
+        "x": 390,
+        "y": 795,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "GND",
+        "wire": "layout:wire:GND:flags"
+      }
+    ],
+    "allForeignLabels": [
+      {
+        "attribute": "attr107",
+        "parent": "layout:wire:MCU_30:flags",
+        "value": "MCU-30",
+        "x": 210,
+        "y": 755,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr108",
+        "parent": "layout:wire:MCU_31:flags",
+        "value": "MCU-31",
+        "x": 210,
+        "y": 765,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr109",
+        "parent": "layout:wire:MCU_32:flags",
+        "value": "MCU-32",
+        "x": 210,
+        "y": 775,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr110",
+        "parent": "layout:wire:MCU_33:flags",
+        "value": "MCU-33",
+        "x": 210,
+        "y": 785,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr111",
+        "parent": "layout:wire:MCU_34:flags",
+        "value": "MCU-34",
+        "x": 210,
+        "y": 795,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr114",
+        "parent": "layout:wire:MCU_37",
+        "value": "MCU-37",
+        "x": 210,
+        "y": 805,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "+3V3",
+        "wire": "layout:wire:_3V3:flags"
+      },
+      {
+        "attribute": "attr77",
+        "parent": "layout:wire:_3V3:flags",
+        "value": "+3V3",
+        "x": 240,
+        "y": 800,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "MCU-34",
+        "wire": "layout:wire:MCU_34:flags"
+      },
+      {
+        "attribute": "attr82",
+        "parent": "layout:wire:GND:flags",
+        "value": "GND",
+        "x": 360,
+        "y": 800,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "MCU-26",
+        "wire": "layout:wire:MCU_26:flags"
+      },
+      {
+        "attribute": "attr99",
+        "parent": "layout:wire:MCU_21",
+        "value": "MCU-21",
+        "x": 390,
+        "y": 765,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "GND",
+        "wire": "layout:wire:GND:flags"
+      },
+      {
+        "attribute": "attr100",
+        "parent": "layout:wire:MCU_22:flags",
+        "value": "MCU-22",
+        "x": 390,
+        "y": 775,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "GND",
+        "wire": "layout:wire:GND:flags"
+      },
+      {
+        "attribute": "attr101",
+        "parent": "layout:wire:MCU_25:flags",
+        "value": "MCU-25",
+        "x": 390,
+        "y": 785,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "GND",
+        "wire": "layout:wire:GND:flags"
+      },
+      {
+        "attribute": "attr102",
+        "parent": "layout:wire:MCU_26:flags",
+        "value": "MCU-26",
+        "x": 390,
+        "y": 795,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "GND",
+        "wire": "layout:wire:GND:flags"
+      },
+      {
+        "attribute": "attr103",
+        "parent": "layout:wire:MCU_27:flags",
+        "value": "MCU-27",
+        "x": 390,
+        "y": 805,
+        "dist": 5,
+        "t": 0.75,
+        "wireNet": "GND",
+        "wire": "layout:wire:GND:flags"
+      }
+    ],
+    "columnHits": 13,
+    "note": "几何条件命中整列 13 条；W1/W2 由 r9t1 的文字框判据选出，本脚本只复算锚点距离"
+  },
+  "textAnchors": {
+    "projectName": {
+      "x": 404,
+      "y": 116,
+      "size": 16
+    },
+    "tuFu": {
+      "x": 590,
+      "y": 116,
+      "size": 14
+    }
+  },
+  "fileChecks": {
+    "total": 17,
+    "exists": 17,
+    "manifestRows": 16,
+    "manifestShaMatches": 16,
+    "missing": [],
+    "mismatched": []
+  },
+  "wrote": 0
+}
