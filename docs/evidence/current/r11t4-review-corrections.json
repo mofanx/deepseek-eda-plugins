@@ -1,0 +1,106 @@
+{
+  "task": "r2t3",
+  "at": "2026-10-23T17:40:00+08:00",
+  "reviewedHead": "d45be78",
+  "reviewed": {
+    "t1": "dd5e835 + 0e7b39d (r9t1/r10t1 rule alignment, number assertions, docs §14.35.19, bridge hint, baseline re-pin)",
+    "t2": "r2t1 (d45be78: 16-row stride audit v2, dots verdict, r10t1 comment)",
+    "tree": "clean at review start; HEAD == origin/master"
+  },
+  "independence": "this session authored r2t1, so the review cannot claim third-party independence. It re-derived every number from source and from docs/evidence/current/t31-dataset.json (a 55-wire / 662-attr snapshot) instead of trusting r2t1's text. That limitation is stated rather than hidden",
+  "items": {
+    "1_provenance": {
+      "verdict": "pass",
+      "head": "d45be78",
+      "origin": "d45be78",
+      "blobs": {
+        "r2t1 json": "1ecc0e108457",
+        "r2t1 proof": "3fef46572b68",
+        "r10t1 mjs": "a9abe0d88c29",
+        "r9t1 guide": "b6f19e0b8ab3",
+        "r9t1 generator": "50bae2ccd7f1",
+        "hardening doc": "a708a62b5aec",
+        "bridge.ts": "cfa5df859cd8",
+        "freshness baseline": "fee178d7852a"
+      },
+      "detail": "verified the committed blobs, not the working tree; tree clean and 0/0 before the review"
+    },
+    "2_siteCompleteness": {
+      "verdict": "partial",
+      "files": "13 review scripts touch Line/line; the table names 13/13 files -> 0 files missing",
+      "readLines": "24 executable lines contain .Line/.line/getState_Line (22 geometry + t43's 2 document-line fields); the table has 16 rows organised by parse point, and 10 read lines are not row-numbered",
+      "unlistedReads": [
+        "r10t1:137, r10t1:180 (both call segmentsOf; same stride-4 verdict as row r10t1:117)",
+        "r9t1:100, r9t1:196 (the reads above the loops named at 101/197)",
+        "t33:50, t33:119 (vertex enumeration, same verdict as t33:128)",
+        "t38:53 (shapeOf, same stride-2 parse) and **t38:109** (connectivity, different semantics)",
+        "t41:56, t41:72 (same stride-2 parse as t41:45)"
+      ],
+      "materialGap": "t38:109-114 is a second traversal (per-net union, i += 2) that the table's t38 row does not cover; its published result DOES change. See item 3",
+      "t26/t43/r9t1:197": "all three are present in the table as required (t26:47/76, t43:49-50, r9t1:197)",
+      "t36:69": "present as a neutral row, as t4 asked"
+    },
+    "3_t38Connectivity": {
+      "verdict": "fail (published number flips)",
+      "finding": "t38's compsByNet unions consecutive points with i += 2 (L113-114). For a Line whose segments are disjoint that merges segments through the fake connectors, so its published disconnectedNets [] is a stride-2 artefact",
+      "recomputed": {
+        "stride2": { "distinctNets": 55, "disconnected": [] },
+        "stride4": { "distinctNets": 55, "disconnected": [{ "net": "+3V3", "components": 4 }, { "net": "GND", "components": 3 }] },
+        "netsWithDifferentComponentCount": [{ "net": "+3V3", "s2": 1, "s4": 4 }, { "net": "GND", "s2": 1, "s4": 3 }]
+      },
+      "citedWhere": "docs/2026-10-17-schematic-pagination-hardening.md L2284 explicitly cites 'disconnectedNets []' as part of §14.33.3's recompute",
+      "whyMissed": "the audit's t38 row defends only the longest-segment midpoint (which is indeed unchanged); the connectivity field was never listed as affected, and r2t1 repeated that single-row treatment",
+      "evidence": "node docs/evidence/review/r2t3-recompute.mjs (offline, 55 wires, 248 numbers, unions replicated from t38 L109-114)",
+      "impact": "the doc's 'disconnectedNets []' is void; under stride 4 MAIN has two geometrically disconnected nets (+3V3 in 4 pieces, GND in 3). No other t38 number (anchors, row counts, dx) changes"
+    },
+    "4_dots": {
+      "verdict": "pass (the three-way call is correct)",
+      "claim": "不会错但脆弱",
+      "reproduced": {
+        "case1_t26Shape": "status OK, created 1, failures [], createCalls 0 — dedupe short-circuits, no geometry read",
+        "case2_dedupeMiss": "create() receives the flat 8-number array verbatim (len 8), so a created wire would be correct",
+        "case3_lineIntoIr": "8-number Line as IR dots -> 3 LINE records, 1 diagonal",
+        "case3real": "t26's actual sample is +3V3 (20 numbers); as IR dots -> 9 LINE records, 3 diagonals (measured, not the 4 the arithmetic first suggested)",
+        "case4_control": "real shared-vertex polyline -> 2 LINE records, 0 diagonals"
+      },
+      "whyNotWuYingXiang": "the IR path (serialize/readback) really does manufacture diagonals for the same array, so '无影响' would be false",
+      "whyNotHuiCuo": "t26's own path never decodes dots: the chunk forwards the flat array to create(), which expects the Line format, and dedupe prevents creation anyway",
+      "boundary": "t26's assertion cannot report a wrong line (dedupe key from the same array; only created===1 checked), which is exactly why the fixture shape must not be reused as a dots example"
+    },
+    "5_commentAndDocs": {
+      "verdict": "pass",
+      "comment": "r10t1 mjs L111-113 at HEAD says 'the source has none: every segment is axis-aligned'; no '69' remains (node --check exit 0)",
+      "doc": "§14.35.19 (L2914) has the three layers: window wrong -> all empty; project window -> openDocument works (returns handle, adds tab, texts 39); already-open -> openDocument/activateDocument no-op. It explicitly marks the old claim '桥不能打开文档' as 过宽，现予更正, and the four-row table includes the same observation I made in r11t2 (row 3)",
+      "bridgeChain": "bridge.ts changed one string only (git show 19834d5). Evidence of the full chain: tsc -b exit 0; lib/index.js contains the new hint and its sha256 7bd69da6… equals the re-pinned baseline lib; 0e7b39d re-pinned src a6f3e8a8… and lib 7bd69da6…; t51-canvas-guard-selftest 7/7 pass exit 0; --check FRESH v4. No committed transcript of the literal command order exists, but all five effects are verifiable",
+      "baseline": "freshness-baseline.json blob fee178d7…, version 4, packages 5"
+    },
+    "6_push": { "verdict": "pass", "detail": "HEAD == origin/master == d45be78, ahead/behind 0 0 at review start; re-checked after this review's commit" },
+    "7_gates": {
+      "verdict": "pass-with-environment-caveat",
+      "t53": "exit 2 CANNOT JUDGE (BRIDGE_UNREACHABLE: no EasyEDA window connected). The editor window disconnected during r2t1 and has not reconnected; no invariant was evaluated, and no PASS is claimed",
+      "freshness": "exit 0, FRESH, baselineVersion 4",
+      "packages": "0 Line/getState_Line hits in packages/**/*.mjs",
+      "wrote": 0
+    }
+  },
+  "netLabelsReconciliation": {
+    "t1Reported": 68,
+    "myFirstCount": 69,
+    "why": "t1 counts 13 ComponentType=netflag parents + 55 wire parents = 68; my prefix filter also counted layout:flag:_3V3:bus:240, which the guide's own table lists as netport. 68 is correct under t1's code and stated rule",
+    "nit": "the guide says '父级是网络标志或导线'; writing 'netflag（不含 netport）或导线' would prevent the same off-by-one in a future recompute"
+  },
+  "voidListAdditions": [
+    {
+      "source": "docs/2026-10-17-schematic-pagination-hardening.md L2284 (§14.33.3)",
+      "was": "disconnectedNets []",
+      "now": "stride 4: +3V3 in 4 components, GND in 3; disconnectedNets has two entries",
+      "status": "new, missed by both r10t3 and r2t1"
+    }
+  ],
+  "overall": "partial",
+  "summary": "t1's corrections hold: the five conditions map to real code, the funnel reproduces (188/32/45/68/13, with 68 reconciled to 13 netflags + 55 wires), both assertions go red on the right keys, the comment no longer says 69, §14.35.19 is a correct three-layer account with the old claim marked corrected, and the bridge rebuild/re-pin is evidenced by matching src+lib hashes, tsc 0, t51 7/7 and FRESH. t2's r2t1 is right on the 62/69 numbers, the 16-row file coverage and the dots verdict (not 无影响: the IR path really yields 9 lines / 3 diagonals for t26's own +3V3 sample; not 会错: the chunk forwards the line and dedupe skips). But the audit still misses t38's connectivity traversal: its published disconnectedNets [] flips to two nets under stride 4, and that number is cited in §14.33.3. Hence partial, with one new void item and one wording nit",
+  "limits": [
+    "t53 could not run: the bridge has no window (exit 2). The t38 recompute uses the t31 dataset snapshot, which has the same 55 wires / 662 attrs but was captured earlier than the last live read",
+    "no committed transcript of the literal tsc -b -> tsdown -> 7/7 -> --update order; the effects are verified instead"
+  ]
+}
