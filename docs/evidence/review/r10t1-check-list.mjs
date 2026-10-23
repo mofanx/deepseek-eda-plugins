@@ -109,8 +109,8 @@ const segDist = (px, py, ax, ay, bx, by) => {
   return { d: Math.hypot(px - (ax + t * dx), py - (ay + t * dy)), t }
 }
 // sch_PrimitiveWire.Line packs FOUR numbers per segment: x1,y1,x2,y2. Read as
-// consecutive points it produces fake diagonals (the source has none: all 69
-// segments are axis-aligned), so the stride matters.
+// consecutive points it produces fake diagonals (the source has none: every
+// segment is axis-aligned), so the stride matters.
 const segmentsOf = (line) => {
   const out = []
   if (!Array.isArray(line)) return out

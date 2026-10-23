@@ -1,0 +1,83 @@
+{
+  "task": "r2t1",
+  "at": "2026-10-23T17:05:00+08:00",
+  "reviewedHead": "2ef47f8",
+  "supersedes": {
+    "file": "docs/evidence/current/r10t3-line-stride-audit.json",
+    "blob": "352221693fe7308889e085c84c304b8cea91edce",
+    "commit": "2829c3f",
+    "why": "its 11-site inventory missed t26:47/76, t43:49-50, r9t1:197 and t36:69, and its multi-value section said 'wire.dots is an array of 4-tuples ... iterating elements is safe'. That sentence is void: dots is a list of polylines read pairwise. The file is left untouched as history; this v2 carries the correction and the full table",
+    "quotedVoid": "wire.dots is an array of 4-tuples (safe, no stride issue)"
+  },
+  "groundTruth": {
+    "wires": 55,
+    "numbers": 248,
+    "stride4": { "segments": 62, "diagonals": 0 },
+    "stride2": { "segments": 69, "diagonals": 5 },
+    "shapes": "stride 4: +3V3 H-V (5), GND H-V (4); stride 2: 9-entry H-D-H-D-H-D-H-V-V and 7-entry H-D-H-D-H-V-V (t4 measured the trailing V-V; the old audit's 8-letter strings are one short for their 9/7 counts)",
+    "measuredAt": "live earlier the same day (22:4x-23:1x) and by t4 at dd5e835; the bridge went down at 00:2x and t53 is exit 2, so this run could not re-read the page"
+  },
+  "sites": [
+    { "file": "docs/evidence/review/r10t1-check-list.mjs", "line": 117, "stride": 4, "segments": 62, "diagonals": 0, "verdict": "correct" },
+    { "file": "docs/evidence/review/r9t1-main-view-guide.mjs", "line": 101, "stride": 2, "segments": 69, "diagonals": 5, "verdict": "wrong (the committed guide's own generator; its 47/34 counts are step-2 artefacts)" },
+    { "file": "docs/evidence/review/r9t1-main-view-guide.mjs", "line": 197, "stride": 4, "segments": 62, "diagonals": 0, "verdict": "correct (new probe loop added by dd5e835; absent from the first audit)" },
+    { "file": "docs/evidence/review/t31-overlap-classify.mjs", "line": 236, "stride": 2, "segments": "n/a (vertices)", "diagonals": 0, "verdict": "correct for its purpose: 124 vertices; stepping 2 over 4-per-segment data enumerates endpoints, it does not pair them into segments" },
+    { "file": "docs/evidence/review/t33-verify-t31-classify.mjs", "line": 128, "stride": 2, "segments": "n/a (vertices)", "diagonals": 0, "verdict": "correct for its purpose: 124 vertices" },
+    { "file": "docs/evidence/review/t36-cross-review-t10.mjs", "line": 124, "stride": 2, "segments": "n/a (vertices)", "diagonals": 0, "verdict": "correct for its purpose: 124 vertices" },
+    { "file": "docs/evidence/review/t36-cross-review-t10.mjs", "line": 69, "stride": "first point only (line[0], line[1])", "segments": 0, "diagonals": 0, "verdict": "neutral: p0 is identical under both strides (t4)" },
+    { "file": "docs/evidence/review/t38-cross-review-t2.mjs", "line": 34, "stride": 2, "segments": 69, "diagonals": 5, "verdict": "wrong code, result unchanged: all 55 longest-segment midpoints equal the stride-4 ones (fake diagonals 41.23/44.72 are shorter than the 70/80 verticals)" },
+    { "file": "docs/evidence/review/t39-row805.mjs", "line": 32, "stride": 2, "segments": 69, "diagonals": 5, "verdict": "wrong code, result unchanged (same midpoint argument)" },
+    { "file": "docs/evidence/review/t41-cross-review-t5.mjs", "line": 45, "stride": 2, "segments": 69, "diagonals": 5, "verdict": "wrong, shape output void: 9/7 entries with D runs; true 5/4 H-V" },
+    { "file": "docs/evidence/review/t42-cross-review-t10.mjs", "line": 39, "stride": 2, "segments": 69, "diagonals": 5, "verdict": "wrong code, result unchanged (same midpoint argument)" },
+    { "file": "docs/evidence/review/t55-page-overlap.mjs", "line": 149, "stride": "none: treats flat numbers as point objects", "segments": 0, "diagonals": 0, "verdict": "wrong shape, silent: every point becomes NaN, so the wire-rect test can never fire; its 0 is vacuous although the true value is also 0" },
+    { "file": "docs/evidence/review/r8t1-main-hires.mjs", "line": 158, "stride": "none: seg?.X / seg?.Y on numbers", "segments": 0, "diagonals": 0, "verdict": "wrong shape, no impact: wire points are silently dropped; the content bbox (8,18)-(894,1164) is carried by texts and does not change" },
+    { "file": "docs/evidence/review/t26-wire-net-guard.mjs", "line": 47, "stride": "n/a: raw pass-through", "segments": "n/a", "diagonals": 0, "verdict": "neutral by itself: getState_Line() is stored verbatim" },
+    { "file": "docs/evidence/review/t26-wire-net-guard.mjs", "line": 76, "stride": "n/a: Line placed into dots", "segments": "3 if decoded as IR (8-number example), 9 for the 20-number +3V3 line (arithmetic, not measured)", "diagonals": "1 / 4", "verdict": "cross-convention; see dotsVerdict — no published number is wrong, but the fixture violates the IR dots contract" },
+    { "file": "docs/evidence/review/t43-term-classify.mjs", "line": 49, "stride": "n/a: r.line is a document line number", "segments": 0, "diagonals": 0, "verdict": "neutral, not geometry (same for line 50)" }
+  ],
+  "dotsVerdict": {
+    "answer": "不会错但脆弱",
+    "why": "t26's own path never decodes dots. The chunk normalises a flat array into one chain and passes it verbatim to eda.sch_PrimitiveWire.create(line, net) (build.ts L479-490), and create() expects exactly the Line format. On top of that the dedupe key is net + '|' + JSON.stringify(line) against the page's own getState_Line(), so it always hits and create() is never called. But the IR contract for dots is a polyline: readback.ts L253-255 and serialize.ts L311-315 step i += 2 and take four numbers per segment, which is correct for a shared-vertex polyline and wrong for a Line with disjoint segments. So the fixture is a type lie with a dormant failure mode",
+    "evidence": {
+      "case1_t26Shape": "page holds the same net|line, replay dots = that 8-number Line -> status OK, created 1, failures [], createCalls 0 (dedupe short-circuits; no geometry is read)",
+      "case2_dedupeMiss": "page holds a different line -> create() receives the 8-number array verbatim, length 8, net A (the chunk forwards Line format; a created wire would not be corrupted)",
+      "case3_lineIntoIr": "the same array as IR dots -> serializeEasyEdaDocument emits 3 LINE records, 1 diagonal: (40,-805)->(10,-775), i.e. the fake connector p1->p2 (42.43 long). For the 20-number +3V3 line the same arithmetic gives 9 records and 4 diagonals",
+      "case4_control": "a real polyline [10,20,40,20,40,50] -> 2 LINE records, 0 diagonals, proving the IR path is right for what it is documented to accept",
+      "repro": "node docs/evidence/review/r2t1-dots-proof.mjs"
+    },
+    "consequence": "t26 cannot report a wrong line: its assertion only checks status/created===1/failures and the dedupe key is built from the same array, so a diagonal in the fixture is invisible. Do not reuse t26's object shape as a dots fixture, and do not feed a Line into IR dots (serialize/readback) — that path does manufacture diagonals",
+    "secondInconsistency": "the chunk (build.ts L486-490) forwards each dots chain to create() as if it were a Line, while serialize/readback treat the same chain as a polyline. The two agree only for single-segment chains (4 numbers), which is what every current IR row appears to use; a bent 6-number chain would reach create() as vertices. Not exercised by t26, recorded as a latent boundary"
+  },
+  "commentFix": {
+    "file": "docs/evidence/review/r10t1-check-list.mjs",
+    "line": 112,
+    "before": "// consecutive points it produces fake diagonals (the source has none: all 69 / // segments are axis-aligned), so the stride matters.",
+    "after": "// consecutive points it produces fake diagonals (the source has none: every / // segment is axis-aligned), so the stride matters.",
+    "reason": "the builder below it is stride 4 and yields 62; writing 69 was a comment-only lie. Removing the number keeps the comment true if the page changes"
+  },
+  "voidConclusions": [
+    { "id": 1, "source": "r9t1-main-view-guide.md L54", "was": "69 segments", "now": "62", "status": "covered" },
+    { "id": 2, "source": "r9t1 guide L62 + JSON attributeHitsTotal", "was": "34 mid hits (32 pin + 2 other)", "now": "32 (32 pin + 0 other)", "status": "covered" },
+    { "id": 3, "source": "r9t1 JSON wireSegments / W1,W2", "was": "69; 14 anchors all t=1; d=0 t=0.25", "now": "62; 13 t=1 + 1 t=0; 5.0 / 0.75", "status": "covered: the 47/13 item and the d=0/t=0.25 item are both present" },
+    { "id": 4, "source": "docs/2026-10-17-schematic-pagination-hardening.md §14.33.2", "was": "9/7-entry H-D... polylines with 41.23/44.72 diagonals", "now": "5/4 H-V, zero diagonals", "status": "covered" },
+    { "id": 5, "source": "t55 exact.wireRectIntersections", "was": "0 presented as exact", "now": "true value 0, but the code path is NaN-vacuous", "status": "covered" },
+    { "id": 6, "source": "my r9t3 item 5", "was": "47 hits / 13 invisible / d=0 / t=0.25", "now": "step-2 artefacts; step 4 gives 32 and 5.0/0.75", "status": "covered" },
+    { "id": 7, "source": "r10t3 multi-value section", "was": "wire.dots is an array of 4-tuples; iterating elements is safe; no same-class risk", "now": "dots is a list of polylines read pairwise (readback.ts 253-255, serialize.ts 305-315); a Line in dots yields 3 records / 1 diagonal in the 8-number proof", "status": "new, this is the correction t4 asked for" },
+    { "id": 8, "source": "r10t3 site inventory", "was": "11 sites", "now": "16 rows: +t26:47, +t26:76, +t43:49-50, +r9t1:197, +t36:69", "status": "new" },
+    { "id": 9, "source": "r10t3 shapes", "was": "H-D-H-D-H-D-H-V (8 letters) for a 9-segment sequence; H-D-H-D-H-V (7) for 7", "now": "9/7 entries; the 8-letter string is one short by arithmetic; t4 measured a trailing V-V", "status": "new" },
+    { "id": 10, "source": "r10t3 line numbers", "was": "r9t1:91", "now": "r9t1:101 at dd5e835, plus a second loop at 197", "status": "new (drift, not a defect of the audit at its own HEAD aff4b51)" }
+  ],
+  "gates": {
+    "freshness": "exit 0, FRESH, baselineVersion 4",
+    "packages": "0 Line/getState_Line hits in packages/**/*.mjs",
+    "t53": "exit 2 CANNOT JUDGE (BRIDGE_UNREACHABLE: no EasyEDA window connected). The editor window disconnected at ~00:2x during this task; the task allows an honest exit 2. No invariant was evaluated, so this run does not claim MAIN is unchanged",
+    "wrote": 0,
+    "verificationWrites": "only docs/evidence/review/r10t1-check-list.mjs (comment) and the new r2t1 files; no EDA mutation, no save/delete/create"
+  },
+  "limits": [
+    "the live page could not be re-read (bridge down), so the 62/69 numbers are carried from the earlier same-day measurements and t4's independent recount, not re-measured here",
+    "the 9/4 figure for the 20-number line is arithmetic from the same pairwise formula, not a decode of the real array",
+    "the chunk-vs-IR inconsistency for bent chains is recorded but not exercised by any current data"
+  ],
+  "overall": "pass - the audit gaps are closed and the dots question is answered with a runnable proof; t53 is exit 2 by environment (allowed by the dispatch) and the live recount could not be repeated, which is recorded in limits"
+}
