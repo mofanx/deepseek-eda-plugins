@@ -1,0 +1,94 @@
+{
+  "task": "r3t2",
+  "at": "2026-10-24T01:20:00Z",
+  "reviewedTask": "t1 / r3t1 — correct t38's disconnectedNets",
+  "reviewedCommit": "a3b6a7e",
+  "commitSubject": "docs(t38): the empty disconnectedNets was a step-2 reading, not a fact",
+  "originAtReview": "a93faa7 (HEAD ahead 1, not pushed when this review started)",
+  "tree": "clean (the r3t1 WIP I first saw was committed unchanged; git hash-object equals the pinned blobs)",
+  "blobs": {
+    "docs/2026-10-17-schematic-pagination-hardening.md": "607a40c61e3b7666808dabe816e55e3f1322c7ca",
+    "docs/evidence/current/r2t1-line-stride-audit-v2.json": "8783323d4a982e439d8ccdb654d426d8ae744cbd",
+    "docs/evidence/current/r3t1-disconnected-nets.json": "7c86fbea3f94c87d5e8772567d3523cac8d6aaf5",
+    "docs/evidence/review/t38-cross-review-t2.mjs (unchanged)": "76e7522a89ecae35f04a5d33909a2f1accb2a301"
+  },
+  "items": {
+    "1_provenance": {
+      "verdict": "pass",
+      "detail": "HEAD a3b6a7e, blobs pinned above, tree clean, no drift during the review. Caveat: at review time origin was a93faa7, i.e. the correction was a local commit (ahead 1), not yet published; if it is amended before push, the pins above must be re-taken."
+    },
+    "2_independentRecompute": {
+      "verdict": "pass",
+      "method": "fresh code, no reuse of r2t3: (a) endpoint union-find with every point registered at step 2 and union at the tested stride; (b) a separate geometric graph where two segments join when an endpoint lies ON the other segment (T junction included); source docs/evidence/current/t31-dataset.json (55 wires / 55 netted / 248 numbers)",
+      "endpoint": {
+        "stride2": [],
+        "stride4": [{ "net": "+3V3", "blocks": 4 }, { "net": "GND", "blocks": 3 }]
+      },
+      "geometric": {
+        "stride2": [],
+        "stride4": [],
+        "note": "all 55 nets are 1 geometric block; the 4/3 are endpoint blocks only"
+      },
+      "shapes": {
+        "stride2": { "9xpoly": 1, "7xpoly": 1, "1xH": 53 },
+        "stride4": { "5xpoly": 1, "4xpoly": 1, "1xH": 53 }
+      },
+      "anchors": {
+        "firstVertex": "55 anchors / 28 rows / |dy|<6: 53 (33 same + 20 cross) / same-row dxMin 40",
+        "longestMidpoint_stride2": "28 rows / 52 (34+18) / dxMin 30",
+        "longestMidpoint_stride4": "identical to stride2, field by field",
+        "rowGap": "min 5, median 10",
+        "allPairsDxMin": "30 (A) and 30 (B)",
+        "dxSets": "both match the doc's table value for value: A {30,40,120,150,180,210,250,280,320,360,390,430}; B {30,100,140,150,170,190,200,220,240,250,270,300,320,390,420,490}"
+      },
+      "coordinates": "the +3V3 and GND Line arrays equal the ones printed in r3t1 verbatim; T-junction detail matches: +3V3 shares only (200,800) with the bus, interior (200,780)/(200,770)/(200,760); GND shares only (400,770), interior (400,800)/(400,780)"
+    },
+    "3_doc": {
+      "verdict": "pass",
+      "detail": "§14.33.3 L2286 now says `disconnectedNets []` 作废 (step-2 misread); the table gives +3V3 4 / GND 3 endpoint blocks and 1 / 1 geometric blocks. No remaining live claim of `[]`. The other `[]` occurrences are historical and labelled as such: r2t1 void entry 11 (\"was\"), r3t1's stride2 field, r11t4 (prior review, see erratum)."
+    },
+    "4_derivedNumbers": {
+      "verdict": "partial",
+      "affectedVerified": "2: disconnectedNets (endpoint 4/3) and shapes (9x/7x -> 5x/4x). Verified.",
+      "unaffectedVerified": "model A, model B, row gaps, the two dx sets, wires/nettedWires/distinctNets/pages — all reproduced; B(stride2) == B(stride4) exactly.",
+      "bookkeeping": "the r3t1 JSON says `unaffected 5 groups` in derivedNumbersAudit.count but `8 field groups unaffected` in overall; the doc says `上表 6 行` while the table has 7 data rows. Both are grouping/labelling inconsistencies, not wrong numbers — but the task asks whether affected N / unaffected M matches reality, and the file currently gives two different M.",
+      "categoryNote": "`shapes` is stride-derived, not connectivity-derived. The only other connectivity-derived field is distinctNets (55, unchanged); the per-net blocks are the detail of the same disconnectedNets field. `affected 2` mixes the two categories; say `stride-affected` or split them."
+    },
+    "5_t38Line109": {
+      "verdict": "partial",
+      "stands": "Yes: L109-114 is an endpoint graph, not segment enumeration. With stride 2 it unions endpoints that no drawn segment joins, inventing the edges that stitch the stubs to the bus; with stride 4 the endpoint count is 4/3. The electrical/geometric reading is 1/1 because the stub ends lie in the bus interior (T junctions). The doc's reframing (端点图 4/3、几何 1/1) is correct and is stronger than the original `[]` claim.",
+      "defect": "the doc says `错在 L113/L114 的步长`. L113 is the point-registration loop and MUST stay i += 2; only L114's union stride becomes 4. Changing both breaks the structure: with both at 4 the +3V3 count is 1, not 4.",
+      "mutationEvidence": {
+        "onlyL114at4": 4,
+        "bothLinesAt4": 1,
+        "oldBothAt2": 1
+      },
+      "fix": "change the sentence to `错在 L114 的 union 步长；L113 的顶点登记保持 i += 2`，and mirror the clarification in r3t1's t38Line109.site."
+    },
+    "6_voidTable": {
+      "verdict": "pass-with-nit",
+      "detail": "r2t1 JSON voidConclusions now has ids 1..11; id 11 is the new entry, ids 1-10 intact (including 47/13 and d=0/t=0.25 at 3/6, dots at 7, site inventory at 8). id 4 already covers shapes 9/7 -> 5/4, so the `已由 id 4 覆盖` claim is accurate.",
+      "lineRef": "entry 11 cites `L2284`, which is the pre-edit line of the `[]` sentence (the correction now starts at L2286). Accurate as history; `原 L2284` would remove the ambiguity."
+    },
+    "7_gates": {
+      "verdict": "pass",
+      "t53": "exit 0, PASS 5/5 (pages=2, MAIN present, active=b275cd23e45c4271bead56f66d4f98fe)",
+      "freshness": "exit 0, FRESH, baselineVersion 4",
+      "packages": "0 Line/getState_Line hits",
+      "wrote": 0,
+      "note": "the change is docs/evidence only; no EDA mutation"
+    }
+  },
+  "priorReviewErratum": {
+    "artifact": "docs/evidence/current/r11t4-review-corrections.json (5f1a5ab), item 3 / impact",
+    "wrong": "`under stride 4 MAIN has two geometrically disconnected nets (+3V3 in 4 pieces, GND in 3)`",
+    "right": "geometric connectivity is 1/1 (T junctions: stub ends lie in the bus interior); only the endpoint graph is 4/3. The old `[]` was electrically right by accident (stride 2 stitched the pieces) and wrong by derivation.",
+    "status": "r11t4's void call on the doc's `[]` still stands; its geometric inference is superseded and must not be cited. This correction is r3t1's, and it is more accurate than r2t3/r11t4 on this point."
+  },
+  "overall": "partial",
+  "summary": "The correction's core is right and verified independently: endpoint blocks 4/3, geometric 1/1, shapes 5x/4x, anchors and dx sets unchanged, coordinates and T-junction details exact. It also fixes my own overstatement that the nets were geometrically disconnected. Two defects keep it from sound: (a) the doc attributes the bug to `L113/L114` while L113 must stay at stride 2 — changing both turns 4 into 1 (mutation shown); (b) the affected/unaffected bookkeeping says 5 groups in one place and 8 in another, and `shapes` is stride-derived rather than connectivity-derived. Both are one-line fixes; after them the correction is sound.",
+  "limits": [
+    "The reviewed commit was local-only at review time (origin a93faa7, ahead 1). If it is amended before push, re-pin the three blobs.",
+    "The live half of r3t1's `活文档与 t31-dataset 两处一致` is self-reported; I re-derived from the snapshot and confirmed the snapshot numbers, and t53 independently confirms pages=2 / 55 wires, but I did not repeat their getAll probe."
+  ]
+}
