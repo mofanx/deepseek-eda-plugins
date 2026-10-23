@@ -37,9 +37,9 @@
   "packages": {
     "eda-core": {
       "files": 10,
-      "sha256": "a82d48e2a09f8b7b9f8804659d32225432858aa758c502fe2fdc0127b3dfc1b9",
+      "sha256": "d804b3c413b8e2260a558067e1144a1cc142725539cae07428e16523e01d9e42",
       "hasLib": true,
-      "lib": "e99eb71943092c76ba1d16e5c3e97c35dbef3cd62398b6035b1dc2d0123c3d44"
+      "lib": "25474c3ecc385e666ebd0e8e699038638d94d299b91d26a22e03aea4f9d0ace0"
     },
     "schematic": {
       "files": 7,
@@ -66,5 +66,5 @@
       "lib": "b28ed986a1e2ee7d092a9f0f7909f6a4c5adbb03fb18adf178abdc458d4889ec"
     }
   },
-  "generatedAt": "2026-10-21T08:10:49.452Z"
+  "generatedAt": "2026-10-23T16:15:08.410Z"
 }
