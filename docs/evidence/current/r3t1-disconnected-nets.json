@@ -71,10 +71,16 @@
       { "item": "the two dx value sets over all |dy|<6 pairs", "old": "as printed at L2282", "new": "identical", "why": "anchors are identical under both strides; any set derived from anchors is therefore identical (the probe compares the same-row subset directly, and the full-anchor equality carries the rest)" },
       { "item": "wires / nettedWires / distinctNets / pages", "old": "55 / 55 / 55 / 2", "new": "identical", "why": "counts do not depend on segment parsing" }
     ],
-    "count": "affected 2, unaffected 5 groups (model A, model B, row gaps, the two dx sets, four counts)"
+    "count": "2 stride-affected items, 5 unaffected groups (model A, model B, row gaps, the two dx sets, four counts)", "category": "disconnectedNets is connectivity-derived; shapes is stride-derived (segment parse), not connectivity-derived. distinctNets (55) is the only other connectivity-derived field and it does not move."
   },
   "t38Line109": {
-    "site": "docs/evidence/review/t38-cross-review-t2.mjs L104-121 (comment L104; union-find L109-117; the stride is L113 and L114, both i += 2)",
+    "site": "docs/evidence/review/t38-cross-review-t2.mjs L104-121: comment L104; union-find L109-117; L113 registers points at i += 2 (correct - every coordinate must enter the table); L114 unions at i += 2 (the defect - should be i += 4)",
+    "mutation": {
+      "reg2_union2": { "result": "no disconnected net (the published [])", "status": "old, wrong" },
+      "reg2_union4": { "result": "+3V3 4, GND 3", "status": "correct fix" },
+      "reg4_union4": { "result": "no disconnected net again", "status": "degenerate: (x2,y2) never enters the table, find falls through to undefined, every root collapses to one" }
+    },
+    "note": "changing both strides is not the fix and gives the same verdict as changing neither, by a different mechanism",
     "semantics": "The union-find is not segment enumeration: it unions endpoints, so it answers 'which endpoints are joined by a drawn segment'. That question is still stride-sensitive - with stride 2 it unions endpoints that no segment joins.",
     "correctStride": 4,
     "doesTheConclusionChange": "yes for the number, no for the claim 'the net is not broken'. The endpoint reading gives 4/3 blocks; the geometric reading (T junction counts) gives 1/1, so the drawing is connected. The published [] was right by accident and wrong by derivation.",
@@ -102,5 +108,5 @@
     "how": "for each wire: build segments at the given stride, union the two endpoints of each segment, count roots; repeat with a geometric test (endpoint-in-segment) for the second reading",
     "repoArtifact": "t31-dataset.json (pre-incident snapshot, 55 wires, same MAIN id as t53's baseline)"
   },
-  "overall": "pass - the false number is corrected in the doc, the mechanism is shown with coordinates, the derived-number audit is enumerated (2 affected, 8 field groups unaffected), the t38:109 semantics are stated, and the void table now carries the entry with all prior items intact"
+  "overall": "pass - the false number is corrected in the doc, the mechanism is shown with coordinates, the derived-number audit is enumerated (2 stride-affected items, 5 unaffected groups), the t38:109 semantics are stated, and the void table now carries the entry with all prior items intact"
 }
