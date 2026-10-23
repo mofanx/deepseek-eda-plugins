@@ -1,0 +1,94 @@
+{
+  "task": "r11t3",
+  "at": "2026-10-22T15:52:00Z",
+  "reviewed": {
+    "task": "r10t3 (dispatched as t2: audit every sch_PrimitiveWire.Line parse stride)",
+    "commit": "2829c3f",
+    "blob": "352221693fe7308889e085c84c304b8cea91edce",
+    "reviewHead": "dd5e835bf35d3360458f9b6f0d11a8531cadd0ed",
+    "auditSelfReportedHead": "aff4b51",
+    "tree": "clean at review time; HEAD == origin/master"
+  },
+  "method": "read the audit JSON, then re-derived every number from the live document with a read-only probe (getAll only), read the cited source lines myself, and grepped the whole tree for .Line instead of trusting the site list",
+  "items": {
+    "1_provenance": {
+      "verdict": "pass",
+      "head": "dd5e835bf35d3360458f9b6f0d11a8531cadd0ed",
+      "blob": "352221693fe7308889e085c84c304b8cea91edce",
+      "note": "the JSON names its own audit HEAD as aff4b51, which is the parent of the commit that added it (2829c3f); that is consistent, not an error"
+    },
+    "2_spotChecks": [
+      {
+        "site": "docs/evidence/review/r10t1-check-list.mjs:117",
+        "claimed": "stride 4, correct, 62 segments / 0 diagonals",
+        "sourceRead": "L117 `for (let i = 0; i + 3 < line.length; i += 4) out.push([line[i], line[i+1], line[i+2], line[i+3]])`",
+        "myNumbers": "stride 4 over the live 55 wires: 62 segments, 0 diagonals",
+        "verdict": "holds"
+      },
+      {
+        "site": "docs/evidence/review/r9t1-main-view-guide.mjs (claimed :91)",
+        "claimed": "stride 2, wrong, 69 segments / 5 fake diagonals",
+        "sourceRead": "at HEAD the loop is L101 `for (let i = 0; i + 3 < flat.length; i += 2)`; L91 belongs to aff4b51, before dd5e835 inserted the funnel and the stride probe",
+        "myNumbers": "stride 2 over the live 55 wires: 69 segments, 5 diagonals, lengths 44.72 / 41.23 / 41.23 / 44.72 / 41.23; stride 4: 62 / 0. Shapes: +3V3 is H-D-H-D-H-D-H-V-V (9) under stride 2 and H-H-H-H-V (5) under stride 4; GND is H-D-H-D-H-V-V (7) and H-H-H-V (4)",
+        "verdict": "claim holds, cited line number is stale at HEAD"
+      },
+      {
+        "site": "docs/evidence/review/t31-overlap-classify.mjs:236",
+        "claimed": "stride 2 but vertex enumeration, correct for its purpose, 124 vertices",
+        "sourceRead": "L236 `for (let i = 0; i + 1 < line.length; i += 2) { const px = line[i]; const py = line[i+1] ... }` - it consumes points, never segments",
+        "myNumbers": "248 numbers / 2 = 124 vertices",
+        "verdict": "holds"
+      }
+    ],
+    "recount": {
+      "source": "live bridge, sch_PrimitiveWire.getAll(), read-only",
+      "wires": 55,
+      "numbers": 248,
+      "perWireLengths": [4, 16, 20],
+      "arithmetic": "53 wires x 4 + 20 + 16 = 248",
+      "stride2": { "segments": 69, "diagonals": 5 },
+      "stride4": { "segments": 62, "diagonals": 0 },
+      "matchWithAudit": "every number in groundTruth matches; the shape strings for stride 2 omit the final V (the audit writes H-D-H-D-H-D-H-V for a 9-entry sequence and H-D-H-D-H-V for a 7-entry one, so the count and the string disagree by one)"
+    },
+    "3_voidCompleteness": {
+      "verdict": "partial",
+      "covers47And13": true,
+      "coversDistanceZero": true,
+      "detail": "voidConclusions[5] voids 47 hits / 13 invisible from the earlier review, voidConclusions[1] voids 34 -> 32 with other 2 -> 0, and voidConclusions[2] voids wireSegments 69, the 14-anchor t distribution and W1/W2 d=0/t=0.25 -> 5.0/0.75. Both items named in the dispatch are present.",
+      "missingSites": [
+        "docs/evidence/review/t26-wire-net-guard.mjs:47 and :76 - `sample.line = w.getState_Line()` is placed straight into `dots`; not in the audit's site list",
+        "docs/evidence/review/t43-term-classify.mjs:49-50 - `r.line` is a table-row label, not geometry; neutral, also unlisted"
+      ],
+      "affectedButMissed": "t26 is the one that matters, see item 4: `dots` is read pairwise while `Line` is 4-per-segment, so feeding a Line into dots is the same confusion in the other direction. Its assertion is insensitive (the dedupe key is computed from the same array and only `created === 1` is checked), so no published number is wrong - but the fixture geometry is.",
+      "newSiteAtHead": "r9t1-main-view-guide.mjs:197 is a second loop added by dd5e835 (the stride-4 probe). It did not exist when the audit ran, so the 11-site inventory is 12 rows at aff4b51 and 13 Line-parsing loops at HEAD.",
+      "neutralNotListed": "t36-cross-review-t10.mjs:69 uses `w.line?.[0]` as the anchor - the first point is identical under both strides"
+    },
+    "4_multiValue": {
+      "verdict": "fail",
+      "claim": "wire.dots is an array of 4-tuples, so iterating elements is safe; no second flat coordinate array found",
+      "finding": "dots is an array of flat point chains, and the core package reads each chain pairwise (i += 2), the opposite convention from Line (4 numbers per segment). The audit's own words describe dots wrongly, and the conclusion 'no same-class risk' is therefore not supported.",
+      "evidence": [
+        "packages/eda-core/src/readback.ts:253-255 `for (const dots of wire.dots ?? []) { for (let i = 0; i + 3 < dots.length; i += 2) ... }`",
+        "packages/eda-core/src/serialize.ts:305-315 `const chains = wire.dots ?? []` then `for (const dots of chains) { for (let i = 0; i + 3 < dots.length; i += 2) ... }`",
+        "live primitive object: the only array-valued field is `line` (len 20, elements are numbers); `net`, `primitiveId`, `primitiveType` are strings, `color`/`lineWidth`/`lineType` are objects - so 'no second flat array on the primitive' is true",
+        "docs/evidence/review/t26-wire-net-guard.mjs:47/76 crosses the two conventions"
+      ],
+      "concretely": "t2 lists the field names but, apart from t9/t32/t33, gives no file:line for the checks; and for dots the named shape is wrong. The check is specific enough to be falsified, and it was."
+    },
+    "5_gates": {
+      "verdict": "pass",
+      "t53": "exit 0, 5/5 PASS (components 21, part 8 / netflag 13, id set equal both ways, 55 wires and id|net pairs equal, pages 2 with MAIN present)",
+      "freshness": "exit 0, FRESH, baselineVersion 4",
+      "packages": 0,
+      "writes": "this review wrote only this JSON; the probe used getAll only (no save/create/modify/delete/clear, no openDocument, no zoom)"
+    }
+  },
+  "drift": [
+    "r9t1 stride-2 loop moved 91 -> 101 between aff4b51 and dd5e835; the audit's line numbers are correct only for the commit it ran on",
+    "r9t1:197 is a new stride-4 loop added by dd5e835; it is not in the 11-site list",
+    "r10t1-check-list.mjs:112 comment still says 'all 69 segments are axis-aligned' while the builder below it uses stride 4 and yields 62 - a comment-only defect in my own earlier file, reported here rather than edited inside a read-only review",
+    "the stride-2 shape strings in groundTruth.shapes are one entry short (see recount.matchWithAudit)"
+  ],
+  "overall": "partial",
+  "summary": "The hard numbers are right and I reproduced them independently: 55 wires, 248 numbers (53x4 + 20 + 16), stride 2 -> 69 segments with 5 fake diagonals of 41.23 / 44.72, stride 4 -> 62 segments and 0 diagonals. The void list does cover both items the dispatch named (47/13 and d=0/t=0.25), and the three spot checks confirm stride 4 in r10t1, stride 2 in r9t1, and vertex enumeration in t31. Two things do not hold. First, the multi-value section describes dots as 4-tuples; in the core package dots is a list of flat chains read pairwise, which is the opposite convention, and t26 feeds a Line into dots - an unlisted cross-convention site, harmless only because its assertion is insensitive. Second, the site inventory is incomplete: two neutral sites are missing and a thirteenth loop appeared at HEAD after the audit. Overall partial: correct ground truth, sound void list, one wrong risk statement, one incomplete inventory."
+}
