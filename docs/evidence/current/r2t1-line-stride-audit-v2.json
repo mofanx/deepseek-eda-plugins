@@ -65,7 +65,8 @@
     { "id": 7, "source": "r10t3 multi-value section", "was": "wire.dots is an array of 4-tuples; iterating elements is safe; no same-class risk", "now": "dots is a list of polylines read pairwise (readback.ts 253-255, serialize.ts 305-315); a Line in dots yields 3 records / 1 diagonal in the 8-number proof", "status": "new, this is the correction t4 asked for" },
     { "id": 8, "source": "r10t3 site inventory", "was": "11 sites", "now": "16 rows: +t26:47, +t26:76, +t43:49-50, +r9t1:197, +t36:69", "status": "new" },
     { "id": 9, "source": "r10t3 shapes", "was": "H-D-H-D-H-D-H-V (8 letters) for a 9-segment sequence; H-D-H-D-H-V (7) for 7", "now": "9/7 entries; the 8-letter string is one short by arithmetic; t4 measured a trailing V-V", "status": "new" },
-    { "id": 10, "source": "r10t3 line numbers", "was": "r9t1:91", "now": "r9t1:101 at dd5e835, plus a second loop at 197", "status": "new (drift, not a defect of the audit at its own HEAD aff4b51)" }
+    { "id": 10, "source": "r10t3 line numbers", "was": "r9t1:91", "now": "r9t1:101 at dd5e835, plus a second loop at 197", "status": "new (drift, not a defect of the audit at its own HEAD aff4b51)" },
+    { "id": 11, "source": "docs/2026-10-17-schematic-pagination-hardening.md L2284 (§14.33.3, t38 复算行)", "was": "disconnectedNets [] (步长 2 读数)", "now": "端点图口径：+3V3 4 块、GND 3 块（步长 4）；几何连通口径两者仍各 1 块（T 型接），故『网络断了』不成立，应报『端点图 4/3、几何 1/1』。同批受影响：shapes 9xpoly/7xpoly → 5xpoly/4xpoly（已由 id 4 覆盖）；上表 6 行与 wires/nettedWires/distinctNets 逐字段不变", "status": "new (r3t1): 由 r2t3 提出、r3t1 用活文档与 t31-dataset 双源复算确认" }
   ],
   "gates": {
     "freshness": "exit 0, FRESH, baselineVersion 4",

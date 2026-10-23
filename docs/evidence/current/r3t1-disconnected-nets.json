@@ -1,0 +1,106 @@
+{
+  "task": "r3t1",
+  "at": "2026-10-24T01:00:00Z",
+  "head": "a93faa7",
+  "docSite": "docs/2026-10-17-schematic-pagination-hardening.md L2284 (§14.33.3 t38 复算行)",
+  "source": {
+    "raisedBy": "r2t3 (step 2 gives [], step 4 gives +3V3 4 blocks / GND 3 blocks)",
+    "recomputedHere": "live bridge (getAll) and docs/evidence/current/t31-dataset.json, both 55 wires, identical results",
+    "script": "temp probe, getAll only; algorithm inline below so it can be re-run",
+    "strideUnderTest": "2 = two points per segment (old reading); 4 = four numbers per segment (the array's real packing)"
+  },
+  "numbers": {
+    "wires": 55,
+    "nettedWires": 55,
+    "pages": 2,
+    "main": "b275cd23e45c4271bead56f66d4f98fe",
+    "endpointComponents": {
+      "stride2": { "disconnectedNets": [], "maxBlocks": 1 },
+      "stride4": { "disconnectedNets": [{ "net": "+3V3", "blocks": 4 }, { "net": "GND", "blocks": 3 }], "maxBlocks": 4 }
+    },
+    "geometricComponents": {
+      "stride2": [],
+      "stride4": [],
+      "note": "a stub endpoint lying in the interior of the bus segment counts as joined (T junction)"
+    },
+    "shapes": {
+      "stride2": { "9xpoly": 1, "7xpoly": 1, "1xH": 53 },
+      "stride4": { "5xpoly": 1, "4xpoly": 1, "1xH": 53 }
+    }
+  },
+  "mechanism": {
+    "why": "Line packs four numbers per segment (x1,y1,x2,y2). Reading two at a time turns the end of one segment into the start of the next, inventing an edge that no wire draws. Those invented edges stitch the separate stubs and the bus into one component, so the old run reported no disconnected net.",
+    "plus3V3": {
+      "line": [240, 800, 200, 800, 240, 780, 200, 780, 240, 770, 200, 770, 240, 760, 200, 760, 200, 800, 200, 720],
+      "stubs": ["(240,800)-(200,800)", "(240,780)-(200,780)", "(240,770)-(200,770)", "(240,760)-(200,760)"],
+      "bus": "(200,800)-(200,720)",
+      "sharedEndpoint": "(200,800) only",
+      "interior": ["(200,780)", "(200,770)", "(200,760)"],
+      "endpointBlocks": 4,
+      "geometricBlocks": 1
+    },
+    "gnd": {
+      "line": [360, 800, 400, 800, 360, 780, 400, 780, 360, 770, 400, 770, 400, 840, 400, 770],
+      "stubs": ["(360,800)-(400,800)", "(360,780)-(400,780)", "(360,770)-(400,770)"],
+      "bus": "(400,840)-(400,770)",
+      "sharedEndpoint": "(400,770) only",
+      "interior": ["(400,800)", "(400,780)"],
+      "endpointBlocks": 3,
+      "geometricBlocks": 1
+    }
+  },
+  "derivedNumbersAudit": {
+    "affected": [
+      {
+        "item": "disconnectedNets",
+        "old": "[]",
+        "new": "[{+3V3, 4 blocks}, {GND, 3 blocks}] under the endpoint reading",
+        "status": "corrected in the doc"
+      },
+      {
+        "item": "shapes",
+        "old": "9xpoly 1 / 7xpoly 1 / 1xH 53",
+        "new": "5xpoly 1 / 4xpoly 1 / 1xH 53",
+        "status": "already voided by r2t1 v2 id 4 (§14.33.2); this run reproduces it"
+      }
+    ],
+    "unaffected": [
+      { "item": "modelA_firstVertex", "old": "28 rows / 53 pairs (33+20) / same-row dxMin 40 / <28:0 / <30:0", "new": "identical", "why": "first vertex is line[0..1], independent of stride" },
+      { "item": "modelB_longestMidpoint", "old": "28 rows / 52 pairs (34+18) / same-row dxMin 30 / <28:0 / <30:0", "new": "identical", "why": "the longest segment is still the real vertical bus (80 for +3V3, 70 for GND); the fake diagonals 44.72 / 41.23 are shorter, so the midpoint does not move" },
+      { "item": "row gap", "old": "min 5, median 10", "new": "identical", "why": "same anchors" },
+      { "item": "the two dx value sets over all |dy|<6 pairs", "old": "as printed at L2282", "new": "identical", "why": "anchors are identical under both strides; any set derived from anchors is therefore identical (the probe compares the same-row subset directly, and the full-anchor equality carries the rest)" },
+      { "item": "wires / nettedWires / distinctNets / pages", "old": "55 / 55 / 55 / 2", "new": "identical", "why": "counts do not depend on segment parsing" }
+    ],
+    "count": "affected 2, unaffected 5 groups (model A, model B, row gaps, the two dx sets, four counts)"
+  },
+  "t38Line109": {
+    "site": "docs/evidence/review/t38-cross-review-t2.mjs L104-121 (comment L104; union-find L109-117; the stride is L113 and L114, both i += 2)",
+    "semantics": "The union-find is not segment enumeration: it unions endpoints, so it answers 'which endpoints are joined by a drawn segment'. That question is still stride-sensitive - with stride 2 it unions endpoints that no segment joins.",
+    "correctStride": 4,
+    "doesTheConclusionChange": "yes for the number, no for the claim 'the net is not broken'. The endpoint reading gives 4/3 blocks; the geometric reading (T junction counts) gives 1/1, so the drawing is connected. The published [] was right by accident and wrong by derivation.",
+    "recommendation": "publish it as 'endpoint blocks' (4/3) and state the geometric result (1/1) next to it; do not keep the name disconnectedNets without that qualifier"
+  },
+  "voidTable": {
+    "file": "docs/evidence/current/r2t1-line-stride-audit-v2.json",
+    "entry": 11,
+    "previousEntriesIntact": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "priorItemsStillPresent": {
+      "47/13": "ids 3 and 6",
+      "d=0 / t=0.25": "ids 3 and 6",
+      "dots four-tuples": "id 7",
+      "site inventory incomplete": "id 8"
+    }
+  },
+  "gates": {
+    "t53": "exit 0, 5/5 PASS (components 21, part 8 / netflag 13, id set both ways, 55 wires and pairs, pages 2 with MAIN intact) - the bridge was live via the Edge window (activeWindowId 59d1c5c66b3094fc)",
+    "freshness": "exit 0, FRESH, baselineVersion 4",
+    "packages": 0,
+    "wrote": 0,
+    "note": "only the doc line and this evidence family were written; no EDA mutation"
+  },
+  "recompute": {
+    "how": "for each wire: build segments at the given stride, union the two endpoints of each segment, count roots; repeat with a geometric test (endpoint-in-segment) for the second reading",
+    "repoArtifact": "t31-dataset.json (pre-incident snapshot, 55 wires, same MAIN id as t53's baseline)"
+  },
+  "overall": "pass - the false number is corrected in the doc, the mechanism is shown with coordinates, the derived-number audit is enumerated (2 affected, 8 field groups unaffected), the t38:109 semantics are stated, and the void table now carries the entry with all prior items intact"
+}
