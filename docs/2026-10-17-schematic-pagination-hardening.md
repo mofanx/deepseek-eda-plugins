@@ -2936,6 +2936,7 @@ t55 的整页图是 1752×782 的窗口截图，画布只有 1189×508，整张�
 
 **旁证（t5 本机，窗口 id）**：编辑器标签全关、只剩 `chrome://newtab` 时，中继仍报 `edaConnected:true`、`edaWindowCount:2`（**残留注册**），此时每次 `execute` 都 HTTP 500；重新打开编辑器页后 `activeWindowId` 由 `99d047ff…` 变成 `6e1d490d…`，`t53` 立刻回到 5/5 PASS。可见 `/health` 的 `edaConnected` 只说明"有窗口注册过"，不说明"连到了带文档的那个窗口"。
 
+**注册是分浏览器实例的**：中继只认"在**它自己那个浏览器**里、编辑器标签加载完之后打开过 landing"的那个窗口。同一天实测：dpx 控制的 Chrome 已登出，反复打开 landing 也只得到 `edaWindowCount:0`；而登录着、且已经开着 MAIN 的 Edge 里执行一次 `Start-Process msedge "…/api/landing?port=49620"`，`/health` 在 12 秒内变成 `edaConnected:true`、`activeWindowId` 换成 `59d1c5c6…`，`t53` 立刻 5/5 PASS。**"页面登录着"和"中继连上了"是两件事，中间还隔着'是不是同一个浏览器'这一层。**（这次误判值得记下来：我盯着的那个 Chrome 停在未登录首页，而用户说"页面就是登录状态"——两边都没说错，看的是两个浏览器。）
 **怎么确认窗口选对了（可执行）**：①只读探针调 `dmt_Schematic.getAllSchematicPagesInfo()`，返回 `MAIN`/`P1` 两条即对，返回空数组或只有 `Start Page` 即错；②`tabs` 里能看到目标文档名（如 `MAIN.dsh-t19-…`）；③`activeWindowId` 与上一次不同，说明你换到了另一个窗口——重开编辑器标签一定会换 id，这是最可靠的"我确实切过去了"的信号。**`execute` 返回 500 时先查这三条，不要先改代码。**
 
 **已写进掉线提示 `EASYEDA_BRIDGE_REGISTER_HINT`**：①在持有编辑器的**同一个浏览器**里用新标签打开 `https://pro.lceda.cn/api/landing?port=49620`，并等编辑器标签加载完；②中继必须连在**装了工程的窗口**上，否则每次调用都 500；③要把已经打开的文档拉到前台，**在工程树里双击该文档节点**——`activateDocument` 不做这件事。
