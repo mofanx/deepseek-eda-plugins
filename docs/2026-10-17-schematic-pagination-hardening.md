@@ -2910,3 +2910,28 @@ t55 的整页图是 1752×782 的窗口截图，画布只有 1189×508，整张�
 - `r5c0`：顶部边框与 MCU 分区标题，该带内无重叠。
 
 **仍未解决的**：`zoomToRegion` 不返回矩形，所以每块的标注是"请求矩形"而非"编辑器自报矩形"；内容正确性由两端锚点（r0c0 标题栏、r5c0 顶部边框）目视核对，不是数值核对。器件的字形范围仍只能靠像素判断，几何 API 依旧没有宽高。
+
+### 14.35.19 可见标签页切换的能力边界（t5，产品侧缺口）
+
+**结论先说**：脚本**无法可靠切换可见标签页**。本版本的 `openDocument` / `activateDocument` 是空转——既不报错也不生效。要让人在编辑器里看到 MAIN，只有两条路：由人**在工程树里双击文档节点**，或者编辑器里本来就开着它。这是**产品能力缺口，不是脚本 bug**：桥按契约把返回值原样交回（`undefined` / `false`），脚本没有吞错，是那个 API 不做这件事。
+
+**三段实测**（同一会话；文档 `1ebf04a8860345ca8be2f73438086217`，页面 `b275cd23e45c4271bead56f66d4f98fe`）：
+
+| # | 起始状态 | 调用 | 返回 | 之后的 `tabs` |
+|---|---|---|---|---|
+| 1 | 只有 Start Page（`ready=notLoaded`，`pages=[]`，`texts=0`） | `openDocument(页面 uuid)` | `undefined` | `["Start Page"]`，未变 |
+| 1 | 同上 | `activateDocument(文档 uuid)` | `false` | 未变，`texts` 仍为 0 |
+| 2 | 由人**在工程树双击文档节点** | ——（纯 UI 操作） | —— | `["Start Page","MAIN.dsh-t19-real-ic-1792425596633"]`，`current=MAIN`，`texts=39` |
+| 3 | MAIN 已可见 | `openDocument(文档 uuid)` → `waitForDocumentReady(8000)` → `activateDocument(文档 uuid)` | `undefined` / `false` / `false` | 未变（`tabChanged=false`） |
+
+截图：`docs/evidence/current/r10t1-main-visible-20261022-224002.png`（1612×750，画布上是 MAIN 的 MCU/IO/CLK 与标题栏，标签页为 `MAIN.dsh-t19-real-ic-1792425596633`，缩放 53%）。
+
+第 3 段是**反证**：文档明明已经开着，三个调用依然全空转，说明不是"页面没准备好"，而是"这个调用不做事"。第 1 段才是要害——它证明**从无到有没有路径**。
+
+**另一条今天新测到的现象**：浏览器只剩 `chrome://newtab`、编辑器标签全关时，中继仍报 `edaConnected:true`、`edaWindowCount:2`（**残留注册**），此时任何 `execute` 都返回 HTTP 500；把编辑器页重新打开后 `activeWindowId` 由 `99d047ff…` 变成 `6e1d490d…`，`t53` 立刻回到 5/5 PASS。结论：**"连上了"和"连到了带文档的窗口"是两件事**，`/health` 的 `edaConnected` 只能保证前者。排查时先看 `execute` 是否 500，再看窗口 id 有没有换。
+
+**可执行指引（已写进掉线提示 `EASYEDA_BRIDGE_REGISTER_HINT`）**：在持有编辑器的**同一个浏览器**里，用新标签打开 `https://pro.lceda.cn/api/landing?port=49620`，并等编辑器标签加载完；要切到某张图，**在工程树里双击该文档节点**——桥不会替你做这一步。
+
+**为什么不在脚本里"重试到生效"**：目标 API 是 no-op，重试只会把瞬间的 `undefined` 变成一段超时，把"没发生"伪装成"慢"。所以这里不设重试、不假装成功，改为把边界写进文档与用户提示。将来该 API 若生效，第 1 段与第 3 段正好变成"可用性"的对照证据，届时删掉本节"不可用"的结论即可。
+
+**验收**：`t53` 5/5 PASS、`--check` FRESH、`wrote=0`（只改文档与提示文本）。**注意**：本节的提示文本落在 `packages/eda-core/src/bridge.ts` 的一个字符串常量上，因此 `git status -- packages` 不再是零命中——但改动只有那一句英文提示，没有逻辑行；`lib/` 是 gitignore 的构建产物，不入库。
