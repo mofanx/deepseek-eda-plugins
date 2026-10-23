@@ -1,0 +1,78 @@
+{
+ "task": "r11t2",
+ "at": "2026-10-23T16:15:00+08:00",
+ "reviewed": {
+  "task": "r9t1 (rule alignment + number assertions) and r10t1 (funnel)",
+  "head": "dd5e835",
+  "clean": true,
+  "blobs": {
+   "docs/evidence/current/r9t1-main-view-guide.md": "b6f19e0b8ab3801b80a086181c84fea5264b33b4",
+   "docs/evidence/current/r9t1-main-third-class.json": "649e09fa774b8441c74608ceabf1db94c0bc2cca",
+   "docs/evidence/review/r9t1-main-view-guide.mjs": "50bae2ccd7f18b392bd704178e3946d669a95344",
+   "docs/evidence/current/r10t1-check-list.md": "81638fe7514e9908704645ecaee73415250c5c52",
+   "docs/evidence/current/r10t1-check-list.json": "af8c022907e4b367114af8878604d531e288bd1b",
+   "docs/evidence/review/r10t1-check-list.mjs": "449200fa9b11b7de9ebe6847b29b941ba9e2658b"
+  },
+  "hashes": "guide sha256 5F470557…, json F0E44E24…, r10t1 md 0085F330… — all match t1's self-report",
+  "drift": "none before the review. My own generator runs during the mutation tests rewrote guide+json (new instance ids); both were restored with git checkout to the HEAD blobs above and the tree is clean again"
+ },
+ "items": {
+  "1_versionPin": {
+   "verdict": "pass",
+   "detail": "HEAD dd5e835 == origin/master, tree clean, six blobs recorded before any test"
+  },
+  "2_conditionsToLines": {
+   "verdict": "pass",
+   "mapping": "the guide's rule markers sit at L147 (xy), L150 (value), L162 (threshold), L169 (visible); the executable conditions are one to four lines below: L148 if (ax===null||ay===null), L151 if Value trim==='', L163 if (best.t>0.05 && best.t<0.95 && best.d<=TEXT_RADIUS), L173 if (a.ValueVisible===false){...continue}; owner classification at L159-161",
+   "noUndeclaredFilters": "the attribute loop has exactly the declared filters plus a trivial if(!best)continue; the raw 12-unit component loop has only d<=12 before pushing rawAnchorHits, so '原始 14 条' really is unfiltered; the symbol loop adds mid + netflag, both declared in the guide",
+   "note": "the cited lines are the // RULE: marker lines, not the condition lines; the structural assertion searches a 6-line window from the marker, so it holds, but '生成器位置 L169' is imprecise — a reader lands on a comment and the if is at L173"
+  },
+  "3_funnel": {
+   "verdict": "pass",
+   "recomputed": {
+    "withXY": 342,
+    "withValue": 342,
+    "visibleBase": 188,
+    "nearestWithOwn": 32,
+    "skipOwn": 45,
+    "netNameLabels": 68,
+    "candidates": 13,
+    "hitsIgnoringVisibility_step2": 47,
+    "hitsVisible_step2": 34,
+    "segments_step4": 62
+   },
+   "detail": "all three requested numbers reproduce from the declared definitions without reading t1's output: 45 = base hits when the label's own wire is skipped, 32 = same with own wire included, 13 = net labels whose nearest foreign segment is within 6 at mid; 45-32=13 because the 13 are exactly the labels previously shadowed by their own wire at t=0",
+   "visibility": "ValueVisible is now rule #4 with a stated reason (an undrawn attribute cannot overlap) and all 13 excluded hits are listed; the 13 are excluded by the rule itself (L173), not by an undeclared post-filter",
+   "crossCheck": "342/342 and 188 were re-read live; the step-2 readings 47/34 are labelled as step 2 in the guide (L71 and the stride section), and the step-4 reading 32/0 is printed beside them"
+  },
+  "4_assertions": {
+   "verdict": "pass",
+   "mutationA": "changed the template segment count to 999 and reran: exit 1, {\"error\":\"guide-number-out-of-sync\",\"statFails\":[{\"key\":\"wireSegments\",\"inGuide\":999,\"inJson\":69}]}",
+   "mutationB": "deleted the ValueVisible if-line and reran: exit 1, {\"key\":\"rule-line:visible\",\"problem\":\"cited-line-does-not-contain-condition\",\"line\":169,\"expected\":\"a.ValueVisible === false\"}, attrMid went 34 -> 47",
+   "restore": "after restoring the generator and rerunning, exit 0 and the guide sha returned to the session baseline A0A206D53F5E4E22; the two evidence files were then checked out back to HEAD (5F470557… / F0E44E24…) and git status is empty",
+   "sessionScope": "byte-identity holds within one editor session. Reopening the document re-mints attribute PrimitiveIds, so the 13-row table's ids (379e7e26… -> d473515e… for row 1) change while every count stays identical. The assertion compares counts, so it is unaffected"
+  },
+  "5_zeroWriteAndLive": {
+   "verdict": "pass",
+   "wrote": 0,
+   "invariants": "21 components (8 part + 13 netflag) / 55 wires / 55 net pairs / 2 pages, unchanged (t53); 39 texts is a read-only observation, not a t53 invariant",
+   "t53": "exit 0, 5/5 PASS (components 21, part 8 netflag 13, id set both directions, wires 55 pairs 55, pages 2 MAIN intact)",
+   "freshness": "exit 0, FRESH, baselineVersion 4",
+   "packages": "0 Line sites"
+  }
+ },
+ "sideFindings": [
+  {
+   "topic": "r10t1 'the bridge cannot open' is too broad",
+   "observation": "at review start the only active bridge window was the landing page (tabs [Start Page], pages [], texts 0) and t53 exited 2. A second bridge window had pages [MAIN,P1]; calling openDocument('b275cd23e45c4271bead56f66d4f98fe') in it returned a document handle, added the tab MAIN.dsh-t19-real-ic-1792425596633, set current MAIN and 39 texts. So the bridge can open a document when the window has the project loaded; the earlier no-op was a landing-page window state, not a capability limit",
+   "impact": "does not affect this task's verdict; flagged because r10t1 states the broader claim"
+  },
+  {
+   "topic": "summary table still carries the step-2 counts",
+   "observation": "rule rows 3-4 show 47/34 (step 2) while the page has 5 fake diagonals; the stride section and strideProbe give 32/0 for step 4 and the guide says so explicitly",
+   "impact": "honest but easy to misquote; the headline table should say 'step 2' in its header"
+  }
+ ],
+ "overall": "sound",
+ "summary": "conditions map to real code (markers at 147/150/162/169, conditions at 148/151/163/173, owner at 159-161), no undeclared filters; funnel reproduces independently as 188/32/45/68/13 (and 342/342/47/34 for step 2); both assertions go red on the right keys and restore idempotently; wrote=0, t53 5/5, FRESH v4"
+}
