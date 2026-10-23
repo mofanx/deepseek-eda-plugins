@@ -44,7 +44,7 @@ export const EASYEDA_BRIDGE_IMPLEMENTATION = 'dsh-eda-bridge'
 export const EASYEDA_BRIDGE_LANDING_URL = 'https://pro.lceda.cn/api/landing?port=49620'
 
 /** Recovery instruction shared by bridge reachability errors. */
-const EASYEDA_BRIDGE_REGISTER_HINT = `open ${EASYEDA_BRIDGE_LANDING_URL} as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window; to bring a specific schematic into view, double-click its document node in the project tree — openDocument/activateDocument do not switch the visible tab in this build`
+const EASYEDA_BRIDGE_REGISTER_HINT = `open ${EASYEDA_BRIDGE_LANDING_URL} as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window; opening a document only works once the relay is attached to the window that has the project loaded (its schematic page list is non-empty, and a landing-only window answers HTTP 500 to every call), and to bring an already-open schematic to the front double-click its document node in the project tree, because activateDocument does not change the visible tab`
 
 /**
  * Stable failure classes a bridge call can end in. Route on the code, never on

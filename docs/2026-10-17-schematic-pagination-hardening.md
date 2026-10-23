@@ -2911,27 +2911,35 @@ t55 的整页图是 1752×782 的窗口截图，画布只有 1189×508，整张�
 
 **仍未解决的**：`zoomToRegion` 不返回矩形，所以每块的标注是"请求矩形"而非"编辑器自报矩形"；内容正确性由两端锚点（r0c0 标题栏、r5c0 顶部边框）目视核对，不是数值核对。器件的字形范围仍只能靠像素判断，几何 API 依旧没有宽高。
 
-### 14.35.19 可见标签页切换的能力边界（t5，产品侧缺口）
+### 14.35.19 可见标签页的「打开」与「切前台」边界（t5 初版，r2t2 更正）
 
-**结论先说**：脚本**无法可靠切换可见标签页**。本版本的 `openDocument` / `activateDocument` 是空转——既不报错也不生效。要让人在编辑器里看到 MAIN，只有两条路：由人**在工程树里双击文档节点**，或者编辑器里本来就开着它。这是**产品能力缺口，不是脚本 bug**：桥按契约把返回值原样交回（`undefined` / `false`），脚本没有吞错，是那个 API 不做这件事。
+**结论分三层，不要压成一句**：
 
-**三段实测**（同一会话；文档 `1ebf04a8860345ca8be2f73438086217`，页面 `b275cd23e45c4271bead56f66d4f98fe`）：
+1. **窗口不对，一切皆空**：中继连在只有 landing 的窗口上时，任何 `execute` 都是 HTTP 500，`openDocument` 也不会有任何效果。这是**窗口选错**，不是 API 无能。
+2. **窗口对了，「打开」是可行的**：连到带工程的窗口时，`openDocument(尚未打开的文档)` 会**返回文档句柄并新增标签**（j5 现场，见下）。
+3. **已经打开的文档不会被切到前台**：对已可见的文档，`openDocument` / `activateDocument` 是 no-op，`activateDocument` 不改变前台标签。**这一层才是真实的 API 缺口，保留。**
 
-| # | 起始状态 | 调用 | 返回 | 之后的 `tabs` |
-|---|---|---|---|---|
-| 1 | 只有 Start Page（`ready=notLoaded`，`pages=[]`，`texts=0`） | `openDocument(页面 uuid)` | `undefined` | `["Start Page"]`，未变 |
-| 1 | 同上 | `activateDocument(文档 uuid)` | `false` | 未变，`texts` 仍为 0 |
-| 2 | 由人**在工程树双击文档节点** | ——（纯 UI 操作） | —— | `["Start Page","MAIN.dsh-t19-real-ic-1792425596633"]`，`current=MAIN`，`texts=39` |
-| 3 | MAIN 已可见 | `openDocument(文档 uuid)` → `waitForDocumentReady(8000)` → `activateDocument(文档 uuid)` | `undefined` / `false` / `false` | 未变（`tabChanged=false`） |
+**初版错在哪**：初版写的是"脚本无法可靠切换可见标签页……`openDocument`/`activateDocument` 是空转"，把第 1 层的**窗口状态**当成了第 3 层的**能力上限**。据此写下的"桥不能打开文档"**过宽，现予更正**。r10t1 的三段实测数据本身没有错，错在没标明它们**都发生在 landing 窗口里**。
 
-截图：`docs/evidence/current/r10t1-main-visible-20261022-224002.png`（1612×750，画布上是 MAIN 的 MCU/IO/CLK 与标题栏，标签页为 `MAIN.dsh-t19-real-ic-1792425596633`，缩放 53%）。
+**四段实测**（文档 `1ebf04a8860345ca8be2f73438086217`，页面 `b275cd23e45c4271bead56f66d4f98fe`）：
 
-第 3 段是**反证**：文档明明已经开着，三个调用依然全空转，说明不是"页面没准备好"，而是"这个调用不做事"。第 1 段才是要害——它证明**从无到有没有路径**。
+| # | 所在窗口 | 起始状态 | 调用 | 返回 | 之后的 `tabs` |
+|---|---|---|---|---|---|
+| 1 | landing（无工程） | 只有 Start Page（`ready=notLoaded`，`pages=[]`，`texts=0`） | `openDocument(页面 uuid)` | `undefined` | `["Start Page"]`，未变 |
+| 2 | landing（无工程） | 同上 | `activateDocument(文档 uuid)` | `false` | 未变，`texts` 仍为 0 |
+| 3 | **带工程**的第二窗口（j5） | `pages=[MAIN,P1]`，MAIN 尚未可见 | `openDocument('b275cd23e45c4271bead56f66d4f98fe')` | **文档句柄** | 新增 `MAIN.dsh-t19-real-ic-1792425596633`，`current=MAIN`，`texts=39` |
+| 4 | 同一窗口，MAIN 已可见 | `current=MAIN` | `openDocument` → `waitForDocumentReady(8000)` → `activateDocument` | `undefined` / `false` / `false` | 未变（`tabChanged=false`） |
 
-**另一条今天新测到的现象**：浏览器只剩 `chrome://newtab`、编辑器标签全关时，中继仍报 `edaConnected:true`、`edaWindowCount:2`（**残留注册**），此时任何 `execute` 都返回 HTTP 500；把编辑器页重新打开后 `activeWindowId` 由 `99d047ff…` 变成 `6e1d490d…`，`t53` 立刻回到 5/5 PASS。结论：**"连上了"和"连到了带文档的窗口"是两件事**，`/health` 的 `edaConnected` 只能保证前者。排查时先看 `execute` 是否 500，再看窗口 id 有没有换。
+第 4 行是第 3 行的对照：**同一个窗口、同一张文档**，只是它已经开着，于是 `openDocument` 退化成 no-op、`activateDocument` 也不把它拉到前台。所以"能不能打开"和"能不能切前台"是两个问题，初版把它们混成了一个。人工**在工程树双击文档节点**同样能到达第 3 行的状态（r10t1 那次就是双击做的），这也是第 4 行唯一的绕法。
 
-**可执行指引（已写进掉线提示 `EASYEDA_BRIDGE_REGISTER_HINT`）**：在持有编辑器的**同一个浏览器**里，用新标签打开 `https://pro.lceda.cn/api/landing?port=49620`，并等编辑器标签加载完；要切到某张图，**在工程树里双击该文档节点**——桥不会替你做这一步。
+截图（r10t1 人工双击之后拍的，结果与第 3 行同型）：`docs/evidence/current/r10t1-main-visible-20261022-224002.png`（1612×750，画布上是 MAIN 的 MCU/IO/CLK 与标题栏，标签页为 `MAIN.dsh-t19-real-ic-1792425596633`，缩放 53%）。
 
-**为什么不在脚本里"重试到生效"**：目标 API 是 no-op，重试只会把瞬间的 `undefined` 变成一段超时，把"没发生"伪装成"慢"。所以这里不设重试、不假装成功，改为把边界写进文档与用户提示。将来该 API 若生效，第 1 段与第 3 段正好变成"可用性"的对照证据，届时删掉本节"不可用"的结论即可。
+**旁证（t5 本机，窗口 id）**：编辑器标签全关、只剩 `chrome://newtab` 时，中继仍报 `edaConnected:true`、`edaWindowCount:2`（**残留注册**），此时每次 `execute` 都 HTTP 500；重新打开编辑器页后 `activeWindowId` 由 `99d047ff…` 变成 `6e1d490d…`，`t53` 立刻回到 5/5 PASS。可见 `/health` 的 `edaConnected` 只说明"有窗口注册过"，不说明"连到了带文档的那个窗口"。
 
-**验收**：`t53` 5/5 PASS、`--check` FRESH、`wrote=0`（只改文档与提示文本）。**注意**：本节的提示文本落在 `packages/eda-core/src/bridge.ts` 的一个字符串常量上，因此 `git status -- packages` 不再是零命中——但改动只有那一句英文提示，没有逻辑行；`lib/` 是 gitignore 的构建产物，不入库。
+**怎么确认窗口选对了（可执行）**：①只读探针调 `dmt_Schematic.getAllSchematicPagesInfo()`，返回 `MAIN`/`P1` 两条即对，返回空数组或只有 `Start Page` 即错；②`tabs` 里能看到目标文档名（如 `MAIN.dsh-t19-…`）；③`activeWindowId` 与上一次不同，说明你换到了另一个窗口——重开编辑器标签一定会换 id，这是最可靠的"我确实切过去了"的信号。**`execute` 返回 500 时先查这三条，不要先改代码。**
+
+**已写进掉线提示 `EASYEDA_BRIDGE_REGISTER_HINT`**：①在持有编辑器的**同一个浏览器**里用新标签打开 `https://pro.lceda.cn/api/landing?port=49620`，并等编辑器标签加载完；②中继必须连在**装了工程的窗口**上，否则每次调用都 500；③要把已经打开的文档拉到前台，**在工程树里双击该文档节点**——`activateDocument` 不做这件事。
+
+**为什么不"重试到生效"**：在同一个（错的）窗口里重试只会把瞬间的空转变成一段超时，把"没发生"伪装成"慢"。正确做法是**换到带工程的窗口再调**；窗口变了之后重试一次是合理的，窗口没变就不该重试。
+
+**验收**：`t53` 5/5 PASS、`--check` FRESH、`wrote=0`（只改文档与提示文本）。**注意**：本节的提示文本落在 `packages/eda-core/src/bridge.ts` 的一个字符串常量上，因此 `git status -- packages` 不是零命中——改动只有那一句英文提示，没有逻辑行；`lib/` 是 gitignore 的构建产物，不入库。基线按规矩在干净树上 `--update` 重钉。
