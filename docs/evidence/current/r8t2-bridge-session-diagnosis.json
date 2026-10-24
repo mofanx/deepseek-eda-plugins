@@ -1,0 +1,207 @@
+{
+  "task": "t2/r8t2 - independent editor-session and bridge diagnosis of the MAIN registration problem",
+  "mode": "read-only bridge/health/probe; no save, modify, create, delete, clear, openDocument or canvas write",
+  "generatedAt": "2026-10-24T21:35:00+08:00",
+  "head": "ba8f0f97f28c80b71001e44e65b3f5aef7aabc85",
+  "origin": "ba8f0f97f28c80b71001e44e65b3f5aef7aabc85",
+  "aheadBehind": "0 0",
+  "verdict": "exit2 - relay is up but no EDA editor window is registered; MAIN/session state cannot be read",
+  "health": {
+    "command": "Invoke-WebRequest -UseBasicParsing http://127.0.0.1:49620/health",
+    "httpStatus": 200,
+    "body": {
+      "service": "easyeda-bridge",
+      "bridge": "dsh-eda-bridge",
+      "status": "ok",
+      "edaConnected": false,
+      "edaWindowCount": 0,
+      "activeWindowId": null,
+      "pendingRequests": 0,
+      "timestamp": 1792840444012
+    },
+    "meaning": "The relay process is alive and answering. It has zero registered editor windows and no active window. This is not 'no listener': the listener returns HTTP 200. It is not HTTP 500: the request succeeded. It is not a handshake mismatch: there is no window with which to handshake."
+  },
+  "probe": {
+    "command": "node docs/evidence/review/r6t1-probe-bridge.mjs",
+    "exitCode": 2,
+    "stdout": "BRIDGE UNAVAILABLE: easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window; opening a document only works once the relay is attached to the window that has the project loaded (its schematic page list is non-empty, and a landing-only window answers HTTP 500 to every call), and to bring an already-open schematic to the front double-click its document node in the project tree, because activateDocument does not change the visible tab",
+    "note": "The probe imported HttpEasyEdaBridge and attempted discovery. It failed before any getAllSchematicPagesInfo() page result was obtained."
+  },
+  "t53": {
+    "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+    "exitCode": 2,
+    "stdoutSummary": {
+      "at": "2026-10-24T11:13:25.916Z",
+      "gate": "MAIN invariants",
+      "readOnly": true,
+      "exit": 2,
+      "ok": false,
+      "reason": "BRIDGE_UNREACHABLE",
+      "checks": [],
+      "detail": "easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window"
+    },
+    "meaning": "t53 did not evaluate a single invariant (checks is empty). exit 2 is CANNOT JUDGE, not PASS. No 21/8/13/55/55/2 claim is made from this run."
+  },
+  "session": {
+    "openProject": "not observable / not established",
+    "activeDocument": null,
+    "activePage": null,
+    "activePageUuid": null,
+    "isMain": "not established; MAIN uuid b275cd23e45c4271bead56f66d4f98fe is the offline baseline, not a live active-page reading",
+    "getAllSchematicPagesInfo": "not obtained; the bridge has no editor window, so this read-only call could not run",
+    "saveOwnDocument": "not reached; there is no active document/window for it to see. The earlier saveOwnDocument-vs-canvas-document trap cannot be tested while the relay has zero windows.",
+    "canDistinguish": "No. With zero registered windows, one cannot tell whether a project is open in an unregistered tab, no browser is present, or the editor tab is still loading. All three look the same at /health: edaConnected=false, edaWindowCount=0.",
+    "processEvidence": {
+      "getProcessMainWindowTitle": "empty (no titled GUI process visible to this session)",
+      "tasklistV": "ACCESS_DENIED (sandbox refused tasklist.exe)",
+      "netstat": "ACCESS_DENIED (sandbox refused NETSTAT.EXE)",
+      "cimProcess": "ACCESS_DENIED (Get-CimInstance Win32_Process)",
+      "note": "Process/window-title evidence is not usable as a positive proof; the HTTP health and probe are the authoritative independent evidence. No claim about a specific browser window is made."
+    }
+  },
+  "branchAnalysis": {
+    "noListener": {
+      "test": "HTTP 200 from 127.0.0.1:49620/health",
+      "supported": false,
+      "why": "The relay is listening and responding."
+    },
+    "listener500NeedsProject": {
+      "test": "health returned 200, not 500; probe failed with no-window, not a 500/project-window message",
+      "supported": false,
+      "why": "A landing-only window would answer 500 to calls, but health has edaWindowCount=0, not a 500-answering window."
+    },
+    "reachableHandshakeMismatch": {
+      "test": "edaConnected=false, edaWindowCount=0, activeWindowId=null; no registered window exists",
+      "supported": false,
+      "why": "There is no window/handshake to mismatch; the failure is before handshake."
+    },
+    "actual": {
+      "id": "relay-up-no-eda-window",
+      "supported": true,
+      "evidence": "health status ok + edaConnected false + edaWindowCount 0 + activeWindowId null; probe and t53 both report no EasyEDA window connected"
+    }
+  },
+  "j6Comparison": {
+    "j6ArtifactFound": false,
+    "search": "docs/evidence/** names/content for r8/diagnosis/bridge/saveOwnDocument; only r8t1 image set and old r8t2-review-hires-tiles.json exist; no j6 bridge-session artifact",
+    "j6ExactClaim": "not available in the repository, so its exact root cause cannot be quoted as a fact",
+    "testAgainstNamedBranches": {
+      "noListener": "not supported by HTTP 200",
+      "listener500NeedsProject": "not supported; health 200 and zero windows",
+      "handshakeMismatch": "not supported; zero windows means no handshake stage"
+    },
+    "myFinding": "relay is up; no EDA editor window registered; session/active page cannot be read",
+    "agreement": "If j6's root cause is 'no editor window registered', it agrees with this evidence. If j6 said no listener, 500-needs-project, or handshake mismatch, it does not agree.",
+    "difference": "The actual branch is a fourth/adjacent state: listener healthy, zero EDA windows. It is neither of the three named failure modes.",
+    "verdict": "partial - no j6 artifact to compare; the three named branches are all contradicted; only 'no window' is supported"
+  },
+  "openProjectBoundary": {
+    "openFocusIsWrite": false,
+    "openFocusPerformed": false,
+    "writeApisUsed": [],
+    "saveOwnDocumentCalled": false,
+    "modifyCreateDeleteClearCalled": false,
+    "canvasWrites": 0,
+    "bridgeWrites": 0,
+    "reason": "No editor window is registered; opening/focusing a project was not attempted because it cannot be done through the current relay. Even if it were, open/focus is not a document write; save/modify/create/delete/clear would be."
+  },
+  "selfProof": {
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "packagesDiff": "git diff --name-only 045cfecc HEAD -- packages -> empty",
+    "wrote": 0,
+    "fileWrites": 0,
+    "canvasWrites": 0,
+    "bridgeWrites": 0,
+    "note": "Only docs/evidence/current/r8t2-bridge-session-diagnosis.json is created; no editor document was opened, saved, modified, created, deleted or cleared."
+  },
+  "checks": [
+    {
+      "id": "1-session-project-active-doc-main",
+      "verdict": "不成立/不可判定",
+      "evidence": "health edaConnected=false, edaWindowCount=0, activeWindowId=null; no getAllSchematicPagesInfo result; cannot establish an open project, active document, active page, or that MAIN is active. MAIN uuid is only the offline baseline."
+    },
+    {
+      "id": "2-branch-no-listener",
+      "verdict": "不成立",
+      "evidence": "HTTP 200 /health from 127.0.0.1:49620; relay is listening."
+    },
+    {
+      "id": "3-branch-500-project-window",
+      "verdict": "不成立",
+      "evidence": "health returned 200; edaWindowCount=0; no 500/project-window response."
+    },
+    {
+      "id": "4-branch-handshake-mismatch",
+      "verdict": "不成立",
+      "evidence": "no registered window (edaWindowCount=0); failure occurs before handshake."
+    },
+    {
+      "id": "5-actual-branch-no-eda-window",
+      "verdict": "成立",
+      "evidence": "health status ok + edaConnected false + 0 windows + null active; probe and t53 both say no EasyEDA window connected."
+    },
+    {
+      "id": "6-t53-not-pass",
+      "verdict": "成立",
+      "evidence": "t53 exit 2, checks [], reason BRIDGE_UNREACHABLE; explicitly not PASS, no invariants evaluated, no offline substitution."
+    },
+    {
+      "id": "7-no-write",
+      "verdict": "成立",
+      "evidence": "No saveOwnDocument, save, modify, create, delete, clear or openDocument call; wrote=0; packages=0."
+    },
+    {
+      "id": "8-self-proof",
+      "verdict": "成立",
+      "evidence": "freshness FRESH v4 exit0; packages new0; only this JSON created."
+    }
+  ],
+  "overall": "partial",
+  "delivery": "exit2, relay up but no EDA window; MAIN not verified; j6 exact artifact unavailable",
+  "overallReason": "The bridge listener is healthy, but it has no editor window. That makes project/active-document/MAIN unobservable and makes t53 exit 2 with zero checks. The diagnosis is certain at the relay/window layer; it cannot name a project or active page, and it cannot verify j6's exact root cause because no j6 bridge-session artifact is committed. The three named j6 branches are all contradicted; the supported state is relay-up/no-EDA-window.",
+  "verify": [
+    {
+      "task": "j6",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "No j6 bridge diagnosis artifact was found in docs/evidence. Against the three named branches: no-listener is contradicted by HTTP 200; 500-needs-project is contradicted by health 200/windowCount0; handshake-mismatch is contradicted by there being no registered window. The actual state is relay-up/no-EDA-window. If j6 said 'no window', it agrees; if it said one of the other three, it does not.",
+        "baseline": "No committed j6 bridge-session artifact; r8t1 files are image tiles, not a bridge diagnosis.",
+        "diff": "No j6 file changed by this review.",
+        "command": "Invoke-WebRequest http://127.0.0.1:49620/health; node r6t1-probe-bridge.mjs; node t53-verify-main.mjs --json",
+        "exitCode": 2,
+        "health": "200 ok, edaConnected false, edaWindowCount 0, activeWindowId null",
+        "probe": "exit2 no EasyEDA window",
+        "t53": "exit2 BRIDGE_UNREACHABLE, checks[]"
+      }
+    }
+  ],
+  "baseline": "HEAD ba8f0f9; no r8t2 bridge-session diagnosis existed. No screen/GUI process proof was obtainable (tasklist/netstat/CIM access denied).",
+  "diff": "New file only: docs/evidence/current/r8t2-bridge-session-diagnosis.json. No editor source, guide, package, t53 or gate change.",
+  "reproSteps": [
+    "Invoke-WebRequest -UseBasicParsing http://127.0.0.1:49620/health  # HTTP 200, edaConnected false, edaWindowCount 0, activeWindowId null",
+    "node docs/evidence/review/r6t1-probe-bridge.mjs  # exit 2, no EasyEDA window",
+    "node docs/evidence/review/t53-verify-main.mjs --json  # exit 2, BRIDGE_UNREACHABLE, checks []",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/r6t1-probe-bridge.mjs",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r8t2-bridge-session-diagnosis.json",
+      "summary": "health 200/edaConnected false/0 windows；probe 与 t53 exit2；三种 j6 分支均不成立，实际 relay-up/no-EDA-window；无活动工程/页/MAIN 可证；无写。"
+    },
+    {
+      "type": "command",
+      "summary": "health HTTP 200 body edaConnected:false/edaWindowCount:0/activeWindowId:null；probe exit2；t53 exit2 checks[]；freshness FRESH v4 exit0；packages0。"
+    },
+    {
+      "type": "test",
+      "summary": "不能证明 MAIN 活动页；t53 未评估任何不变量，不冒充 PASS；无 save/modify/create/delete/clear/openDocument；wrote0。"
+    }
+  ]
+}
