@@ -1,0 +1,200 @@
+{
+  "task": "r8t1 - bridge transport diagnosis: locate the endpoint, probe four layers, name a falsifiable root cause, attempt a minimal fix",
+  "mode": "read-only diagnosis; no canvas write, no document save/modify/create/delete/clear; the only action taken outside HTTP was opening one browser page",
+  "generatedAt": "2026-10-24T11:42:00Z",
+  "generatedAtLocal": "2026-10-24T19:42:00+08:00",
+  "head": "ba8f0f97f28c80b71001e44e65b3f5aef7aabc85",
+  "headAtReviewStart": "ba8f0f9 (HEAD = origin, rev-list 0 0, clean tree)",
+  "headline": "The bridge relay is RUNNING and healthy; the failure is NOT transport. /health answers 200 on two ports with edaConnected:false and /eda-windows returns an empty list. t53's 'BRIDGE_UNREACHABLE' is a mislabel: its discover() catch-all maps SCHEMATIC_BRIDGE_NO_EDA (relay up, no editor registered) onto that same string. Root cause is branch (b): the relay is up but no editor window is registered, so the registration step in the editor's own browser has not happened.",
+  "endpoint": {
+    "sourceOfTruth": "packages/eda-core/src/bridge.ts and packages/eda-core/bin/dsh-eda-bridge.mjs",
+    "host": "127.0.0.1 (bridge.ts L276: `const host = options.host ?? '127.0.0.1'`)",
+    "portRange": {
+      "min": 49620,
+      "max": 49630,
+      "verbatim": [
+        "bridge.ts L21-22: `/** First port the run-api-gateway bridge listens on (protocol constant). */` / `export const EASYEDA_BRIDGE_PORT_MIN = 49620`",
+        "bridge.ts L25-28: `Last port scanned for a run-api-gateway bridge.` / `export const EASYEDA_BRIDGE_PORT_MAX = 49630`",
+        "bin L67-68: `const PORT_START = 49620` / `const PORT_END = 49629`",
+        "bin L69-72: `// The editor's built-in run-api-gateway hard-codes ws://127.0.0.1:49630 and` ... `const BUILTIN_GATEWAY_PORT = 49630`"
+      ],
+      "whyTwoListeners": "bin L18-22: `Port range 49620-49629; the first free port is picked at startup. A second listener binds 49630, the fixed endpoint the editor's built-in run-api-gateway dials after an api/landing?port= BroadcastChannel trigger (the port param is metadata only — the gateway always uses 49630)`. So 49620 + 49630 listening is ONE instance, not two daemons. I initially suspected two daemons; bin L18-22 corrects that."
+    },
+    "probe": "GET http://<host>:<port>/health (bridge.ts L316: `const res = await fetchFn(`${baseUrl}/health`, { signal: d.signal })`)",
+    "execute": "POST http://<host>:<port>/execute with header content-type: application/json and body JSON.stringify({ code }) (bridge.ts L376-380)",
+    "timeouts": {
+      "clientDefault": "bridge.ts L258: `this.timeoutMs = options.timeoutMs ?? 30_000`",
+      "t53Discover": "docs/evidence/review/t53-verify-main.mjs L106: `bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 15_000 })`",
+      "t53Execute": "t53-verify-main.mjs L126: `live = await bridge.execute(READ, { timeoutMs: 120_000 })`"
+    },
+    "healthContract": "bridge.ts L331-335 requires health.service === 'easyeda-bridge', health.bridge either absent or 'dsh-eda-bridge', and health.edaConnected !== false; otherwise SCHEMATIC_BRIDGE_NO_EDA",
+    "implementationId": "bridge.ts L37: `export const EASYEDA_BRIDGE_IMPLEMENTATION = 'dsh-eda-bridge'`",
+    "landingUrl": "bridge.ts L44: `export const EASYEDA_BRIDGE_LANDING_URL = 'https://pro.lceda.cn/api/landing?port=49620'`",
+    "registerHintFirstLine": "bridge.ts L47 begins: `open ${EASYEDA_BRIDGE_LANDING_URL} as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading`"
+  },
+  "layers": [
+    {
+      "id": "a",
+      "name": "raw TCP connect",
+      "method": "node:net Socket.connect(port, '127.0.0.1') with 2000 ms timeout, ports 49620..49630",
+      "command": "node docs/evidence/review/r8t1-probe-transport.mjs",
+      "exitCode": 0,
+      "rawOutput": [
+        "127.0.0.1:49620  connected=true",
+        "127.0.0.1:49621  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49622  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49623  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49624  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49625  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49626  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49627  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49628  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49629  connected=false  err=ECONNREFUSED",
+        "127.0.0.1:49630  connected=true"
+      ],
+      "verdict": "TCP IS establishable on 49620 and 49630. A listener exists. Branch (a) 'no process listening' is EXCLUDED."
+    },
+    {
+      "id": "b",
+      "name": "bare HTTP GET /health",
+      "command": "node docs/evidence/review/r8t1-probe-transport.mjs",
+      "exitCode": 0,
+      "rawOutput": [
+        "http://127.0.0.1:49620/health",
+        "  status=200 OK  content-type=application/json",
+        "  body(first200)=\"{\\\"service\\\":\\\"easyeda-bridge\\\",\\\"bridge\\\":\\\"dsh-eda-bridge\\\",\\\"status\\\":\\\"ok\\\",\\\"edaConnected\\\":false,\\\"edaWindowCount\\\":0,\\\"activeWindowId\\\":null,\\\"pendingRequests\\\":0,\\\"timestamp\\\":1792840476682}\"",
+        "http://127.0.0.1:49630/health",
+        "  status=200 OK  content-type=application/json",
+        "  body(first200)=\"{\\\"service\\\":\\\"easyeda-bridge\\\",\\\"bridge\\\":\\\"dsh-eda-bridge\\\",\\\"status\\\":\\\"ok\\\",\\\"edaConnected\\\":false,\\\"edaWindowCount\\\":0,\\\"activeWindowId\\\":null,\\\"pendingRequests\\\":0,\\\"timestamp\\\":1792840476702}\""
+      ],
+      "verdict": "The relay answers correctly with the exact service id and implementation id bridge.ts demands, but edaConnected is FALSE and edaWindowCount is 0. The transport works; the editor is not attached."
+    },
+    {
+      "id": "c",
+      "name": "POST /execute - compare the failure body verbatim against the REGISTER_HINT expectation",
+      "command": "node -e \"... fetch http://127.0.0.1:<port>/execute, method POST, body {code:'return 1'} ...\"",
+      "exitCode": 0,
+      "rawOutput": [
+        "49620 status 503",
+        "  body: \"{\\\"success\\\":false,\\\"error\\\":\\\"No EDA window connected. Please connect an EDA window first.\\\"}\"",
+        "49630 status 503",
+        "  body: \"{\\\"success\\\":false,\\\"error\\\":\\\"No EDA window connected. Please connect an EDA window first.\\\"}\""
+      ],
+      "verdict": "DISCREPANCY WITH THE TASK'S PREMISE, stated plainly: the response is 503, not 500, and the body is NOT the EASYEDA_BRIDGE_REGISTER_HINT text. The hint string lives in bridge.ts and is composed client-side into SchematicError messages; the relay itself returns this short JSON error. So the task's sub-step (c) 'confirm the body is the REGISTER_HINT sentence' cannot be confirmed - it is not that sentence. The 503 does independently prove the relay has no editor window.",
+      "hintTextQuotedVerbatimForComparison": "bridge.ts L47: `open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading — a different browser, or opening it before the editor, leaves the relay with no window; opening a document only works once the relay is attached to the window that has the project loaded (its schematic page list is non-empty, and a landing-only window answers HTTP 500 to every call), and to bring an already-open schematic to the front double-click its document node in the project tree, because activateDocument does not change the visible tab`",
+      "note": "the hint text itself mentions 'a landing-only window answers HTTP 500 to every call' - that is a different condition (a window that registered but has no project loaded) and is not what we observe (zero windows at all, 503)" 
+    },
+    {
+      "id": "d",
+      "name": "which process listens / listener table",
+      "command": "Get-NetTCPConnection -LocalPort 49620,49630 -State Listen ; Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" ; netstat -ano",
+      "exitCode": 1,
+      "rawOutput": [
+        "Get-NetTCPConnection FAILED: 拒绝访问",
+        "CIM FAILED: 拒绝访问",
+        "netstat: ResourceUnavailable: Program 'NETSTAT.EXE' failed to run: 拒绝访问。"
+      ],
+      "verdict": "BOUNDARY, reported honestly: I could NOT read the owning PID. The workspace sandbox denied Get-NetTCPConnection, Get-CimInstance and netstat. What is still proven without them: a listener exists on 49620 and 49630 (layer a: TCP connect succeeds) and it is this implementation (layer b: /health returns service=easyeda-bridge, bridge=dsh-eda-bridge). Only the PID is unknown.",
+      "doNotConclude": "do not read this as 'no listener'. An earlier attempt printed nothing for Get-NetTCPConnection because it raised and the error was suppressed; the TCP probe is the reliable evidence."
+    }
+  ],
+  "rootCause": {
+    "branch": "b",
+    "statement": "The relay process is up and healthy, but zero editor windows are registered with it (edaConnected:false, edaWindowCount:0, /eda-windows returns {\"windows\":[],\"activeWindowId\":null,\"count\":0}). Registration happens when the EasyEDA editor page, loaded in a browser that can reach the relay's BroadcastChannel, posts its registration; that has not happened for this relay instance.",
+    "whyNotA": "branch (a) requires no listener; TCP connect to 49620 and 49630 succeeds and /health answers 200.",
+    "whyNotC": "branch (c) requires a timeout or protocol mismatch; every request returned immediately (200/503/404), the service id and implementation id match bridge.ts exactly, and there is no SCHEMATIC_BRIDGE_TIMEOUT.",
+    "falsifiablePredictions": [
+      "If an editor window registers, GET /health must flip to edaConnected:true and edaWindowCount>=1 within one heartbeat, and GET /eda-windows must list it. (Test: poll /health while the editor registers.)",
+      "If the relay is restarted and the editor page is not reloaded, edaWindowCount must stay 0 - because the page's gateway socket died with the old relay. (Test: restart the bin, observe count stays 0 until the page re-registers.)",
+      "If a browser other than the one holding the editor tab opens the landing URL, edaWindowCount must stay 0 - bridge.ts L47 says a different browser leaves the relay with no window. (Test: open the landing URL in a second browser profile and observe no registration.)"
+    ],
+    "secondaryFinding": {
+      "what": "t53 reports this condition as BRIDGE_UNREACHABLE, which reads as 'the bridge is dead/transport unreachable'. It is not.",
+      "verbatim": [
+        "t53-verify-main.mjs L106-108: `bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 15_000 })` then `} catch (e) { fail('BRIDGE_UNREACHABLE', String((e && e.message) || e).slice(0, 200)) }`",
+        "t53-verify-main.mjs L129: `if (/NO_EDA|not connected|edaConnected/i.test(msg)) fail('EDA_NOT_CONNECTED', msg)` - this distinct label is unreachable for the NO_EDA case, because discover() throws before execute() runs"
+      ],
+      "effect": "the discover() catch-all collapses SCHEMATIC_BRIDGE_NO_EDA into BRIDGE_UNREACHABLE, so the session has been treating a registration problem as a dead transport for many rounds",
+      "fixSuggestion": "classify the discover() error by its .code (SCHEMATIC_BRIDGE_NO_EDA -> EDA_NOT_CONNECTED, SCHEMATIC_BRIDGE_UNAVAILABLE -> BRIDGE_UNREACHABLE) instead of one catch-all string"
+    }
+  },
+  "fixAttempt": {
+    "allowedAction": "open/focus only - no document write",
+    "steps": [
+      {
+        "action": "open the relay's own self-closing registration page in the default browser",
+        "command": "Start-Process 'http://127.0.0.1:49620/landing'",
+        "result": "Start-Process issued (no error)",
+        "whatThatPageDoes": "bin L196-201 and L209-213: `const landing = 'https://pro.lceda.cn/api/landing?port=' + location.port` ... `const pop = () => { popup = window.open(landing, '_blank', 'popup,width=640,height=480') }` ... `pop() // blocked without a user gesture in most browsers; the button covers that`"
+      },
+      {
+        "action": "poll /health for 30 s at 2 s intervals",
+        "command": "node -e \"... 15 polls of http://127.0.0.1:49620/health ...\"",
+        "exitCode": 0,
+        "rawOutput": "0..14 edaConnected=false windows=0 ; NOT_REGISTERED_AFTER_30S",
+        "result": "no registration"
+      }
+    ],
+    "whyItDidNotWork": "two documented reasons, both quoted from the code rather than guessed: (1) the page's own comment says `pop()` is 'blocked without a user gesture in most browsers', so the landing popup to pro.lceda.cn never opened without a click; (2) even if it had opened, registration only works 'IN THE SAME BROWSER that holds the web editor tab' (bridge.ts L47) - a shell-launched default browser is not guaranteed to be that browser.",
+    "notDone": [
+      "did NOT restart the relay: it is healthy, and a restart would not register an editor (it would only drop an existing window)",
+      "did NOT click inside the browser: that needs a human gesture in the editor's own browser",
+      "did NOT open/modify any document, and no save/modify/create/delete/clear call was made"
+    ],
+    "whatWouldCloseIt": "in the browser window that has the EasyEDA Pro editor tab open with the project loaded, open http://127.0.0.1:49620/landing and, if no popup appears, click the 'open the landing page' button. Success is visible as /health flipping to edaConnected:true and /eda-windows listing one window; then re-run t53."
+  },
+  "t53ThisRound": {
+    "command": "node docs/evidence/review/t53-verify-main.mjs",
+    "exitCode": 2,
+    "rawOutput": [
+      "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that e",
+      "[t53] no invariant was evaluated; this is exit 2, not a pass"
+    ],
+    "reading": "still exit 2. The message text itself proves the relay WAS reached ('easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected'), i.e. SCHEMATIC_BRIDGE_NO_EDA, which t53's label renders as BRIDGE_UNREACHABLE.",
+    "noNumbers": "no 5/5 and no 21/8/13/55/55/2 were produced; part/netflag and the live page count therefore remain reconstructed/historical this round. This is exit 2, NOT a pass."
+  },
+  "conclusions": {
+    "transportIsFine": true,
+    "relayRunning": true,
+    "editorRegistered": false,
+    "rootCauseBranch": "b",
+    "fixed": false,
+    "honest": "not fixed - exit 2, and the new evidence is which layer is broken: not TCP, not HTTP, not protocol, but registration (zero editor windows)."
+  },
+  "correctionsToPriorBeliefs": [
+    {
+      "belief": "'BRIDGE_UNREACHABLE' means the bridge is not running / the transport is dead",
+      "correction": "false in this state: the relay answers /health 200 on 49620 and 49630. The label is t53's catch-all at L108; the real class is SCHEMATIC_BRIDGE_NO_EDA."
+    },
+    {
+      "belief": "two listening ports (49620, 49630) would mean two competing relay daemons",
+      "correction": "false: bin L18-22 makes 49630 the fixed second listener of the same instance (the editor's built-in gateway endpoint). I held this suspicion briefly and dropped it on reading the bin header."
+    },
+    {
+      "belief": "the relay returns HTTP 500 with the REGISTER_HINT sentence when no editor is attached",
+      "correction": "false as measured: it returns 503 with {\"success\":false,\"error\":\"No EDA window connected. Please connect an EDA window first.\"}. The REGISTER_HINT is composed client-side in bridge.ts, not returned by the relay."
+    }
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "documentWrites": 0,
+    "packagesNew": 0,
+    "filesChanged": ["docs/evidence/review/r8t1-probe-transport.mjs", "docs/evidence/current/r8t1-bridge-transport-diagnosis.json"],
+    "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0",
+    "probeWritesGrep": {
+      "fsWritePattern": "writeFile|appendFile|createWriteStream|fs.(write|unlink|rename|mkdir|rm|copyFile)|rmSync|unlinkSync|writeSync -> NO_MATCHES",
+      "documentMutationPattern": ".save(|.modify(|.create(|.delete(|.clear( -> NO_MATCHES",
+      "imports": "only `import net from 'node:net'` - the script does not import fs at all",
+      "falsePositiveDisclosed": "a broad grep for 'clear' hits one line, `clearTimeout(t)`, which clears a timer, not a document. Reported rather than hidden."
+    }
+  },
+  "baseline": "HEAD ba8f0f9; t53 had been reported all session as exit 2 BRIDGE_UNREACHABLE with the cause assumed to be a dead/absent relay",
+  "diff": "added docs/evidence/review/r8t1-probe-transport.mjs (read-only probe) and docs/evidence/current/r8t1-bridge-transport-diagnosis.json; no source, package, document or canvas change",
+  "reproSteps": [
+    "node docs/evidence/review/r8t1-probe-transport.mjs            # layer a + b: TCP and /health on 49620..49630",
+    "node -e \"(async()=>{const r=await fetch('http://127.0.0.1:49620/execute',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:'return 1'})});console.log(r.status,await r.text())})()\"   # layer c: 503",
+    "node -e \"fetch('http://127.0.0.1:49620/eda-windows').then(r=>r.text()).then(console.log)\"   # {\"windows\":[],\"count\":0}",
+    "node docs/evidence/review/t53-verify-main.mjs                # exit 2, NO_EDA labelled BRIDGE_UNREACHABLE"
+  ],
+  "verifyCommand": "node docs/evidence/review/r8t1-probe-transport.mjs"
+}
