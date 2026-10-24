@@ -1,0 +1,143 @@
+{
+  "task": "t2",
+  "artifact": "docs/evidence/current/r4t1-d1-text31-shrink.json",
+  "at": "2026-10-24T06:10:00Z",
+  "target": "D1 - text31 fontSize 16 -> 14, so the 项目 name ink retreats into its own cell",
+  "page": { "name": "MAIN", "uuid": "b275cd23e45c4271bead56f66d4f98fe" },
+  "verdict": "APPLIED",
+
+  "readOnlyRehearsal": {
+    "text31": { "id": "text31", "x": 404, "y": 116, "fontSize": 16, "rotation": 0, "content": "dsh-t19-real-ic-1792425596633", "contentLength": 29 },
+    "text32": { "x": 590, "y": 116, "fontSize": 14, "content": "图幅" },
+    "snapshotBefore": { "components": 21, "part": 8, "netflag": 13, "wires": 55, "netLabels": 55, "pages": 2, "hex": 0, "texts": 39, "attrs": 662 },
+    "contentLengthNote": "the brief says 28 characters; the stored string is 29 ('dsh-t19-real-ic-1792425596633'). Measured on the API value, not on the brief.",
+    "cellBoundary": "the brief and the guide define 格界 = 590 (text32's anchor). The drawn cell border sits at page ~583.7 (px 164 in the measurement frame); both readings are reported below."
+  },
+
+  "canvasOwnership": {
+    "whyNotTheSharedGuard": "shared/canvas-owner.mjs assertOwnCanvas() answers 'is the canvas painting OUR PROBE page', because its callers write into a throwaway page. This task must modify MAIN itself, so the question is inverted: 'is the canvas painting MAIN'. openDocument() is documented not to switch tabs, so steering a probe and back would be a proof of nothing.",
+    "method": "content identity of the painted document: active page uuid = MAIN, and the document the canvas paints returns 39 texts / 21 components / 55 wires / 2 pages, with text31 content = the 29-char project id. A different or empty page cannot produce that signature.",
+    "result": { "activeUuid": "b275cd23e45c4271bead56f66d4f98fe", "activeName": "MAIN", "texts": 39, "comps": 21, "wires": 55, "pages": 2, "identityOk": true },
+    "savePath": "shared/page-cleanup.mjs saveOwnDocument() refuses probe===main by design (REFUSED_TARGET_IS_MAIN). The save was therefore eda.sch_Document.save() directly, gated by the identity check plus an exact read-back before the call."
+  },
+
+  "conversion": {
+    "rule": "target = read fontSize * 14/16 = 16 * 14/16 = 14",
+    "hardcoded": false,
+    "unitTrap": "TWO different conventions exist and they are not interchangeable. For sch_PrimitiveAttribute, modify() takes inches and the stored 0.01-inch value must be divided by 100 (doc section 14.22 item 3). For sch_PrimitiveText, modify('text31', {fontSize: X}) round-trips X unchanged: X=0.14 read back 0.14, so the text API takes the SAME unit getState_FontSize returns. Writing 0.14 would have shrunk the label by 100x.",
+    "evidence": "r4t1-d1-write.json step 'modify-id target/100' read back fs=0.14, which is how the unit was settled without guessing."
+  },
+
+  "calls": {
+    "modifyShape": "eda.sch_PrimitiveText.modify('text31', { fontSize: 14 })",
+    "shapeBugFound": "the first attempt passed the primitive OBJECT as the first argument. The implementation publishes {primitiveId: t, ...} with t used verbatim, so the object became '[object Object]' and the call silently did nothing (read-back stayed 16). Passing the id string is the working shape.",
+    "writes": 3,
+    "saves": 1,
+    "abortedAttempts": [
+      { "why": "object-as-id no-op", "wrote": 2, "saved": 0, "stateAfter": "fs 16 (unchanged)" },
+      { "why": "unit probe set 0.14, script refused to accept it as the target and restored 16", "wrote": 2, "saved": 0, "stateAfter": "fs 16 (restored)" }
+    ]
+  },
+
+  "before": { "fontSize": 16, "x": 404, "y": 116, "content": "dsh-t19-real-ic-1792425596633" },
+  "afterModify": { "fontSize": 14, "x": 404, "y": 116, "content": "dsh-t19-real-ic-1792425596633", "geometryUnchanged": true },
+  "afterSave": { "fontSize": 14, "x": 404, "y": 116, "content": "dsh-t19-real-ic-1792425596633", "saveReturned": "true" },
+  "coldRead": {
+    "how": "a new node process (fresh bridge discovery) after the save; not a browser reload, which would have disturbed the user's session",
+    "text31": { "fontSize": 14, "x": 404, "y": 116, "content": "dsh-t19-real-ic-1792425596633" },
+    "text32Untouched": { "fontSize": 14, "x": 590, "y": 116, "content": "图幅" },
+    "counts": { "texts": 39, "comps": 21, "wires": 55, "pages": 2 },
+    "equalsBeforeCounts": true
+  },
+
+  "pixels": {
+    "frames": [
+      { "tag": "before-zoom", "file": "docs/evidence/current/r4t1-d1-before-zoom.png", "sha256": "6210a9aeec8ef4492a9163eb1d946ab53b881752055b45ccf7e6c6ea5bb1c038", "bytes": 112683, "declaredRect": { "x1": 560, "x2": 700, "y1": 96, "y2": 136 } },
+      { "tag": "after-zoom", "file": "docs/evidence/current/r4t1-d1-after-zoom.png", "sha256": "41e6a1d91b3a868b71151f66c6ba6316e96363a352a30365b1152167d0a8b34a", "bytes": 111365, "declaredRect": { "x1": 560, "x2": 700, "y1": 96, "y2": 136 } },
+      { "tag": "before-wide", "file": "docs/evidence/current/r4t1-d1-before-wide.png", "sha256": "7d16ff142a008a5433754c9a75f117717f2064db37c32e1d05143684816c86b0", "bytes": 110759, "declaredRect": { "x1": 380, "x2": 790, "y1": 60, "y2": 344 } },
+      { "tag": "after-wide", "file": "docs/evidence/current/r4t1-d1-after-wide.png", "sha256": "3a8091a6ea91fb2312652c556e39b0bbbefdd58e33acb4bc2b882774ca48f2c5", "bytes": 109937, "declaredRect": { "x1": 380, "x2": 790, "y1": 60, "y2": 344 } }
+    ],
+    "ruler": {
+      "whyNotTheDeclaredRect": "the editor did not fit the 140x40-unit region to the canvas width: the frame came back at 7.115 px/unit, not 660/140=4.714. Deriving the scale from the declared rect would have been wrong by 50%.",
+      "selfCalibrated": "scale from the document's own 26-unit row pitch: 185 px / 26 units = 7.115 px/unit; horizontal cell borders measured at px 164 and 617",
+      "twoIndependentChecks": "px 375 -> page 613.4 vs the committed r8t1 scan 613.3; 图幅 first stroke at px 213 -> page 590.6 vs the anchor 590",
+      "sameRulerBothSides": "before and after frames report identical border px (164, 617) and identical row pitch (185 px), so the two are directly comparable"
+    },
+    "rowBand": "py 1001-1162 (the y=116 title row, 179 px tall)",
+    "measured": {
+      "inkRunsBefore": "0-38 45-91 102-148 157-163 165-203 212-328 332-375",
+      "inkRunsAfter": "0-39 47-86 95-135 160-163 165-167 213-286 298-328 332-375",
+      "text31TailRightEdgeBeforePx": 308,
+      "text31TailRightEdgeAfterPx": 135,
+      "pageOfBeforeEdge": 603.9,
+      "pageOfAfterEdge": 579.6,
+      "borderResidueNote": "px 165-167 in the after frame is the antialiased edge of the cell border (stroke 162-166), not text; the border centre 164 was excluded from the run scan",
+      "tuFuFirstStrokePx": 213,
+      "pageOfTuFuFirstStroke": 590.6
+    },
+    "beforeNumbers": {
+      "committedHistorical": "404.9-613.3 (r8t1-main-tile-r0c1, 2.323 px/unit, per-column scan)",
+      "thisFrame": "the tail reaches at least page 603.9 (px 308); beyond that the digit strokes coincide with the 幅 strokes, so this frame cannot separate them - the 332-375 run exists in BOTH frames and therefore belongs to 图幅, not to text31",
+      "honesty": "an earlier reading of this run as text31's edge was a coincidence; corrected here"
+    },
+    "afterNumbers": {
+      "inkRightEdge": 579.6,
+      "passed620": "579.6 <= 590 with 10.4 units of margin",
+      "insideDrawnBorder": "579.6 is 4.1 units left of the drawn cell border at 583.7, so the ink is back inside its own cell under either definition",
+      "gapToTuFu": "590.6 - 579.6 = 11.0 units of clean white space between the last digit and the first 图幅 stroke",
+      "foreignInkInTuFuCell": "none: columns 168-212 are empty in the after row"
+    },
+    "estimateVsMeasured": {
+      "estimate": "208.4 * 14/16 = 182.4 units wide, right edge ~587.3",
+      "measured": "right edge 579.6 (7.7 units narrower than the linear estimate)",
+      "why": "glyph advance and bearing rounding at 14pt are not linear in fontSize; the acceptance rests on the measurement, not the estimate"
+    }
+  },
+
+  "acceptance": {
+    "inkRightEdgeLe590": true,
+    "zeroForeignInkInTuFuCell": true,
+    "noGlyphContact": true,
+    "note": "both stated criteria hold. Under the stricter reading (ink left of the drawn border 583.7) it also holds, so no further downgrade to 13pt or 12pt was attempted."
+  },
+
+  "invariants": {
+    "t53Before": "PASS 5/5 exit 0 (21/8/13/55/55/2)",
+    "t53After": "PASS 5/5 exit 0 (21/8/13/55/55/2)",
+    "hexCount": 0,
+    "otherPrimitivesTouched": "none - text32, attr111 and the net-flag names were read but not modified"
+  },
+
+  "rollback": {
+    "needed": false,
+    "recorded": "the two aborted attempts both restored fontSize to 16 and saved nothing (saves=0); the final applied change is the only persisted write"
+  },
+
+  "limits": [
+    "the cold read is a fresh process and a fresh bridge connection, not a browser-level reload; a reload would have discarded the user's unsaved editor state",
+    "the drawn cell border (583.7) and the guide's 格界 (590, text32's anchor) differ by 6.3 units; both are reported so a reviewer can apply either rule."
+  ],
+
+  "staleAfterThisFix": {
+    "file": "docs/evidence/current/r9t1-main-view-guide.md",
+    "why": "the A-box section still states the pre-fix defect as current fact: text31 at 16pt with ink 404.9-613.3 and 23.3 units of overflow. After this change the same ruler gives a right edge of 579.6 and zero foreign ink in the 图幅 cell, so those lines now describe a defect that no longer exists.",
+    "lines": [
+      { "line": 9, "claim": "text31 16pt tail crosses out of its cell onto text32" },
+      { "line": 35, "claim": "closeup-2 shows 16pt text31 overflowing onto 图幅" },
+      { "line": 39, "claim": "same description in the r9t2 correction block" },
+      { "line": 45, "claim": "text31 16pt appears as live example ① of text-text overlap" },
+      { "line": 174, "claim": "says FontSize=16 and '28 characters'; the stored string is 29 characters" },
+      { "line": 177, "claim": "lists text31 among the 16pt neighbours" },
+      { "line": 179, "claim": "the 404.9-613.3 / 208.4 / 23.3 arithmetic, now historical" },
+      { "line": 183, "claim": "the A classification paragraph" }
+    ],
+    "decision": "not rewritten in this task: the brief scoped t2 to the single primitive change plus this evidence file. Flagged line-by-line so D1's documentation sync can be a separate, reviewable step instead of an unreviewed silent edit. The 29-vs-28 character error in line 174 is pre-existing and was not introduced here."
+  },
+
+  "wrote": {
+    "documentModifyCalls": 3,
+    "documentPersistenceCalls": 1,
+    "netPersistedChange": "text31.fontSize 16 -> 14 (one property of one primitive)",
+    "repoFilesAdded": 6
+  }
+}

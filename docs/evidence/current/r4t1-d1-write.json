@@ -1,0 +1,60 @@
+{
+  "steps": [
+    {
+      "step": "modify-id raw target",
+      "wrote": 1,
+      "readback": {
+        "fs": 14,
+        "x": 404,
+        "y": 116,
+        "content": "dsh-t19-real-ic-1792425596633"
+      },
+      "saved": false
+    },
+    {
+      "step": "save",
+      "result": {
+        "value": "true"
+      }
+    }
+  ],
+  "wrote": 1,
+  "saves": 1,
+  "verdict": "APPLIED",
+  "identity": {
+    "page": {
+      "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+      "name": "MAIN"
+    },
+    "texts": 39,
+    "comps": 21,
+    "wires": 55,
+    "pages": 2
+  },
+  "identityOk": true,
+  "before": {
+    "fs": 16,
+    "x": 404,
+    "y": 116,
+    "content": "dsh-t19-real-ic-1792425596633"
+  },
+  "conversion": {
+    "from": 16,
+    "rule": "target = read fs * 14/16",
+    "storedTarget": 14,
+    "unit": "raw (modify round-trips getState_FontSize for text primitives)"
+  },
+  "afterModify": {
+    "fs": 14,
+    "x": 404,
+    "y": 116,
+    "content": "dsh-t19-real-ic-1792425596633"
+  },
+  "geometryOk": true,
+  "afterSave": {
+    "fs": 14,
+    "x": 404,
+    "y": 116,
+    "content": "dsh-t19-real-ic-1792425596633"
+  }
+}
