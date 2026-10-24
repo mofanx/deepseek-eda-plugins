@@ -9,7 +9,7 @@
         "status": "NOT PROVABLE offline",
         "why": "the source records 18 pages, not 2, and no offline arithmetic turns 18 into 2. The two are the SAME metric measured at two moments: 18 is the live getAllSchematicPagesInfo() length at 2026-10-21 13:51 (18 records, 18 distinct uuids - see t31-overlap-classify.mjs L62, the same call t53 makes), while 2 is the page-table length in main-restore-verify.json at 06:06:59 (the same restore event as 21=63-42). The page count therefore grew 2 -> 18 in between (16 probe pages), and 18 is NOT a 'duplicate-record array'; an earlier phrasing to that effect was wrong and is corrected here, per r7t6. Neither figure is the live page count now.",
         "historicAssertionOnly": true,
-        "note": "further: page ids re-register. t31 records P1 as 03feee84..., main-restore-verify records P1 as d224f8d1..., so even the two historical values are not the same object."
+        "note": "further: page ids re-register. t31 records P1 as 03feee84..., main-restore-verify records P1 as d224f8d1..., so the P1 page objects differ by time. This is a page-ID difference, not a count-object or dedupe difference; the page-count metric is the same page-list length."
       },
       {
         "invariant": "part = 8, netflag = 13",
@@ -170,7 +170,7 @@
       "expected": 2,
       "computed": 18,
       "status": "NOT-PROVABLE-DIFFERS",
-      "provable": "NOT PROVABLE - t53 pins pages via --pages=N (default 2) and never measures it; this export records 18 page records instead. A mismatch here is not evidence of a broken canvas, and a match would not be evidence of a healthy one."
+      "provable": "NOT PROVABLE - t53 pins pages via --pages=N (default 2) and never measures it; this export's page-list at 13:51 has 18 entries instead. A mismatch here is not evidence of a broken canvas, and a match would not be evidence of a healthy one."
     },
     {
       "item": "hex-id residue (components)",
@@ -189,11 +189,11 @@
       "segments (stride 4)",
       "component hex-id residue",
       "MAIN uuid/name identity",
-      "page record count and names"
+      "page-list count and names"
     ],
     "notProvableFromThisSource": [
       "part / netflag split - the export has no componentType field",
-      "pages = 2 - t53 pins it as a parameter; the export records 18 page records",
+      "pages = 2 - t53 pins it as a parameter; the export's page-list at 13:51 has 18 entries",
       "anything about the live canvas: instance ids, current selection, current page order"
     ],
     "whatWouldBeNeeded": [

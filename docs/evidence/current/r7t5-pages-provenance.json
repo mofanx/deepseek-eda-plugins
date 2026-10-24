@@ -188,7 +188,7 @@
       "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
     },
     "packagesDiff": "git diff --name-only 045cfecc HEAD -- packages -> empty",
-    "note": "The workspace contains an unrelated modified r7t1 JSON from another member; it is not staged or modified by this task."
+    "note": "The concurrent r7t6 correction in r7t1 is retained; this task additionally clarifies r7t1's page-ID/page-list wording so it no longer calls the page-count values different objects. No bridge, canvas or package write."
   },
   "overall": "a-artifact-provable-live-unproven",
   "overallReason": "The committed restore page table contains exactly 2 page-list entries, so pages=2 is directly countable from a committed source. But 18 and 2 are the same getAllSchematicPagesInfo() metric at two moments (2 at 06:06:59, 18 at 13:51, +16 probe pages), not different objects and not a dedupe. The page table is the post-state of the same restore event as 21=63-42, not an independent or live proof. For the live t53 --pages, pages=2 remains a historical assertion with no offline live proof, and neither 18 nor 2 is the current canvas count.",
@@ -208,7 +208,7 @@
     }
   ],
   "baseline": "HEAD 8540282; prior r7t5 body used an incorrect duplicate-record/object-distinction explanation. Sources: main-restore-verify.json sha 012b015f, main-snapshot-r3t2.json sha 21c0b282, t31-dataset.json sha ad35b61c.",
-  "diff": "Corrected docs/evidence/current/r7t5-pages-provenance.json: time-growth explanation, 18 distinct uuids/3 names, same API as t53, P1 d224 absent, both counts volatile; preserved a's artifact-only scope and pages=2 unprovable live. Also corrected the page row in docs/evidence/current/r9t1-main-view-guide.md. Did not touch the concurrently modified r7t1 JSON.",
+  "diff": "Corrected docs/evidence/current/r7t5-pages-provenance.json: time-growth explanation, 18 distinct uuids/3 names, same API as t53, P1 d224 absent, both counts volatile; preserved a's artifact-only scope and pages=2 unprovable live. Also corrected the page row in docs/evidence/current/r9t1-main-view-guide.md and clarified the page-ID/page-list wording in r7t1's coverageLimits/note.",
   "reproSteps": [
     "node -e \"const d=require('./docs/evidence/current/t31-dataset.json'); const u=new Set(d.pages.map(p=>p.uuid)); const n=new Set(d.pages.map(p=>p.name)); console.log(d.pages.length,u.size,n.size,[...n],d.pages.some(p=>p.uuid==='d224f8d13804e759'))\"  # 18 18 3 MAIN,P1,P2 false",
     "node -e \"const d=require('./docs/evidence/current/main-restore-verify.json'); console.log(d.at,d.pages.length,d.pages)\"  # 06:06:59, 2, MAIN/P1",
