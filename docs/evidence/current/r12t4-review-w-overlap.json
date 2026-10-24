@@ -1,0 +1,120 @@
+{
+  "task": "r2t2",
+  "artifact": "docs/evidence/current/r12t4-review-w-overlap.json",
+  "at": "2026-10-24T03:20:00Z",
+  "head": "4be55b8",
+  "origin": "1cc1567",
+  "ahead": 1,
+  "behind": 0,
+  "pushed": false,
+  "unpushed": ["4be55b8"],
+  "remoteCheck": "git ls-remote origin HEAD master -> exit 128, github.com:443 connect timeout (network down); origin/master still 1cc1567",
+  "items": [
+    {
+      "id": "PUSH",
+      "claim": "4be55b8 is on the remote",
+      "verdict": "不成立",
+      "raw": "HEAD=4be55b8; origin/master=1cc1567; rev-list --left-right --count origin/master...HEAD = 0 1; ls-remote exit 128 (443 timeout). Unpushed: 4be55b8. The review commit is also unpushed."
+    },
+    {
+      "id": "FRAMING",
+      "claim": "t1's W1/W2 closeups contain (210,795) and (390,795) and are >=8.25 px/unit",
+      "verdict": "不成立（已提交的 t1 证据）",
+      "raw": {
+        "r12t1": "mcu frame 173.5-253.5 x 671.5-917.5, 660x2030 -> 660/80=8.25; contains 210, not 390. mcuR frame 210-290, 660/80=8.25; 210 is on the left edge, 390 is 100 units outside. No 8.25 image contains 390.",
+        "r4c0": "1189x508 over 511.8x218.7 -> 2.323 px/unit, below 8.25; it is the only committed image that contains both 210 and 390.",
+        "newUntracked": "r2t1-w1-closeup.png and r2t1-w2-closeup.png appeared at 10:56 during this review, both 660x2030, uncommitted, no manifest or pageRect. By the 10-unit pin pitch they are about 8.4 px/unit (W2: PB0-PB15 about 1265 px / 150 units), but without a declared pageRect the requirement 'pixels / page range' cannot be recomputed. Both carry a Windows Start-menu overlay in the lower part; W1 also shows the menu. They cannot be counted as committed t1 evidence.",
+        "restored": "x scale 660/899=0.734; y scale 2030/1866.88=1.087 - the single pxPerUnit=0.734 in r12t1 is not a uniform scale."
+      }
+    },
+    {
+      "id": "BLACK_TEXT",
+      "claim": "the obscured black text is the pin name (PA10 / same-row pin name)",
+      "verdict": "不成立",
+      "raw": {
+        "mcu": "blue MCU-36/35/26/35/54/63/72/38/37/34/33/32/31/30/29 sit on top of black 10/11/12/35/54/63/72/38/37/34/33/32/31/30/29 (pin numbers); the black strokes of the numbers are visible at the glyph edges. This image (x 173.5-253.5) does not contain the pin names at all.",
+        "mcuR": "the black pin names PA0-PA15 are fully readable on the right; the blue MCU-34/33/32 sit at the pin end / on the red pin stub, not on the glyphs. PA10 is readable.",
+        "w1New": "blue MCU-34 over black 34 (pin number); PA10 is outside this crop.",
+        "w2New": "PB0-PB15 are fully readable; black 18/19/20/39/40/41/42/43/45/46/21/22/25/26/27/28 are pin numbers; the blue MCU-7/44/28/27/26/25/22/21/46/45 labels sit to the right of the numbers, on the wire end. MCU-26 is after 21, not over it, and there is no pin name under it.",
+        "conclusion": "the obscured black text at W1 is the pin number 34; at W2 there is no text under the label (it is at the wire end, after pin number 21). No pin name is covered at W1/W2. The only pin-name coverage in these images is +3V3 over VOUT / 9V3 at the power symbol."
+      }
+    },
+    {
+      "id": "WORDING",
+      "claim": "guide/JSON W1/W2 wording matches the overlapped object",
+      "verdict": "不成立",
+      "raw": "guide L133 still says 'U1 引脚名 PA10'; L134 says 'U1 同一排的引脚名'. JSON overlappedText: 'pin name PA10 inside U1' / 'a pin name on the same U1 row'. The pixels show pin number 34 (W1) and wire end next to pin number 21 (W2); the pin names are readable and not covered. A wording of 'pin name' is therefore wrong."
+    },
+    {
+      "id": "T3_ABOX",
+      "claim": "the r12t1 A-box 'not reproduced' was changed to 'framing did not cover + supplemented'",
+      "verdict": "部分成立",
+      "raw": "r12t1-wire-overlap-closeups.json still has aBox.result='not reproduced at 8.25 px/unit' (the 400-480 titleV frame did not cover the 560-613 tail). The correction exists only in r12t2-review-classification.json (selfCorrection) plus r12t2-abox-tail.png. The original t3 artifact was not edited, so a reader of r12t1 alone still sees the wrong negative."
+    },
+    {
+      "id": "T3_RESTORED",
+      "claim": "the restored.png contradictory size/pxPerUnit was fixed or the scale claim removed",
+      "verdict": "不成立",
+      "raw": "r12t1 restored entry: pageRect 5.5..904.5 x -348.44..1518.44, pixels 660x2030, pxPerUnit 0.734. x scale 660/899=0.734, y scale 2030/1866.88=1.087. The single 0.734 is only the x scale; the y claim is wrong. Not fixed."
+    },
+    {
+      "id": "OVERREACH",
+      "claim": "thresholds/bands/geometry were not changed; the wire class is still 判不了",
+      "verdict": "成立",
+      "raw": "guide L160 says d, t, TEXT_RADIUS and d<=12 keep their values; JSON thresholds unchanged; geometry 4/3 and 1/1 unchanged (doc L2290-2291); L47/L48/L52 still say 导线穿字/穿符号 = 判不了. Note: the two former wire candidates were moved to text-text on a wrong object, but no threshold or geometry number was changed."
+    },
+    {
+      "id": "GATES",
+      "claim": "t53 / --check / packages new 0 / wrote 0",
+      "verdict": "成立",
+      "raw": "t53 PASS 5/5 exit 0 (components 21, part 8/netflag 13, id set both ways, 55 wires/pairs, pages 2, MAIN b275cd23e45c4271bead56f66d4f98fe); freshness FRESH baselineVersion 4 exit 0; packages getState_Line raw 2 (build.ts:464, build.spec.ts:2230), both 911c05b, new in 4be55b8 = 0; wrote 0 (only this review JSON)."
+    }
+  ],
+  "overall": "unsound",
+  "reason": "The decisive W1/W2 judgment is wrong on the object: the blue labels sit on the pin numbers (W1: 34) or at the wire end after the pin number (W2: 21), while the pin names PA10/PB10 are readable and not covered. The committed t1 evidence does not contain W2 at >=8.25 (r4c0 is 2.323; the 8.25 r12t1 frames stop at 290), and the late untracked W1/W2 closeups are uncommitted, have no pageRect, and carry a Start-menu overlay. The guide/JSON still say 'pin name'. t3's A-box correction lives only in the review (not in r12t1), and the restored 0.734 px/unit contradicts the y span (1.087). 4be55b8 is not on the remote.",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "fail",
+      "evidence": {
+        "summary": "W1/W2 are not over the pin names: W1 is over pin number 34; W2 is at the wire end after pin number 21; PA10/PB10 are readable. The guide/JSON still say 'pin name'. The only committed image with both points is 2.323 px/unit, and the 8.25 r12t1 frames do not contain 390.",
+        "baseline": "187eba1 guide L133 '引脚名 PA10', L134 '同一排的引脚名'; JSON overlappedText 'pin name'",
+        "diff": "the mechanical text-text change is present; the object is misidentified as pin name instead of pin number/wire end."
+      }
+    },
+    {
+      "task": "t3",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "A-box correction exists only in r12t2, not in r12t1; the restored 0.734 px/unit contradicts the y span 1866.88 (1.087); the committed W2 framing is missing.",
+        "baseline": "r12t1 aBox.result='not reproduced'; restored pxPerUnit 0.734",
+        "diff": "r12t2 adds selfCorrection and the tail image; r12t1 unchanged."
+      }
+    }
+  ],
+  "artifacts": [
+    { "type": "file", "path": "docs/evidence/current/r12t4-review-w-overlap.json", "summary": "this review" }
+  ],
+  "externalEvidence": [
+    { "path": "docs/evidence/current/r12t1-mcu.png", "sha256": "fe62a93cade861680710af5778ac1212ffc81f170dacbb171880b21e070e3630", "note": "8.25; blue labels over pin numbers 10/11/12...; pin names not in frame" },
+    { "path": "docs/evidence/current/r12t1-mcuR.png", "sha256": "bafe1f5d05e90390b5a91879363a26e2683b35191a04d79123878a13aa995a6b", "note": "8.25; PA0-PA15 readable; MCU-34/33 on red pin stubs" },
+    { "path": "docs/evidence/current/r8t1-main-tile-r4c0.png", "sha256": "4486f6769f10c1243bb5f8d4065a30f5b641b70bcc15409401c75c75657778f2", "note": "2.323; both points, below 8.25" },
+    { "path": "docs/evidence/current/r2t1-w1-closeup.png", "sha256": "f357be4e8d0b4c0cae02fdb04917e51e252f73316b33d432e3ad0a09e832b5d7", "note": "untracked at review time; W1 only; MCU-34 over 34; Start menu overlay" },
+    { "path": "docs/evidence/current/r2t1-w2-closeup.png", "sha256": "70a55b7d3f5b2f6e3a43cac262a5c9a728930bb10e8b90ea3afed8357779e53f", "note": "untracked at review time; PB0-PB15 readable; labels after pin numbers; Start menu overlay" }
+  ],
+  "limits": [
+    "The new W1/W2 closeups have no manifest/pageRect; their ~8.4 px/unit is estimated from the 10-unit pin pitch, not recomputed from a declared page range.",
+    "Both new closeups contain a Windows Start-menu overlay in the lower part; the relevant MCU rows are visible but the images are not clean captures.",
+    "The page positions of the pin names are not in the dataset; they are read from the images and are approximate."
+  ],
+  "baseline": "HEAD 4be55b8, origin 1cc1567; t1 187eba1, t3 895c424/8537afb (r12t1)",
+  "diff": "this review adds only r12t4-review-w-overlap.json; no source, t1, t3 or EDA file was modified",
+  "reproSteps": [
+    "git rev-parse HEAD origin/master; git rev-list --left-right --count origin/master...HEAD; git ls-remote origin",
+    "view r12t1-mcu.png, r12t1-mcuR.png, r8t1-main-tile-r4c0.png, r2t1-w1-closeup.png, r2t1-w2-closeup.png",
+    "recompute px/unit: 660/80=8.25 (mcu/mcuR), 1189/511.8=2.323 (r4c0), 660/899=0.734 x and 2030/1866.88=1.087 y (restored)",
+    "node docs/evidence/review/t53-verify-main.mjs; node docs/evidence/review/shared/freshness.mjs --check",
+    "git diff --name-only 4be55b8^..4be55b8 -- packages"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs && node docs/evidence/review/shared/freshness.mjs --check"
+}
