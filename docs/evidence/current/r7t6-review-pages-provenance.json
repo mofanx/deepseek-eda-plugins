@@ -1,0 +1,172 @@
+{
+  "task": "r7t6 - review of r7t5's pages=2 provenance judgment",
+  "reviewer": "eda4 member (self-directed)",
+  "at": "2026-10-24T10:52:00Z",
+  "atLocal": "2026-10-24T18:52:00+08:00",
+  "reviewedAtHead": "19f5fa1401e5a7a8a349ad4616fb53012745b223",
+  "reviewed": {
+    "task": "r7t5",
+    "commit": "f78a041ef53c0f0fe7efc280cc7cca04ee58dd33",
+    "artifact": {
+      "path": "docs/evidence/current/r7t5-pages-provenance.json",
+      "blob": "69a356e81d5d10083a416bc5696d55b935ec0eb8",
+      "bytes": 12859,
+      "sha256": "3fe2652060bb8d466f64a95263f6eaa9832b8f9c4ab412dd887b3d716a90d431",
+      "lines": 196
+    },
+    "committedVersionVerified": true,
+    "howVerified": "git ls-tree -r HEAD (blob 69a356e8) plus Get-FileHash on a clean tree; f78a041 adds exactly one file, this JSON"
+  },
+  "question": "did r7t5 turn an unprovable item (pages=2) into a provable one in order to close it out?",
+  "answer": "No - it did not launder it. It says liveProvable:false and carries 'live-unproven' in its overall label. But its stated REASON for why 18 is not 2 is factually wrong, and that wrong reason is published in three places.",
+  "items": [
+    {
+      "id": 1,
+      "question": "record HEAD and the r7t5 blob; confirm the committed version was reviewed",
+      "verdict": "成立",
+      "evidence": {
+        "head": "19f5fa1 (HEAD = origin? NO: origin is f2fe9a0, ahead 5 - see gitState)",
+        "commit": "f78a041, parent 04d53e4, adds only docs/evidence/current/r7t5-pages-provenance.json",
+        "blob": "69a356e8",
+        "sha256": "3fe2652060bb8d466f64a95263f6eaa9832b8f9c4ab412dd887b3d716a90d431"
+      }
+    },
+    {
+      "id": 2,
+      "question": "is the pages judgment sound? go to the source, find the field, read the value",
+      "verdict": "partial",
+      "whatISConfirmed": {
+        "fieldExists": "docs/evidence/current/main-restore-verify.json has a root-level `pages` array; JSON.parse length is exactly 2",
+        "value": "[{\"u\":\"b275cd23e45c4271bead56f66d4f98fe\",\"n\":\"MAIN\"},{\"u\":\"d224f8d13804e759\",\"n\":\"P1\"}]",
+        "fileFacts": "3509 bytes, sha256 012b015fc05a99dcab2b10d0728e5741906676d667da78c658f02dfa671477bd - both match what r7t5 reports",
+        "soAIsLiteral": "the claim 'a committed source contains a directly countable pages array of length 2' is TRUE; I read the field and the value myself"
+      },
+      "whatIsWrong": {
+        "claimQuoted": "t31Source.meaning: '18 page records: MAIN + 16 duplicate P1 records + P2. This is the historical export's page-record array, not a deduplicated page-list length.'",
+        "claimQuoted2": "t53Semantics.whichCountIsT53: 'the 2-entry page-list count is t53's --pages semantics; the 18 t31 page records are NOT.'",
+        "counterEvidence1": "the 18 records have 18 DISTINCT uuids (MAIN b275cd23..., then 03feee84..., 06ceb6de..., 1d3d210b..., ... fba44328..., and P2 c74a9b3a...). They are 18 distinct pages that happen to share the name P1, not 16 duplicate records of one page.",
+        "counterEvidence2": "no deduplication of those 18 records yields 2: dedupe by uuid gives 18, dedupe by name gives 3 (MAIN, P1, P2). The sentence 'not a deduplicated page-list length' implies dedupe would give 2; it cannot.",
+        "counterEvidence3": "docs/evidence/review/t31-overlap-classify.mjs line 62 is `out.pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => ({ uuid: p.uuid, name: p.name }));` - the SAME live API call and the SAME {uuid,name} mapping that t53 uses at line 114. So t31.pages IS a live page-list length (at 2026-10-21 13:51), i.e. exactly t53's semantic, just at a different moment.",
+        "counterEvidence4": "the restore page table's P1 uuid d224f8d13804e759 does NOT appear among t31's 18 records (only b275cd23... does). So even the P1 entry is not the same page object, which reinforces 'different time', not 'duplicate records'.",
+        "correctExplanation": "between 06:06:59 (restore: 2 pages) and 13:51 (t31 export: 18 pages) 16 orphan probe pages were created. t53's own header comment says precisely this: 't31 recorded 18 pages (MAIN + 17 orphan probe pages that cannot be deleted)'. The page count GREW; the numbers are the same metric at two times, not two shapes of one thing."
+      },
+      "whyPartialNotFail": "the bottom line survives: 2 is what t53's --pages compares, 18 must not be substituted for it, and pages=2 is not provable for the live canvas. r7t5 even quotes t53's 'page ids die when the window re-registers' explanation, which is the correct reason - it just contradicts its own 'different objects / duplicates' framing."
+    },
+    {
+      "id": 3,
+      "question": "was any number quietly rewritten (18 -> 2), or any unproven 'the page table is 2' assertion added?",
+      "verdict": "成立",
+      "evidence": {
+        "noRewrite": "grep of every occurrence of 18 in r7t5: all 10 are preserved as 18 (L13 pagesLength, L15 meaning, L79 comment, L80 whichCountIsT53, L87 why18IsDifferent, L92 noRewrite, L118/120 check 5, L125 check 6, L155 overallReason). There is no '18 = 2', no averaging, no conversion.",
+        "explicitStatement": "judgment.noRewrite: '18 remains 18; 2 remains 2; no average and no conversion of 18 into 2.'",
+        "pageTableAssertion": "it does assert 'the restore page table has 2 entries' - but that is a directly verified count, not an unproven assertion, so it is legitimate.",
+        "liveClaim": "judgment.liveProvable: false and liveStatement: 'For the current live canvas, pages=2 is currently only a historical assertion; there is no offline live proof.'"
+      }
+    },
+    {
+      "id": 4,
+      "question": "did it apply the same suspicion to pages=2 as to 21=63-42 (i.e. is 2 also a product of the same restore event)?",
+      "verdict": "成立",
+      "evidence": {
+        "sameRestoreEvent": "r7t5 has a dedicated sameRestoreEvent block: verdict 'YES - same restore operation, pre/post state', with snapshot (63 comps, 05:54:46, task r3t2), restore (21 comps, 06:06:59, removedOriginal 42, keepPresent 21, keepMissing [], newIds []), and the commit chain 31eaab38 (13:57:23) -> 639364ef (14:07:27).",
+        "appliedToPages": "sourceOfTwo.isIndependent: false, reason 'This page table is written by the same restore-verification event that produced removedOriginal=42 and components=21; it is the post-state of that restore, not a second capture.'",
+        "judgmentCaveat": "judgment.sourceEventCaveat repeats it: 'The field is direct but its source is the same restore event as 21=63-42; it cannot serve as an independent second proof.'",
+        "myCheck": "correct: main-restore-verify.json is ONE file written at 06:06:59 that contains removedOriginal (42), components (21) and pages (2) together, so the pages field is indeed the same event's post-state."
+      },
+      "note": "this is the one place where r7t5 is STRONGER than r7t1: r7t1 marked pages not-provable but did not trace it to the same restore event."
+    },
+    {
+      "id": 5,
+      "question": "place 18 (r7t1), 2 (r7t2) and r7t5's judgment side by side: which number may enter the guide?",
+      "verdict": "成立 (recommendation given)",
+      "table": [
+        { "number": "18", "whatItIs": "live getAllSchematicPagesInfo() length at 2026-10-21 13:51 - 18 distinct pages (MAIN + 16 probe P1 + P2)", "mayEnterGuideAs": "'13:51 那次活读的页表长度 18' - a timestamped historical measurement, never as '页数=18' for today", "mayEnterGuideAsCurrent": false },
+        { "number": "2", "whatItIs": "restore artifact's page table length at 06:06:59 (same restore event as 21=63-42) AND t53's --pages default", "mayEnterGuideAs": "'历史断言／同一次还原事件的产物' - may be shown as the value t53 compares against, with the event caveat", "mayEnterGuideAsCurrent": false },
+        { "number": "current live page count", "whatItIs": "unknown in this session", "mayEnterGuideAs": "nothing; t53 has never returned 0", "mayEnterGuideAsCurrent": false }
+      ],
+      "recommendation": {
+        "guideLine": "the r2t2 section's line '| 页数 | 2 | 离线不可证（仅历史断言）|' stays correct and should NOT be upgraded, because it is a claim about the live canvas.",
+        "correctionNeeded": "if the guide ever explains WHY 18 differs from 2, it must say 'the page count grew 2 -> 18 between 06:06 and 13:51 (16 orphan probe pages); page ids also die on re-register' - NOT '18 is duplicate records vs 2 deduplicated entries'. The latter is false.",
+        "optionalRefinement": "add one clause: 2 is directly readable inside main-restore-verify.pages but that record is the same restore event's post-state, hence not independent evidence."
+      }
+    },
+    {
+      "id": 6,
+      "question": "self-proof: freshness, packages 0, wrote=0",
+      "verdict": "成立",
+      "evidence": {
+        "freshness": "I ran it myself: node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0 - matches r7t5's recorded stdout.",
+        "packages": "git diff --name-only f78a041~1..HEAD -- packages is empty; f78a041 adds 1 file under docs/evidence only.",
+        "wrote": "r7t5 reports wrote 0, fileWrites 0, canvasWrites 0, bridgeWrites 0; its work is reading committed JSON and computing lengths. Its selfProof.note honestly discloses that an unrelated modified r7t1 JSON (my r2t2 coverageLimits edit) was present in the tree and untouched by it."
+      }
+    }
+  ],
+  "defects": [
+    {
+      "severity": "medium",
+      "text": "t31Source.meaning, judgment.why18IsDifferent and check 5 describe t31's 18 pages as 'MAIN + 16 duplicate P1 records + P2' and as 'not a deduplicated page-list length'. The 18 records have 18 distinct uuids and come from getAllSchematicPagesInfo() (t31-overlap-classify.mjs L62), the same call t53 uses. No dedupe gives 2 (by uuid 18, by name 3). The true relation is the same metric at two times, with 16 probe pages created in between."
+    },
+    {
+      "severity": "low",
+      "text": "head: 094a114 is the generation-time HEAD, not f78a041 which contains the artifact, and there is no reviewedAtHead/headAtCommit pair. aheadBehind '2 0' is now stale (5 0)."
+    },
+    {
+      "severity": "info",
+      "text": "judgment.choice is the single letter 'a' (可证). It is scoped in label/whyA/notB and in overall 'a-artifact-provable-live-unproven', but a reader quoting the letter alone would say 'pages=2 可证', which contradicts the guide. The two-level answer does not fit a one-letter field."
+    },
+    {
+      "severity": "info",
+      "text": "no committed script writes main-restore-verify.json (t52-main-restore.mjs writes main-restore-<batch>-<ts>.json), so how its pages array was produced cannot be verified. r7t5's caution 'NOT a live dmt_... call' is therefore warranted, though the {u,n}+active shape looks like a live capture."
+    }
+  ],
+  "overall": {
+    "verdict": "partial",
+    "why": "The judged conclusion is defensible and honestly bounded: pages=2 is countable inside the committed restore artifact, is NOT live-provable, and belongs to the same restore event as 21=63-42 (item 4 is the strongest part of the artifact, and stronger than r7t1 on that point). No number was rewritten; the letter 'a' is scoped by liveProvable:false and the overall label. It is therefore NOT a case of turning unprovable into provable to close out. But the reason it publishes for why 18 differs from 2 is false in three places, and falsifiable with one command: 18 distinct uuids from the same API call t53 uses, and no dedupe yields 2. That is a medium-severity factual defect in exactly the area under review."
+  },
+  "gitState": {
+    "head": "19f5fa1401e5a7a8a349ad4616fb53012745b223",
+    "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+    "aheadBehind": "5 0",
+    "note": "origin is NOT equal to HEAD; five commits are unpushed because github.com:443 has been unreachable for every attempt this session"
+  },
+  "myOwnRuns": [
+    { "command": "git rev-parse HEAD / origin/master / rev-list --left-right --count HEAD...origin/master", "result": "19f5fa1 / f2fe9a0 / 5 0" },
+    { "command": "git ls-tree -r HEAD -- docs/evidence/current/r7t5-pages-provenance.json", "result": "blob 69a356e8" },
+    { "command": "node -e \"...require main-restore-verify.json; print length/pages/keepPresent/keepMissing/newIds...\"", "exitCode": 0, "stdout": "bytes 3509 | sha256 012b015f...; pages array length 2: [{u:b275cd23...,n:MAIN},{u:d224f8d1...,n:P1}]; keepPresent 21, keepMissing [], newIds []; components 21 parts 8 netflag 13 removedOriginal 42 wires 55 wireNets 55" },
+    { "command": "node -e \"...require t31-dataset.json; print pages.length + name histogram...\"", "exitCode": 0, "stdout": "18 | {\"MAIN\":1,\"P1\":16,\"P2\":1}" },
+    { "command": "node .tmp-r7t6-uuids.mjs (my own script: uuid distinctness + overlap)", "exitCode": 0, "stdout": "t31 pages: 18 | distinct uuid: 18 | distinct name: 3; restore uuids present in t31: b275cd23=true, d224f8d1=false" },
+    { "command": "Select-String docs/evidence/review/t31-overlap-classify.mjs -Pattern 'out.pages|getAllSchematicPagesInfo'", "result": "L62: out.pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => ({ uuid: p.uuid, name: p.name }));" },
+    { "command": "Select-String docs/evidence/review/t53-verify-main.mjs -Pattern 'getAllSchematicPagesInfo|expectedPages|pages.length'", "result": "L58 const expectedPages = Number(arg('pages','2')); L114 same getAll...map({uuid,name}); L166 live.pages.length === expectedPages" },
+    { "command": "node docs/evidence/review/shared/freshness.mjs --check", "exitCode": 0, "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}" },
+    { "command": "git diff --name-only f78a041~1..HEAD -- packages", "result": "empty" }
+  ],
+  "verify": [
+    {
+      "task": "r7t5",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "pages=2 is directly countable inside main-restore-verify.json (field found, value read: 2 entries) and is honestly scoped as non-independent and non-live; the same-restore-event caveat is applied to pages as well, which is stronger than r7t1. However the published reason for 18 != 2 ('16 duplicate P1 records', 'not a deduplicated page-list length') is false: 18 distinct uuids from the same getAllSchematicPagesInfo() call t53 uses, and no dedupe yields 2.",
+        "baseline": "HEAD 19f5fa1; r7t5 artifact blob 69a356e8 at f78a041; sources main-restore-verify.json (3509 B, 012b015f) and t31-dataset.json (131060 B, ad35b61c)",
+        "diff": "review-only: added docs/evidence/current/r7t6-review-pages-provenance.json; r7t5, r7t1, the guide and all sources untouched"
+      }
+    }
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "packagesNew": 0,
+    "bridgeCalls": 0,
+    "canvasWrites": 0,
+    "filesChanged": ["docs/evidence/current/r7t6-review-pages-provenance.json"],
+    "freshness": "FRESH v4 exit 0, run by me",
+    "tempFilesRemoved": [".tmp-r7t6-check.mjs", ".tmp-r7t6-uuids.mjs", ".tmp-r7t6.out", ".tmp-r7t6.err", ".tmp-u.out", ".tmp-u.err"]
+  },
+  "baseline": "HEAD 19f5fa1; r7t5 judged pages=2 as choice 'a' (artifact-provable, not live) with an explanation that 18 is a duplicate-record array",
+  "diff": "new file docs/evidence/current/r7t6-review-pages-provenance.json only; no source, artifact, guide, package or PNG modified",
+  "reproSteps": [
+    "node -e \"const d=require('./docs/evidence/current/main-restore-verify.json'); console.log(d.pages.length, d.pages)\"   # 2",
+    "node -e \"const d=require('./docs/evidence/current/t31-dataset.json'); console.log(d.pages.length, new Set(d.pages.map(p=>p.uuid)).size)\"   # 18 18",
+    "grep -n 'getAllSchematicPagesInfo' docs/evidence/review/t31-overlap-classify.mjs   # L62, same call as t53 L114",
+    "node docs/evidence/review/shared/freshness.mjs --check   # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node -e \"const t=require('./docs/evidence/current/t31-dataset.json');const u=new Set(t.pages.map(p=>p.uuid));const r=require('./docs/evidence/current/main-restore-verify.json');console.log('t31 pages',t.pages.length,'distinct uuids',u.size,'restore pages',r.pages.length, 'restoreP1InT31', u.has(r.pages[1].u))\""
+}
