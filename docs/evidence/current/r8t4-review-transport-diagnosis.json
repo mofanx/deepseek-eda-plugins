@@ -1,0 +1,296 @@
+{
+  "task": "t4/r8t4 - independent review of t1/r8t1 bridge transport diagnosis",
+  "reviewedAtHead": "6548b7de207ae556ecac2b3ed9ffea22ea9a3ba2",
+  "reviewedAt": "2026-10-24T11:19:45Z",
+  "head": "6548b7de207ae556ecac2b3ed9ffea22ea9a3ba2",
+  "origin": "6548b7de207ae556ecac2b3ed9ffea22ea9a3ba2",
+  "aheadBehind": "0 0",
+  "target": {
+    "task": "t1/r8t1",
+    "commit": "a71757ed89079d50fa482095a7194f67865ff8e2",
+    "parent": "0fd561f255f714264bb26dda5c5ad7a4e3a9b094",
+    "reportPath": "docs/evidence/current/r8t1-bridge-transport-diagnosis.json",
+    "reportBlob": "5b78deade3c366d32059f52c7538daff52d16e62",
+    "probePath": "docs/evidence/review/r8t1-probe-transport.mjs",
+    "probeBlob": "78cfce73e59084867c825bab732f322fc1f89f99",
+    "reportLines": 200,
+    "probeLines": 42,
+    "reportHead": "ba8f0f97f28c80b71001e44e65b3f5aef7aabc85",
+    "reportHeadAtReviewStart": "ba8f0f97f28c80b71001e44e65b3f5aef7aabc85",
+    "verifiedCommittedBlob": true
+  },
+  "versionFinding": {
+    "verdict": "成立 with low caveat",
+    "evidence": "At current HEAD 6548b7de, HEAD:r8t1-report hashes to 5b78dea (200 lines) and HEAD:probe hashes to 78cfce7 (42 lines), so the reviewed content is the committed t1 version. t1's own top-level head is ba8f0f9, its headAtReviewStart is also ba8f0f9; its commit a71757e came after r8t2 0fd561f and after that review start. The report does not falsely claim a717; it records the review-start head explicitly.",
+    "lowIssue": "The top-level head is not the commit that contains the report. It is not a false current claim, but a reader must follow headAtReviewStart/commit to see the two-head difference."
+  },
+  "endpointCheck": {
+    "verdict": "成立",
+    "host": {
+      "claimed": "127.0.0.1 (bridge.ts L276)",
+      "source": "packages/eda-core/src/bridge.ts:276: const host = options.host ?? '127.0.0.1'",
+      "match": true
+    },
+    "ports": {
+      "claimed": "49620-49630; bin range 49620-49629 + fixed 49630",
+      "source": [
+        "bridge.ts:22 EASYEDA_BRIDGE_PORT_MIN = 49620",
+        "bridge.ts:28 EASYEDA_BRIDGE_PORT_MAX = 49630",
+        "bin/dsh-eda-bridge.mjs:67 PORT_START = 49620",
+        "bin/dsh-eda-bridge.mjs:68 PORT_END = 49629",
+        "bin/dsh-eda-bridge.mjs:72 BUILTIN_GATEWAY_PORT = 49630"
+      ],
+      "match": true
+    },
+    "probePath": {
+      "claimed": "GET <baseUrl>/health",
+      "source": "bridge.ts:316 fetchFn(`${baseUrl}/health`)",
+      "match": true
+    },
+    "executePath": {
+      "claimed": "POST <baseUrl>/execute, content-type application/json, JSON.stringify({code})",
+      "source": "bridge.ts:376-380 method POST, headers content-type application/json, body JSON.stringify({ code })",
+      "match": true
+    },
+    "timeouts": {
+      "claimed": "client default 30_000; t53 discover 15_000; t53 execute 120_000",
+      "source": [
+        "bridge.ts:258 this.timeoutMs = options.timeoutMs ?? 30_000",
+        "t53-verify-main.mjs:106 discover({ timeoutMs: 15_000 })",
+        "t53-verify-main.mjs:126 bridge.execute(READ, { timeoutMs: 120_000 })"
+      ],
+      "match": true
+    },
+    "landingUrl": {
+      "claimed": "https://pro.lceda.cn/api/landing?port=49620",
+      "source": "bridge.ts:44 EASYEDA_BRIDGE_LANDING_URL = 'https://pro.lceda.cn/api/landing?port=49620'",
+      "match": true
+    },
+    "registerHint": {
+      "claimed": "bridge.ts L47, starts with open ... as a NEW TAB IN THE SAME BROWSER ...",
+      "source": "bridge.ts:47 exact text starts: open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that editor tab has finished loading",
+      "match": true
+    },
+    "healthContract": {
+      "claimed": "service easyeda-bridge, bridge absent or dsh-eda-bridge, edaConnected !== false",
+      "source": "bridge.ts:331-335: service check; bridge marker check; if (health.edaConnected === false) throw SCHEMATIC_BRIDGE_NO_EDA",
+      "match": true
+    },
+    "verbatimConclusion": "The table is not '127.0.0.1 some port'; it quotes the host, both port constants, the bin split, health, execute, all three timeouts, landing and hint. No endpoint drift found."
+  },
+  "fourLayerCheck": {
+    "verdict": "partial",
+    "a_tcp": {
+      "t1HasRawOutput": true,
+      "t1Raw": [
+        "127.0.0.1:49620 connected=true",
+        "127.0.0.1:49621 connected=false err=ECONNREFUSED",
+        "... 49622-49629 ECONNREFUSED ...",
+        "127.0.0.1:49630 connected=true"
+      ],
+      "myRerun": [
+        "49620 connected=true",
+        "49621-49629 connected=false ECONNREFUSED",
+        "49630 connected=true"
+      ],
+      "verdict": "成立 - listener exists; branch (a) no-listener excluded"
+    },
+    "b_http": {
+      "t1HasRawOutput": true,
+      "t1Raw": "49620 status=200; 49630 status=200; both body service=easyeda-bridge, bridge=dsh-eda-bridge, status=ok, edaConnected=false, edaWindowCount=0, activeWindowId=null",
+      "myRerun": "same statuses and same fields; timestamps differ only",
+      "verdict": "成立 - transport works; no editor attached"
+    },
+    "c_execute500": {
+      "t1HasRawOutput": true,
+      "t1Raw": "49620 status 503; 49630 status 503; body {\"success\":false,\"error\":\"No EDA window connected. Please connect an EDA window first.\"}",
+      "myRerun": "49620 status 503 and 49630 status 503; exact same body",
+      "observedStatus": 503,
+      "observed500": false,
+      "registerHintInBody": false,
+      "t1Claimed500": false,
+      "t1ExplicitCorrection": "t1 says plainly: response is 503, not 500, and body is NOT the EASYEDA_BRIDGE_REGISTER_HINT; the hint is composed client-side in bridge.ts and the relay returns the short JSON error.",
+      "verdict": "500层未测/不存在；t1 明确纠正，不冒充。实际 503 已测且逐字给出，故不按“说500却只是像”判 partial；按四层清单记 500 未观测。"
+    },
+    "d_pid": {
+      "t1HasRawOutput": false,
+      "t1Raw": [
+        "Get-NetTCPConnection FAILED: 拒绝访问",
+        "CIM FAILED: 拒绝访问",
+        "netstat: Program 'NETSTAT.EXE' failed to run: 拒绝访问"
+      ],
+      "t1LayerStatus": "untested-boundary; t1 explicitly says only the PID is unknown and do not read this as no-listener",
+      "reviewerExtraObservation": "One later netstat attempt in this review succeeded and showed 127.0.0.1:49620 and 127.0.0.1:49630 LISTENING PID 9844; Get-Process -Id 9844 returned ProcessName=node. A retry was access-denied, so this is intermittent reviewer evidence, not a stable t1 result.",
+      "verdict": "未测 (for t1) - t1 did not produce the owner PID; its boundary is honest and its listener conclusion is independently supported by TCP/HTTP. I do not count my later PID observation as t1 having tested this layer."
+    }
+  },
+  "rootCauseCheck": {
+    "verdict": "成立",
+    "branch": "b",
+    "statement": "relay up; zero editor windows registered; registration in the editor's own browser has not happened",
+    "exclusions": {
+      "a_no_listener": "excluded by TCP 49620/49630 connected",
+      "c_timeout_or_protocol": "excluded by immediate 200/503, matching service and implementation ids, no timeout"
+    },
+    "falsifiablePredictions": [
+      "If an editor registers, /health must flip edaConnected:true, edaWindowCount>=1, and /eda-windows must list it within one heartbeat.",
+      "If the relay restarts and the editor page is not reloaded, edaWindowCount must stay 0 until the page re-registers.",
+      "If a browser other than the editor's opens the landing URL, edaWindowCount must stay 0."
+    ],
+    "predictionsExecutable": true,
+    "notJustEnvironment": "It names branch b and excludes a/c with specific transport observations; it is not 'maybe an environment issue'.",
+    "supportingEvidence": "TCP true, /health 200 with edaConnected:false/0 windows, /execute 503 short no-window JSON, /eda-windows 200 count0. PID is not needed for this conclusion."
+  },
+  "fixBoundaryCheck": {
+    "verdict": "成立",
+    "allowedAction": "Start-Process http://127.0.0.1:49620/landing (open only), then poll /health; no document write",
+    "documentWriteApisUsed": [],
+    "saveModifyCreateDeleteClearCalled": false,
+    "probeHasFs": false,
+    "probeImports": "only import net from 'node:net'",
+    "probeWriteGrep": "writeFile|appendFile|createWriteStream|unlink|rename|mkdir|rmSync|.save(|.modify(|.create(|.delete(|.clear(|spawn|exec|Start-Process -> NO_MATCHES",
+    "t1NotDoneVerbatim": "did NOT open/modify any document, and no save/modify/create/delete/clear call was made",
+    "note": "Opening/focusing a browser page is not a document write. The attempted fix failed after 30 s and t1 reports that failure; it did not save or modify a document to force a result."
+  },
+  "t53Check": {
+    "verdict": "成立",
+    "exitCode": 2,
+    "checks": [],
+    "reason": "BRIDGE_UNREACHABLE",
+    "detail": "easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ...",
+    "passClaimed": false,
+    "numbersClaimed": false,
+    "numbersPresent": false,
+    "t1Finding": "t53 L108 catch-all maps SCHEMATIC_BRIDGE_NO_EDA to BRIDGE_UNREACHABLE; L129 EDA_NOT_CONNECTED is unreachable for this path because discover throws before execute",
+    "sourceVerified": "t53-verify-main.mjs L106-108 catch-all; L129 distinct EDA_NOT_CONNECTED branch after execute; t1's secondary finding is source-accurate"
+  },
+  "selfProof": {
+    "verdict": "成立",
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "packagesDiff": "git diff --name-only a71757e^ a71757e -- packages -> empty",
+    "wrote": 0,
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "probeFilesChanged": [
+      "docs/evidence/current/r8t1-bridge-transport-diagnosis.json",
+      "docs/evidence/review/r8t1-probe-transport.mjs"
+    ],
+    "t1CommitChangedOnlyDocs": true
+  },
+  "checks": [
+    {
+      "id": "1-head-and-blob",
+      "verdict": "成立 with low caveat",
+      "evidence": "reviewedAtHead 6548b7de; target commit a71757e; report blob 5b78dea (200 lines), probe blob 78cfce7 (42 lines) at current HEAD; t1 top-level head ba8f is review-start and is explicitly paired with headAtReviewStart."
+    },
+    {
+      "id": "2-endpoint-verbatim",
+      "verdict": "成立",
+      "evidence": "host/port/paths/methods/timeouts/landing/hint/health contract all match bridge.ts and t53 source lines exactly; not a vague 127.0.0.1-some-port claim."
+    },
+    {
+      "id": "3-four-layers",
+      "verdict": "partial",
+      "evidence": "a/b raw pass; c actual 503 raw pass but 500 not observed (t1 correctly says 503, not 500; body is not REGISTER_HINT); d PID untested by t1, honestly marked access-denied. Reviewer's later intermittent PID 9844 does not count as t1's layer."
+    },
+    {
+      "id": "4-falsifiable-root-cause",
+      "verdict": "成立",
+      "evidence": "branch b; a/c excluded by TCP/HTTP/timeout observations; three predictions are executable and specific; not a generic environment guess."
+    },
+    {
+      "id": "5-fix-boundary",
+      "verdict": "成立",
+      "evidence": "only Start-Process landing + health polling; no save/modify/create/delete/clear/openDocument; probe only imports node:net; write grep NO_MATCHES."
+    },
+    {
+      "id": "6-t53-not-pass",
+      "verdict": "成立",
+      "evidence": "t53 exit 2, checks [], no 5/5, no 21/8/13/55/55/2; t1 says exit2 not a pass; t53 mislabel finding source-verified."
+    },
+    {
+      "id": "7-self-proof",
+      "verdict": "成立",
+      "evidence": "freshness FRESH v4 exit0; packages new0; only two docs changed; wrote0."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "low",
+      "id": "head-field-is-review-start",
+      "what": "t1's top-level head is ba8f0f9, not its commit a71757e; it also records headAtReviewStart=ba8f0f9.",
+      "impact": "No endpoint/root-cause impact; a reader could misread the top-level head as the containing commit.",
+      "action": "Use target.commit/blob or add reviewedAtHead on next revision."
+    },
+    {
+      "severity": "boundary",
+      "id": "pid-layer-untested",
+      "what": "t1 could not read the listener PID; Get-NetTCPConnection/CIM/netstat were access-denied in its run.",
+      "impact": "Four-layer completeness is partial; listener existence is still proven by TCP and /health, so the branch-b root cause stands.",
+      "action": "None for t1; PID is not needed to prove no-window. My later intermittent PID 9844 is review evidence, not a t1 result."
+    },
+    {
+      "severity": "info",
+      "id": "500-is-actually-503",
+      "what": "The relay returns 503 with short JSON, not 500 with EASYEDA_BRIDGE_REGISTER_HINT. t1 states this explicitly rather than calling it 'looks like' the hint.",
+      "impact": "The task's 500-body sub-check cannot be confirmed; the actual 503 body is quoted verbatim and independently reproduced.",
+      "action": "Record 500 as not observed, not as a pass; t1 is correct to correct the premise."
+    },
+    {
+      "severity": "info",
+      "id": "fix-did-not-register",
+      "what": "Opening /landing from the default browser did not register an editor; t1 reports 30 s of edaConnected=false/windows=0 and explains the user-gesture/same-browser constraints from code.",
+      "impact": "No false 'fixed' claim and no document write; fix remains open.",
+      "action": "Human must open the landing page in the same browser as the loaded editor, with a click if popup-blocked."
+    }
+  ],
+  "overall": "partial",
+  "overallReason": "The transport endpoint, the actual TCP/HTTP/execute evidence, the branch-b root cause, the no-write boundary, the t53 non-PASS handling and self-proof all hold. The four-layer claim is not fully green: the PID layer was not tested by t1, and the requested 500 layer was not observed because the relay returns 503. t1 reports both honestly; therefore this is a partial on layer completeness, not a finding of a false conclusion.",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "Endpoint table verbatim and source-accurate. TCP 49620/49630 up, 49621-29 refused; /health 200 edaConnected=false/0 windows; /execute 503 short no-window JSON on both ports; /eda-windows empty. t1 correctly says 503 not 500 and does not claim REGISTER_HINT in the body. Branch b falsifiable and supported. t1 did not test PID (honest boundary); its top-level head is review-start ba8f, target commit a717. t53 exit2 checks[], no PASS. No document write; freshness0/packages0.",
+        "baseline": "t1 parent 0fd561f; review-start head ba8f0f9; target commit a71757e; current reviewedAtHead 6548b7de.",
+        "diff": "t1 added only docs/evidence/current/r8t1-bridge-transport-diagnosis.json (200 lines) and docs/evidence/review/r8t1-probe-transport.mjs (42 lines); no source/package/guide change.",
+        "command": "node r8t1-probe-transport.mjs; node POST /execute; GET /eda-windows; node t53 --json; freshness --check",
+        "exitCode": "probe 0; execute HTTP 503; t53 2; freshness 0",
+        "health": "200 service=easyeda-bridge bridge=dsh-eda-bridge edaConnected=false edaWindowCount=0 activeWindowId=null",
+        "t53": "exit2 BRIDGE_UNREACHABLE checks[]",
+        "pid": "t1 untested/access denied; reviewer once saw PID 9844 node, retry denied"
+      }
+    }
+  ],
+  "baseline": "t1 committed a71757e; t1 report reviewed at ba8f0f9; current HEAD 6548b7de (r8t3 landed during this review) with same r8t1 blobs.",
+  "diff": "New file only: docs/evidence/current/r8t4-review-transport-diagnosis.json. No source, package, guide, t53, canvas or t1 file changed.",
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse HEAD:docs/evidence/current/r8t1-bridge-transport-diagnosis.json; git rev-parse HEAD:docs/evidence/review/r8t1-probe-transport.mjs",
+    "node docs/evidence/review/r8t1-probe-transport.mjs         # layer a+b raw",
+    "node -e \"(async()=>{const r=await fetch('http://127.0.0.1:49620/execute',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:'return 1'})});console.log(r.status,await r.text())})()\"",
+    "node -e \"fetch('http://127.0.0.1:49620/eda-windows').then(r=>r.text()).then(console.log)\"",
+    "node docs/evidence/review/t53-verify-main.mjs --json      # exit 2, checks []",
+    "node docs/evidence/review/shared/freshness.mjs --check     # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/r8t1-probe-transport.mjs",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r8t4-review-transport-diagnosis.json",
+      "summary": "t1 blob/head；endpoint 逐字；a/b/c 原始值；500 实为 503 且 t1 明示；PID 层 t1 未测；根因 b 可证伪；修复无写；t53 exit2 非 PASS；自证。"
+    },
+    {
+      "type": "command",
+      "summary": "TCP 49620/49630 up, 49621-29 refused；/health 200 edaConnected:false/0；/execute 503 short JSON both；/eda-windows 0；t53 exit2 checks[]；freshness FRESH v4 exit0；packages0。"
+    },
+    {
+      "type": "test",
+      "summary": "endpoint/rootCause/t53/no-write/self 均成立；四层 PID 未测、500 未观测（实际 503），故总判 partial，不冒充四层全绿。"
+    }
+  ]
+}
