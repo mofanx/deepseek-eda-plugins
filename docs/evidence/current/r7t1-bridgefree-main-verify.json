@@ -7,7 +7,7 @@
       {
         "invariant": "pages = 2",
         "status": "NOT PROVABLE offline",
-        "why": "the source records 18 page records, not 2. The two numbers are different objects: 18 is the page-record list inside t31-dataset.json, while 2 is both the t53 --pages default and the length of main-restore-verify.pages. No offline arithmetic turns 18 into 2.",
+        "why": "the source records 18 pages, not 2, and no offline arithmetic turns 18 into 2. The two are the SAME metric measured at two moments: 18 is the live getAllSchematicPagesInfo() length at 2026-10-21 13:51 (18 records, 18 distinct uuids - see t31-overlap-classify.mjs L62, the same call t53 makes), while 2 is the page-table length in main-restore-verify.json at 06:06:59 (the same restore event as 21=63-42). The page count therefore grew 2 -> 18 in between (16 probe pages), and 18 is NOT a 'duplicate-record array'; an earlier phrasing to that effect was wrong and is corrected here, per r7t6. Neither figure is the live page count now.",
         "historicAssertionOnly": true,
         "note": "further: page ids re-register. t31 records P1 as 03feee84..., main-restore-verify records P1 as d224f8d1..., so even the two historical values are not the same object."
       },
@@ -23,6 +23,31 @@
         }
       }
     ],
+    "componentTypeSubstitution": {
+      "whatTheInvariantAsks": "part / netflag counted by componentType, with +3V3 (type=part) inside the 8",
+      "executableInThisVerifier": false,
+      "whyNot": "t31-dataset.json has NO componentType field. r7t1 therefore cannot execute a componentType count at all; the 8 / 13 it prints are Designator reconstructions. The invariant's stated basis is simply not runnable in this artifact.",
+      "whereTheBasisIsActuallyExecuted": {
+        "verifier": "docs/evidence/review/r7t2-indep-main-verify.mjs",
+        "source": "docs/evidence/current/main-snapshot-r3t2.json (63 components, each carrying `type`)",
+        "how": "drop the 42 removedOriginal ids -> 21 components; group by `type` -> part 8, netflag 13",
+        "trapHandled": "main-snapshot-r3t2.json has {id:'layout:flag:_3V3:bus:240', type:'part', name:'+3V3'}; it is NOT in the 42 removed ids, so it is counted inside the 8.",
+        "status": "that path measures by componentType, but it is a DIFFERENT artifact - nothing in r7t1 runs it"
+      },
+      "twoWeaknessesSideBySide": [
+        {
+          "id": "W1-basis-not-local",
+          "text": "The componentType basis cannot be executed here. r7t1 has no componentType, so its 8 / 13 are reconstructions from Designator; borrowing r7t2's number would be substituting another artifact's result for a measurement, not performing one."
+        },
+        {
+          "id": "W2-evidence-not-independent",
+          "text": "Even the artifact that CAN run the basis is not independent evidence: main-snapshot-r3t2.json is the pre-restore snapshot (63 components) and the 42 ids come from main-restore-verify.json, the post-restore record of the SAME restore event (21 = 63 - 42). So the componentType count and the 21 are one event's before/after, not two captures. (r7t3 established this for 21=63-42; it applies unchanged to the 8 / 13 computed on the same pair.)"
+        }
+      ],
+      "combinedEffect": "the two weaknesses multiply instead of cancelling: the local 8 / 13 are a proxy that is not a measurement, and the one place that measures by componentType is not an independent capture. Naming r7t2 as the supporting path does NOT make part=8 / netflag=13 proven - it makes the basis traceable to a non-independent source.",
+      "status": "SUBSTITUTED BASIS - not a proof, in either artifact",
+      "doNotQuoteAs": "'8/13 verified by componentType' or '8/13 confirmed by r7t2'. The accurate sentence is: 8/13 reconstructed here from Designator, and measured by componentType only in r7t2's non-independent source pair."
+    },
     "ceiling": "t53 requires the bridge. While the bridge is unavailable, THIS GRADING IS THE ACHIEVABLE CEILING: 21 / 55 / 55 / 0 provable offline; 8 / 13 reconstructible offline but unproven; 2 unprovable offline.",
     "whatWouldCloseIt": "one successful t53 run (exit 0) against the live document, which measures componentType and the live page list together.",
     "fragilityWarning": "This block (and t53ThisRound / selfProof) was appended by hand after generation. docs/evidence/review/r7t1-offline-main-verify.mjs prints to stdout only; re-running it with `--json > this file` would SILENTLY DROP all three blocks and restore a report that claims nothing about its own limits. Any regeneration must re-apply them, or the generator must be changed to emit them (that change has not been made)."
