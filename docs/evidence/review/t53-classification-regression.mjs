@@ -8,13 +8,18 @@
 // which reason a caller sees without any test turning red.
 //
 // What it does: runs the real gate (docs/evidence/review/t53-verify-main.mjs)
-// once per case with T53_FORCE_CALL_ERROR / T53_FORCE_CALL_CODE, and asserts the
-// EXACT reason string plus the exit code. It does not touch the document, the
-// canvas, or the editor: the injected error is thrown before any bridge call,
-// and the harness inside t53 skips discovery when T53_FORCE_CALL_ERROR is set.
+// once per case, injecting the failure through the gate's own test hooks
+// (T53_FORCE_DISCOVER_CODE / T53_FORCE_CALL_ERROR / T53_FORCE_CALL_CODE), and
+// asserts the EXACT reason string plus the exit code. Every case is a hard
+// assertion: none of them depends on the live relay's window state. It does not
+// touch the document, the canvas, or the editor: each injected error is thrown
+// before any real bridge call and is classified by the gate's own catch blocks.
 //
-// Read-only: every case either throws before contacting the relay, or (case e)
-// performs t53's normal read-only read.
+// Read-only: no case reaches the editor; a real discover()/execute() is never
+// performed while a hook is set.
+//
+// The gate path is overridable so the interception test can point this suite at
+// a deliberately broken copy: node t53-classification-regression.mjs <gatePath>
 //
 // Child output is captured through file descriptors, not pipes, so the script
 // also works where pipe creation is restricted.
@@ -25,7 +30,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gate = resolve(here, 't53-verify-main.mjs')
+const gate = process.argv[2] ? resolve(process.argv[2]) : resolve(here, 't53-verify-main.mjs')
 const workDir = resolve(here, '.t53-regression-tmp')
 
 const EXIT_GATE_REFUSED = 2 // t53's "could not run" exit code
@@ -79,6 +84,15 @@ const cases = [
     env: { T53_FORCE_CALL_ERROR: 'not connected to any EDA window' },
     expectReason: 'EDA_NOT_CONNECTED',
   },
+  {
+    id: 'e',
+    what: 'discover() fails with SCHEMATIC_BRIDGE_NO_EDA -> no-window branch, no live window needed',
+    // Injected at the discover() call, not at execute(): this is the branch that
+    // used to be untestable because it needed the relay to have zero registered
+    // windows. The message is deliberately neutral so the CODE is what decides.
+    env: { T53_FORCE_DISCOVER_CODE: 'SCHEMATIC_BRIDGE_NO_EDA' },
+    expectReason: 'BRIDGE_NO_EDA_WINDOW',
+  },
 ]
 
 function runGate(extraEnv) {
@@ -109,20 +123,9 @@ function runGate(extraEnv) {
   return { status: result.status, signal: result.signal, stdout, stderr, parsed }
 }
 
-function relayWindowCount() {
-  // Read-only probe of the relay. Returns null when the relay cannot be reached.
-  return new Promise((resolvePromise) => {
-    fetch('http://127.0.0.1:49620/health')
-      .then((r) => r.json())
-      .then((h) => resolvePromise(typeof h.edaWindowCount === 'number' ? h.edaWindowCount : null))
-      .catch(() => resolvePromise(null))
-  })
-}
-
 async function main() {
   const lines = []
   let failures = 0
-  let skipped = 0
 
   lines.push('[t53-classification-regression] read-only, no document access')
   lines.push('')
@@ -146,53 +149,18 @@ async function main() {
     }
   }
 
-  // (e) no env at all: t53 must still refuse with BRIDGE_NO_EDA_WINDOW when the
-  // relay has no window. When a window IS registered this branch is unreachable
-  // without tearing down a live registration, so the case is reported as skipped
-  // rather than silently passed.
-  const count = await relayWindowCount()
-  const r = runGate({})
-  if (count === 0) {
-    const got = r.parsed && r.parsed.reason ? String(r.parsed.reason) : '(no reason; exit ' + r.status + ')'
-    const gotExit = r.parsed && typeof r.parsed.exit === 'number' ? r.parsed.exit : r.status
-    const ok = got === 'BRIDGE_NO_EDA_WINDOW' && gotExit === EXIT_GATE_REFUSED
-    if (!ok) failures++
-    lines.push(
-      (ok ? '  PASS  ' : '  FAIL  ') + 'e   no env, relay has 0 windows -> no-window branch\n' +
-        '        expected reason=BRIDGE_NO_EDA_WINDOW exit=' + EXIT_GATE_REFUSED + '\n' +
-        '        actual   reason=' + got + ' exit=' + gotExit + ' (process status ' + r.status + ')',
-    )
-  } else if (count === null) {
-    skipped++
-    lines.push('  SKIP  e   no env -> BRIDGE_NO_EDA_WINDOW: relay unreachable, cannot distinguish the branches')
-  } else {
-    // A window is registered: the run is a normal read-only gate run, which must
-    // still exit 0 (5/5) rather than crash. That is a weaker but real assertion.
-    const gotExit = r.parsed && typeof r.parsed.exit === 'number' ? r.parsed.exit : r.status
-    const ok = r.status === 0 && gotExit === 0 && r.parsed && r.parsed.ok === true
-    if (!ok) failures++
-    lines.push(
-      (ok ? '  PASS  ' : '  FAIL  ') + 'e   no env, but ' + count + ' window(s) registered -> gate runs instead\n' +
-        '        expected exit=0 ok=true (window present, no-window branch unreachable)\n' +
-        '        actual   exit=' + gotExit + ' ok=' + (r.parsed ? r.parsed.ok : '?') + ' (process status ' + r.status + ')\n' +
-        '        note: BRIDGE_NO_EDA_WINDOW itself is NOT asserted in this run; it was observed live at\n' +
-        '              2026-10-24T12:58:01.022Z when no window was registered (see r8t11 evidence).',
-    )
-  }
-
   try {
     rmSync(workDir, { recursive: true, force: true })
   } catch {
     /* leave the temp dir behind rather than mask a real failure */
   }
 
-  const total = cases.length + 1
+  const total = cases.length
   lines.push('')
   lines.push(
     '### ' + (failures === 0 ? 'ALL GREEN' : 'FAILURES: ' + failures) +
-      ' - ' + (total - failures - skipped) + '/' + total + ' passed' +
-      (skipped ? ', ' + skipped + ' skipped' : '') +
-      ', exit-code contract: every branch must be ' + EXIT_GATE_REFUSED,
+      ' - ' + (total - failures) + '/' + total + ' hard assertions passed' +
+      ' (every case asserts an exact reason AND exit=' + EXIT_GATE_REFUSED + '; none is conditional)',
   )
   console.log(lines.join('\n'))
   process.exit(failures === 0 ? 0 : 1)

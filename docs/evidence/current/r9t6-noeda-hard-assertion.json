@@ -1,0 +1,105 @@
+{
+  "task": "r2t1 - give BRIDGE_NO_EDA_WINDOW a real assertion, and stop the headline from overclaiming",
+  "member": "eda4 / j6",
+  "generatedAt": "2026-10-24T14:18:00Z",
+  "generatedAtLocal": "2026-10-24T22:18:00+08:00",
+  "headline": "Fixed the contradiction j5's review found. Case (e) is now a hard assertion of reason=BRIDGE_NO_EDA_WINDOW and exit=2, driven by a new discover()-level hook (T53_FORCE_DISCOVER_CODE) that does not depend on the live relay having zero windows. The suite is 9/9 hard assertions and the summary line says exactly that. The interception test is the key evidence this round: I changed one character-level literal in a throwaway copy of the gate (SCHEMATIC_BRIDGE_NO_EDA -> SCHEMATIC_BRIDGE_NO_EDA_DISABLED_FOR_TEST, exactly 1 line), pointed the suite at that copy, and case (e) went red with exit 1 while the other eight stayed green - expected BRIDGE_NO_EDA_WINDOW, actual BRIDGE_UNREACHABLE. Restored, it is green again with exit 0. With the hook unset, the gate's output is byte-identical to the previous committed version except the `at` timestamp, and both runs exit 0 on a real 5/5 read.",
+  "baseline": {
+    "head": "58f84a2eb78f5eccd23a1e86d06eec32c5aa68fb",
+    "originMaster": "c34bb90a216141d5ee7773a61c7ae957d474bd1f",
+    "aheadBehindBefore": "4 0",
+    "t53BlobBefore": "a45b7255a0f84ad37409ccaad2d0189b198e3374",
+    "regressionBlobBefore": "fe1429325ed4e9cc6f8fc5a2722f56aa51280775 (unchanged from when r9t3 committed it; the file was new, not modified)",
+    "problem": "case (e) ran with no hook, so with a window registered it could only assert exit 0 / ok true, never BRIDGE_NO_EDA_WINDOW; the summary line nevertheless read 'ALL GREEN - 9/9 passed' and the file header implied every case pinned a reason. j5's r9t4 review called this partial, correctly."
+  },
+  "hook": {
+    "name": "T53_FORCE_DISCOVER_CODE",
+    "optionalCompanion": "T53_FORCE_DISCOVER_MESSAGE",
+    "where": "docs/evidence/review/t53-verify-main.mjs, first statement inside the existing try that wraps HttpEasyEdaBridge.discover(), ahead of the T53_FORCE_CALL_ERROR branch",
+    "behaviour": "throws an Error carrying .code = the given value, so the SAME pre-existing catch (the one that already maps SCHEMATIC_BRIDGE_NO_EDA to BRIDGE_NO_EDA_WINDOW) classifies it; the default message 'injected discover failure' is deliberately neutral so the CODE is what decides, not a regex coincidence",
+    "unsetBehaviour": "no branch taken, discover() runs exactly as before - proven below, not asserted",
+    "diffSize": "+14 lines in t53 (10 code, 4 comment); no existing line modified"
+  },
+  "noBehaviourChangeProof": {
+    "method": "extracted the previous committed gate with git show HEAD:docs/evidence/review/t53-verify-main.mjs into docs/evidence/review/.tmp-t53-before.mjs (same directory, so its ../../.. repo resolution still points at the repo), then ran both versions with NO T53_* hooks set while the relay had 1 window registered",
+    "before": { "command": "node .tmp-t53-before.mjs --json", "exitCode": 0, "at": "captured in .tmp-before.json" },
+    "after": { "command": "node t53-verify-main.mjs --json", "exitCode": 0, "at": "2026-10-24T14:15:00.458Z", "counts": { "components": 21, "part": 8, "netflag": 13, "wires": 55, "wirePairs": 55, "pages": 2 }, "checks": "all five true" },
+    "comparison": "after deleting only the `at` field, JSON.stringify(before) === JSON.stringify(after) -> identical_without_at=true, before_exit=0, after_exit=0",
+    "meaning": "an unset hook still produces a real live verdict, not a stub; the empty-run result is the true 5/5 read"
+  },
+  "caseE": {
+    "was": "conditional: read /health, and if a window was registered it only asserted exit 0 / ok true, printing 'BRIDGE_NO_EDA_WINDOW itself is NOT asserted in this run'",
+    "now": {
+      "env": { "T53_FORCE_DISCOVER_CODE": "SCHEMATIC_BRIDGE_NO_EDA" },
+      "expectReason": "BRIDGE_NO_EDA_WINDOW",
+      "expectedExit": 2,
+      "assertion": "got === 'BRIDGE_NO_EDA_WINDOW' && gotExit === 2 && processStatus === 2 - same shape as cases a/b/c/d, no branch on live state"
+    },
+    "runOutput": "PASS  e  discover() fails with SCHEMATIC_BRIDGE_NO_EDA -> no-window branch, no live window needed / expected reason=BRIDGE_NO_EDA_WINDOW exit=2 / actual reason=BRIDGE_NO_EDA_WINDOW exit=2 (process status 2)",
+    "removedCode": "the relayWindowCount() helper and the whole three-way conditional (count===0 / count===null / window present) were deleted, so there is no longer any code path that can silently downgrade case (e)"
+  },
+  "headline": {
+    "before": "### ALL GREEN - 9/9 passed, exit-code contract: every branch must be 2",
+    "after": "### ALL GREEN - 9/9 hard assertions passed (every case asserts an exact reason AND exit=2; none is conditional)",
+    "whyItIsNowTrue": "all nine cases set a hook and assert an exact reason string: a, b1, b2, b3, b4 -> BRIDGE_WINDOW_DISCONNECTED; c1, c2 -> BRIDGE_CALL_FAILED; d -> EDA_NOT_CONNECTED; e -> BRIDGE_NO_EDA_WINDOW. None reads live state."
+  },
+  "interceptionTest": {
+    "purpose": "prove case (e) actually intercepts a regression in the NO_EDA judgement, rather than passing for an unrelated reason",
+    "method": "copied the current gate to docs/evidence/review/.tmp-t53-broken.mjs and replaced exactly one literal, then ran the suite with the gate path as argv[2] (a new, documented override added for this purpose)",
+    "exactChange": {
+      "line": 143,
+      "minus": "    if (errCode === 'SCHEMATIC_BRIDGE_NO_EDA' || /NO_EDA|not connected|edaConnected/i.test(msg)) {",
+      "plus": "    if (errCode === 'SCHEMATIC_BRIDGE_NO_EDA_DISABLED_FOR_TEST' || /NO_EDA|not connected|edaConnected/i.test(msg)) {",
+      "changedLines": 1
+    },
+    "red": {
+      "command": "node docs/evidence/review/t53-classification-regression.mjs docs/evidence/review/.tmp-t53-broken.mjs",
+      "exitCode": 1,
+      "failingCase": "FAIL  e  discover() fails with SCHEMATIC_BRIDGE_NO_EDA -> no-window branch, no live window needed / expected reason=BRIDGE_NO_EDA_WINDOW exit=2 / actual reason=BRIDGE_UNREACHABLE exit=2 (process status 2)",
+      "summary": "### FAILURES: 1 - 8/9 hard assertions passed",
+      "precision": "exactly one FAIL line in the whole run; the other eight cases stayed green, so the suite is specific rather than trigger-happy"
+    },
+    "green": {
+      "command": "node docs/evidence/review/t53-classification-regression.mjs",
+      "exitCode": 0,
+      "summary": "### ALL GREEN - 9/9 hard assertions passed (every case asserts an exact reason AND exit=2; none is conditional)"
+    },
+    "cleanup": "the broken copy was deleted; git status shows no .tmp-t53-broken.mjs",
+    "sideFinding": "because the injected message is neutral, the broken run fell through to BRIDGE_UNREACHABLE rather than being rescued by the /NO_EDA|not connected|edaConnected/i regex. That is consistent with the production message ('easyeda bridge at ... has no EasyEDA window connected'), which also does not match that regex - so the machine code is the load-bearing signal for this branch, and the regex is a fallback that would not have caught it. Recorded as an observation for the owner; I did not change the regex (out of scope this round)."
+  },
+  "criterionUntouched": {
+    "claim": "t53's classification regexes, thresholds, slice(0,200) and exit 2 are unchanged; this round only added a hook and a test",
+    "evidence": [
+      "git diff -- docs/evidence/review/t53-verify-main.mjs shows two hunks only: +4 comment lines documenting the new env var, and +10 code lines for the hook; no '-' line other than the two comment blocks' context",
+      "token counts after the change: 'slice(0, 200)' = 2, 'SCHEMATIC_BRIDGE_NO_EDA' = 1, 'SCHEMATIC_BRIDGE_WINDOW_LOST' = 1, 'BRIDGE_NO_EDA_WINDOW' = 2, 'exit 2' = 1 - same as the reviewed version"
+    ]
+  },
+  "leftAlone": {
+    "peerWorkInTree": "git status shows ' M docs/evidence/current/r9t1-window-registration-runbook.md' (104 insertions / 18 deletions) that I did not make and did not stage - a peer was editing it while I worked. My commit stages only my two files plus this evidence file.",
+    "reason": "committing another member's in-flight edit would publish work they have not finished"
+  },
+  "selfProof": {
+    "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0",
+    "packages": "git status --porcelain -- packages -> 0 lines",
+    "wrote": 0,
+    "nodeCheck": "node --check on t53-verify-main.mjs and t53-classification-regression.mjs -> both exit 0",
+    "writeVerbScan": "t53-classification-regression.mjs -> 0 hits (NO_MATCHES); t53-verify-main.mjs -> 1 hit, the pre-existing comment line 33 'No save, no delete, no create, no modify, no openDocument'",
+    "canvasWrites": 0,
+    "documentWrites": 0
+  },
+  "diff": "M docs/evidence/review/t53-verify-main.mjs (+14, hook + comment only); M docs/evidence/review/t53-classification-regression.mjs (case e hard, conditional block and relayWindowCount removed, optional gate-path argv, accurate summary line); A docs/evidence/current/r9t6-noeda-hard-assertion.json",
+  "reproSteps": [
+    "node docs/evidence/review/t53-classification-regression.mjs                       # expect exit 0, 9/9 hard assertions",
+    "T53_FORCE_DISCOVER_CODE=SCHEMATIC_BRIDGE_NO_EDA node docs/evidence/review/t53-verify-main.mjs --json   # expect exit 2, reason BRIDGE_NO_EDA_WINDOW",
+    "node docs/evidence/review/t53-verify-main.mjs --json                             # no hooks: real run, exits 0 when a window is registered",
+    "# interception: copy the gate, change SCHEMATIC_BRIDGE_NO_EDA to a bogus literal, then",
+    "node docs/evidence/review/t53-classification-regression.mjs <thatCopy>            # expect exit 1 with only case e failing"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-classification-regression.mjs",
+  "push": {
+    "attempts": "5 (waits 0/15/45/90/180 s)",
+    "result": "all exit 128",
+    "reason": "Failed to connect to github.com port 443 after ~21 s (5/5)",
+    "honesty": "no 0 0 claim; the four raw readings are reported in the message instead"
+  }
+}

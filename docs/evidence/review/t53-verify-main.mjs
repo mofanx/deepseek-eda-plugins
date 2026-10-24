@@ -42,6 +42,10 @@
 //   T53_FORCE_CALL_ERROR='<msg>'           make the execute call throw <msg> so the
 //                                          real catch classifies it (skips discover);
 //                                          optional T53_FORCE_CALL_CODE=<code> sets .code
+//   T53_FORCE_DISCOVER_CODE=<code>         make discover() throw <code> so the real
+//                                          catch classifies it without depending on
+//                                          the relay's window state; optional
+//                                          T53_FORCE_DISCOVER_MESSAGE=<msg>
 
 import { pathToFileURL } from 'node:url'
 import { readFileSync } from 'node:fs'
@@ -110,6 +114,16 @@ async function main() {
 
   let bridge
   try {
+    if (process.env.T53_FORCE_DISCOVER_CODE) {
+      // Classification harness for discover() itself: throw a failure carrying the
+      // given machine code so the SAME catch below classifies it. Exists because
+      // the no-window branch depends on the live relay having zero registered
+      // editors, which a test cannot rely on. Unset -> discover() runs exactly as
+      // before. Optional T53_FORCE_DISCOVER_MESSAGE replaces the default text.
+      const injected = new Error(process.env.T53_FORCE_DISCOVER_MESSAGE || 'injected discover failure')
+      injected.code = process.env.T53_FORCE_DISCOVER_CODE
+      throw injected
+    }
     if (process.env.T53_FORCE_CALL_ERROR) {
       // Classification harness: the execute path below throws the caller's message,
       // so a failing discover() must not shadow it. bridge.execute is never called.
