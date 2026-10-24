@@ -1,0 +1,282 @@
+{
+  "task": "r10t1 - second independent relay instance, real 0->1 registration, t53, then restore the original binding",
+  "member": "eda4 / t1",
+  "generatedAt": "2026-10-24T14:32:00.000Z",
+  "generatedAtLocal": "2026-10-24T22:32:00.000+08:00",
+  "headAtStart": "1ff0fd1248bf378c1a672f61627dfc8693d1eb2a",
+  "originAtStart": "1ff0fd1248bf378c1a672f61627dfc8693d1eb2a",
+  "status": "blocked",
+  "verdict": "infeasible",
+  "headline": "Second independent instance is not possible with the current protocol without stopping the resident relay: a second dsh-eda-bridge of the same implementation exits before listening (even with --force), the editor gateway is hard-wired to 49630 while ?port= is metadata only, and t53 discovery always takes the first connected port (49620) and has no --port. No 0->1 registration was fabricated; the resident relay stayed true/count1 and t53 remained 5/5 on it.",
+  "blockingStage": "start the second relay instance",
+  "whyBlocked": [
+    "The second invocation never listens: findExistingInstance() sees the resident dsh-eda-bridge and exits 0 with 'Bridge server is already running on port 49620; no new instance started.' This happens without --force and also with --force; --force only bypasses a foreign implementation, not the same implementation.",
+    "The editor's built-in run-api-gateway dials the fixed ws://127.0.0.1:49630. A second HTTP instance on 49621 cannot bind 49630 because the resident instance owns it; the api/landing ?port= value is forwarded only as register metadata and does not change the dial target.",
+    "t53's HttpEasyEdaBridge.discover() scans 49620..49630 and returns the first bridge with edaConnected:true. The resident 49620 is connected, so t53 always selects it; there is no --port/--bridge option. If the first bridge is disconnected, discover() throws SCHEMATIC_BRIDGE_NO_EDA instead of continuing to 49621."
+  ],
+  "sourceRefs": [
+    {
+      "file": "packages/eda-core/bin/dsh-eda-bridge.mjs",
+      "lines": "612-616",
+      "fact": "same-implementation singleton: prints 'Bridge server is already running on port ...; no new instance started.' and process.exit(0)"
+    },
+    {
+      "file": "packages/eda-core/bin/dsh-eda-bridge.mjs",
+      "lines": "618-623",
+      "fact": "--force is checked only for a foreign implementation; a same-implementation resident bridge still exits 0"
+    },
+    {
+      "file": "packages/eda-core/bin/dsh-eda-bridge.mjs",
+      "lines": "69-72",
+      "fact": "BUILTIN_GATEWAY_PORT = 49630; comment: the editor gateway hard-codes ws://127.0.0.1:49630 and the api/landing port param is forwarded in the register payload only"
+    },
+    {
+      "file": "packages/eda-core/bin/dsh-eda-bridge.mjs",
+      "lines": "628-638",
+      "fact": "gatewayServer.listen(49630) is attempted separately; on EADDRINUSE it logs 'Built-in gateway port 49630 unavailable' and continues without that endpoint"
+    },
+    {
+      "file": "packages/eda-core/src/bridge.ts",
+      "lines": "311-336",
+      "fact": "scanRange() iterates 49620..49630; a connected bridge returns immediately; a NO_EDA bridge throws; no port option"
+    },
+    {
+      "file": "docs/evidence/review/t53-verify-main.mjs",
+      "lines": "131-133",
+      "fact": "t53 calls HttpEasyEdaBridge.discover({ timeoutMs: 15_000 }) with no port argument"
+    }
+  ],
+  "secondInstanceAttempt": {
+    "portProbed": 49621,
+    "portFreeBefore": true,
+    "portFreeAfter": true,
+    "commands": [
+      {
+        "command": "node packages/eda-core/bin/dsh-eda-bridge.mjs",
+        "exitCode": 0,
+        "stdout": "Bridge server is already running on port 49620; no new instance started.\n",
+        "started": false
+      },
+      {
+        "command": "node packages/eda-core/bin/dsh-eda-bridge.mjs --force",
+        "exitCode": 0,
+        "stdout": "Bridge server is already running on port 49620; no new instance started.\n",
+        "started": false
+      },
+      {
+        "command": "node packages/eda-core/bin/dsh-eda-bridge.mjs --check",
+        "exitCode": 0,
+        "stdout": "check ok: dsh-eda-bridge on port 49620, 1 EDA window(s), active 25883914a72e5cbb\n",
+        "note": "only the resident relay answered"
+      }
+    ],
+    "newInstancePort": null,
+    "newInstanceHealth": null,
+    "port49621After": {
+      "tcpTestSucceeded": false,
+      "meaning": "nothing is listening on the intended second port"
+    }
+  },
+  "registration": {
+    "performed": false,
+    "newInstanceCountBefore": null,
+    "newInstanceCountAfter": null,
+    "reason": "no second instance was started; no landing page was opened against 49621 because it would dial the resident 49630 and could only re-register the resident window, not create a new-instance registration"
+  },
+  "resident": {
+    "url": "http://127.0.0.1:49620",
+    "healthBefore": {
+      "service": "easyeda-bridge",
+      "bridge": "dsh-eda-bridge",
+      "status": "ok",
+      "edaConnected": true,
+      "edaWindowCount": 1,
+      "activeWindowId": "25883914a72e5cbb",
+      "pendingRequests": 0
+    },
+    "healthAfter": {
+      "service": "easyeda-bridge",
+      "bridge": "dsh-eda-bridge",
+      "status": "ok",
+      "edaConnected": true,
+      "edaWindowCount": 1,
+      "activeWindowId": "25883914a72e5cbb",
+      "pendingRequests": 0
+    },
+    "untouched": true
+  },
+  "t53": {
+    "target": "resident 49620 only; NOT the second instance",
+    "notNewInstance": true,
+    "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+    "exitCode": 0,
+    "at": "2026-10-24T14:30:57.915Z",
+    "checks": 5,
+    "counts": {
+      "components": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wirePairs": 55,
+      "pages": 2
+    },
+    "raw": {
+      "gate": "MAIN invariants",
+      "readOnly": true,
+      "exit": 0,
+      "ok": true,
+      "checks": [
+        {"name": "components = 21", "pass": true, "detail": "21 / expected 21"},
+        {"name": "part = 8, netflag = 13", "pass": true, "detail": "part=8 netflag=13"},
+        {"name": "component id set = baseline (both directions)", "pass": true, "detail": "extra=0 missing=0"},
+        {"name": "wires = 55 and id|net pairs = baseline", "pass": true, "detail": "wires=55 pairs=55 extra=0 missing=0"},
+        {"name": "pages unchanged, MAIN id intact", "pass": true, "detail": "pages=2 MAIN=present active=b275cd23e45c4271bead56f66d4f98fe"}
+      ]
+    },
+    "newTimestamp": "2026-10-24T14:30:57.915Z",
+    "notOneOfOldTimestamps": [
+      "2026-10-24T12:36:10.642Z",
+      "2026-10-24T12:37:34.222Z",
+      "2026-10-24T13:39:55.037Z",
+      "2026-10-24T13:40:16.452Z"
+    ]
+  },
+  "liveProbeOnResident": {
+    "command": "node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs",
+    "exitCode": 0,
+    "total": 21,
+    "byType": {"part": 8, "netflag": 13},
+    "plus3v3": [{"id": "layout:flag:_3V3:bus:240", "type": "part", "designator": "U?", "name": "+3V3"}],
+    "pageCount": 2,
+    "pages": [
+      {"uuid": "b275cd23e45c4271bead56f66d4f98fe", "name": "MAIN"},
+      {"uuid": "d224f8d13804e759", "name": "P1"}
+    ],
+    "activeUuid": "b275cd23e45c4271bead56f66d4f98fe",
+    "notNewInstance": true
+  },
+  "restore": {
+    "needed": false,
+    "reason": "the resident relay was never stopped or re-bound; there was no second instance to close. 49621 remained closed and the resident /health stayed true/count1.",
+    "closeCommand": null,
+    "port49621After": false
+  },
+  "tabs": {
+    "before": {
+      "count": 1,
+      "id": "0FD2ED2506FADC5C01735E5E5C4C9EB0",
+      "url": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58"
+    },
+    "after": {
+      "count": 1,
+      "id": "0FD2ED2506FADC5C01735E5E5C4C9EB0",
+      "url": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58"
+    },
+    "idAndUrlUnchanged": true
+  },
+  "parameterization": {
+    "file": "docs/evidence/current/r9t1-window-registration-runbook.md",
+    "runbookBlobBefore": "915252266568da098161284d22c14374027cfce2",
+    "defaults": {
+      "RelayPort": 49620,
+      "GatewayPort": 49630
+    },
+    "expanded": {
+      "RelayBase": "http://127.0.0.1:49620",
+      "LandingUrl": "http://127.0.0.1:49620/landing",
+      "LandingPattern": "^http://127\\.0\\.0\\.1:49620/landing(?:[/?#]|$)",
+      "health": "http://127.0.0.1:49620/health",
+      "gateway": 49630
+    },
+    "changed": [
+      "added §0.1 with $RelayPort/$GatewayPort/$RelayBase/$LandingUrl/$LandingPattern and default equivalence",
+      "replaced operational /health and /eda-windows URLs with $RelayBase",
+      "replaced dpx tab-new landing URL with $LandingUrl",
+      "replaced landing URL/title match regex with $LandingPattern",
+      "added §0.2 single-instance boundary with source refs",
+      "added §5 note that t53 has no port selector"
+    ],
+    "syncPointsDocumented": [
+      "landing ?port= uses RelayPort; it is metadata only",
+      "relay listens in 49620-49629, first free; no --port",
+      "gateway is fixed 49630; no runtime parameter",
+      "/health query uses RelayBase",
+      "t53 scans 49620-49630, first connected; no --port"
+    ],
+    "historicalValuesPreserved": "The historical JSON examples still show 49620 because they are records of the default-port run; they are explicitly labelled as default-value history, not new readings.",
+    "diffStat": "1 file changed, 47 insertions(+), 11 deletions(-)"
+  },
+  "manualChecklist": {
+    "beforeAnyCodeChange": [
+      "Do not stop the resident 49620 relay and do not occupy 49620 to force a second instance; that breaks the 'independent / non-interfering' requirement.",
+      "Keep the editor tab open and untouched; the editor window is currently registered to 49620."
+    ],
+    "codeChangesRequiredForARealSecondInstance": [
+      "dsh-eda-bridge.mjs: add explicit --port/--gateway-port (or a test-only mode) and allow a second instance without the same-implementation singleton exit at lines 612-616.",
+      "Editor run-api-gateway: make it dial the port carried by the landing ?port= trigger instead of the hard-coded 49630 at bin lines 69-72; rebuild/reload the extension in EasyEDA Pro.",
+      "HttpEasyEdaBridge/t53: accept an explicit bridge URL/port (e.g. --bridge http://127.0.0.1:49621) instead of scanRange() returning the first connected 49620 or throwing on the first NO_EDA bridge."
+    ],
+    "afterThoseCodeChanges": [
+      "Human in the editor: reload EasyEDA Pro so the updated gateway is active.",
+      "Human in the same browser/profile: open https://pro.lceda.cn/api/landing?port=49621 in a new tab.",
+      "Human: click the visible #pop button once; wait about 4 seconds; verify the new instance's /health goes edaConnected:false / edaWindowCount:0 to true/1.",
+      "Run t53 with the explicit 49621 bridge; require exit 0 and 5/5 before calling it a pass.",
+      "Restore: open the 49620 landing in the same browser, click #pop, verify resident /health returns true/count1, then stop the 49621 instance and confirm 49621 is unreachable."
+    ],
+    "withoutCodeChanges": "There is no editor-side click that can point the built-in gateway at 49621; the landing ?port= value does not change the dial target. Do not run a fake registration or a stop-the-resident swap and call it a second instance."
+  },
+  "selfProof": {
+    "freshness": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7} exit 0",
+    "packagesAdded": 0,
+    "packagesDiff": "git diff --name-only -- packages -> empty",
+    "wrote": 0,
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "writeVerbScan": "48 added lines scanned -> NO_MATCHES",
+    "fileWritesThisTask": 2,
+    "fileWritesDetail": "runbook edit + this evidence JSON only; no source or package changed",
+    "tabListRuns": 2
+  },
+  "git": {
+    "headAtStart": "1ff0fd1248bf378c1a672f61627dfc8693d1eb2a",
+    "originAtStart": "1ff0fd1248bf378c1a672f61627dfc8693d1eb2a",
+    "headBeforeCommit": "1ff0fd1248bf378c1a672f61627dfc8693d1eb2a",
+    "aheadBehindAtStart": "0 0",
+    "trackedChanges": [
+      "M docs/evidence/current/r9t1-window-registration-runbook.md",
+      "A docs/evidence/current/r10t1-second-instance-registration.json"
+    ],
+    "untrackedTemps": "only .tmp-r10-* outputs; not staged"
+  },
+  "reproSteps": [
+    "Invoke-RestMethod http://127.0.0.1:49620/health  # true/count1 before",
+    "node packages/eda-core/bin/dsh-eda-bridge.mjs          # exit0, 'already running ... no new instance started'",
+    "node packages/eda-core/bin/dsh-eda-bridge.mjs --force  # same output/exit0",
+    "Test-NetConnection 127.0.0.1 -Port 49621               # false before and after",
+    "node docs/evidence/review/t53-verify-main.mjs --json   # original 49620 only: exit0, 5/5",
+    "node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs  # +3V3=part, pages=2",
+    "dpx tab-list                                           # same editor id/URL before/after"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs --json",
+  "verifyNote": "verifyCommand was run against the resident 49620, not against a second instance; the second instance does not exist.",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r9t1-window-registration-runbook.md",
+      "summary": "Added $RelayPort/$GatewayPort parameters, default equivalence, port-sync table, and the single-instance boundary; operational health/landing commands now use $RelayBase/$LandingUrl/$LandingPattern."
+    },
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r10t1-second-instance-registration.json",
+      "summary": "Evidence that a second independent instance is infeasible: singleton exit, fixed 49630 gateway, t53 first-port discovery; resident untouched, no fake 0->1; source refs and manual checklist."
+    },
+    {
+      "type": "command",
+      "summary": "Second instance normal/--force both exit0 with 'already running ... no new instance started'; 49621 false before/after; resident health true/count1."
+    },
+    {
+      "type": "test",
+      "summary": "Resident-only t53 exit0, 5/5, 21/8/13/55/55/2 at 2026-10-24T14:30:57.915Z; +3V3=part; pages=2; this is not a second-instance pass."
+    }
+  ]
+}

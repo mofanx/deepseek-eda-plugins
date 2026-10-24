@@ -4,11 +4,11 @@
 
 目标：在同一浏览器、同一 profile 中，把已加载的 EasyEDA 编辑器窗口注册到本地 relay，使：
 
-- `GET http://127.0.0.1:49620/health`
+- `GET $RelayBase/health`（默认 `http://127.0.0.1:49620/health`）
   - `edaConnected: true`
   - `edaWindowCount: 1`（本次实测目标）
   - `activeWindowId` 非空
-- `GET http://127.0.0.1:49620/eda-windows`
+- `GET $RelayBase/eda-windows`
   - `windows` 至少 1 条
   - `connected: true`
   - `active: true`
@@ -17,9 +17,43 @@
 前置条件：
 
 1. 编辑器标签页已经在**同一个浏览器、同一个 profile**中加载完成，URL 含 `tab=*b275cd23e45c4271bead56f66d4f98fe`。
-2. relay 在 `127.0.0.1:49620`，编辑器 gateway 固定端口 `49630`。
+2. relay 在 `$RelayBase`（默认 `127.0.0.1:49620`），编辑器 gateway 固定端口 `$GatewayPort`（默认 `49630`）；`$GatewayPort` 不随 `$RelayPort` 自动改变。
 3. 全程只操作 **landing 页**；**不要**在编辑器画布里点击或键入，**不要**调用 `save/modify/create/delete/clear`。
 4. `t53` 是只读门禁；注册成功后立刻跑。
+
+## 0.1 端口参数（默认值 = 改前的 49620 / 49630）
+
+本 runbook 的可执行命令不再写死端口。默认值如下，**用默认值照原样跑，展开后与改前逐字等价**：
+
+```powershell
+$RelayPort   = 49620          # relay 的 HTTP/WS 端口（默认，保持原行为）
+$GatewayPort = 49630          # 编辑器内置 gateway 的固定端口（默认，保持原行为）
+$RelayBase   = "http://127.0.0.1:$RelayPort"
+$LandingUrl  = "$RelayBase/landing"
+$LandingPattern = '^http://127\.0\.0\.1:' + $RelayPort + '/landing(?:[/?#]|$)'
+```
+
+等价性：`$RelayPort=49620` 时，`$RelayBase` 就是 `http://127.0.0.1:49620`，`$LandingUrl` 就是 `http://127.0.0.1:49620/landing`；下面的命令与改前的字面量命令等价。历史实测 JSON 仍保留当时默认值 `49620` 的原文，不是本次新读数。
+
+换端口时必须同步改的地方：
+
+| 项 | 当前实现 | 换端口时怎么改 | 注意 |
+|---|---|---|---|
+| landing 的 `?port=` | `/landing` 用 `location.port` 生成；外部 landing 为 `https://pro.lceda.cn/api/landing?port=<RelayPort>` | 改成 `$RelayPort` / 对应 URL | `?port=` 只是 **metadata**，不决定 gateway 拨号端口 |
+| relay 监听 | `dsh-eda-bridge` 在 `49620–49629` 里取第一个空闲端口；没有 `--port` 参数 | 要固定 49621，必须改 bin，或先占用 49620；不能只靠命令行 | 同实现已运行时 bin 会直接复用/退出，见 §0.2 |
+| gateway 端口 | `BUILTIN_GATEWAY_PORT = 49630`，编辑器内置 gateway 固定拨 `ws://127.0.0.1:49630` | **没有可同步的运行时参数**；改它需要同时改 bin 和编辑器 gateway | 第二实例拿不到 49630 就收不到真实注册 |
+| `/health` 查询 | `$RelayBase/health` | 换成 `$RelayBase` 对应的端口 | 不能拿 49620 的 health 冒充新实例 |
+| `t53` | `HttpEasyEdaBridge.discover()` 固定扫 `49620–49630`，取第一个 `edaConnected:true` | 当前没有 `--port`/`--bridge` 参数；见 §0.2 | 不能指定“对 49621 跑” |
+
+### 0.2 单实例边界（第二实例前必读）
+
+当前协议**不支持两个同实现 relay 独立服务同一台机器的同一个编辑器**，原因不是环境：
+
+1. `packages/eda-core/bin/dsh-eda-bridge.mjs:612-616`：发现同实现 `dsh-eda-bridge` 已在端口上，直接打印 `Bridge server is already running on port 49620; no new instance started.` 并 `exit 0`。`--force` 只绕过 foreign implementation，不绕过同实现，所以加 `--force` 结果相同。
+2. `packages/eda-core/bin/dsh-eda-bridge.mjs:69-72, 628-638`：内置 gateway 固定 `49630`；第二个实例即使 HTTP 起在 49621，也抢不到 49630，只会打印 `Built-in gateway port 49630 unavailable` 警告。
+3. `packages/eda-core/src/bridge.ts:311-336`：`t53` 的 `discover()` 从 49620 顺序扫，遇到第一个 `edaConnected:true` 就返回；遇到第一个 `edaConnected:false` 会直接抛 `SCHEMATIC_BRIDGE_NO_EDA`，不会继续扫 49621。没有端口选择参数。
+
+因此：**“另起 49621、用 `?port=49621` 注册、再对 49621 跑 t53”在现有代码上不可行**。不要用停止常驻实例、占用 49620 的方式硬造第二实例，那会破坏“互不干扰”。要做第二实例，必须先改代码并重编/重载 gateway；人工清单见 `docs/evidence/current/r10t1-second-instance-registration.json`。
 
 ## 1. 预检：先看状态，不先点
 
@@ -41,9 +75,9 @@ dpx tab-list
 
 ```powershell
 [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
-Invoke-RestMethod -Uri 'http://127.0.0.1:49620/health' -TimeoutSec 5 |
+Invoke-RestMethod -Uri "$RelayBase/health" -TimeoutSec 5 |
   ConvertTo-Json -Depth 8 -Compress
-Invoke-RestMethod -Uri 'http://127.0.0.1:49620/eda-windows' -TimeoutSec 5 |
+Invoke-RestMethod -Uri "$RelayBase/eda-windows" -TimeoutSec 5 |
   ConvertTo-Json -Depth 8 -Compress
 ```
 
@@ -61,11 +95,11 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:49620/eda-windows' -TimeoutSec 5 |
 ## 2. 打开 relay 的 `/landing`
 
 ```powershell
-dpx tab-new 'http://127.0.0.1:49620/landing'
+dpx tab-new "$LandingUrl"
 dpx tab-list
 ```
 
-预期：出现新标签页，URL 为 `http://127.0.0.1:49620/landing`，title 为 `dsh-eda-bridge: register EasyEDA`。
+预期：出现新标签页，URL 为 `$LandingUrl`，title 为 `dsh-eda-bridge: register EasyEDA`。
 
 ### 已实测的失败与修正（必须写进 runbook）
 
@@ -98,7 +132,7 @@ dpx tab-list
 $tabsJson = dpx tab-list
 $tabs = $tabsJson | ConvertFrom-Json
 $matches = @($tabs.data.tabs | Where-Object {
-  $_.url -match '^http://127\.0\.0\.1:49620/landing(?:[/?#]|$)' -and
+  $_.url -match $LandingPattern -and
   $_.title -eq 'dsh-eda-bridge: register EasyEDA'
 })
 if ($matches.Count -ne 1) {
@@ -109,7 +143,7 @@ $landing | ConvertTo-Json -Compress
 dpx tab-select $landing.id
 ```
 
-本次实跑匹配到的正是 landing，而不是编辑器：
+本次实跑匹配到的正是 landing，而不是编辑器（以下 URL 是默认 `$RelayPort=49620` 时的历史输出）：
 
 ```json
 {"index":0,"id":"EC7339BE9D8DD701CB41CF28B92C3B49",
@@ -221,9 +255,9 @@ available tabs: ['0FD2...', 'DFB4...']
 ```powershell
 dpx click '#pop'
 Start-Sleep -Seconds 4
-Invoke-RestMethod -Uri 'http://127.0.0.1:49620/health' -TimeoutSec 5 |
+Invoke-RestMethod -Uri "$RelayBase/health" -TimeoutSec 5 |
   ConvertTo-Json -Depth 8 -Compress
-Invoke-RestMethod -Uri 'http://127.0.0.1:49620/eda-windows' -TimeoutSec 5 |
+Invoke-RestMethod -Uri "$RelayBase/eda-windows" -TimeoutSec 5 |
   ConvertTo-Json -Depth 8 -Compress
 ```
 
@@ -254,6 +288,8 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:49620/eda-windows' -TimeoutSec 5 |
 4. 记录 `health` 原文与 `#pop`/`#manual` 状态；不要用“环境限制”收尾。
 
 ## 5. 成功即跑 t53（只读）
+
+> 端口限制：`t53` 没有 `--port`/`--bridge` 参数；它固定从 `49620` 扫到 `49630`，返回第一个 `edaConnected:true` 的 relay。默认 `$RelayPort=49620` 时即本节命令；若 relay 在 49621，当前 t53 **不能**被指向它（见 §0.2）。
 
 ```powershell
 cmd /c "node docs/evidence/review/t53-verify-main.mjs > .tmp-r9t2-t53.txt 2>&1"
