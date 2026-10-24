@@ -1,0 +1,254 @@
+{
+  "task": "t2/r8t7 - make the EasyEDA window register with the relay, read live part/netflag and page table",
+  "generatedAt": "2026-10-24T12:28:00Z",
+  "head": "701e312acb8723c90ea4f9052f99a1cfabb42a0e",
+  "origin": "701e312acb8723c90ea4f9052f99a1cfabb42a0e",
+  "aheadBehind": "0 0",
+  "headAtAttempt": "f6e18397de7861db4f66b03a9a9af6453bc3b418",
+  "headAtCommit": "701e312acb8723c90ea4f9052f99a1cfabb42a0e",
+  "headDrift": {
+    "event": "r8t5 committed 701e312 during this attempt and changed t53's discover catch-all classification",
+    "impact": "none on registration or the live PASS values; t53 was rerun at 701e312 after the r8t5 commit and still passed 5/5 exit 0",
+    "t53BlobAtAttempt": "eead9c2034274094c15846b71d5df989bf01dca0",
+    "t53BlobAtCommit": "eead9c2034274094c15846b71d5df989bf01dca0"
+  },
+  "outcome": "a-registration-success",
+  "verdict": "registration succeeded; t53 PASS exit 0; live values read from the editor",
+  "summary": "The relay was healthy but had zero editor windows. The editor tab was already loaded (MAIN, b275cd23...), but the automatic landing popup was blocked. Opening the relay /landing page in the same browser, selecting it, and clicking its #pop button with a real user gesture opened the EasyEDA landing page; within about 1 s /health flipped to edaConnected:true, edaWindowCount:1, activeWindowId 25883914a72e5cbb. t53 then passed 5/5 at exit 0 with 21 components, 8 parts, 13 netflags, 55 wires, 55 pairs, 2 pages. Live query confirmed +3V3 is componentType=part and the page list is exactly MAIN + P1.",
+  "registration": {
+    "before": {
+      "health": {"status": 200, "edaConnected": false, "edaWindowCount": 0, "activeWindowId": null},
+      "windows": {"windows": [], "activeWindowId": null, "count": 0}
+    },
+    "after": {
+      "health": {"status": 200, "edaConnected": true, "edaWindowCount": 1, "activeWindowId": "25883914a72e5cbb"},
+      "windows": {"windows": [{"windowId": "25883914a72e5cbb", "connected": true, "active": true}], "activeWindowId": "25883914a72e5cbb", "count": 1}
+    },
+    "windowId": "25883914a72e5cbb",
+    "trigger": "real click on #pop in http://127.0.0.1:49620/landing, in the same browser as the loaded editor tab"
+  },
+  "sourceProtocol": {
+    "answer": "Not an HTTP /register and not a postMessage callback in this repo. The local relay /landing page opens EasyEDA's own https://pro.lceda.cn/api/landing?port=... popup; that external page performs the BroadcastChannel post. The editor's built-in run-api-gateway then dials the fixed ws://127.0.0.1:49630, receives the relay handshake, and sends a WebSocket {type:'register', windowId|tabId}; the relay adds it to edaClients. The extension path is eda.sys_WebSocket.register().",
+    "externalLandingScript": {
+      "url": "https://pro.lceda.cn/api/landing?port=49620",
+      "vendoredInRepo": false,
+      "evidence": "packages/eda-core/bin/dsh-eda-bridge.mjs:196-200 comment: opens the EasyEDA landing page as a script-opened popup so its own window.close() succeeds after the BroadcastChannel post; bridge.ts:39-44 calls it the landing URL that wakes the built-in run-api-gateway; bridge.ts:47 requires the same browser and an editor tab that has finished loading.",
+      "limitation": "The external pro.lceda.cn page is third-party and not in this repo, so its exact JavaScript cannot be quoted line-by-line; the local relay and bridge semantics are quoted below, and the observed registration confirms the path."
+    },
+    "localRefs": [
+      "packages/eda-core/bin/dsh-eda-bridge.mjs:7 - the EasyEDA extension (run-api-gateway) connects outbound through eda.sys_WebSocket.register()",
+      "packages/eda-core/bin/dsh-eda-bridge.mjs:18-22 - 49620-49629 range plus fixed 49630; editor built-in gateway dials 49630 after an api/landing?port= BroadcastChannel trigger",
+      "packages/eda-core/bin/dsh-eda-bridge.mjs:196-230 - /landing page: landing='https://pro.lceda.cn/api/landing?port='+location.port; pop() -> window.open(landing,'_blank','popup,...'); document.getElementById('pop').onclick=pop; pop() is blocked without a user gesture; #manual/#pop is the fallback; polling /health every 800 ms; closes the popup and itself once edaConnected",
+      "packages/eda-core/bin/dsh-eda-bridge.mjs:261-282 - attachEdaClient; msg.type === 'register' and (msg.windowId || msg.tabId); edaClients.set(registeredWindowId, ws); auto-select first window",
+      "packages/eda-core/bin/dsh-eda-bridge.mjs:355-384 - connection; /eda or /agent paths get a handshake; unrecognized root path is classified by first message; register marks an EDA window, otherwise an agent",
+      "packages/eda-core/bin/http-api.mjs:46-66 - /health derives edaConnected and edaWindowCount from edaClients.size; /eda-windows lists it",
+      "packages/eda-core/bin/http-api.mjs:89-120 - /execute with no window returns 503, not 500",
+      "packages/eda-core/src/bridge.ts:44 - EASYEDA_BRIDGE_LANDING_URL = 'https://pro.lceda.cn/api/landing?port=49620'",
+      "packages/eda-core/src/bridge.ts:47 - same browser as the web editor tab, after that editor tab has finished loading; a different browser leaves no window; execute needs the project loaded with non-empty page list",
+      "packages/eda-core/src/bridge.ts:331-335 - health service/implementation checks and SCHEMATIC_BRIDGE_NO_EDA when edaConnected === false"
+    ],
+    "triggerConditions": [
+      "Relay must be listening on 49620 (HTTP/health) and 49630 (the fixed endpoint the editor's built-in gateway dials).",
+      "The EasyEDA editor tab must already be loaded in the same browser; a different browser is explicitly documented as leaving the relay with no window.",
+      "The external landing page must be opened as a popup/tab in that same browser and same pro.lceda.cn origin so its BroadcastChannel reaches the editor's built-in gateway.",
+      "window.open needs a user gesture. The relay page calls pop() automatically, but browsers block it; #manual becomes visible and the #pop button is the required real-click path. I used that path.",
+      "The project should be loaded for execute/pages: bridge.ts:47 says execute works only once attached to the window whose schematic page list is non-empty. Here MAIN was loaded and the live page list was non-empty."
+    ],
+    "notHttpRegister": true,
+    "notPostMessageHandshake": true,
+    "noRegisterEndpoint": "http-api.mjs has only GET /health, GET /eda-windows, POST /eda-windows/select, POST /execute; no /register."
+  },
+  "steps": [
+    {
+      "step": "baseline",
+      "command": "fetch http://127.0.0.1:49620/health and /eda-windows",
+      "raw": {
+        "health": {"status": 200, "edaConnected": false, "edaWindowCount": 0, "activeWindowId": null},
+        "windows": {"windows": [], "activeWindowId": null, "count": 0}
+      }
+    },
+    {
+      "step": "list existing browser tabs",
+      "command": "dpx tab-list",
+      "raw": {
+        "count": 1,
+        "tab": {"index": 0, "id": "0FD2ED2506FADC5C01735E5E5C4C9EB0", "url": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58", "title": "dsh-t19-real-ic-1792425596633 | MAIN.dsh-t19-real-ic-1792425596633 | 嘉立创EDA(专业版) - V4.1.78"}
+      },
+      "note": "The only tab was the loaded editor, with the MAIN UUID in its URL and title. This established the same-browser/editor-loaded condition without touching the canvas."
+    },
+    {
+      "step": "open relay /landing in the same browser",
+      "command": "dpx tab-new http://127.0.0.1:49620/landing",
+      "raw": "dpx returned TAB_FAILED because it could not write its default session JSON outside the workspace, but tab-list immediately showed the landing tab was created: index=1, id=CEB3AD7543E8B2BEB1F3A9FE26F0BE6A, url=http://127.0.0.1:49620/landing, title=dsh-eda-bridge: register EasyEDA.",
+      "healthAfter": {"status": 200, "edaConnected": false, "edaWindowCount": 0},
+      "note": "No external landing popup appeared; the automatic pop() was blocked, so the count stayed 0."
+    },
+    {
+      "step": "select landing and inspect fallback",
+      "command": "dpx tab-select 1; dpx snapshot --mode brief; dpx eval ...",
+      "raw": {
+        "select": "status ok, bound to CEB3AD7543E8B2BEB1F3A9FE26F0BE6A",
+        "snapshot": "[3] button 'open the landing page' -> #pop; [2] paragraph -> #manual",
+        "eval": {"url": "http://127.0.0.1:49620/landing", "title": "dsh-eda-bridge: register EasyEDA", "manualHidden": false, "popVisible": true}
+      },
+      "note": "manualHidden=false is the positive evidence that the automatic popup was blocked and the user-gesture fallback was required. I did not click anything in the editor tab."
+    },
+    {
+      "step": "real click on #pop",
+      "command": "dpx click ref:3",
+      "raw": {"status": "ok", "message": "点击成功", "locator": "@data-dp-ref=dp26d2977be39a"},
+      "healthBefore": {"edaConnected": false, "edaWindowCount": 0, "activeWindowId": null}
+    },
+    {
+      "step": "poll /health after click",
+      "command": "fetch health 12x at 1 s intervals",
+      "raw": [
+        "2026-10-24T12:24:16.368Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:17.378Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:18.393Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:19.410Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:20.424Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:21.440Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:22.446Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:23.453Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:24.464Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:25.471Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:26.483Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb",
+        "2026-10-24T12:24:27.488Z edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb"
+      ],
+      "windowsAfter": {"windows": [{"windowId": "25883914a72e5cbb", "connected": true, "active": true}], "activeWindowId": "25883914a72e5cbb", "count": 1}
+    }
+  ],
+  "t53": {
+    "command": "node docs/evidence/review/t53-verify-main.mjs",
+    "exitCode": 0,
+    "pass": true,
+    "checks": "5/5",
+    "fullOutput": [
+      "[t53] MAIN invariant gate - read-only",
+      "  PASS  components = 21: 21 / expected 21",
+      "  PASS  part = 8, netflag = 13: part=8 netflag=13",
+      "  PASS  component id set = baseline (both directions): extra=0 missing=0",
+      "  PASS  wires = 55 and id|net pairs = baseline: wires=55 pairs=55 extra=0 missing=0",
+      "  PASS  pages unchanged, MAIN id intact: pages=2 MAIN=present active=b275cd23e45c4271bead56f66d4f98fe",
+      "[t53] PASS exit 0"
+    ],
+    "values": {
+      "components": 21,
+      "parts": 8,
+      "netflags": 13,
+      "wires": 55,
+      "pairs": 55,
+      "extraIds": 0,
+      "missingIds": 0,
+      "extraPairs": 0,
+      "missingPairs": 0,
+      "pages": 2,
+      "mainPresent": true,
+      "activePage": "b275cd23e45c4271bead56f66d4f98fe"
+    },
+    "scriptBlobAtHead": "eead9c2034274094c15846b71d5df989bf01dca0",
+    "workingTreeContentMatchesHead": true,
+    "note": "At one intermediate status read the t53 index was stat-dirty, but git diff was empty and hash-object equals HEAD:eead9c2. r8t5 then committed 701e312 with its t53 error-class split; t53 was rerun at 701e312 after that commit and still passed 5/5 exit 0. The PASS is the committed t53 version, not an unreviewed edit. I did not stage or modify t53."
+  },
+  "liveReadout": {
+    "command": "HttpEasyEdaBridge.discover + read-only execute of getAll and getAllSchematicPagesInfo",
+    "raw": {
+      "total": 21,
+      "partCount": 8,
+      "netflagCount": 13,
+      "plus3v3": [
+        {
+          "id": "layout:flag:_3V3:bus:240",
+          "type": "part",
+          "designator": "U?",
+          "name": "+3V3",
+          "value": null
+        }
+      ],
+      "pages": [
+        {"uuid": "b275cd23e45c4271bead56f66d4f98fe", "name": "MAIN"},
+        {"uuid": "d224f8d13804e759", "name": "P1"}
+      ],
+      "pageCount": 2,
+      "partIds": ["u1", "u2", "u3", "u4", "u5", "u6", "u7", "layout:flag:_3V3:bus:240"]
+    },
+    "conclusion": "+3V3 (layout:flag:_3V3:bus:240) has componentType=part. part=8, netflag=13. The live page list has exactly 2 entries: MAIN b275cd23... and P1 d224f8d1...."
+  },
+  "writeBoundary": {
+    "documentSaveModifyCreateDeleteClear": false,
+    "saveOwnDocumentCalled": false,
+    "openDocumentCalled": false,
+    "canvasClicks": 0,
+    "canvasTyping": 0,
+    "editorTabFocusOnly": true,
+    "uiActions": [
+      "opened a new tab at http://127.0.0.1:49620/landing in the same browser",
+      "selected that landing tab",
+      "clicked #pop on the landing page"
+    ],
+    "t53ReadOnly": true,
+    "t53Code": "READ block only calls sch_PrimitiveComponent.getAll, sch_PrimitiveWire.getAll, dmt_Schematic.getAllSchematicPagesInfo, dmt_Schematic.getCurrentSchematicPageInfo",
+    "dpxSessionWrite": "dpx wrote its own tab-session JSON outside the workspace under full access; not an editor document",
+    "noWriteGrep": "t53/r8t1 probe scan for saveOwnDocument|.save(|.modify(|.create(|.delete(|.clear(|openDocument matched only t53-verify-main.mjs:32 comment 'No save, no delete, no ...'; no live API call",
+    "note": "I did not click or type in the editor canvas at all. The click was on the relay landing page's #pop button."
+  },
+  "selfProof": {
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "packagesDiff": "git diff --name-only a71757e HEAD -- packages -> empty",
+    "wrote": 0,
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "filesChanged": ["docs/evidence/current/r8t7-window-registration-attempt.json"],
+    "concurrentWork": [
+      "701e312a fix(evidence): r8t5 split t53's discover catch-all into unreachable vs no-eda-window - another member's commit, made during this attempt; includes the t53 error-class change",
+      "t53's index was briefly stat-dirty earlier; at 701e312 git diff is empty and hash-object equals HEAD:eead9c2"
+    ],
+    "otherFilesOwnership": "The r8t5 commit and any intermediate t53 stat state are another member's work; this task did not create, stage or modify them."
+  },
+  "checks": [
+    {"id": "1-source-protocol", "verdict": "成立", "evidence": "WS register after handshake; no HTTP /register; landing popup + BroadcastChannel; 49630 fixed; all line refs"},
+    {"id": "2-same-browser-editor-loaded", "verdict": "成立", "evidence": "one tab, editor URL/title has MAIN b275cd23; landing added to same browser"},
+    {"id": "3-user-gesture-required", "verdict": "成立", "evidence": "auto popup blocked, #manual visible; real dpx click on #pop"},
+    {"id": "4-registration", "verdict": "成立", "evidence": "health flipped to edaConnected true/count1 active 25883914a72e5cbb; /eda-windows lists it"},
+    {"id": "5-t53-pass", "verdict": "成立", "evidence": "exit0, 5/5, 21/8/13/55/55/2, active b275"},
+    {"id": "6-part-netflag-plus3v3", "verdict": "成立", "evidence": "live total21 part8 netflag13; +3V3 layout:flag:_3V3:bus:240 type part"},
+    {"id": "7-live-pages", "verdict": "成立", "evidence": "live pageCount2: MAIN b275..., P1 d224f8d...; t53 pages2"},
+    {"id": "8-write-boundary", "verdict": "成立", "evidence": "no save/modify/create/delete/clear/openDocument; no editor canvas click/type; only landing #pop"},
+    {"id": "9-self-proof", "verdict": "成立", "evidence": "freshness0, packages0, wrote0"}
+  ],
+  "overall": "success",
+  "overallReason": "The registration gate was reached by supplying the missing real user gesture in the same browser as the loaded editor. The live relay then had one window, t53 passed 5/5 at exit 0, and the live query independently confirmed part=8, netflag=13, +3V3=part, and a 2-page MAIN+P1 list. No document write occurred.",
+  "baseline": "Attempt started at f6e1839; r8t5 landed at 701e312 during the attempt, so this report's commit parent is 701e312. Before this attempt /health had edaConnected:false, edaWindowCount:0 and /eda-windows count0. The editor tab was already loaded with MAIN b275cd23.",
+  "diff": "New file only: docs/evidence/current/r8t7-window-registration-attempt.json. No source, package, guide, canvas or t53 change.",
+  "reproSteps": [
+    "dpx tab-list  # editor tab with tab=*b275cd23...",
+    "dpx tab-new http://127.0.0.1:49620/landing",
+    "dpx tab-select 1; dpx snapshot --mode brief",
+    "dpx click ref:3  # #pop button; real user gesture",
+    "fetch http://127.0.0.1:49620/health  # edaConnected:true edaWindowCount:1 activeWindowId 25883914a72e5cbb",
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS exit 0",
+    "read-only bridge query of getAll/getAllSchematicPagesInfo  # +3V3 part, 8/13, pages2"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r8t7-window-registration-attempt.json",
+      "summary": "注册协议源码；同浏览器 landing + 真实 #pop 点击；health 0→1；t53 5/5 exit0；+3V3 part、part8/netflag13、pages2；无文档写。"
+    },
+    {
+      "type": "command",
+      "summary": "dpx tab-list/tab-new/tab-select/click；health before0 after1 active25883914a72e5cbb；t53 exit0 5/5；freshness FRESH v4 exit0；packages0。"
+    },
+    {
+      "type": "test",
+      "summary": "t53 PASS：21 components、8 parts、13 netflags、55 wires、55 pairs、2 pages、MAIN active；live +3V3 type=part；page list MAIN+P1 length2。"
+    }
+  ]
+}
