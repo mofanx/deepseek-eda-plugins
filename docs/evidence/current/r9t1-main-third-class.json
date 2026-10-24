@@ -297,16 +297,21 @@
       "value": "MCU-34",
       "x": 210,
       "y": 795,
-      "distance": 0,
-      "t": 0.25,
+      "distance": 5.0,
+      "t": 0.75,
       "at": [
         210,
-        795
+        800
       ],
       "wire": "layout:wire:_3V3:flags",
       "net": "+3V3",
       "owner": "other",
-      "valueVisible": true
+      "valueVisible": true,
+      "readAt": "stride 4 (the old distance 0 / t 0.25 came from stride 2's invented diagonal and is void)",
+      "classifiedAs": "text-text",
+      "overlappedText": "pin name PA10 inside U1",
+      "confidence": "high",
+      "source": "host image reading 2026-10-22"
     },
     {
       "attribute": "attr102",
@@ -315,16 +320,21 @@
       "value": "MCU-26",
       "x": 390,
       "y": 795,
-      "distance": 0,
-      "t": 0.25,
+      "distance": 5.0,
+      "t": 0.75,
       "at": [
         390,
-        795
+        800
       ],
       "wire": "layout:wire:GND:flags",
       "net": "GND",
       "owner": "other",
-      "valueVisible": true
+      "valueVisible": true,
+      "readAt": "stride 4 (the old distance 0 / t 0.25 came from stride 2's invented diagonal and is void)",
+      "classifiedAs": "text-text",
+      "overlappedText": "a pin name on the same U1 row (the host named MCU-28->PB9, MCU-29->PB8, MCU-34->PA10, MCU-33->PA11; MCU-26's pin was not named individually)",
+      "confidence": "class high, pin name medium",
+      "source": "host image reading 2026-10-22"
     }
   ],
   "attributeHitsByOwner": {
@@ -609,10 +619,58 @@
     "pngMagic": true
   },
   "confirmedAudit": {
-    "claims": 1,
+    "claims": 2,
     "withoutFileOrBox": []
   },
-  "conclusion": "导线穿字/穿符号：**有候选，需人工在这些具体文件里确认**——导线穿字 2 处（\"别人的网络名压在导线上\"，在 `tile-r4c0`，见 W1/W2 与对照图蓝框）；导线穿符号按声明规则 0 条（原始规则 14 条全部落在接线端点，已逐条列出）。",
+  "hostAdjudication": {
+    "date": "2026-10-22",
+    "provenance": "the host's own image reading, stated in the group chat; not a member's relay or inference. Recorded here verbatim in substance by r3t1; coordinates and primitive ids added from the API so each claim has a machine anchor.",
+    "imagesRead": ["r8t1-main-tile-r4c0.png", "r8t1-main-tile-r0c1.png", "r8t1-main-closeup-2.png", "r9t1-main-overview.png"],
+    "verdicts": [
+      { "class": "text-text", "verdict": "confirmed", "confidence": "high", "detail": "MCU-28 sits on pin name PB9, MCU-29 on PB8 (the fused glyphs read like MCE8/28); MCU-34 on PA10, MCU-33 on PA11. What overlaps is pin-name text, not wire." },
+      { "class": "text-symbol", "verdict": "cannot judge geometrically", "confidence": "medium", "detail": "pixel proximity is visible, but devices expose no bounding box and sch_PrimitivePin returns 0 primitives, so no geometric assertion is possible" },
+      { "class": "wire-through-text", "verdict": "cannot judge", "confidence": "cannot judge", "detail": "the two former candidates (W1/W2) are text-text; no genuine wire-over-glyph instance was found, and none was excluded either - needs the t3 high-zoom pass" }
+    ],
+    "constraintsRespected": "no threshold, radius or band was changed to make the classification look better; d, t, TEXT_RADIUS and d<=12 keep their values. Only the pixel vote moved to its correct class."
+  },
+  "aBoxRootCause": {
+    "verdict": "layout overflow (text-vs-text), not content duplication",
+    "notAnyOf": ["two overlapping text primitives", "an attribute text plus an independent text", "a duplicated attribute value"],
+    "evidence": {
+      "textsContainingProjectName": 1,
+      "text": { "id": "text31", "x": 404, "y": 116, "fontSize": 16, "content": "dsh-t19-real-ic-1792425596633", "chars": 28 },
+      "attributesWithProjectName": 0,
+      "attributesWithKeyProject": 0,
+      "titleBlockData": "{}",
+      "neighbours": [
+        { "id": "text30", "x": 340, "y": 116, "fontSize": 14, "content": "项目" },
+        { "id": "text32", "x": 590, "y": 116, "fontSize": 14, "content": "图幅" },
+        { "id": "text33", "x": 654, "y": 116, "fontSize": 16, "content": "910×1170" }
+      ],
+      "cellWidth": 186,
+      "measuredWidthUnits": 208.4,
+      "measuredFrom": "column-wise pixel scan of r8t1-main-tile-r0c1.png (2.323 px/unit, border rows excluded): ink x in [404.9, 613.3]; calibrated against the clean 16pt run 910x1170 (654.6-714.9 for 8 chars = 7.54 units/char, 28 chars -> about 211)",
+      "overflowUnits": 23.3,
+      "overflowPct": 12.5
+    },
+    "whyItLookedDoubled": "see overviewArtifact - the duplicate is in the stitched image, not in the document"
+  },
+  "overviewArtifact": {
+    "file": "docs/evidence/current/r9t1-main-overview.png",
+    "type": "evidence-chain defect (composite), not a schematic defect",
+    "rule": "docs/evidence/review/r9t1-main-view-guide.mjs L379-386 paints every 1189x508 tile at col*1189 without cropping the shared band",
+    "geometry": { "tileW": 1189, "tileH": 508, "r0c0": [-2, 509.8], "r0c1": [400.2, 912], "sharedBand": [400.2, 509.8], "sharedBandWidthUnits": 109.6, "shareOfPageWidth": "12%" },
+    "symptom": "the title block appears twice: 图样名称 MAIN|MAIN, 项目 dsh-t19-real-ic-1...|...96633, 版本 V0.1|V0.1",
+    "fix": "crop each tile to its exclusive band (or resample by pageRect) before compositing; not applied here because the evidence files are sha256-pinned in this JSON and in the guide"
+  },  "amendedBy": {
+    "task": "r3t1",
+    "at": "2026-10-22",
+    "why": "the host's own image reading reclassified W1/W2 as text-text and identified A as layout overflow; the stitching artifact that duplicated the title block in the overview was found while checking A",
+    "scope": "classification, evidence and the two derived numbers only; no image, generator, threshold or radius changed",
+    "recomputed": { "W1": { "d": 5.0, "t": 0.75 }, "W2": { "d": 5.0, "t": 0.75 }, "text31Ink": [404.9, 613.3], "cellRight": 590, "overflowUnits": 23.3 },
+    "generatorStillStride2": true,
+    "warning": "r9t1-main-view-guide.mjs still computes at stride 2, so rerunning it would overwrite foreignLabelCandidates with distance 0 / t 0.25 and restore the old conclusion. Fix the generator (L101 -> L197, stride 4) before regenerating."
+  },  "conclusion": "2026-10-22 改判：文字-文字=已证实（text31 越格压 text32；另有 MCU-28/29/34/33 等网名压引脚名的一组，W1/W2 即其中两处，d=5.0/t=0.75，贴着引脚侧端点而非穿中段）；文字-符号=几何不可判；导线穿字=判不了（原「2 处候选」作废，那两处像素上交叠的是引脚名不是导线）；导线穿符号=判不了（声明规则 0 条、原始 14 条全在端点，两者都只说明规则看不见）。A 框成因=排版溢出（text31 墨迹宽 208.4 单位 > 格宽 186，越界 23.3 单位），不是内容重复；整页对照图上的「重复」是拼图未裁 12% 共享带造成的证据链缺陷。",
   "fileChecks": {
     "total": 16,
     "exists": 16,
