@@ -109,7 +109,7 @@
       "pxPerUnit": 8.25,
       "role": "title block boundary: end of 图样名称 and start of MAIN, straddling the cell border at x~404",
       "verdict": "无候选",
-      "note": "The 图样名称 label ends inside its cell; the cell border is a clean vertical gap (~4 units); MAIN starts in the value cell after the border. The claimed text31/text32 overlap does not reproduce at 8.25 px/unit. This is a negative result for the A-box claim, not a confirmation."
+      "note": "This frame only spans the 图样名称/MAIN border at x~404. The A band is x 560-620, which starts 100 units to the right of this frame\u2019s right edge (460), so the frame cannot see it. Corrected after r12t3: this is a framing gap, not a negative result."
     },
     {
       "tag": "restored",
@@ -119,13 +119,15 @@
       "pixels": { "w": 660, "h": 2030 },
       "pageRect": { "x1": 5.5, "y1": -348.44, "x2": 904.5, "y2": 1518.44 },
       "pxPerUnit": 0.734,
+      "renderSize": { "w": 660, "h": 1370 },
+      "note": "Corrected after r12t3: 0.734 comes from 660 px / 899 units, so the sheet renders 660x1370 px inside the 660x2030 crop; the remaining ~660 px is empty canvas below the sheet. The earlier entry read as if the 2030-tall crop were the page, which the arithmetic contradicts (2030/1866.88 = 1.087).",
       "role": "camera restore proof: zoomToAllPrimitives() fit the full page back into the canvas",
       "verdict": "n/a"
     }
   ],
   "findings": {
     "wireThroughGlyph": {
-      "mcu": "有候选：at the left pins the green wires run behind the blue net labels (same row); the labels also cover the black pin names. At the right pins the green wires are on the far side of the symbol body and do not reach the labels.",
+      "mcu": "有候选（导线在标签后方）：the green wires run at the label baseline on the left pins; 18 rows carry green ink inside the label band (1494 px). Corrected after r12t3: the black glyphs under the blue labels are the pin numbers, not the pin names (see r2t1). At the right pins the green wires are on the far side of the symbol body.",
       "power": "无候选：the green wires terminate at the resistor body; no green stroke crosses a glyph.",
       "io": "无候选：same as POWER.",
       "clk": "无候选：same as POWER.",
@@ -139,20 +141,20 @@
     },
     "aBox": {
       "claim": "the title block shows a text31/text32 overlap band (图样名称 vs MAIN)",
-      "result": "not reproduced at 8.25 px/unit",
-      "evidence": "r12t1-titleA.png straddles the x~404 cell border: the 图样名称 label ends inside its cell, a clean border gap follows, and MAIN starts in the value cell. No glyph ink crosses the border and the two texts do not share pixels.",
-      "note": "this is a negative result for the A-box claim; if the host's red box is at another x (e.g. 图号/图幅 at x 590-700), that area was not in this frame."
+      "result": "not covered by any 8.25 px/unit frame in this set",
+      "evidence": "r12t1-titleA.png covers x 380-460; the A band is x 560-620 and the 图幅 cell border sits at 590. The frame stops 100 units short, so it can neither confirm nor refute the claim.",
+      "note": "Corrected after r12t3. The tail overflow is visible in r12t2-abox-tail.png, which frames the 540-620 span; the guide keeps the A box open until the host rules on it."
     }
   },
   "w1w2": {
     "question": "does the blue net name press the pin-name text or the wire?",
-    "answer": "It presses the pin name (left pins) / the pin stub (right pins), not the green wire as the primary overlap.",
+    "answer": "Superseded by r2t1. These frames could not separate the two: the black strokes visible at the edges of the blue labels are the pin numbers, and the pin names sit elsewhere.",
     "evidence": {
-      "leftPins": "in r12t1-mcu.png the black pin-name strokes are only visible at the edges of the blue MCU-36/35/... text, i.e. the blue glyphs are on top of the black glyphs; the green wire is also behind the label at the same row, but the wire ink does not cross the glyph strokes.",
-      "rightPins": "in r12t1-mcuR.png PA10 stays readable; MCU-34 starts exactly at the end of PA10 and covers the red pin stub, not the pin-name glyphs.",
-      "powerPin": "the blue +3V3 label covers the black VOUT pin name and the red body outline."
+      "leftPins": "the black glyphs interleaved with the blue MCU-36/35/... text are digits (pin numbers), not letters.",
+      "rightPins": "PA10 is fully readable and the blue label starts at its right edge, over the stub.",
+      "powerPin": "the blue +3V3 label does cover the black VOUT pin name and the red body outline."
     },
-    "verdict": "supports the host's 'net name over pin name' classification; the guide's 'over wire' is not the primary overlap (the wire is only incidentally behind the left labels)."
+    "verdict": "not decisive; replaced by the r2t1 adjudication, which finds 压引脚编号 at W1, 压导线 at W2, and 压引脚名 only for the net-flag name over PB10."
   },
   "writeProtection": {
     "mutatingCalls": 0,
@@ -179,8 +181,8 @@
   "limits": [
     "The page-coordinate ranges are the requested zoomToRegion frames; the crop is the 660x2030 visible canvas at 8.25 px/unit, so the frame and the crop coincide. Coordinates of individual glyphs are read off the image and are approximate to ~1 unit.",
     "The screen capture includes only the visible canvas; content behind the left project panel / right properties panel is not in these images.",
-    "The W1/W2 names from the host were not available as coordinates; the classification above is per visible label group (left pins, right pins, +3V3). If W1/W2 mean other labels, the same pixel mapping applies.",
+    "W1 (210,795) and W2 (390,795) were later pinned to their attributes (attr111, attr102) in r2t1; this file's per-group wording is superseded there.",
     "getCurrentRenderedAreaImage is a fixed whole-page image in this editor build and could not provide the closeups; all closeups are screen captures of the vector renderer, not upscaled."
   ],
-  "overall": "有候选（网名压引脚名/引脚线/器件轮廓）；严格意义上的导线穿字只在 MCU 左侧引脚的网名处成立，POWER/IO/CLK 的导线本身无候选。"
+  "overall": "有候选（网名压引脚编号/引脚名/引脚线/器件轮廓）；严格意义上的导线穿字未定：左侧的绿线只在标签基线处经过（18 行、1494 px），W2 的标签只在 bbox 边缘擦过一根导线。导线类仍为判不了，见 r2t1。"
 }

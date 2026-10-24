@@ -1,0 +1,223 @@
+{
+  "task": "r2t1",
+  "at": "2026-10-24T04:05:00Z",
+  "page": {
+    "name": "MAIN",
+    "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+    "project": "dsh-t19-real-ic-1792425596633",
+    "editor": "EasyEDA Pro V4.1.78, Edge maximized on a 1280x2568 display, canvas crop (265,215) 660x2030"
+  },
+  "question": "W1 (210,795) and W2 (390,795): what does the blue net name actually cover - pin number, pin name, pin line or wire?",
+  "method": {
+    "declareThenCapture": "each rect was printed before the zoom. W1: x 200-280 / y 672-918, centred at 240 on the label ink (229.8-248.9) so that the pin name PA10 (252-268) is in the same frame. W2: two frames - x 355-435 (centre 395) carries everything on the row (flag name, PB10, number 21, label ink), and x 379-459 (centre 419.35) is centred exactly on the wire-label ink as the brief asks.",
+    "capture": "eda.dmt_EditorControl.zoomToRegion(left,right,top,bottom) at 80x246 units, then a 1:1 screen capture of the 660x2030 canvas; 660/80 = 8.25 px/unit",
+    "readback": "after capture the frame is checked against known objects: PA10 appears at x 252-268 (inside 200-280), PB10 at 369-388 and pin number 21 at 395-402 (inside 355-435); both anchors, (210,795) -> px 82.5 and (390,795) -> px 288.8, are inside their frames",
+    "inkCounting": "per label: find the blue runs row by row, take each run's bbox, then count black / green / red pixels *inside* that bbox. That answers 'what is under the text' without relying on page coordinates",
+    "readOnly": "only eda.dmt_EditorControl.zoomToRegion / zoomToAllPrimitives plus read calls; no save, delete, create, modify or clear"
+  },
+  "frames": [
+    {
+      "tag": "w1",
+      "file": "docs/evidence/current/r2t1-w1-frame.png",
+      "sha256": "82228194d1bc82c35d7917f536f67e786981a3fecedea126555974f64c8d63ec",
+      "bytes": 173084,
+      "pixels": {
+        "w": 660,
+        "h": 2030
+      },
+      "declaredRect": {
+        "x1": 200,
+        "x2": 280,
+        "y1": 672,
+        "y2": 918
+      },
+      "pxPerUnit": 8.25,
+      "contains": {
+        "x": 210,
+        "y": 795
+      },
+      "anchorPixel": {
+        "x": 82.5,
+        "y": 1014.8
+      },
+      "readback": "the label ink lands at page x 229.8-248.9 (px 246-403), the symbols left edge at x 249, PA10 at 252-268 (px 429-561), the pin number 31 inside the label band"
+    },
+    {
+      "tag": "w2",
+      "file": "docs/evidence/current/r2t1-w2-frame.png",
+      "sha256": "ce7d8ebdb33a9de2b675abb4fbc74a57371e0e27a28950131e6ad6f0a06933b1",
+      "bytes": 164635,
+      "pixels": {
+        "w": 660,
+        "h": 2030
+      },
+      "declaredRect": {
+        "x1": 355,
+        "x2": 435,
+        "y1": 672,
+        "y2": 918
+      },
+      "pxPerUnit": 8.25,
+      "contains": {
+        "x": 390,
+        "y": 795
+      },
+      "anchorPixel": {
+        "x": 288.8,
+        "y": 1014.8
+      },
+      "readback": "the flag name ink at page x 369.2-388.3, PB10 at 370-388, pin number 21 at 395-402, the wire label ink at 409.8-428.9 (px 452-610) - all inside 355-435",
+      "note": "context frame: shifted 24 units left of the ink centre so that PB10 (369-388) and the pin number 21 (395-402) are both inside it; the label-centred version is r2t1-w2-centered.png"
+    },
+    {
+      "tag": "w2-centered",
+      "file": "docs/evidence/current/r2t1-w2-centered.png",
+      "sha256": "fab6cc3a0b622017788cd613e5f011ff2a4e87b211ebe72195596f9eebd20dc4",
+      "bytes": 176007,
+      "pixels": {
+        "w": 660,
+        "h": 2030
+      },
+      "declaredRect": {
+        "x1": 379,
+        "x2": 459,
+        "y1": 672,
+        "y2": 918
+      },
+      "pxPerUnit": 8.25,
+      "contains": {
+        "x": 390,
+        "y": 795
+      },
+      "note": "centred on the label ink at 419.35, as the brief asks; the grey junction dot sits inside the text run and the green wire runs under it, with no black glyph anywhere in the ink box"
+    },
+    {
+      "tag": "restored",
+      "file": "docs/evidence/current/r2t1-restored.png",
+      "sha256": "9fd2501c0b242a38cf7fb012c9043afc238d6472676e21d4320c55075b93ee32",
+      "bytes": 250284,
+      "pixels": {
+        "w": 660,
+        "h": 2030
+      },
+      "role": "camera returned to the whole-page fit with zoomToAllPrimitives() after the two frames"
+    }
+  ],
+  "adjudication": {
+    "w1": {
+      "attribute": "attr111",
+      "value": "MCU-34",
+      "parent": "layout:wire:MCU_34:flags",
+      "storedXY": [
+        210,
+        795
+      ],
+      "inkBBox": {
+        "x1": 229.8,
+        "x2": 248.9,
+        "y1": 795.3,
+        "y2": 799.2
+      },
+      "renderOffset": 19.4,
+      "inkInsideBBox": {
+        "black": 372,
+        "green": 1679,
+        "red": 0
+      },
+      "blackGlyphs": "the digits 31, interleaved with the blue letters (3 between C and U, 1 after U): in the 3x crop the shapes are unambiguously digits, not letters",
+      "objectIdentity": "u1-e44 'Pin Number' = 31 (its 'Pin Name' is PA10 at 233,790.1). PA10's glyphs render at x 252-268, outside the label ink, and are fully readable in this frame",
+      "alsoUnderIt": "the green line is this label's own MCU-34 wire (210,795)-(250,795), which runs along the text baseline; it is not a foreign wire",
+      "verdict": "压引脚编号"
+    },
+    "w2": {
+      "attribute": "attr102",
+      "value": "MCU-26",
+      "parent": "layout:wire:MCU_26:flags",
+      "storedXY": [
+        390,
+        795
+      ],
+      "inkBBox": {
+        "x1": 409.8,
+        "x2": 428.9,
+        "y1": 794.4,
+        "y2": 799.8
+      },
+      "renderOffset": 19.4,
+      "inkInsideBBox": {
+        "black": 0,
+        "green": 485,
+        "red": 0
+      },
+      "blackGlyphs": "none - no black glyph lies under this label at all",
+      "nearestBlack": {
+        "pinNumber21": "x 395-402, 8 units to the left, untouched",
+        "pinNamePB10": "x 369-388, 22 units to the left, untouched by this label"
+      },
+      "alsoUnderIt": "a green wire grazes the bottom of the text box: 485 green pixels over 2 rows, about 0.5 unit, so the stroke never crosses glyph ink",
+      "verdict": "压导线"
+    },
+    "adjacentFlagName": {
+      "attribute": "attr43",
+      "value": "MCU-26",
+      "parent": "layout:flag:MCU_26:0",
+      "storedXY": [
+        350,
+        795
+      ],
+      "inkBBox": {
+        "x1": 369.2,
+        "x2": 388.3
+      },
+      "inkInsideBBox": {
+        "black": 399,
+        "green": 1475
+      },
+      "verdict": "压引脚名",
+      "objectIdentity": "PB10 (u1-e108 'Pin Name' PB10 at 367,790.1); the blue letters sit on the black letters, which is where the 'MCE8/28' fused look comes from",
+      "note": "this is the net flag's own name, not the wire label attr102 the r8t1 rule flagged"
+    }
+  },
+  "reconciliation": {
+    "t1 (pin name)": "reads the flag name column at x 369-388, which does sit on PB10",
+    "t4 (nearest text is the pin number)": "reads attr102 at 409-429 and finds the number 21 as the nearest text - correct: 21 is 8 units away and not covered",
+    "t5 (black glyphs are pin numbers)": "correct at W1, where the digits are 31/32; the specific digits 18/19/20 quoted in t5 come from the PB0-PB2 rows in the earlier frame, not from W1",
+    "why they looked contradictory": "three different objects are 20 units apart on the same row: the flag name (350) over PB10, the pin number 21 (395-402), and the wire label (409-429) over a wire. The r8t1 rule only ever flagged the wire label, so the other two were never in the candidate list"
+  },
+  "correctionsApplied": [
+    {
+      "file": "docs/evidence/current/r12t1-wire-overlap-closeups.json",
+      "what": "A box: 'not reproduced' -> 'the frame covers 380-460, the A band is 560-620, so it is a framing gap'; restored.png: pxPerUnit kept but paired with renderSize 660x1370 and a note that the 2030-tall crop is mostly empty canvas; w1w2 block marked superseded"
+    },
+    {
+      "file": "docs/evidence/current/r9t1-main-view-guide.md",
+      "what": "文字-文字 row, W1/W2 table, the two 'why reclassified' notes and the host-adjudication block now say W1 presses pin number 31, the flag name presses PB10, attr102 only grazes a wire; 导线穿字/穿符号 still 判不了"
+    },
+    {
+      "file": "docs/evidence/current/r9t1-main-third-class.json",
+      "what": "foreignLabelCandidates[0..1] object text, ink bboxes, hostAdjudication.correctedBy, conclusion; thresholds and all numbers untouched"
+    }
+  ],
+  "invariantsUntouched": {
+    "thresholds": "d, t, TEXT_RADIUS and d<=12 keep their values; no band was widened or narrowed",
+    "geometry": "endpoint blocks 4/3 and geometric 1/1 are untouched",
+    "t38": "the script was not edited"
+  },
+  "writeProtection": {
+    "callsUsed": [
+      "eda.dmt_EditorControl.zoomToRegion (2 frames)",
+      "eda.dmt_EditorControl.zoomToAllPrimitives (restore)"
+    ],
+    "mutatingCalls": 0,
+    "t53Before": "PASS 5/5 (21/8/13/55/55/2)",
+    "t53After": "PASS 5/5 (21/8/13/55/55/2)",
+    "cameraRestored": "r2t1-restored.png, taken after zoomToAllPrimitives()",
+    "wrote": 0
+  },
+  "limits": [
+    "the +19.4 render offset is measured, not documented: label and pin-number attributes draw about 19 units to the right of their stored X, pin names about 2 units. The verdicts rest on the ink-inside-bbox counts, so they do not depend on the offset",
+    "a 0.5-unit graze is below the resolution of any bbox rule; calling attr102 'wire graze' rather than 'wire through text' is a judgement about ink, stated as such",
+    "this file records what the pixels show; it does not decide whether a graze should count as 导线穿字 - that stays 判不了"
+  ],
+  "overall": "W1 = 压引脚编号 (31, not PA10); W2 = 压导线 (no text under it, a wire and a junction dot are); the pin-name impression comes from the adjacent net-flag name over PB10. Wire-through-text remains 判不了."
+}

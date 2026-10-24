@@ -308,10 +308,12 @@
       "owner": "other",
       "valueVisible": true,
       "readAt": "stride 4 (the old distance 0 / t 0.25 came from stride 2's invented diagonal and is void)",
-      "classifiedAs": "text-text",
-      "overlappedText": "pin name PA10 inside U1",
+      "classifiedAs": "text-text (label over pin number)",
+      "overlappedText": "U1 pin NUMBER 31 (PA10's Pin Number). The label ink measures x 229.8-248.9 and the digits 31 sit inside it; PA10's glyphs at x 252-268 stay fully readable, so the name is not the overlapped object.",
       "confidence": "high",
-      "source": "host image reading 2026-10-22"
+      "source": "host image reading 2026-10-22 (class); r2t1 pixel calibration 2026-10-24 (object)",
+      "inkBBox": { "x1": 229.8, "x2": 248.9, "y1": 795.3, "y2": 799.2 },
+      "measuredBy": "r2t1, 8.25 px/unit frame x 200-280 y 672-918"
     },
     {
       "attribute": "attr102",
@@ -331,10 +333,12 @@
       "owner": "other",
       "valueVisible": true,
       "readAt": "stride 4 (the old distance 0 / t 0.25 came from stride 2's invented diagonal and is void)",
-      "classifiedAs": "text-text",
-      "overlappedText": "a pin name on the same U1 row (the host named MCU-28->PB9, MCU-29->PB8, MCU-34->PA10, MCU-33->PA11; MCU-26's pin was not named individually)",
-      "confidence": "class high, pin name medium",
-      "source": "host image reading 2026-10-22"
+      "classifiedAs": "wire graze; text-text only via the adjacent flag name",
+      "overlappedText": "no black glyph under this label: its ink is x 409.8-428.9, while the nearest pin number 21 (x 395-402) and pin name PB10 (x 369-388) both lie outside it. A green wire runs along the bottom edge of the text box (485 green px over 2 rows, about 0.5 unit). The MCU-26 text that does sit on PB10 belongs to layout:flag:MCU_26:0 (attr43 at 350), not to this wire label.",
+      "confidence": "class high (text-text overall), object medium",
+      "source": "host image reading 2026-10-22 (class); r2t1 pixel calibration 2026-10-24 (object)",
+      "inkBBox": { "x1": 409.8, "x2": 428.9, "y1": 794.4, "y2": 799.8 },
+      "measuredBy": "r2t1, 8.25 px/unit frame x 355-435 y 672-918"
     }
   ],
   "attributeHitsByOwner": {
@@ -631,7 +635,16 @@
       { "class": "text-symbol", "verdict": "cannot judge geometrically", "confidence": "medium", "detail": "pixel proximity is visible, but devices expose no bounding box and sch_PrimitivePin returns 0 primitives, so no geometric assertion is possible" },
       { "class": "wire-through-text", "verdict": "cannot judge", "confidence": "cannot judge", "detail": "the two former candidates (W1/W2) are text-text; no genuine wire-over-glyph instance was found, and none was excluded either - needs the t3 high-zoom pass" }
     ],
-    "constraintsRespected": "no threshold, radius or band was changed to make the classification look better; d, t, TEXT_RADIUS and d<=12 keep their values. Only the pixel vote moved to its correct class."
+    "constraintsRespected": "no threshold, radius or band was changed to make the classification look better; d, t, TEXT_RADIUS and d<=12 keep their values. Only the pixel vote moved to its correct class.",
+    "correctedBy": {
+      "task": "r2t1",
+      "date": "2026-10-24",
+      "whatChanged": "the class stands (text-text, not wire-through-text); the object does not",
+      "w1": "attr111 presses the pin NUMBER 31, not PA10",
+      "w2": "attr102 has no black glyph under it; layout:flag:MCU_26:0\u2019s name presses PB10",
+      "keptOpen": "wire-through-text and wire-through-symbol remain cannot-judge; nothing here closes them",
+      "evidence": ["docs/evidence/current/r2t1-w1-frame.png", "docs/evidence/current/r2t1-w2-frame.png", "docs/evidence/current/r2t1-w1w2-adjudication.json"]
+    }
   },
   "aBoxRootCause": {
     "verdict": "layout overflow (text-vs-text), not content duplication",
@@ -670,7 +683,7 @@
     "recomputed": { "W1": { "d": 5.0, "t": 0.75 }, "W2": { "d": 5.0, "t": 0.75 }, "text31Ink": [404.9, 613.3], "cellRight": 590, "overflowUnits": 23.3 },
     "generatorStillStride2": true,
     "warning": "r9t1-main-view-guide.mjs still computes at stride 2, so rerunning it would overwrite foreignLabelCandidates with distance 0 / t 0.25 and restore the old conclusion. Fix the generator (L101 -> L197, stride 4) before regenerating."
-  },  "conclusion": "2026-10-22 改判：文字-文字=已证实（text31 越格压 text32；另有 MCU-28/29/34/33 等网名压引脚名的一组，W1/W2 即其中两处，d=5.0/t=0.75，贴着引脚侧端点而非穿中段）；文字-符号=几何不可判；导线穿字=判不了（原「2 处候选」作废，那两处像素上交叠的是引脚名不是导线）；导线穿符号=判不了（声明规则 0 条、原始 14 条全在端点，两者都只说明规则看不见）。A 框成因=排版溢出（text31 墨迹宽 208.4 单位 > 格宽 186，越界 23.3 单位），不是内容重复；整页对照图上的「重复」是拼图未裁 12% 共享带造成的证据链缺陷。",
+  },  "conclusion": "2026-10-24 修订：文字-文字=已证实（text31 越格压 text32；另有一组网名压字，r2t1 定标后细分为 W1 的 MCU-34 压 PA10 的引脚号 31（PA10 字形完整可读），以及同排网络标志名 MCU-26 压 PB10）；文字-符号=几何不可判；导线穿字=判不了（attr102 墨迹下无黑色字形，只有绿线擦过字框底边约 0.5 单位，压不到笔画——既不结清也不排除）；导线穿符号=判不了（声明规则 0 条、原始 14 条全在端点，两者都只说明规则看不见）。A 框成因=排版溢出（text31 墨迹宽 208.4 单位 > 格宽 186，越界 23.3 单位），不是内容重复；整页对照图上的「重复」是拼图未裁 12% 共享带造成的证据链缺陷。",
   "fileChecks": {
     "total": 16,
     "exists": 16,
