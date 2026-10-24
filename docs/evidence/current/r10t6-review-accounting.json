@@ -1,0 +1,316 @@
+{
+  "task": "r2t3 - verify t1's two accounting repairs and whether t2's judgment of the N1 patch was accurate",
+  "reviewer": "eda4 / j6",
+  "generatedAt": "2026-10-24T14:50:11Z",
+  "generatedAtLocal": "2026-10-24T22:50:11+08:00",
+  "overallVerdict": "成立 (sound) - both accounting repairs are correct at the final HEAD, and t2's judgment of the N1 patch was accurate, including two defects it caught that my own harness missed",
+  "headline": "All three questions come out clean, but only after a head drift I have to disclose. I started at HEAD 146f323, where both accounting items were still wrong in the committed r10t1 (4 timestamps, 48 lines) because the repairs existed only in the working tree. While I was measuring, commit 7b004c0 landed and committed those repairs together with t2's review. At the new HEAD the timestamp list is the exact five, and selfProof now says 47, which matches `git show --numstat 07a28ab` returning 47 insertions for the runbook. Separately, I extracted the N1 guard straight out of the committed r10t2 blob and ran it: /landing-evil throws, /landing.html throws, a 49621 landing is accepted when the port is 49621, and the plain 49620 landing is accepted - 4/4 from the artifact text itself. t2 judged the patch partial, and that verdict is right: I confirmed all four of its defects, including the one that matters - the PS usage comment calls Assert-LandingPage while the function is declared Guard-Page, so an operator pasting that line gets CommandNotFoundException instead of the guard. My own 8-case harness could not catch it because it called the function directly and never pasted the usage line; that is a real gap in how I verified my own patch.",
+  "headDrift": {
+    "startedAt": null,
+    "headAtStart": "146f323b238a59210ff271571b639143be953bb2",
+    "headNow": "7b004c009c32fcb9b34da09715bdb04b80844c49",
+    "whatHappened": "at 146f323 the r10t1 repairs were uncommitted working-tree edits (HEAD blob 5d11850, working blob 7b94d91) and r10t5 was untracked; during this review commit 7b004c0 landed both",
+    "whyItMatters": "my first measurement of criteria 2 and 3 would have said 'not fixed' and that answer is now obsolete; I report the numbers for both heads rather than picking the convenient one",
+    "finalState": "HEAD == origin/master == 7b004c0, rev-list 0 0, working tree clean except my own .tmp scratch files",
+    "startedAtNote": "I did not write down the clock when I began; the first reading this round showed HEAD 146f323, and the generatedAt clock is the time this file was written."
+  },
+  "artifactsReviewed": {
+    "r10t1": {
+      "path": "docs/evidence/current/r10t1-second-instance-registration.json",
+      "blobAt146f323": "5d118503ea432a8451b7b26930552cd6c7ef38b0",
+      "blobAt7b004c0": "7b94d9108e34a2245dfb6a80c3a48187c63b8748"
+    },
+    "r10t2": {
+      "path": "docs/evidence/current/r10t2-third-instance-j6.json",
+      "blob": "47554d22dec518d4dccac9ffb55239f13393ee12"
+    },
+    "r10t5": {
+      "path": "docs/evidence/current/r10t5-review-n1-patch.json",
+      "blob": "04507357016062fd391e870b48f880dca85fd5f8",
+      "note": "untracked when I started; committed in 7b004c0"
+    },
+    "runbook": {
+      "path": "docs/evidence/current/r9t1-window-registration-runbook.md"
+    }
+  },
+  "criteria": [
+    {
+      "id": "1-committed-version",
+      "verdict": "成立 (with the drift above recorded)",
+      "evidence": [
+        "at start: git rev-parse HEAD == origin == 146f323, rev-list --left-right --count 0 0, status showed ' M r10t1' and '?? r10t5'",
+        "now: git rev-parse HEAD == origin == 7b004c009c32fcb9b34da09715bdb04b80844c49, rev-list 0 0",
+        "git ls-tree -r HEAD now gives r10t1 blob 7b94d91, r10t2 blob 47554d2, r10t5 blob 0450735 - all three are committed",
+        "commit 7b004c0 numstat: r10t1 8 insertions / 2 deletions, r10t5 246 insertions / 0 deletions"
+      ]
+    },
+    {
+      "id": "2-five-timestamps",
+      "verdict": "成立 at final HEAD (was 不成立 at 146f323)",
+      "requirement": "notOneOfOldTimestamps must list all five acceptance stamps verbatim, including 12:36:46.855Z",
+      "at146f323": {
+        "count": 4,
+        "list": [
+          "12:36:10.642Z",
+          "12:37:34.222Z",
+          "13:39:55.037Z",
+          "13:40:16.452Z"
+        ],
+        "missing": "12:36:46.855Z"
+      },
+      "at7b004c0": {
+        "count": 5,
+        "list": [
+          "2026-10-24T12:36:10.642Z",
+          "2026-10-24T12:36:46.855Z",
+          "2026-10-24T12:37:34.222Z",
+          "2026-10-24T13:39:55.037Z",
+          "2026-10-24T13:40:16.452Z"
+        ],
+        "matchesAcceptanceVerbatim": true,
+        "newTimestamp": "2026-10-24T14:30:57.915Z",
+        "correctionField": "parameterization.corrections.notOneOfOldTimestamps explains the addition"
+      }
+    },
+    {
+      "id": "3-line-count",
+      "verdict": "成立 at final HEAD (was 不成立 at 146f323)",
+      "requirement": "selfProof line count must equal what git reports for 07a28ab",
+      "measuredByMe": {
+        "command": "git show --numstat --format='%H %s' 07a28ab",
+        "runbook": "47 11 (47 insertions, 11 deletions)",
+        "r10t1Json": "282 0",
+        "statLine": "2 files changed, 329 insertions(+), 11 deletions(-)"
+      },
+      "at146f323": {
+        "selfProof": "48 added lines scanned -> NO_MATCHES",
+        "verdict": "wrong by one"
+      },
+      "at7b004c0": {
+        "selfProof": "47 added lines scanned -> NO_MATCHES",
+        "note": "writeVerbScanNote records numstat 47/11 and says 48 was a counting error, not content loss",
+        "verdict": "now matches the measured 47"
+      }
+    },
+    {
+      "id": "4-patch-behaviour-and-t2s-judgment",
+      "verdict": "成立 - the patch behaves correctly and t2's 'partial' verdict is accurate",
+      "howITested": "I pulled patchA_js out of the committed r10t2 blob (47554d2) with git show, substituted @@RELAY_PORT@@, and executed that exact string through new Function with a stubbed location/document/getComputedStyle. No reimplementation.",
+      "patchFacts": {
+        "bytes": 1084,
+        "hasToken": true,
+        "hasStartsWith": false,
+        "hasLiteral49620": false
+      },
+      "cases": [
+        {
+          "case": "landing-evil @49620",
+          "expected": "THROW",
+          "actual": "THROW: WRONG_PAGE: http://127.0.0.1:49620/landing-evil is not http://127.0.0.1:49620/landing",
+          "ok": true
+        },
+        {
+          "case": "landing @49621 with port 49621",
+          "expected": "PASS",
+          "actual": "PASS",
+          "ok": true
+        },
+        {
+          "case": "landing @49620 with port 49620",
+          "expected": "PASS",
+          "actual": "PASS",
+          "ok": true
+        },
+        {
+          "case": "landing.html @49620",
+          "expected": "THROW",
+          "actual": "THROW",
+          "ok": true
+        }
+      ],
+      "summary": "committed-patch pass=4 fail=0",
+      "t2sVerdict": "partial",
+      "wasThatAccurate": "yes - and its four defects are all real, which I verified independently",
+      "itsFourDefectsConfirmed": [
+        {
+          "id": "psUsageFunctionName",
+          "severity": "medium",
+          "myVerification": "declared function = Guard-Page, called in usage = Assert-LandingPage, MATCH = false",
+          "consequence": "pasting the usage comment raises CommandNotFoundException instead of guarding"
+        },
+        {
+          "id": "jsUsageTemplate",
+          "severity": "low",
+          "myVerification": "$jsTemplate appears once in patchA_jsUsage and there is no 'jsTemplate =' assignment anywhere in r10t2",
+          "consequence": "the snippet is not self-contained"
+        },
+        {
+          "id": "notAppliedToRunbook",
+          "severity": "medium",
+          "myVerification": "Select-String for WRONG_PAGE|wrongPage|landing-evil over the runbook returns 0 hits",
+          "consequence": "the guard is documented in evidence text but not wired into the procedure"
+        },
+        {
+          "id": "step5StaleVerification",
+          "severity": "low",
+          "myVerification": "committed r10t2 step5_restore.verification still has 14:33:44.616Z 'before any attempt, and again after', while thirdInstanceToClose was updated to cite 14:44:08.731Z",
+          "consequence": "one entry in my own file still reads as if the old probe bracketed the attempts"
+        }
+      ],
+      "theGapInMyOwnTesting": "my 8-case harness called the guard function directly, so a wrong function name inside the usage comment could never fail. t2 read the deliverable the way an operator would and found it. That is a stronger check than mine, and the defect is mine, not theirs."
+    },
+    {
+      "id": "5-probesAfter",
+      "verdict": "成立 - it is a genuinely new probe, not a rename",
+      "facts": [
+        "r10t2 now has probesBeforeAttempts with two entries (14:34:25.105Z and 14:34:38.357Z, the latter carrying a note that it was previously mislabelled)",
+        "probesAfterAttempts is 14:44:08.731Z, finished 14:44:21.110Z; the last start attempt ended 14:35:13.013Z, so it began 8 min 55 s later and finished 9 min 8 s later",
+        "values: resident true/count1; 49621/49622/49623 tcp open=false and health UNREACHABLE; 49630 tcp open",
+        "r10t1 has no probesAfter-style field at all - its secondInstanceAttempt uses portFreeBefore/portFreeAfter/port49621After, so the rename question never applied to that file"
+      ],
+      "t2sJudgment": "pass, described as 'a newly measured probe with a later timestamp and a finished-at time, not a rename' - that matches what I measured",
+      "residual": "t2 also flagged step5StaleVerification, which I confirmed above; that residual is still open in my file"
+    },
+    {
+      "id": "6-environment",
+      "verdict": "成立",
+      "residentHealth": {
+        "edaConnected": true,
+        "edaWindowCount": 1,
+        "activeWindowId": "25883914a72e5cbb",
+        "pendingRequests": 0
+      },
+      "edaWindows": {
+        "windows": [
+          {
+            "windowId": "25883914a72e5cbb",
+            "connected": true,
+            "active": true
+          }
+        ],
+        "count": 1
+      },
+      "portResidue": "49621 closed, 49622 closed - no second-instance residue from any earlier attempt",
+      "windowIdentityStable": "25883914a72e5cbb across 14:33:44Z, 14:35:33Z, 14:44:21Z and this review, so nobody swapped or re-registered the editor window"
+    },
+    {
+      "id": "7-forbidden-actions",
+      "verdict": "成立",
+      "writeVerbScan": [
+        {
+          "file": "r10t1 (committed)",
+          "hits": 1,
+          "text": "registration.reason line 84: '... could only re-register the resident window, not create a new-instance registration'",
+          "classification": "ordinary prose refusing to create a registration; not a write call"
+        },
+        {
+          "file": "r10t2 (committed)",
+          "hits": 0,
+          "text": "git grep -E save|modify|create|delete|clear -> exit 1, no match",
+          "classification": "clean"
+        },
+        {
+          "file": "r10t5 (committed)",
+          "hits": 1,
+          "text": "line 129: 'the splice mechanism is clear enough, but the snippet is not self-contained'",
+          "classification": "the word clear used as an adjective; not a write call"
+        }
+      ],
+      "noResidentKilled": "the resident has answered /health continuously from 14:33:44Z through this review with the same activeWindowId; a kill would have broken the window identity or emptied the count",
+      "noFakeRegistration": "no websocket injection and no look-alike relay appear in any artifact; r10t1/t2 both state they refused that path",
+      "noSourceEdits": "git diff --stat 07a28ab..HEAD -- packages is empty, so bridge.ts and dsh-eda-bridge.mjs are untouched since the blocked report",
+      "writeVerbScanMethod": "git grep -n -E 'save|modify|create|delete|clear' HEAD -- <path> for each of the three committed artifacts; exit 1 for r10t2, one hit each for r10t1 and r10t5, both prose",
+      "myOwnReviewFilesHits": "this file contains two prose hits of its own (the quoted r10t1 sentence and the phrase does not modify), both quotations of the scan, no executable call"
+    },
+    {
+      "id": "8-self-proof",
+      "verdict": "成立",
+      "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0 (run by me)",
+      "packages": "git status --porcelain -- packages -> 0 lines",
+      "wrote": 0,
+      "wroteDetail": "my only new tracked file is this review JSON; my .tmp harnesses were removed"
+    }
+  ],
+  "findings": [
+    {
+      "id": "N1",
+      "severity": "info",
+      "title": "head advanced mid-review; the accounting verdict flips with it",
+      "detail": "I measured 4 timestamps and 48 lines at HEAD 146f323, then commit 7b004c0 landed the repairs. I am reporting both heads so nobody can quote my first number as if it were the final state, or quote the final state as if it had always been committed."
+    },
+    {
+      "id": "N2",
+      "severity": "info",
+      "title": "t2 repaired the very numbers it then passed",
+      "detail": "r10t5's own fileWritesDetail says 'r10t1 JSON corrections + this review JSON', and its git block records r10t1BlobBefore 5d11850 with headAtReview e4a520e. So the author of the review is also the author of the correction it certifies. It is disclosed rather than hidden, and the arithmetic is independently verifiable - I verified it against git numstat myself - but a self-certified repair is weaker evidence than an independent one."
+    },
+    {
+      "id": "N3",
+      "severity": "low",
+      "title": "my r10t2 still has one stale verification entry",
+      "detail": "step5_restore.verification keeps a 14:33:44.616Z entry saying 'before any attempt, and again after' even though the genuine after-probe is 14:44:08.731Z. t2 flagged it and it is still open in my file. The honest replacement is to point that entry at the 14:44:08.731Z probe. I did not fold this fix into a review commit; it belongs to a separate change to r10t2."
+    },
+    {
+      "id": "N4",
+      "severity": "info",
+      "title": "the N1 guard is still not wired into the runbook",
+      "detail": "0 hits for WRONG_PAGE/wrongPage/landing-evil in the runbook, confirming t2's notAppliedToRunbook. The patch is correct and tested but lives only in evidence text; j5 still has to adopt it."
+    }
+  ],
+  "whatIActuallyRan": [
+    {
+      "command": "git rev-parse HEAD / origin / rev-list / status / ls-tree",
+      "result": "146f323 at start, 7b004c0 at end, both 0 0; blobs recorded"
+    },
+    {
+      "command": "git show --numstat --format 07a28ab",
+      "result": "runbook 47 11, r10t1 json 282 0"
+    },
+    {
+      "command": "git show 7b004c0 --numstat",
+      "result": "r10t1 8 2, r10t5 246 0"
+    },
+    {
+      "command": "git log --oneline --all -- r10t1",
+      "result": "7b004c0 and 07a28ab only, so the corrections entered at 7b004c0"
+    },
+    {
+      "command": "node .tmp-patch-test.cjs (extracts patchA_js from HEAD blob and executes it)",
+      "result": "landing-evil THROW, landing.html THROW, 49621 PASS, 49620 PASS; 4/4, exit 0"
+    },
+    {
+      "command": "node .tmp-check.cjs (function-name and $jsTemplate audit)",
+      "result": "Guard-Page vs Assert-LandingPage MATCH=false; $jsTemplate never assigned"
+    },
+    {
+      "command": "fetch /health and /eda-windows; TCP probe 49621/49622",
+      "result": "true/count1/active 25883914a72e5cbb; 49621 closed, 49622 closed"
+    },
+    {
+      "command": "Select-String runbook WRONG_PAGE|wrongPage|landing-evil",
+      "result": "0 hits"
+    },
+    {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "result": "FRESH v4, exit 0"
+    }
+  ],
+  "boundaries": [
+    "I verified the N1 guard's logic by executing the committed text in Node with stubbed DOM objects. That proves the guard branch, not the browser integration; the earlier live run at 14:43 stayed in my r10t2 and I did not repeat it here.",
+    "I did not re-run t2's own harnesses; I re-derived its conclusions from the committed artifacts and from my own execution.",
+    "One resident reading does not make the bridge stable; the window can drop at any time.",
+    "The 49621 acceptance case proves the guard honours a configured port. It does not prove a second instance can be started - that remains blocked as reported."
+  ],
+  "baseline": "HEAD 146f323 at start (r10t1 blob 5d11850 with 4 timestamps and 48 lines; r10t5 untracked); HEAD 7b004c0 at end (r10t1 blob 7b94d91 with 5 timestamps and 47 lines; r10t5 blob 0450735)",
+  "diff": "adds docs/evidence/current/r10t6-review-accounting.json only; does not modify r10t1, r10t2, r10t5, the runbook or any package",
+  "reproSteps": [
+    "git rev-parse HEAD && git rev-list --left-right --count HEAD...origin/master",
+    "git show --numstat --format='%H %s' 07a28ab   # expect runbook 47 11",
+    "node -e \"const d=require('./docs/evidence/current/r10t1-second-instance-registration.json');console.log(d.t53.notOneOfOldTimestamps.length)\"   # expect 5",
+    "git show HEAD:docs/evidence/current/r10t2-third-instance-j6.json > t.json, take step6_N1PatchSuggestion.patchA_js, replace @@RELAY_PORT@@, run against /landing-evil (must throw) and 49621/landing (must pass)",
+    "node -e \"const d=require('./docs/evidence/current/r10t5-review-n1-patch.json');console.log(d.verdict)\"   # expect partial, with psUsageFunctionName among the defects",
+    "fetch http://127.0.0.1:49620/health   # expect true / count 1",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
