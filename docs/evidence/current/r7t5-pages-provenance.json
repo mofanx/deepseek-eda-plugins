@@ -9,7 +9,7 @@
   "correctionTask": "r3t1 - replace the 'duplicate records / different objects / dedupe' explanation with the page-count growth over time, without changing the pages=2 conclusion",
   "supplementTask": "r2t2 - add a timestamped liveObservation without overturning the artifact-scoped pages=2 verdict",
   "t1Task": "t1 - fix the 'only at two moments' contradiction with the retained recheck and add healthIsNotLivenessProof",
-  "headAtFix": "672121a5a093d3a36af6502539a6990bd1abf83f",
+  "headAtFix": "6d0ddbab1d013679877d956df63cf41251483601",
   "originAtFix": "672121a5a093d3a36af6502539a6990bd1abf83f",
   "headAtUpdate": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
   "headAtLiveObservation": "faefa21465c4016206f6d077521d02fd0a321fc1",
@@ -19,6 +19,11 @@
     "event": "r8t9 committed 0e492264 during r2t2, after the guide commit cdfee6d",
     "scope": "r8t9 added only docs/evidence/current/r8t9-review-live-read-record.json; it did not edit r9t1, r7t5 or t53",
     "impact": "none; the guide timestamps/window id/values and this liveObservation remain unchanged"
+  },
+  "headDriftAtT1": {
+    "event": "HEAD advanced from 672121a to 6d0ddba before the t1 commit",
+    "scope": "6d0ddba is another member's t53/guide commit (t11 classification + guide third timestamp/health wording); it did not touch r7t5",
+    "impact": "none for this file; the t1 commit's parent is 6d0ddba, and origin was 672121a at that moment"
   },
   "t31Source": {
     "path": "docs/evidence/current/t31-dataset.json",
@@ -152,11 +157,13 @@
     "guide": {
       "path": "docs/evidence/current/r9t1-main-view-guide.md",
       "commit": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+      "guideAtFix": "6d0ddbab1d013679877d956df63cf41251483601",
       "lines": "270-297",
-      "alignment": "The committed guide cdfee6d had only the first/second timestamps; j6's working-tree sync now also adds the 12:37:34.222Z recheck and the /health warning. This task neither edits nor commits the guide.",
-      "thirdTimestampInCommittedGuide": false,
-      "thirdTimestampInWorkingGuide": true,
-      "workingGuideSyncOwner": "j6"
+      "alignment": "The baseline guide cdfee6d had only the first/second timestamps; j6's sync landed in 6d0ddba and adds the 12:37:34.222Z recheck and the /health warning. This task neither edits nor commits the guide.",
+      "thirdTimestampInGuideCdfee6d": false,
+      "thirdTimestampInGuideAtFix": true,
+      "guideSyncCommit": "6d0ddbab1d013679877d956df63cf41251483601",
+      "guideSyncOwner": "j6"
     },
     "windowId": "25883914a72e5cbb",
     "t53": {
@@ -277,7 +284,7 @@
     {
       "id": "9-timestamped-live-observation",
       "verdict": "成立（三个时刻）",
-      "evidence": "2026-10-24T12:36:10.642Z, 12:36:46.855Z and the 12:37:34.222Z recheck: t53 exit 0 5/5, values 21/8/13/55/55/2, page table MAIN b275cd23... + P1 d224f8d..., active MAIN, window 25883914a72e5cbb. The committed guide cdfee6d had the first two; j6's working-tree sync now adds the third and the /health warning. This proves the current canvas at those three moments only; it does not make the offline source live or retroactive."
+      "evidence": "2026-10-24T12:36:10.642Z, 12:36:46.855Z and the 12:37:34.222Z recheck: t53 exit 0 5/5, values 21/8/13/55/55/2, page table MAIN b275cd23... + P1 d224f8d..., active MAIN, window 25883914a72e5cbb. The baseline guide cdfee6d had the first two; j6's sync at 6d0ddba adds the third and the /health warning. This proves the current canvas at those three moments only; it does not make the offline source live or retroactive."
     },
     {
       "id": "10-health-is-not-liveness",
@@ -335,7 +342,7 @@
       "fileWrites": 1,
       "files": ["docs/evidence/current/r7t5-pages-provenance.json"],
       "packagesAdded": 0,
-      "packagesDiff": "git diff --name-only 672121a HEAD -- packages -> empty",
+      "packagesDiff": "git diff --name-only 6d0ddba HEAD -- packages -> empty",
       "freshness": {
         "command": "node docs/evidence/review/shared/freshness.mjs --check",
         "exitCode": 0,
@@ -373,8 +380,8 @@
   "diff": "Corrected docs/evidence/current/r7t5-pages-provenance.json: time-growth explanation, 18 distinct uuids/3 names, same API as t53, P1 d224 absent, both counts volatile; preserved a's artifact-only scope and pages=2 unprovable live. Also corrected the page row in docs/evidence/current/r9t1-main-view-guide.md and clarified the page-ID/page-list wording in r7t1's coverageLimits/note.",
   "r2t2Baseline": "HEAD cdfee6d (t1 guide commit); live observation head faefa21; guide L270-297 is the alignment source. Before this addendum, judgment.liveProvable was false and the live canvas was only a historical assertion.",
   "r2t2Diff": "Added liveObservation at 2026-10-24T12:36:10.642Z / 12:36:46.855Z with window 25883914a72e5cbb, t53 exit 0 5/5, 21/8/13/55/55/2, page table MAIN b275cd23... + P1 d224f8d..., active MAIN; changed judgment.liveProvable from false to a timestamp-qualified string; kept sourceOfTwo.liveProvable false (artifact-only) and preserved 18/3/d224/+16/retraction. No canvas, document, package or code write.",
-  "t1Baseline": "HEAD 672121a5a093d3a36af6502539a6990bd1abf83f; r7t5 blob 31f2d149b98aa904d94d86a37f66404dd7dfc48b. The retained recheck was already 12:37:34.222Z, while liveProvable said 'only at' the two 12:36 moments.",
-  "t1Diff": "Changed judgment.liveProvable/liveStatement/notB/volatility/conclusion to cover the three observed moments (12:36:10.642Z, 12:36:46.855Z, 12:37:34.222Z) without deleting the recheck; recorded that the third is an extra recheck absent from the committed guide cdfee6d (j6's working-tree sync now adds it); added healthIsNotLivenessProof at 12:39:01.011Z (t53 exit2 BRIDGE_CALL_FAILED, /execute reports the window disconnected, /health still true/count1/pending1); added check 10 and t1 self-proof. Preserved sourceOfTwo.liveProvable false, overall string/scope, 18/18 uuid/3 names, d224 absent from t31, +16 probe pages, and the withdrawn object-mismatch/dedupe record. Did not edit the guide.",
+  "t1Baseline": "HEAD 6d0ddbab1d013679877d956df63cf41251483601; origin 672121a5a093d3a36af6502539a6990bd1abf83f at that moment; r7t5 blob 31f2d149b98aa904d94d86a37f66404dd7dfc48b. The retained recheck was already 12:37:34.222Z, while liveProvable said 'only at' the two 12:36 moments.",
+  "t1Diff": "Changed judgment.liveProvable/liveStatement/notB/volatility/conclusion to cover the three observed moments (12:36:10.642Z, 12:36:46.855Z, 12:37:34.222Z) without deleting the recheck; recorded that the third is an extra recheck absent from the baseline guide cdfee6d (j6's sync landed in 6d0ddba); added healthIsNotLivenessProof at 12:39:01.011Z (t53 exit2 BRIDGE_CALL_FAILED, /execute reports the window disconnected, /health still true/count1/pending1); added check 10 and t1 self-proof. Preserved sourceOfTwo.liveProvable false, overall string/scope, 18/18 uuid/3 names, d224 absent from t31, +16 probe pages, and the withdrawn object-mismatch/dedupe record. Did not edit the guide.",
   "reproSteps": [
     "node -e \"const d=require('./docs/evidence/current/t31-dataset.json'); const u=new Set(d.pages.map(p=>p.uuid)); const n=new Set(d.pages.map(p=>p.name)); console.log(d.pages.length,u.size,n.size,[...n],d.pages.some(p=>p.uuid==='d224f8d13804e759'))\"  # 18 18 3 MAIN,P1,P2 false",
     "node -e \"const d=require('./docs/evidence/current/main-restore-verify.json'); console.log(d.at,d.pages.length,d.pages)\"  # 06:06:59, 2, MAIN/P1",
@@ -399,7 +406,7 @@
     {
       "type": "file",
       "path": "docs/evidence/current/r9t1-main-view-guide.md",
-      "summary": "页数行保留「离线不可证（仅历史断言）」；指南新增 12:36 活读收口段（2 页、MAIN/P1、窗口 id），离线分级不变。j6 的工作树同步另行加入 12:37 第三次读与 /health 警告；本任务未编辑或提交指南。"
+      "summary": "页数行保留「离线不可证（仅历史断言）」；指南新增 12:36 活读收口段（2 页、MAIN/P1、窗口 id），离线分级不变。j6 已在 6d0ddba 同步加入 12:37 第三次读与 /health 警告；本任务未编辑或提交指南。"
     },
     {
       "type": "command",
