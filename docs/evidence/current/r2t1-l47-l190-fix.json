@@ -1,0 +1,80 @@
+{
+  "task": "r2t1 - fix L47 geometry wording and L189/L190 escape damage",
+  "at": "2026-10-24T05:00:15Z",
+  "headBefore": "9b7f2065ea81df5b10be5220e5251dbc9e3c5d51",
+  "headBeforeShort": "9b7f206",
+  "guide": "docs/evidence/current/r9t1-main-view-guide.md",
+  "guideBlobBefore": "2385ef329f7271c6774172d3f8d622fb486357f0",
+  "guideBlobAfter": "b5d440af01d5193c2bc057e7b8b816e6e3fe5a66",
+  "lineCount": 191,
+  "changes": [
+    {
+      "line": 47,
+      "type": "wording regression (new in 03970de)",
+      "before": "`t=0.75` 贴着引脚端——不是穿中段",
+      "after": "`t=0.75` 落在外来 `_3V3:flags` 段 (240,800)-(200,800) 内，垂足 x=210 距 x=200 转角 10、距 x=240 的 +3V3 flag 端 30，不在中段（attr111 自身导线的引脚端 x=250 距锚点 40）——不是穿中段",
+      "reason": "j6 r5t2 2d: t=0.75 is on the foreign _3V3 segment, not on attr111's own wire; the foot x=210 is 10 from the x=200 corner and 30 from the +3V3 flag end x=240, while the own pin end x=250 is 40 from the anchor. Removed the unsupported '贴着引脚端' qualitative claim; kept t=0.75 and the t=0.25 void marking."
+    },
+    {
+      "line": 138,
+      "type": "same-source inherited 10/30 end-name swap",
+      "before": "`t=0.75` 按存储方向从外端量起，即落在**靠引脚的那一端**（W1 的 x=210 距引脚端 10 单位、距外端 30 单位）——贴着端点，不是穿中段。",
+      "after": "`t=0.75` 按存储方向从 +3V3 flag 端 x=240 量起，垂足 x=210 距 x=200 转角 10 单位、距 x=240 端 30 单位，不在中段（W1 自身导线的引脚端 x=250 距锚点 40 单位）——不是穿中段。",
+      "reason": "j6 r5t2 2d also flagged this inherited line: the 10/30 end names were swapped, and '靠引脚的那一端/贴着端点' is the same unsupported qualitative claim. Synchronized so L47 and L138 do not contradict. Inherited, not introduced by 03970de."
+    },
+    {
+      "line": 190,
+      "type": "escape damage (old debt)",
+      "before": "9t1-main-third-class.json 的判定与说明，**未改图、未改生成器、未改任何判据**（d、<TAB>、TEXT_RADIUS=6、d≤12 原样）；新增的 d=5.0 / t=0.75 与 <TAB>ext31 墨迹宽度",
+      "after": "r9t1-main-third-class.json 的判定与说明，**未改图、未改生成器、未改任何判据**（d、t、TEXT_RADIUS=6、d≤12 原样）；新增的 d=5.0 / t=0.75 与 text31 墨迹宽度",
+      "byteProofBefore": "L189 ends with '只改本文件与 '; L190 starts with 0x39 '9' (missing 0x72 'r'); L190 has 0x09 TAB after 'd、' and after '与 '",
+      "afterProof": "L190 starts 'r9t1-main-third-class.json'; the two TABs are now 't'; 0 TAB in the file (git grep -P '\\t' exit 1); TEXT_RADIUS=6, d≤12, step 4 unchanged",
+      "reason": "j6 r5t2 F1 traced this old debt to 720a7b6 and ab910af~1. It predates 03970de; t1 edited this exact line and missed it. Found by j6; fixed this round. The only characters changed are the missing r and the two TABs."
+    }
+  ],
+  "geometry": {
+    "foreignSegment": {
+      "id": "layout:wire:_3V3:flags",
+      "points": [
+        [240, 800],
+        [200, 800]
+      ],
+      "storedStartX": 240
+    },
+    "foot": {
+      "x": 210,
+      "y": 800
+    },
+    "t": 0.75,
+    "distances": {
+      "toCornerX200": 10,
+      "toPlus3V3FlagX240": 30,
+      "ownPinEndX250FromAnchor": 40
+    },
+    "note": "t=0.75 is measured from the stored start x=240; the foot is 30 units from that end and 10 from the x=200 corner. The own wire is (210,795)-(250,795), so the anchor at x=210 is 40 from its pin end x=250. This is the neutral, recomputable wording; no '贴着引脚端' claim remains."
+  },
+  "attribution": {
+    "l47": "The unsupported '贴着引脚端' phrase was introduced in 03970de by r2t1; this round replaces it with the measured geometry.",
+    "l138": "Inherited old text, flagged by j6 r5t2 2d; synchronized in this round to avoid a direct contradiction with L47. Not a new claim.",
+    "l190": "Old debt: present at 720a7b6 and ab910af~1 per j6 r5t2 F1; not introduced by 03970de or by this task. Found by j6; fixed in this round."
+  },
+  "untouched": {
+    "r9t3": "zero diff",
+    "historyHashes": "430f3be / 1c77c475 / dd5e835 still at L75",
+    "hostQuoteAndMarker": "L158 host quote and L160 ※ unchanged",
+    "criteria": "TEXT_RADIUS=6, d≤12, step 4 still present and unchanged",
+    "png": "no PNG touched",
+    "d1Json": "no D1 evidence JSON touched",
+    "otherFiles": "only the guide and this evidence JSON are in this commit; the concurrent r5t1/r2t2 working-tree changes and untracked scripts are not included"
+  },
+  "gates": {
+    "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> FRESH, baselineVersion 4, exit 0",
+    "packagesNew": 0,
+    "wrote": 0,
+    "noCanvasCalls": true,
+    "lineCount": 191,
+    "tabCount": 0,
+    "badPhraseCount": 0
+  },
+  "priorArtifactNote": "docs/evidence/current/t1-l47-scan.json is the 03970de record. Its L47/L138/L190 rows are superseded by this fix; this task does not edit that historical artifact."
+}
