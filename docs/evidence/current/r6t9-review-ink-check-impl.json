@@ -6,6 +6,13 @@
   "origin": "8451ead49fea5ad6de7bdc6e8e066633d4e847e5",
   "aheadBehind": "0 0",
   "headDrift": "none - reviewed at HEAD = origin = 8451ead, clean tree. The r6t7 commit is 8451ead itself ('docs(evidence): r6t7 advisory ink-nearest check (not a gate)'); its parent is c847319, which is the head the checked script hardcodes into its own report.",
+  "headAdvancedDuringReview": {
+    "from": "8451ead49fea5ad6de7bdc6e8e066633d4e847e5",
+    "via": "2f0b9be (docs(evidence): r6t8 independent review of t1 guide remediation, another member)",
+    "to": "this commit",
+    "effectOnTarget": "none - `git diff --name-status 8451ead..2f0b9be` is a single addition (r6t8-review-guide-remediation.json), and all four r6t7 blobs are unchanged at the new HEAD: ink-nearest-check.mjs cefdc275, r6t7-ink-nearest-check.json b3c45860, r6t7-ink-boxes.json 66cdd43f, r6t7-build-boxes.ps1 d6821afd. The reviewed object is therefore still the committed one.",
+    "note": "everything that needed the live bridge (t53) was run before the advance; no bridge state changed."
+  },
 
   "target": {
     "commit": "8451ead",
