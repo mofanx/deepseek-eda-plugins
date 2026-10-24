@@ -1,0 +1,109 @@
+{
+  "task": "r3t2",
+  "artifact": "docs/evidence/current/r12t5-review-landing.json",
+  "at": "2026-10-24T04:40:00Z",
+  "head": "b8c603f",
+  "origin": "ab910af",
+  "ahead": 2,
+  "behind": 0,
+  "pushed": false,
+  "unpushed": ["b8c603f", "review commit"],
+  "remoteContains": ["4be55b8", "86f453b", "ab910af"],
+  "lastPushError": "Failed to connect to github.com port 443 after 21074 ms (3 attempts)",
+  "items": [
+    {
+      "id": "PUSH",
+      "claim": "4be55b8, 86f453b and t1's new commit are on the remote",
+      "verdict": "部分成立",
+      "raw": "4be55b8, 86f453b and ab910af are on origin/master (git branch -r --contains each). But after that check a newer t1 commit b8c603f (host-quote marker + restored derived block) landed on master and is not on origin; origin/master is still ab910af, HEAD is the review commit on b8c603f, rev-list --left-right --count origin/master...HEAD = 0 2. Last push: 'Recv failure: Connection was reset'. Unpushed: b8c603f and the review commit."
+    },
+    {
+      "id": "WORDING",
+      "claim": "L133/L134 and the JSON now say W1 presses pin number 31, the flag name presses PB10, attr102 only grazes the wire, and no W1/W2 'pin name' sentence remains",
+      "verdict": "部分成立",
+      "raw": {
+        "L133": "| W1 | attr111 Name=MCU-34 | ... | (210, 795) | 5.0 | 0.75 | U1 引脚编号 31（PA10 的 Pin Number；PA10 字形在 252–268，完整可读） | 文字-文字，置信度高（压编号，不是名） |",
+        "L134": "| W2 | attr102 Name=MCU-26 | ... | (390, 795) | 5.0 | 0.75 | 墨迹 409.8–428.9 下无黑色字形；最近的引脚号 21（395–402）与引脚名 PB10（369–388）都不在其下。同一排压 PB10 的是 layout:flag:MCU_26:0 的标志名（350） | attr102 压导线（bbox 擦边），文字-文字只对标志名成立；置信度中 |",
+        "json": "attr111 classifiedAs 'text-text (label over pin number)', overlappedText 'U1 pin NUMBER 31 ... PA10 glyphs at 252-268 stay fully readable'; attr102 'wire graze; text-text only via the adjacent flag name', no black glyph, green wire 0.5 unit; conclusion and hostAdjudication match.",
+        "residual": "guide L9 (overview) still says: '蓝框 W* 的两处本轮已按主持人识图改判为文字-文字（网名压引脚名）'. This is the guide's own overview sentence, not a quote and not marked. b8c603f marks the host quote's 导线穿字 row with ※ plus a section-head note (the quote is kept verbatim, so that occurrence is an annotated quote), but L9 was neither changed nor marked. L45/L52/L146/L162 and the JSON are correct.",
+        "verdict": "the three target statements exist and are correct, and the host-quote occurrence is now annotated; but the guide's own L9 still calls both W boxes '网名压引脚名', so '不再出现' is not met."
+      }
+    },
+    {
+      "id": "ABOX",
+      "claim": "the r12t1 A-box was changed from 'not reproduced' to a framing gap plus the r12t2 tail supplement",
+      "verdict": "成立",
+      "raw": "aBox.result = 'not covered by any 8.25 px/unit frame in this set'; evidence = 'r12t1-titleA.png covers x 380-460; the A band is x 560-620 and the 图幅 cell border sits at 590. The frame stops 100 units short...'; note = 'Corrected after r12t3. The tail overflow is visible in r12t2-abox-tail.png, which frames the 540-620 span; the guide keeps the A box open until the host rules on it.' The negative claim is gone and the supplement is named."
+    },
+    {
+      "id": "RESTORED",
+      "claim": "restored now carries renderSize 660x1370 and the x0.734 / y1.087 contradiction is gone",
+      "verdict": "成立",
+      "raw": "restored.renderSize = {w:660,h:1370}; note = '0.734 comes from 660 px / 899 units, so the sheet renders 660x1370 px inside the 660x2030 crop; the remaining ~660 px is empty canvas below the sheet. The earlier entry read as if the 2030-tall crop were the page, which the arithmetic contradicts (2030/1866.88 = 1.087).' Check: 660/899=0.734; 1370/1866.88=0.734. b8c603f adds derived{pxPerUnitFromWidth:0.734, pxPerUnitFromSheetHeight:0.734, fileHeightPx:2030, emptyCanvasBelowSheetPx:660, notAPxPerUnit:'2030/1866.88=1.087 is the file height over the page height, not a scale'} - strengthens the fix."
+    },
+    {
+      "id": "FRAMES",
+      "claim": "r2t1-w1-frame.png / r2t1-w2-frame.png / r2t1-w2-centered.png are committed with a manifest proving 210 and 390 are covered at >=8.25",
+      "verdict": "成立",
+      "raw": {
+        "manifest": "r2t1-w1w2-adjudication.json: w1 rect 200-280, contains (210,795), px/unit 8.25, sha256 82228194...; w2 rect 355-435, contains (390,795), 8.25, sha256 ce7d8ebd...; w2-centered rect 379-459, contains (390,795), 8.25, sha256 fab6cc3a...; all three files exist and their actual sha256 equal the declared values (verified with crypto).",
+        "commit": "ab910af adds all three PNGs and the adjudication JSON (8 files, 271 insertions).",
+        "caveat": "the two official frames also contain the Windows Start menu at the bottom (the measured label rows are above it, so the ink boxes are unaffected, but the manifest does not declare the overlay)."
+      }
+    },
+    {
+      "id": "TEMP",
+      "claim": "the two formerly untracked closeups are declared non-deliverables",
+      "verdict": "不成立",
+      "raw": "r2t1-w1-closeup.png / r2t1-w2-closeup.png are no longer in the tree and are not in ab910af, so in fact they are not deliverables. But no explicit declaration was found: the adjudication's correctionsApplied lists only r12t1, the guide and the third-class JSON; limits mention only the render offset and the 0.5-unit graze; the frames list contains w1/w2/w2-centered/restored only. 'Declared non-deliverable' is therefore not evidenced."
+    },
+    {
+      "id": "OVERREACH",
+      "claim": "thresholds/bands/geometry unchanged; wire classes still 判不了",
+      "verdict": "成立",
+      "raw": "guide L52/L162: 导线穿字=判不了, 导线穿符号=判不了; L160 says d/t/TEXT_RADIUS/d<=12 unchanged; doc L2290-2291 geometry 4/3 and 1/1 untouched; ab910af touches only evidence files (git show --stat: 8 evidence files, no source/doc-hardening file). The adjudication's invariantsUntouched lists the same."
+    },
+    {
+      "id": "GATES",
+      "claim": "t53 / --check / packages new 0 / wrote 0",
+      "verdict": "成立",
+      "raw": "t53 PASS 5/5 exit 0 (pages 2, MAIN present, active b275cd23...); freshness FRESH baselineVersion 4 exit 0; packages getState_Line raw 2 (pre-existing, 911c05b), new in ab910af = 0; git status clean; wrote 0."
+    }
+  ],
+  "overall": "partial",
+  "reason": "The substantive landing is correct and pushed through ab910af: W1=pin number 31, flag name over PB10, attr102=wire graze; the A-box negative is replaced by the framing gap plus the r12t2 tail; restored has renderSize 660x1370 and the arithmetic is consistent (b8c603f adds the derived block); the three 8.25 frames are committed with a matching manifest; no thresholds/geometry changed; gates green. Two documentation defects remain: (1) guide L9 still says the two W boxes are '网名压引脚名' (the guide's own overview, not the now-annotated host quote; it contradicts L133/L134); (2) the two temporary closeups are deleted/not committed but were never explicitly declared non-deliverables, and the official w1/w2 frames carry an undeclared Start-menu overlay. Push is partial: 4be55b8/86f453b/ab910af are on origin, but b8c603f and the review commit are local (ahead 2); the last 3 push attempts failed with 'Failed to connect to github.com port 443 after ~21 s'.",
+  "push": {
+    "status": "blocked-network",
+    "head": "review commit on b8c603f",
+    "origin": "ab910af",
+    "ahead": 2,
+    "unpushed": ["b8c603f", "review commit"],
+    "attempts": 3,
+    "lastError": "Failed to connect to github.com port 443 after 21074 ms (3 attempts)"
+  },
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "The three target statements are correct in L133/L134 and the JSON, and all other landings (push, A-box, restored, frames, gates) pass; but L9 still contains '两处...网名压引脚名', so the 'no W1/W2 pin-name sentence' condition is not fully met, and the temporary closeups are not explicitly declared non-deliverables.",
+        "baseline": "187eba1 guide L133 '引脚名 PA10', L134 '同一排的引脚名'; L9 '网名压引脚名'",
+        "diff": "ab910af rewrites L45/L133/L134/L146/L162 and the third-class JSON to pin number 31 / flag PB10 / wire graze; L9 was missed."
+      }
+    }
+  ],
+  "artifacts": [
+    { "type": "file", "path": "docs/evidence/current/r12t5-review-landing.json", "summary": "this review" }
+  ],
+  "baseline": "HEAD b8c603f (origin/master ab910af, ahead 2 with the review commit); prior HEAD 86f453b; t1 commits ab910af, b8c603f",
+  "diff": "this review adds only r12t5-review-landing.json; no source, guide, JSON or EDA file was modified",
+  "reproSteps": [
+    "git rev-parse HEAD origin/master; git rev-list --left-right --count origin/master...HEAD; git branch -r --contains 4be55b8",
+    "git show HEAD:docs/evidence/current/r9t1-main-view-guide.md | Select-Object -Skip 128 -First 6  # L133/L134",
+    "git show HEAD:docs/evidence/current/r9t1-main-view-guide.md | Select-Object -Skip 8 -First 1  # L9 stale phrase",
+    "git show HEAD:docs/evidence/current/r12t1-wire-overlap-closeups.json | node -e 'read aBox/restored'",
+    "git show HEAD:docs/evidence/current/r2t1-w1w2-adjudication.json | node -e 'hash-check frames'",
+    "node docs/evidence/review/t53-verify-main.mjs; node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs && node docs/evidence/review/shared/freshness.mjs --check"
+}
