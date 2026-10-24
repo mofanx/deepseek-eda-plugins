@@ -1,0 +1,246 @@
+{
+  "task": "r10t5 - independently review t1's new N1 guard patch and verify r10t1's two repaired accounting errors",
+  "reviewer": "eda4 / t3",
+  "reviewOf": "t1 / r10t2 N1 replacement (committed revision r2t1 at 146f323)",
+  "generatedAt": "2026-10-24T14:48:00.000Z",
+  "generatedAtLocal": "2026-10-24T22:48:00.000+08:00",
+  "headAtReview": "e4a520e5c54b7436c602f98a90fc654a0266f23b",
+  "originAtReview": "e4a520e5c54b7436c602f98a90fc654a0266f23b",
+  "status": "partial",
+  "verdict": "partial",
+  "headline": "t1's probesAfter repair is genuine: the old 14:34:38.357Z probe is refiled before the attempts and a new 14:44:08.731Z probe is after them. The N1 logic now passes all four criteria in the 8-case harness: it throws, uses normalized exact equality instead of StartsWith, accepts 49621 when configured, and JS/PS agree 8/8. The patch was committed at 146f323 during this review, but it is still only evidence text, not wired into the runbook; its PS usage calls an undefined Assert-LandingPage instead of Guard-Page, and its JS usage references an undefined $jsTemplate. Therefore the logic passes but the deliverable is partial, not a clean pass.",
+  "t1PatchState": {
+    "committed": true,
+    "commit": "146f323b238a59210ff271571b639143be953bb2",
+    "parent": "e4a520e5c54b7436c602f98a90fc654a0266f23b",
+    "path": "docs/evidence/current/r10t2-third-instance-j6.json",
+    "baselineBlob": "cad420d1e7b6be1d5d2051c3b04ffe8d014452b8",
+    "blob": "47554d22dec518d4dccac9ffb55239f13393ee12",
+    "numstat": "69 insertions(+), 16 deletions(-)",
+    "revision": "r2t1 - N1 patch rewritten to throw on exact normalised match with a parameterized port (both JS and PS tested over 8 cases and on the live landing page), and the mislabelled probesAfter replaced by a genuine post-attempt probe at 14:44:08.731Z with the old one refiled under probesBeforeAttempts",
+    "n1AppliedToRunbook": false,
+    "owner": "j5 maintains the runbook; t1 supplied text only and says it did not edit the runbook",
+    "note": "t1 committed the revision at 146f323 while this review was running (review started at e4a); the runbook still does not contain the guard. This review covers the committed blob 47554d2."
+  },
+  "findings": [
+    {
+      "id": "a",
+      "criterion": "failure must throw; merely returning a boolean is not sufficient",
+      "status": "pass",
+      "evidence": {
+        "patchA_js": "const norm = (u) => `${u.protocol}//${u.host}${u.pathname.replace(/\\/+$/, '')}`; ... if (norm(actual) !== norm(expected)) { throw new Error(`WRONG_PAGE: ...`); }",
+        "patchB_powershell": "function Guard-Page { ... if ((& $norm $actual) -ne (& $norm $expected)) { throw \"WRONG_PAGE: ...\" } return 'PASS' }",
+        "liveReject": "with the port token set to 49621 while the bound tab was 49620 landing, dpx eval returned exit 1, status error, code JS_FAILED, exception \"Error: WRONG_PAGE: http://127.0.0.1:49620/landing is not http://127.0.0.1:49621/landing\" at 2026-10-24T14:43:52.789Z",
+        "harness": "8/8 JS and 8/8 PS; editor and wrong-port cases produce THROW, not a returned boolean",
+        "verdict": "pass: the guard itself throws and aborts the eval; it is not a wrongPage boolean handed back for the caller to interpret."
+      }
+    },
+    {
+      "id": "b",
+      "criterion": "no StartsWith-style prefix matching; landing-evil must be rejected, with actual or reproducible evidence",
+      "status": "pass",
+      "evidence": {
+        "normalisation": "parse both URLs; compare protocol + host + pathname with trailing slashes removed; query/hash are dropped",
+        "jsExact": "const expected = new URL('http://127.0.0.1:' + RELAY_PORT + '/landing'); const actual = new URL(location.href); if (norm(actual) !== norm(expected)) throw ...",
+        "psExact": "$expected = [Uri]$LandingUrl; $actual = [Uri]$Href; $norm = { param($u) $u.GetLeftPart([System.UriPartial]::Path).TrimEnd('/') }; if ((& $norm $actual) -ne (& $norm $expected)) { throw ... }",
+        "measuredTruthTable": [
+          "startsWith('http://127.0.0.1:49620/landing') for http://127.0.0.1:49620/landing -> true",
+          "startsWith('http://127.0.0.1:49620/landing') for http://127.0.0.1:49620/landing-evil -> true",
+          "startsWith('http://127.0.0.1:49620/landing') for http://127.0.0.1:49620/landing.html -> true"
+        ],
+        "actualTest": "node .tmp-guard.cjs: 'expected 49620 / landing-evil' -> THROW (WRONG_PAGE: http://127.0.0.1:49620/landing-evil is not http://127.0.0.1:49620/landing); 'landing.html' -> THROW; summary js pass=8 fail=0, exit 0.",
+        "psTest": "pwsh -NoProfile -File .tmp-guard.ps1: same two cases -> THROW; summary ps pass=8 fail=0, exit 0.",
+        "verdict": "pass: exact normalized equality; the prefix hole is demonstrated and closed, not merely asserted."
+      }
+    },
+    {
+      "id": "c",
+      "criterion": "must be parameterized; 49621 must not be falsely rejected",
+      "status": "pass",
+      "evidence": {
+        "jsSide": "template carries @@RELAY_PORT@@; runbook substitutes it from $RelayPort before eval, then expected = new URL('http://127.0.0.1:' + RELAY_PORT + '/landing')",
+        "psSide": "$RelayPort is the single source; $LandingUrl = \"http://127.0.0.1:$RelayPort/landing\"; Guard-Page receives [int]$RelayPort",
+        "harness49621": "'expected 49621 / parameterized must NOT reject' -> PASS, both JS and PS; total 8/8 each",
+        "wrongPort": "expected 49620 / actual 49621 -> THROW; the guard follows the configured port rather than a baked-in constant",
+        "note": "The artifact's old hardcoded-49620 text is gone; the only literal 49620 in the new block is in the explanation/measured table, not in the expected URL construction."
+      }
+    },
+    {
+      "id": "d",
+      "criterion": "JS and PowerShell must agree on the same input",
+      "status": "pass",
+      "evidence": {
+        "sameCases": "8 URLs: real landing, landing?x=1#y, landing/, landing-evil, landing.html, wrong port 49621, expected 49621 landing, editor page",
+        "js": "SUMMARY js pass=8 fail=0, exit 0",
+        "ps": "SUMMARY ps pass=8 fail=0, exit 0",
+        "sameVerdicts": "PASS for landing, query/hash, trailing slash, 49621; THROW for landing-evil, landing.html, wrong port, editor",
+        "mechanism": "both use protocol+host+pathname, strip query/hash, trim trailing slashes, exact compare, and throw on mismatch",
+        "verdict": "pass at the logic level; both implementations return the same verdict for all 8 inputs."
+      }
+    },
+    {
+      "id": "probesAfter",
+      "criterion": "verify whether t1 added a real post-attempt probe or merely renamed the old pre-attempt one",
+      "status": "pass",
+      "evidence": {
+        "oldProbe": "2026-10-24T14:34:38.357Z was previously mislabelled probesAfter, but it is 34 s before the first attempt at 14:35:12.306Z; t1 now files it under probesBeforeAttempts with an explicit note.",
+        "newProbe": "2026-10-24T14:44:08.731Z, finished 14:44:21.110Z; the three attempts ended at 14:35:13.013Z, so the new probe began 8 min 55 s later and finished 9 min 8 s later.",
+        "newValues": "resident 49620 true/count1; 49621/49622/49623 tcp open=false and health UNREACHABLE; gateway 49630 open",
+        "step5Update": "thirdInstanceToClose now cites the pre-attempt probes and the genuine 14:44:08.731Z post-attempt probe",
+        "labelingCorrection": "\"an earlier revision ... put a probe taken at 14:34:38.357Z under the key probesAfter. That was wrong on ordering ... it could not describe the state after the attempts.\"",
+        "verdict": "pass: this is a newly measured probe with a later timestamp and a finished-at time, not a rename of the old probe."
+      }
+    },
+    {
+      "id": "r10t1Corrections",
+      "criterion": "r10t1 must list all five old timestamps and use the actual 47-line diff count",
+      "status": "pass",
+      "evidence": {
+        "timestamps": [
+          "2026-10-24T12:36:10.642Z",
+          "2026-10-24T12:36:46.855Z",
+          "2026-10-24T12:37:34.222Z",
+          "2026-10-24T13:39:55.037Z",
+          "2026-10-24T13:40:16.452Z"
+        ],
+        "newTimestamp": "2026-10-24T14:30:57.915Z",
+        "distinct": "count=5, unique=5, newNotInOld=true",
+        "diffCount": "git diff --numstat 1ff0fd1 07a28ab -- docs/evidence/current/r9t1-window-registration-runbook.md -> 47 11; diffStat is 47 insertions, 11 deletions",
+        "selfProof": "writeVerbScan changed from '48 added lines' to '47 added lines -> NO_MATCHES', with a note that 48 was a counting error, not missing/extra content",
+        "correctionField": "parameterization.corrections records both repairs explicitly",
+        "verdict": "pass"
+      }
+    }
+  ],
+  "defects": [
+    {
+      "id": "psUsageFunctionName",
+      "severity": "medium",
+      "where": "r10t2 step6_N1PatchSuggestion.patchB_powershell usage comment",
+      "problem": "The function is declared as Guard-Page, but the usage line calls Assert-LandingPage. Following the comment as written yields CommandNotFoundException, not the intended WRONG_PAGE guard.",
+      "raw": "#   Assert-LandingPage -RelayPort $RelayPort -Href $result.url   # throws on mismatch",
+      "effect": "The PS logic itself is correct, but the delivered usage snippet is not executable as written."
+    },
+    {
+      "id": "jsUsageTemplate",
+      "severity": "low",
+      "where": "r10t2 step6_N1PatchSuggestion.patchA_jsUsage",
+      "problem": "The usage snippet does `$js = $jsTemplate.Replace('@@RELAY_PORT@@', [string]$RelayPort)` but does not define $jsTemplate or show where the template is stored.",
+      "effect": "An operator must invent the template variable; the splice mechanism is clear enough, but the snippet is not self-contained."
+    },
+    {
+      "id": "notAppliedToRunbook",
+      "severity": "medium",
+      "where": "r10t2 step6 / runbook",
+      "problem": "The N1 patch is committed at 146f323, but only as r10t2 evidence text; the runbook still has no guard and the owner (j5) has not applied it. HEAD's runbook grep for wrongPage/WRONG_PAGE/landing-evil remains empty.",
+      "effect": "The four criteria pass for the committed proposal, but the operational deliverable is not wired in yet."
+    },
+    {
+      "id": "step5StaleVerification",
+      "severity": "low",
+      "where": "r10t2 step5_restore.verification[1]",
+      "problem": "Still says 14:33:44.616Z health is 'before any attempt, and again after' while the new after probe is 14:44:08.731Z; thirdInstanceToClose is updated, this entry is not.",
+      "effect": "Minor stale wording; does not affect the new after probe."
+    }
+  ],
+  "n1Test": {
+    "patchA": {
+      "editor": {"verdict": "THROW WRONG_PAGE"},
+      "landing49620": {"verdict": "PASS"},
+      "landingEvil": {"verdict": "THROW WRONG_PAGE"},
+      "landingHtml": {"verdict": "THROW WRONG_PAGE"},
+      "landing49621_as_expected49620": {"verdict": "THROW WRONG_PAGE"},
+      "landing49621_as_expected49621": {"verdict": "PASS"},
+      "query_hash": {"verdict": "PASS"},
+      "trailing_slash": {"verdict": "PASS"}
+    },
+    "patchB": {
+      "editor": {"verdict": "THROW WRONG_PAGE"},
+      "landing49620": {"verdict": "PASS"},
+      "landingEvil": {"verdict": "THROW WRONG_PAGE"},
+      "landingHtml": {"verdict": "THROW WRONG_PAGE"},
+      "landing49621_as_expected49620": {"verdict": "THROW WRONG_PAGE"},
+      "landing49621_as_expected49621": {"verdict": "PASS"},
+      "query_hash": {"verdict": "PASS"},
+      "trailing_slash": {"verdict": "PASS"}
+    },
+    "jsSummary": "pass=8 fail=0 exit 0",
+    "psSummary": "pass=8 fail=0 exit 0",
+    "verdict": "logic pass 4/4; delivery partial due PS usage name, undefined JS template variable, and the fact that the committed text is not wired into the runbook"
+  },
+  "overall": {
+    "verdict": "partial",
+    "n1Logic": "pass 4/4",
+    "n1Deliverable": "partial",
+    "probesAfter": "pass",
+    "r10t1Corrections": "pass",
+    "why": "The guard logic is now exactly what the four criteria require, the harness proves it, and probesAfter is a genuine new probe; t1 also committed the revision at 146f323. But it is still not wired into the runbook and the PS usage snippet calls the wrong function, so it cannot be adopted as-is."
+  },
+  "selfProof": {
+    "freshness": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7} exit 0",
+    "packagesAdded": 0,
+    "packagesDiff": "git status --porcelain -- packages -> empty",
+    "wrote": 0,
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "fileWritesThisTask": 2,
+    "fileWritesDetail": "r10t1 JSON corrections + this review JSON; no source or runbook edit",
+    "writeVerbScan": "r10t1 and this review contain no executable canvas/document write; t1's scratch .tmp harnesses were removed at 146f323"
+  },
+  "git": {
+    "headAtReview": "e4a520e5c54b7436c602f98a90fc654a0266f23b",
+    "originAtReview": "e4a520e5c54b7436c602f98a90fc654a0266f23b",
+    "aheadBehindAtReview": "0 0",
+    "headAdvancedTo": "146f323b238a59210ff271571b639143be953bb2",
+    "t1PatchCommit": "146f323b238a59210ff271571b639143be953bb2",
+    "t1PatchParent": "e4a520e5c54b7436c602f98a90fc654a0266f23b",
+    "r10t1BlobBefore": "5d118503ea432a8451b7b26930552cd6c7ef38b0",
+    "r10t2HeadBlob": "47554d22dec518d4dccac9ffb55239f13393ee12",
+    "r10t2WorkingBlob": "47554d22dec518d4dccac9ffb55239f13393ee12",
+    "r10t2WorkingDiff": "none after 146f; the commit is 69 insertions(+), 16 deletions(-) from e4a",
+    "headStillContainsOldN1": false,
+    "n1InRunbookAtHead": false
+  },
+  "baseline": "r10t2 at e4a had blob cad420d and the old A/B N1 text; r10t1 is blob 5d1185 with the two accounting errors. t1 committed r2t1 as 146f323 (blob 47554d2) while the review was running.",
+  "diff": "146f323 changes r10t2 only: 69 insertions, 16 deletions (probesAfter repair + N1 rewrite); r10t1: five-timestamp list + 47-count correction only.",
+  "reproSteps": [
+    "git show 146f323 --stat; git rev-parse 146f323:docs/evidence/current/r10t2-third-instance-j6.json  # blob 47554d2",
+    "git show 146f323^:docs/evidence/current/r10t2-third-instance-j6.json  # baseline blob cad420d",
+    "git show 146f323:docs/evidence/current/r10t2-third-instance-j6.json  # read step6 testEvidence / 8-case table",
+    "node -e JSON.parse(r10t1); check t53.notOneOfOldTimestamps length 5; selfProof.writeVerbScan starts with 47",
+    "git diff --numstat 1ff0fd1 07a28ab -- docs/evidence/current/r9t1-window-registration-runbook.md  # 47 11"
+  ],
+  "verifyCommand": "n/a - t1's scratch harness was removed at 146f323; the reproducible 8-case results are recorded in r10t2 step6.testEvidence and the review's n1Test table",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "t1's N1 logic passes a-d (throws; exact normalized URL; 49621 parameterized; JS/PS 8/8 same) and probesAfter is a genuine 14:44:08.731Z post-attempt probe, with the old 14:34:38.357Z correctly refiled as pre-attempt. r10t1's five-timestamp list and 47-line count are repaired. t1 committed the patch at 146f323 (blob 47554d2), but it is still not wired into the runbook, its PS usage calls undefined Assert-LandingPage instead of Guard-Page, and its JS usage references undefined $jsTemplate; deliverable is partial.",
+        "baseline": "r10t2 e4a blob cad420d (old A/B); r10t1 blob 5d1185 with four timestamps and 48-count error.",
+        "diff": "146f323 r10t2 69/16; r10t1 corrections only; no source/runbook change.",
+        "probesAfter": "old 14:34:38.357Z -> probesBeforeAttempts; new 14:44:08.731Z -> probesAfterAttempts, after attempts ending 14:35:13.013Z."
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r10t1-second-instance-registration.json",
+      "summary": "Added missing 12:36:46.855Z; changed writeVerbScan 48 to 47 with actual git numstat note."
+    },
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r10t5-review-n1-patch.json",
+      "summary": "Independent review of t1's committed r2t1 N1/probesAfter patch: N1 logic 4/4, probesAfter pass, r10t1 corrections pass, delivery partial due PS usage name and not wire into runbook."
+    },
+    {
+      "type": "command",
+      "summary": "node .tmp-guard.cjs -> js pass=8 fail=0; pwsh -NoProfile -File .tmp-guard.ps1 -> ps pass=8 fail=0; landing-evil and landing.html THROW in both."
+    },
+    {
+      "type": "command",
+      "summary": "git diff --numstat 1ff0fd1 07a28ab -- runbook -> 47 11; r10t1 count 5/5 distinct, 14:30:57.915Z not in old list."
+    }
+  ]
+}

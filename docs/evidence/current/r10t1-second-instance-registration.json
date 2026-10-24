@@ -136,6 +136,7 @@
     "newTimestamp": "2026-10-24T14:30:57.915Z",
     "notOneOfOldTimestamps": [
       "2026-10-24T12:36:10.642Z",
+      "2026-10-24T12:36:46.855Z",
       "2026-10-24T12:37:34.222Z",
       "2026-10-24T13:39:55.037Z",
       "2026-10-24T13:40:16.452Z"
@@ -204,7 +205,11 @@
       "t53 scans 49620-49630, first connected; no --port"
     ],
     "historicalValuesPreserved": "The historical JSON examples still show 49620 because they are records of the default-port run; they are explicitly labelled as default-value history, not new readings.",
-    "diffStat": "1 file changed, 47 insertions(+), 11 deletions(-)"
+    "diffStat": "1 file changed, 47 insertions(+), 11 deletions(-)",
+    "corrections": {
+      "notOneOfOldTimestamps": "Added the missing 2026-10-24T12:36:46.855Z; the list now has all five acceptance timestamps. 14:30:57.915Z is distinct from each of them.",
+      "writeVerbScan": "Corrected 48 -> 47 after `git diff --numstat 1ff0fd1..07a28ab -- <runbook>` returned `47 11`. This was a line-counting error, not content loss; the diffStat remains 47 insertions."
+    }
   },
   "manualChecklist": {
     "beforeAnyCodeChange": [
@@ -232,7 +237,8 @@
     "wrote": 0,
     "canvasWrites": 0,
     "documentWrites": 0,
-    "writeVerbScan": "48 added lines scanned -> NO_MATCHES",
+    "writeVerbScan": "47 added lines scanned -> NO_MATCHES",
+    "writeVerbScanNote": "git diff --numstat 1ff0fd1..07a28ab -- docs/evidence/current/r9t1-window-registration-runbook.md is 47 insertions, 11 deletions. The earlier 48 was a counting error, not a missing/extra content line; the scan covered the same tracked diff.",
     "fileWritesThisTask": 2,
     "fileWritesDetail": "runbook edit + this evidence JSON only; no source or package changed",
     "tabListRuns": 2
