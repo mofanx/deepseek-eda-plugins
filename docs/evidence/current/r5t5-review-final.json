@@ -1,0 +1,154 @@
+{
+  "task": "r2t4 - final review of t1, t2, t3",
+  "reviewedAt": "2026-10-24T05:25:00Z",
+  "head": "f939bc7e8fa189516da62b31eabc303dc14fae1c",
+  "headShort": "f939bc7",
+  "origin": "f939bc7e8fa189516da62b31eabc303dc14fae1c",
+  "headVsOrigin": "0 0",
+  "headDrift": "HEAD stayed f939bc7 throughout; origin/master advanced 9b7f206 -> f939bc7 during the review (the t2 fix plus f58a89d were pushed). The reviewed tree and blobs at f939bc7 are unchanged, so no redo was needed.",
+  "originAdvance": {
+    "from": "9b7f2065ea81df5b10be5220e5251dbc9e3c5d51",
+    "to": "f939bc7e8fa189516da62b31eabc303dc14fae1c",
+    "headTreeChanged": false,
+    "note": "The task's version check is pinned to f939bc7; the origin advance made HEAD...origin/master 0 0 before this review commit."
+  },
+  "blobs": {
+    "t1Guide": "b5d440af01d5193c2bc057e7b8b816e6e3fe5a66",
+    "t2Rehearsal": "f84b4d9d26bdb00fabf4f2c1290c7d792bd48f0c",
+    "t3Scheme": null,
+    "t3ReviewOnly": "c067901fa204b26235a98dea8c7dd365a30c3bde"
+  },
+  "overall": "partial",
+  "overallReason": "t2's c3 onset is independently reproduced at 12.01 from the live GND wire and is correct; the requested 32.27 is my own prior t4 error and is retracted. t1's current HEAD is fixed, but t1's own commit 03970de still contains the bad L47 clause and the damaged L190, so t1's self-report is not true at its commit; the fix is f58a89d/r2t1. t3's new vertical-offset/font-size scheme artifact is absent from the committed tree, so item 4 cannot be verified. Therefore partial, not sound.",
+  "t1": {
+    "verdict": "partial",
+    "claimChecked": "L47 '贴着引脚端' removed; new wording consistent with measured 10/30/40; t=0.25 still void; t=0.75 kept; L189/L190 restored; attribution 'old debt, finder j6'; r9t3 and the three historical hashes untouched.",
+    "atT1Commit": {
+      "commit": "03970de",
+      "L47": "| 导线穿字 | ... `t=0.75` 贴着引脚端——不是穿中段；旧的 `t=0.25` 是步长 2 伪斜线读数，**已作废**，仅作历史记录。 |",
+      "L190": "9t1-main-third-class.json ...（d、<TAB>、TEXT_RADIUS=6、d≤12 原样）；新增的 ... 与 <TAB>ext31 墨迹宽度",
+      "tabs": 2,
+      "verdict": "不成立 - the t1 commit still has the exact phrase and the two TABs; t1's self-report 'L47 改准' is false at 03970de."
+    },
+    "atHead": {
+      "L47": "`t=0.75` 落在外来 `_3V3:flags` 段 (240,800)-(200,800) 内，垂足 x=210 距 x=200 转角 10、距 x=240 的 +3V3 flag 端 30，不在中段（attr111 自身导线的引脚端 x=250 距锚点 40）——不是穿中段；旧的 `t=0.25` 是步长 2 伪斜线读数，**已作废**，仅作历史记录。",
+      "L190": "r9t1-main-third-class.json ...（d、t、TEXT_RADIUS=6、d≤12 原样）；新增的 d=5.0 / t=0.75 与 text31 墨迹宽度",
+      "tabs": 0,
+      "verdict": "成立 at HEAD - phrase gone; 10 to x=200 corner, 30 to x=240 +3V3 flag, 40 to own pin end x=250; t=0.25 still void; t=0.75 kept."
+    },
+    "attribution": "The fix is f58a89d / r2t1, not 03970de / t1. r2t1-l47-l190-fix.json says: 'Old debt: present at 720a7b6 and ab910af~1 per j6 r5t2 F1; not introduced by 03970de or by this task. Found by j6; fixed in this round.' L138's inherited 10/30 end-name swap was also synchronized in f58a89d; that is a consistency correction, not a new claim.",
+    "protected": "r9t3 diff 0 from 9b7f206..f939bc7; 430f3be/1c77c475/dd5e835 all still on L75; host quote L158 and ※ L160 unchanged; TEXT_RADIUS=6 and d≤12 still on L190; no PNG and no D1 JSON diff.",
+    "whyPartial": "The current HEAD passes the wording/escape checks, but the t1 deliverable at 03970de does not. A review of t1's own commit must not call it pass; the correction came later."
+  },
+  "t2": {
+    "verdict": "pass",
+    "requested32_27": "不成立 - t2 did not adopt 32.27 and should not: the live GND segment is (360,800)-(400,800), not the y=790 run my prior review used.",
+    "liveGeometry": {
+      "gndWire": "layout:wire:GND:flags line=360,800,400,800,360,780,400,780,360,770,400,770,400,840,400,770",
+      "s15": "anchor=(365,795), foot=(365,800), d=5.000, t=(365-360)/40=0.125",
+      "onset": "t>0.05 at s>12.0; measured first hit s=12.01 at 0.01 step",
+      "cleanWindows": [],
+      "goNoGo": "both obj1 and obj2 no-go"
+    },
+    "quotes": {
+      "alongSweep": "the nearest foreign segment is the GND horizontal (360,800)-(400,800), so d is 5.000 for every s in [10,50]: the anchor is 5 units above that run and the foot slides along it. t = (s-10)/40, so t > 0.05 from s > 12.0. First GND rule hit measured at s=12.01 (sweep step 0.01). At s=15 the measurement is d=5.000, t=0.125 - inside the band already.",
+      "scanRangeMeaning": "this is the DOMAIN I swept for the anchor (s such that the anchor stays on its own wire). It is NOT a clearance: the net clearance inside it is empty, see cleanWindows.",
+      "cleanWindows": "\"cleanWindows\": [] on both objects",
+      "disagreement": "r2t2 disagreement, recorded rather than absorbed: a peer review proposed s~32.27 with d~16.18 at s=15. I cannot reproduce either number from this geometry ... I did not adopt 32.27."
+    },
+    "scripts": {
+      "files": [
+        "docs/evidence/review/r5t1-d2d3-dump.mjs",
+        "docs/evidence/review/r5t1-d2d3-scan.ps1",
+        "docs/evidence/review/r5t1-d2d3-verdict.mjs",
+        "docs/evidence/review/r5t1-d2d3-verify-readonly.ps1"
+      ],
+      "run": "node dump -> exit 0; pwsh scan -> exit 0; node verdict -> exit 0, REPRODUCED, overall no-go; verify-readonly -> PASS exit 0; negative control with doc.save() -> FAIL exit 1 (the gate can fail).",
+      "documentWrites": "0 document-mutating calls (.save/.modify/.create/.delete/.clear) across the three step files; bridge.execute string in dump only calls getCurrentSchematicPageInfo/getAllSchematicPagesInfo/getAll...",
+      "tempWrites": "3 filesystem writes to %TEMP% (dump writeFileSync, scan Set-Content, verdict writeFileSync), not to the document or repo",
+      "reproducibilityCaveat": "verdict.mjs computes c3 from the live geom dump, so the 12.01 onset is independent. It does not consume r5t1-scan.json: labelInk and the row boxes are hardcoded, so the ink/cleanWindows chain is not fully end-to-end from the PNG. The c3 number is independently reproduced; the full no-go chain has this residual hardcoding."
+    },
+    "t53": "node docs/evidence/review/t53-verify-main.mjs -> PASS 5/5 exit 0 (environment is available; I did not report the requested exit 2)."
+  },
+  "t3": {
+    "verdict": "not-verifiable",
+    "artifact": null,
+    "reason": "No t3 vertical-offset/font-size scheme artifact exists in the committed tree or the working tree at f939bc7. The only t3 file is r5t2-review-l47.json, which reviews t1's L47 and does not contain a vertical offset, font resize, d≤6/net-membership argument, readability floor, or a no-go/go decision for those two schemes.",
+    "search": [
+      "git grep -l '垂直偏移' -- docs -> 0 hits",
+      "git grep -l '改字号' -- docs -> only docs/2026-10-17-schematic-pagination-hardening.md (old pagination doc, not t3)",
+      "git ls-tree -r --name-only HEAD | Select-String 'r5t4|r5t5|scheme|vertical|offset' -> no t3 scheme file",
+      "git status --short -> clean before this review; no untracked t3 artifact"
+    ],
+    "requiredChecksNotRun": [
+      "vertical offset: moving the anchor off its own wire violates c2; a d≤6 claim must be recomputed against the new nearest foreign segment and its net, not assumed from the old anchor",
+      "font resize: the 16→14 ratio needs measured glyph height/ink width and a readability lower bound; a hardcoded ratio is not evidence",
+      "two no-go cases: must not be converted to go without a clean window that satisfies c1/c2/c3"
+    ],
+    "verdictText": "不成立 / 无法复核 - the artifact is missing, so these checks cannot be performed. This is a deliverable gap, not a judgment that the scheme is wrong."
+  },
+  "corrigendum": {
+    "artifact": "docs/evidence/current/r5t3-review-rehearsal.json",
+    "oldClaim": "GND at y=790, x=380.39-417.97; at s=15 d=16.18, t=0; onset s≈32.27",
+    "whyWrong": "The live dump says GND is layout:wire:GND:flags (360,800)-(400,800). The y=790 green run is not GND (it is in the label/own-wire band; the committed scan band is 787.5-797.5 and does not even include y=800). My t4 review therefore measured the wrong run.",
+    "correct": "At s=15 the anchor is (365,795), the foot on GND is (365,800): d=5.000, t=0.125. The c3 band starts at s=12.01, not 32.27.",
+    "action": "Retract 32.27. t2's 12.01 is correct and should be cited. r5t3 remains a historical artifact but its c3 number must not be reused."
+  },
+  "protected": {
+    "r9t3": "zero diff 9b7f206..f939bc7",
+    "historicalHashes": "430f3be / 1c77c475 / dd5e835 still on L75",
+    "hostQuote": "L158 host quote and L160 ※ unchanged",
+    "criteria": "TEXT_RADIUS=6, d≤12, step 4 unchanged",
+    "png": "zero PNG diff",
+    "d1Json": "zero D1 JSON diff",
+    "wrote": "0 document writes; 3 temp files written by the t2 repro scripts; no canvas/PNG writes"
+  },
+  "gates": {
+    "t53": "PASS 5/5 exit 0",
+    "freshness": "FRESH, baselineVersion 4, packages 5, exit 0",
+    "packagesNew": 0,
+    "lineCount": 191,
+    "tabsAtHead": 0,
+    "badPhraseAtHead": 0
+  },
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "At t1's own 03970de, L47 still says '贴着引脚端' and L190 still has 9t1 + 2 TABs. At HEAD f939bc7 both are fixed by f58a89d/r2t1: 10/30/40 geometry, no phrase, r9t1, t, text31, 0 tabs; old-debt/finder-j6 attribution in r2t1-l47-l190-fix.json. r9t3 and the three hashes untouched.",
+        "baseline": "03970de guide: L47 '贴着引脚端'; L190 9t1 + TAB + TAB",
+        "diff": "f58a89d guide 3 lines + r2t1-l47-l190-fix.json; f939bc7 adds t2 files only"
+      }
+    },
+    {
+      "task": "t2",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "Live GND is (360,800)-(400,800); at s=15 d=5.000, t=0.125; c3 onset 12.01. The committed scripts run (dump/scan/verdict exit 0, REPRODUCED, both no-go); verify-readonly PASS with a failing negative control; 0 document writes, 3 temp writes. The requested 32.27 is my prior error and is retracted.",
+        "baseline": "521b112: old text s>=15; no committed scripts",
+        "diff": "f939bc7: r5t1 JSON scanRange/cleanWindows + 12.01 correction + 4 scripts"
+      }
+    },
+    {
+      "task": "t3",
+      "verdict": "fail",
+      "evidence": {
+        "summary": "No t3 vertical-offset/font-size scheme artifact exists at f939bc7; only r5t2-review-l47.json (an L47 review). The vertical-offset c2/d≤6, font-ratio/readability, and no-go checks cannot be performed. Marked not-verifiable, not silently passed.",
+        "baseline": "missing",
+        "diff": "none"
+      }
+    }
+  ],
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master  # f939bc7, 9b7f206, 2 0",
+    "git show 03970de:docs/evidence/current/r9t1-main-view-guide.md | Select-Object -Index 46,188,189  # bad L47/L190",
+    "Get-Content docs/evidence/current/r9t1-main-view-guide.md | Select-Object -Index 46,137,188,189  # fixed L47/L190",
+    "node docs/evidence/review/r5t1-d2d3-dump.mjs; pwsh -NoProfile -File docs/evidence/review/r5t1-d2d3-scan.ps1; node docs/evidence/review/r5t1-d2d3-verdict.mjs  # REPRODUCED, c3Onset=12.01",
+    "pwsh -NoProfile -File docs/evidence/review/r5t1-d2d3-verify-readonly.ps1  # PASS",
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS exit 0",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0",
+    "git grep -l '垂直偏移' -- docs; git grep -l '改字号' -- docs  # no t3 scheme; only old pagination doc"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
