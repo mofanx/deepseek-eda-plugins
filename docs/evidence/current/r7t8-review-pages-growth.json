@@ -1,0 +1,187 @@
+{
+  "task": "r7t8 - review: did t1 actually replace the 'dedupe' explanation with 'page growth', or only add a disclaimer?",
+  "reviewer": "eda4 member (self-directed)",
+  "at": "2026-10-24T11:18:00Z",
+  "atLocal": "2026-10-24T19:18:00+08:00",
+  "reviewedAtHead": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+  "headDrift": {
+    "whyRecorded": "the target moved three times while I was reviewing. All three states are recorded so the ruling cannot be mistaken for a ruling on a stale commit.",
+    "states": [
+      {
+        "head": "f47eb19",
+        "r7t5Blob": "69a356e8",
+        "guideBlob": "0e1eeb0",
+        "finding": "items 2 and 5 FAILED: r7t5 still contained '16 duplicate P1 records' in four substantive places; the guide still said '两者不是同一个对象'. Only r7t1's pages.why had been corrected (by r3t2)."
+      },
+      {
+        "head": "b3f44ae",
+        "r7t5Blob": "e230d2c6",
+        "guideBlob": "24774e0a",
+        "finding": "items 2 and 5 now PASS (r7t5 rewritten, guide rewritten to growth). But r7t1's pages.note still said 'the two historical values are not the same object', contradicting its own why."
+      },
+      {
+        "head": "020ee2d",
+        "r7t5Blob": "c00b44d8",
+        "guideBlob": "24774e0a",
+        "finding": "all seven items PASS. r7t1's note now reads 'This is a page-ID difference, not a count-object or dedupe difference; the page-count metric is the same page-list length.' The three documents are finally consistent."
+      }
+    ],
+    "ruling": "this review grades 020ee2d. At f47eb19 the correct verdict would have been partial.",
+    "note": "I did not author any of b3f44ae or 020ee2d; those are r3t1's commits. I only measured them."
+  },
+  "reviewed": {
+    "head": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+    "origin": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+    "aheadBehind": "0 0",
+    "artifacts": [
+      { "path": "docs/evidence/current/r7t5-pages-provenance.json", "blob": "c00b44d8c913aac50376b5ee898281e3e619291e", "commits": "f78a041 -> b3f44ae -> 020ee2d" },
+      { "path": "docs/evidence/current/r9t1-main-view-guide.md", "blob": "24774e0a1ac5658550b9c9e7dadd357ef6f18874", "commits": "04d53e4 -> b3f44ae (only line 263 changed)" },
+      { "path": "docs/evidence/current/r7t1-bridgefree-main-verify.json", "blob": "3523926ee281c6bcabd2d9305e0bd181853b1c1d", "commits": "f47eb19 (why) -> 020ee2d (note)" }
+    ]
+  },
+  "items": [
+    {
+      "id": 1,
+      "question": "record HEAD, the r7t5 blob and the guide blob; confirm the committed version is what was reviewed",
+      "verdict": "成立",
+      "evidence": {
+        "head": "020ee2d (HEAD = origin, rev-list 0 0, working tree clean apart from my own untracked review file)",
+        "r7t5Blob": "c00b44d8",
+        "guideBlob": "24774e0a",
+        "method": "git ls-tree -r HEAD -- <paths>; every textual claim below was read through git grep HEAD / git show, i.e. the committed objects, not the working tree",
+        "caveat": "because the target was being edited during the review, I re-ran the whole check set at each of the three HEADs and pinned the ruling to 020ee2d"
+      }
+    },
+    {
+      "id": 2,
+      "question": "has r7t5 deleted the 'dedupe yields 2 / different objects' wording? any residue anywhere fails",
+      "verdict": "成立",
+      "evidence": {
+        "method": "git grep -n 'duplicate|dedup|different object' HEAD -- r7t5, then read every hit",
+        "result": "13 hits, and every one is a negation, a retraction, or a description of directness - none asserts the old framing",
+        "quotes": [
+          "L24 meaning: 'Repeated P1 names are distinct page objects, not duplicate records of one page. 18 is NOT a deduplicated length and cannot be deduped to 2.'",
+          "L103 relation: 'The page count grew 2 -> 18 between 06:06:59 and 13:51; it did not stay at 2. The +16 are probe pages, not a duplicate-record array and not a dedupe of the 2.'",
+          "L113 whichCountIsT53: 'the live page-list length at run time. 18 was that length at 13:51; 2 was that length at 06:06:59. Neither is a dedupe of the other.'",
+          "L120 why18IsLater: '18 and 2 are the SAME metric measured at two moments ... the extra 16 are probe pages, not duplicate records. It is not a dedupe.'",
+          "L122 notCOnly: 'The earlier object-mismatch/dedupe claim is wrong: both are page-list lengths of the same API and shape; the difference is time and the 16 probe pages.'",
+          "L128 conclusion: '... it is neither a duplicate-record array nor a dedupe target.'",
+          "L154 check evidence: '... not a duplicate-record array and cannot be deduped to 2.'",
+          "L194 overallReason: '... not different objects and not a dedupe.'"
+        ],
+        "selfDisclosureKept": "L210 baseline still records that 'prior r7t5 body used an incorrect duplicate-record/object-distinction explanation' - the retraction was not quietly erased",
+        "growthStatement": "yes: L103 'grew 2 -> 18 between 06:06:59 and 13:51', '+16 probe pages'"
+      }
+    },
+    {
+      "id": 3,
+      "question": "recompute independently: uuid dedupe of t31 and the t31:62 vs t53:114 API identity",
+      "verdict": "成立",
+      "evidence": {
+        "myOwnRun": {
+          "command": "node .tmp-r7t8-recalc.mjs",
+          "exitCode": 0,
+          "stdout": "t31 pages length: 18 | distinct uuid: 18 | distinct name: 3 | name histogram: {\"MAIN\":1,\"P1\":16,\"P2\":1} | restore pages length: 2 [{u:b275cd23,n:MAIN},{u:d224f8d1,n:P1}] | restore P1 uuid in t31: false | dedupe by uuid -> 18 | dedupe by name -> 3 | => neither yields 2"
+        },
+        "apiIdentity": "t31-overlap-classify.mjs:62 `((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => ({ uuid: p.uuid, name: p.name }))` vs t53-verify-main.mjs:114 `((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => ({ uuid: String(p.uuid), name: String(p.name) }))`",
+        "precision": "same API and same {uuid,name} mapping; the sole difference is t53's String() coercion. I state that rather than claiming the lines are byte-identical.",
+        "agreement": "matches my r2t3 and r7t6 measurements exactly (18 / 18 / 3 / restore-P1 absent). Zero discrepancy."
+      }
+    },
+    {
+      "id": 4,
+      "question": "does pages=2 remain unprovable, with the reason replaced rather than the conclusion",
+      "verdict": "成立",
+      "evidence": {
+        "notUpgraded": "r7t1 pages.status is still 'NOT PROVABLE offline'; r7t5 still carries judgment.liveProvable: false and overall 'a-artifact-provable-live-unproven'; the guide cell still reads '离线不可证（仅历史断言）' (1 occurrence).",
+        "noNumberRewrite": "r7t5 judgment.noRewrite: '18 remains 18; 2 remains 2; no average, no dedupe, no conversion of 18 into 2.' I grepped the artifact: 18 is never converted or averaged.",
+        "reasonNow": "r7t1 why: 'The two are the SAME metric measured at two moments ... The page count therefore grew 2 -> 18 in between (16 probe pages)'. r7t5 L128: 'pages=2 is DIRECTLY COUNTABLE from the committed restore page table at 06:06:59, but ONLY as that same restore event's post-state. It is not an independent cross-check and not a live proof.'",
+        "hubSuggestedReasonIsFalse": "the task proposed the reason 'no committed source sits at the 2-page moment'. That is factually wrong - main-restore-verify.json IS a committed source at 06:06:59 holding a 2-entry page table. Neither r3t1 nor I adopted that phrasing; the artifacts say the accurate thing instead (countable only inside the same restore event's artifact, non-independent, non-live). This is the right call and I flag it so the wrong phrasing does not get adopted later.",
+        "noteResidualFixed": "r7t1 pages.note is now 'This is a page-ID difference, not a count-object or dedupe difference; the page-count metric is the same page-list length.' - the contradiction I would have flagged at b3f44ae is gone."
+      }
+    },
+    {
+      "id": 5,
+      "question": "is the guide's pages explanation now growth, with '离线不可证（仅历史断言）' still in place",
+      "verdict": "成立",
+      "evidence": {
+        "quote": "guide L263 (blob 24774e0a): '| 页数 | 2 | **离线不可证（仅历史断言）** | 页数在**不同时刻**不同：`06:06:59` 的 `main-restore-verify.pages` 是 **2 条**（MAIN/P1，同一还原事件的后状态）；`13:51` 的 `t31` 是 **18 条**页表，**18 个不同 uuid**、只有 **3 个名字**（MAIN/P1/P2），比 2 页时点多 **16 个探针页**。两处都调 `getAllSchematicPagesInfo()`、同一 `{uuid,name}` 语义，只是抓取时刻不同，**不是去重、不是不同对象**；`18` 与 `2` 都是易变值，**都不能代表当前画布页数**。`2` 只在同一还原事件的工件内字面可数，非独立、非 live；要独立证明 `2`，需要一份同事件之外的 `06:06` 时点页表或活读。'",
+        "finding": "growth stated, dedupe explicitly denied, historic-only label retained, and it names a concrete closure condition",
+        "scopeCheck": "git diff --numstat b3f44ae~1 b3f44ae -- guide = '1 1' (only line 263). Guide still 281 lines.",
+        "protectedTokensUnchanged": { "TEXT_RADIUS=6": 3, "d≤12": 3, "步长 4": 10, "6.42": 1, "r9t3": 5, "h=2.18": 4, "4.70": 4, "1.54": 4, "※": 5 },
+        "protectedNote": "counts identical to my pre-r3t1 verification, so the edit did not disturb the protected arithmetic, representatives' words or the r9t3 block"
+      }
+    },
+    {
+      "id": 6,
+      "question": "does it state that neither 18 nor 2 can represent the current canvas",
+      "verdict": "成立",
+      "evidence": {
+        "r7t5": "L194 overallReason: '... neither 18 nor 2 is the current canvas count.' plus new check 8 'both-volatile' 成立",
+        "r7t1": "pages.why: 'Neither figure is the live page count now.'",
+        "guide": "'`18` 与 `2` 都是易变值，**都不能代表当前画布页数**'"
+      }
+    },
+    {
+      "id": 7,
+      "question": "self-proof: freshness, packages 0, wrote=0",
+      "verdict": "成立",
+      "evidence": {
+        "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0 (my run)",
+        "packages": "git diff --name-only HEAD -- packages -> empty; git diff --name-only 020ee2d~1..020ee2d -- packages -> empty",
+        "wrote": "0; this review adds exactly one file and writes nothing else",
+        "othersCommitsUntouched": "I did not author, amend or revert b3f44ae / 020ee2d"
+      }
+    }
+  ],
+  "defects": [
+    {
+      "severity": "info",
+      "text": "r7t5 head / reviewedAtHead are both 8540282, the commit it was generated on, while the artifact is actually contained in 020ee2d. Generation base and containing commit are different things; a reader checking 'was this reviewed at the current HEAD' gets a stale answer. Same defect class I raised against r7t5 earlier."
+    },
+    {
+      "severity": "info",
+      "text": "the repair took three commits across two rounds (f47eb19 r7t1.why, b3f44ae r7t5+guide, 020ee2d r7t1.note). Anyone who reviewed only the first state would have concluded 'not fixed' - which is exactly what the f47eb19 row of headDrift records."
+    },
+    {
+      "severity": "info",
+      "text": "r7t5's judgment.choice is still the bare letter 'a' (artifact-provable). It remains scoped by liveProvable:false and the overall label, so it is not a false claim, but quoting the letter alone still reads as 'pages=2 可证'."
+    }
+  ],
+  "overall": {
+    "verdict": "sound",
+    "why": "At the committed HEAD 020ee2d the correction is real, not a disclaimer: r7t5's duplicate/dedupe framing was replaced by the growth explanation in every one of 13 mentions (all now negations or retractions, with the old wording explicitly declared wrong and the retraction disclosed in baseline), the guide's pages cell was rewritten to growth while keeping 离线不可证（仅历史断言）, and r7t1's why and note now agree with each other. pages=2 was NOT upgraded to provable, 18 was not converted to 2 and nothing was averaged. I independently reproduced every number (18 pages / 18 distinct uuids / 3 names; dedupe by uuid 18, by name 3, never 2; same getAllSchematicPagesInfo() call as t53:114).",
+    "honesty": "this verdict grades 020ee2d only. At f47eb19 the same review would have returned partial, and I say so in headDrift rather than presenting the end state as if it had always been true."
+  },
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "The dedupe/object-mismatch explanation was genuinely replaced by page-count growth in all three carriers (r7t5, the guide, r7t1), with the old claim explicitly retracted and the retraction retained on disk. pages=2 stays NOT PROVABLE / historic-assertion-only; 18 stays 18; independent recompute confirms 18 distinct uuids / 3 names and that no dedupe yields 2; t31:62 and t53:114 are the same getAllSchematicPagesInfo() call.",
+        "baseline": "f47eb19: r7t5 blob 69a356e8 (6 duplicate/dedupe residues incl. '16 duplicate P1 records'), guide blob 0e1eeb0 ('两者不是同一个对象'), r7t1 note contradicting its why",
+        "diff": "b3f44ae rewrote r7t5 (+74/-30) and guide line 263 (1 line); 020ee2d aligned r7t1 note (8 lines) and r7t5 selfProof note. No package, source or protected token changed.",
+        "howVerified": "git grep HEAD on committed objects for every duplicate/dedup/object hit; independent node recompute of page counts; protected-token recount (9 tokens, counts unchanged); guide diff = 1 line; freshness exit 0"
+      }
+    }
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "packagesNew": 0,
+    "bridgeCalls": 0,
+    "canvasWrites": 0,
+    "filesChanged": ["docs/evidence/current/r7t8-review-pages-growth.json"],
+    "freshness": "FRESH v4 exit 0, run by me",
+    "tempFilesRemoved": [".tmp-r7t8-recalc.mjs", ".tmp-r7t8.out", ".tmp-r7t8.err"]
+  },
+  "baseline": "HEAD f47eb19 when this review started (r7t5 69a356e8 / guide 0e1eeb0 still carrying the dedupe explanation); target moved to b3f44ae then 020ee2d during review",
+  "diff": "new file docs/evidence/current/r7t8-review-pages-growth.json only; r7t1, r7t5, the guide and all sources were read, never written",
+  "reproSteps": [
+    "git -C D:/projects/nodejs/deepseek-eda-plugins ls-tree -r HEAD -- docs/evidence/current/r7t5-pages-provenance.json docs/evidence/current/r9t1-main-view-guide.md docs/evidence/current/r7t1-bridgefree-main-verify.json   # c00b44d8 / 24774e0a / 3523926e",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins grep -n 'duplicate\\|dedup\\|different object' HEAD -- docs/evidence/current/r7t5-pages-provenance.json   # 13 hits, all negations/retractions",
+    "node -e \"const t=require('./docs/evidence/current/t31-dataset.json');console.log(t.pages.length,new Set(t.pages.map(p=>p.uuid)).size,new Set(t.pages.map(p=>p.name)).size)\"   # 18 18 3",
+    "grep -n getAllSchematicPagesInfo docs/evidence/review/t31-overlap-classify.mjs docs/evidence/review/t53-verify-main.mjs   # L62 / L114 same API",
+    "node docs/evidence/review/shared/freshness.mjs --check   # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "git -C D:/projects/nodejs/deepseek-eda-plugins grep -c 'not a dedupe\\|not duplicate\\|are the SAME metric' HEAD -- docs/evidence/current/r7t5-pages-provenance.json"
+}
