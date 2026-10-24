@@ -1,0 +1,1869 @@
+{
+  "task": "r6t7 - advisory ink-nearest check, not a gate",
+  "advisory": "advisory only, not a gate",
+  "status": "advisory-report",
+  "head": "c84731967e478cec66c34686ea6d8255c71b2601",
+  "origin": "c84731967e478cec66c34686ea6d8255c71b2601",
+  "aheadBehind": "0 0",
+  "baseline": "HEAD c847319; t31-dataset.json and r6t7-ink-boxes.json; r6t2 normalLabelProbes and r5t4 planA.obj1 fixture are read-only references",
+  "diff": "new advisory check + box builder + 55-row boxes + report; no t53, r9t1, r5t4, d<=6, package, guide or document change",
+  "mode": "offline snapshot; the live bridge was unavailable (SCHEMATIC_BRIDGE_NO_EDA), so no bridge call is made. Inputs are committed files; stdout only.",
+  "environment": {
+    "bridge": "unavailable at run time (SCHEMATIC_BRIDGE_NO_EDA); this check does not need it",
+    "dataset": "docs/evidence/current/t31-dataset.json",
+    "boxes": "docs/evidence/current/r6t7-ink-boxes.json",
+    "exitSemantics": "0 unless an input is missing/unreadable (then 2)"
+  },
+  "rule": {
+    "anchor": "point-to-segment; own wire = the parent layout:wire:*; all other wires are foreign",
+    "ink": "rectangle-to-segment; if the ink x-range does not intersect the own wire x-range, ink is N/A and only the anchor test applies",
+    "strict": "anchor and ink must both be strictly nearer to the own wire than to every foreign wire; a tie is not nearest",
+    "bound": "the existing d(anchor, own) <= 6 is retained",
+    "margin": "hard fail only when a foreign wire is more than 1.0 unit closer; [0,1.0] including a tie is warn, not pass and not hard fail"
+  },
+  "surface": "55 visible Name labels whose parent is a wire; flag-parent labels are a separate surface and are not counted in the 55",
+  "sourceSnapshot": {
+    "components": 21,
+    "wires": 55,
+    "pairs": 55,
+    "active": "b275cd23e45c4271bead56f66d4f98fe",
+    "note": "Offline snapshot only: t31 has 21 components and 55 wires/55 pairs, but its comps carry no ComponentType and its pages array has 18 records, so it cannot reproduce t53's 8 part / 13 netflag / 2 pages. t53 itself is exit 2 (bridge unreachable); this snapshot is not a substitute for the live invariant gate."
+  },
+  "counts": {
+    "labels": 55,
+    "pass": 51,
+    "warn": 4,
+    "fail": 0,
+    "anchorPass55": 55,
+    "inkApplicable": 27,
+    "inkNotApplicable": 28,
+    "inkHardFail": 0,
+    "inkTieOrWarn": 4
+  },
+  "thresholdDecision": {
+    "value": 1,
+    "decision": "KEEP 1.0 and label it CRITICAL/BOUNDARY",
+    "critical": true,
+    "notASafetyMargin": "MCU-33 is exactly 1.00 in the r6t2 four-sample set; a 0.02 unit box movement flips it to hard fail. 1.0 is a boundary, never a safe margin.",
+    "reject0_8": "0.8 converts the six exact-1.00 normal-label warnings into hard fail: false positives on known-normal bus-adjacent labels; stricter is not safer here.",
+    "reject1_2": "1.2 turns a real 1.1 inversion into a warning; it softens the gate and needs a larger sample, not a flip-count argument.",
+    "mcu33": {
+      "label": "MCU-33",
+      "attr": "attr110",
+      "inkOwn": 0.94,
+      "inkForeign": 0.3,
+      "inkMargin": -0.64,
+      "status": "warn",
+      "note": "primary hybrid box; the r6t2 four-sample exact reproduction is in fourSampleComparison"
+    }
+  },
+  "fourSampleComparison": {
+    "source": "r6t2 normalLabelProbes.sample (published boxes)",
+    "probes": [
+      {
+        "label": "MCU-25",
+        "attr": "attr39",
+        "anchor": [
+          350,
+          785
+        ],
+        "inkBox": {
+          "x1": 369.18,
+          "x2": 388.21,
+          "y1": 780.12,
+          "y2": 783.88
+        },
+        "anchorOwn": 0,
+        "anchorForeign": 10,
+        "inkOwn": 1.12,
+        "inkForeign": 0.12,
+        "inkMargin": -1,
+        "published": {
+          "inkOwn": 1.12,
+          "inkForeign": 11.12,
+          "margin": 10
+        },
+        "reproduced": false
+      },
+      {
+        "label": "MCU-27",
+        "attr": "attr47",
+        "anchor": [
+          350,
+          805
+        ],
+        "inkBox": {
+          "x1": 369.18,
+          "x2": 388.33,
+          "y1": 800.48,
+          "y2": 804.24
+        },
+        "anchorOwn": 0,
+        "anchorForeign": 10,
+        "inkOwn": 0.76,
+        "inkForeign": 0.48,
+        "inkMargin": -0.28,
+        "published": {
+          "inkOwn": 0.76,
+          "inkForeign": 5.48,
+          "margin": 4.72
+        },
+        "reproduced": false
+      },
+      {
+        "label": "MCU-28",
+        "attr": "attr51",
+        "anchor": [
+          350,
+          815
+        ],
+        "inkBox": {
+          "x1": 369.18,
+          "x2": 388.21,
+          "y1": 810.67,
+          "y2": 814.42
+        },
+        "anchorOwn": 0,
+        "anchorForeign": 10,
+        "inkOwn": 0.58,
+        "inkForeign": 5.67,
+        "inkMargin": 5.09,
+        "published": {
+          "inkOwn": 0.58,
+          "inkForeign": 5.67,
+          "margin": 5.09
+        },
+        "reproduced": true
+      },
+      {
+        "label": "MCU-33",
+        "attr": "attr110",
+        "anchor": [
+          210,
+          785
+        ],
+        "inkBox": {
+          "x1": 229.33,
+          "x2": 248.48,
+          "y1": 780.12,
+          "y2": 783.88
+        },
+        "anchorOwn": 0,
+        "anchorForeign": 5,
+        "inkOwn": 1.12,
+        "inkForeign": 0.12,
+        "inkMargin": -1,
+        "published": {
+          "inkOwn": 1.12,
+          "inkForeign": 0.12,
+          "margin": -1
+        },
+        "reproduced": true
+      }
+    ],
+    "reproducedCount": 2,
+    "allReproduced": false,
+    "discrepancies": [
+      {
+        "label": "MCU-25",
+        "publishedForeign": 11.12,
+        "computedForeign": 0.12,
+        "nearestForeign": "GND y=780 x=360-400",
+        "effect": "r6t2 omits this GND flag wire from the foreign set. Under the strict rule the published PASS becomes WARN, not a hard fail: margin -1.00 is still >= -1.0."
+      },
+      {
+        "label": "MCU-27",
+        "publishedForeign": 5.48,
+        "computedForeign": 0.48,
+        "nearestForeign": "GND y=800 x=360-400",
+        "effect": "Same omission; published PASS becomes WARN with margin -0.28, not a hard fail."
+      }
+    ],
+    "conclusion": "2/4 reproduce exactly (MCU-28 0.58/5.67, MCU-33 1.12/0.12). MCU-25 and MCU-27 do not: their nearest foreign wires are the GND flag segments at y780/y800, only 0.12/0.48 from the published boxes, not MCU-26 at 11.12/5.48. r6t2's four-sample foreign set omitted GND; the rule itself is consistent. Both are warn under strict <, not hard fail, so no gate changes."
+  },
+  "anchorComparison": {
+    "j6": "55/55 anchor-clean (independent result reported by j6 via r6t2)",
+    "thisCheck": "55/55 anchor strictly nearer to the own wire and within d<=6",
+    "agrees": true,
+    "note": "The anchor half is the same object j6 tested; the new ink half is a separate surface and does not reinterpret j6's 55/55."
+  },
+  "observedDiscrepancies": [
+    {
+      "item": "r6t2 W1 says ink own 0.30 / foreign 0.80",
+      "finding": "The committed W1 box y790.30-794.06 against the y=795 wire gives inkOwn 0.94, and the nearest foreign +3V3 y=800 gives 5.94, not 0.30/0.80. The W1 0.30/0.80 pair cannot be reproduced from the committed box; it appears to use a different vertical box. It is not used as a calibration value here."
+    },
+    {
+      "item": "r6t2 four-sample MCU-25 and MCU-27 omit the GND flag wire",
+      "finding": "Published foreign 11.12/5.48 cannot be the nearest foreign: the GND flag segments at y780 (x360-400) and y800 (x360-400) are 0.12/0.48 from the published boxes. The rule says all other nets are foreign; r6t2's four-sample foreign set is incomplete. Both become warn under strict <, not hard fail, so this is a four-sample observation, not a gate change."
+    },
+    {
+      "item": "r6t2 four-sample MCU-33 is exactly -1.00; this primary 55-row MCU-33 is -0.64",
+      "finding": "The four-sample set uses the flag-style y box 780.12-783.88 (own 1.12, foreign 0.12). The 55-row primary uses the measured W1 wire-label y offset row-4.70..row-0.94 (own 0.94, foreign 0.30), giving margin -0.64. Both are warn; the exact -1.00 is a property of the published four-sample box, not of every MCU-33 box."
+    },
+    {
+      "item": "r6t2 W2 uses attr43 (flag-parent, anchor350) and its own wire 350-390; this 55-row surface uses attr102 (wire-parent, anchor390, ink 409.8-428.9)",
+      "finding": "They are different objects with the same visible value MCU-26. The 55-row result must not be compared to W2 as if it were the same label."
+    },
+    {
+      "item": "ink boxes are hybrid, not a live bbox",
+      "finding": "40/55 widths are measured from the committed r8t1 2.323 px/unit tiles; 15/55 use 3.18*len fallback. Placement is calibrated from the two 8.25 px/unit W1/W2 boxes. The report is advisory and cannot substitute for a per-label live bbox; the bridge was unavailable."
+    }
+  ],
+  "r5t4Freeze": {
+    "criterion2Literal": {
+      "before": "PASS for every h in [3.76, 6.0]: d = h <= 6",
+      "after": "FAIL under the combined strict anchor+ink criterion",
+      "reason": "At h=3.76 the published values are inkOwn 4.70, inkForeign 1.54, margin -3.16; the foreign wire is 3.16 closer, which is a hard fail under the 1.0 margin. The literal criterion 2 only tested the anchor bound.",
+      "overallBefore": "no-go",
+      "overallAfter": "no-go",
+      "overallChanged": false
+    },
+    "flips": [
+      {
+        "entry": "r5t4.planA.obj1.criterion2Literal",
+        "before": "PASS",
+        "after": "FAIL",
+        "effect": "literal criterion-2 only; the overall planA.obj1 no-go is unchanged"
+      },
+      {
+        "entry": "r5t4 line104 h=5.00 anchor tie",
+        "before": "reaches the ink test",
+        "after": "rejected earlier as anchor_not_nearest",
+        "effect": "reason bucket only; no feasible interval changes"
+      },
+      {
+        "entry": "r5t4 line107 h=2.18 ink tie 3.12/3.12",
+        "before": "tie would pass the inclusive <=",
+        "after": "warn, not pass",
+        "effect": "criterion 1 already rejects h=2.18; no overall change"
+      },
+      {
+        "entry": "r6t2 four-sample MCU-25",
+        "before": "PASS (foreign 11.12)",
+        "after": "WARN (foreign GND y780 = 0.12, margin -1.00)",
+        "effect": "four-sample observation only; no gate"
+      },
+      {
+        "entry": "r6t2 four-sample MCU-27",
+        "before": "PASS (foreign 5.48)",
+        "after": "WARN (foreign GND y800 = 0.48, margin -0.28)",
+        "effect": "four-sample observation only; no gate"
+      },
+      {
+        "entry": "r6t2 six exact-1.00 flag warnings",
+        "before": "warn",
+        "after": "warn",
+        "effect": "no hard fail; the 1.0 boundary is retained"
+      }
+    ],
+    "declaration": "Existing gate conclusions are unchanged. This freeze list is observational; it does not rewrite t53, r9t1, r5t4 or any gate exit code."
+  },
+  "readOnlyProof": {
+    "bridgeCalls": [],
+    "editorWrites": 0,
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "scriptMutatorRegexMatches": 0,
+    "reportWriteDisclosure": "The check reads the two committed JSON inputs and writes only the requested report file (--out); it never calls the bridge or touches the drawing. The source scan is reported separately in the run log.",
+    "t53UnavailableIsNotAPass": true
+  },
+  "gates": {
+    "t53Before": {
+      "exit": 2,
+      "result": "CANNOT JUDGE (BRIDGE_UNREACHABLE); no invariant evaluated; this is exit 2, not a pass",
+      "raw": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass"
+    },
+    "t53After": {
+      "exit": 2,
+      "result": "CANNOT JUDGE (BRIDGE_UNREACHABLE); no invariant evaluated; this is exit 2, not a pass",
+      "raw": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass"
+    },
+    "t53Available": false,
+    "freshness": {
+      "exit": 0,
+      "status": "FRESH",
+      "baselineVersion": 4,
+      "packages": 5,
+      "raw": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "wrote": 0,
+    "note": "The check itself is offline and exits 0 because both snapshot inputs are readable. t53 is unavailable in this session and is reported as exit 2, exactly as the brief requires; it is not counted as a pass."
+  },
+  "existingGateConclusionsUnchanged": true,
+  "t53Touched": false,
+  "d6Touched": false,
+  "scriptsTouched": [
+    "docs/evidence/review/ink-nearest-check.mjs",
+    "docs/evidence/review/r6t7-build-boxes.ps1"
+  ],
+  "reproSteps": [
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File docs/evidence/review/r6t7-build-boxes.ps1",
+    "node docs/evidence/review/ink-nearest-check.mjs --out docs/evidence/current/r6t7-ink-nearest-check.json",
+    "node docs/evidence/review/t53-verify-main.mjs  # exit 2 here: bridge unreachable, not a pass",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4, exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/ink-nearest-check.mjs --out docs/evidence/current/r6t7-ink-nearest-check.json",
+  "verify": [
+    {
+      "task": "r6t2",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "The strict rule and rectangle distance are sound, and 2/4 published probes reproduce. MCU-25/MCU-27 do not: their published foreign distances 11.12/5.48 omit the GND flag wires at y780/y800, whose true distances are 0.12/0.48; both become warn under strict <, not hard fail. No gate changes.",
+        "baseline": "docs/evidence/current/r6t2-ink-nearest-rule.json normalLabelProbes.sample (t31 geometry)",
+        "diff": "Independent offline check; no r6t2 file changed"
+      }
+    },
+    {
+      "task": "r5t4",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "planA.obj1.criterion2Literal flips PASS->FAIL under the combined strict anchor+ink rule (inkOwn 4.70 vs inkForeign 1.54, margin -3.16), but the overall planA.obj1 no-go is unchanged. The list is observational; t53/r5t4 gates are untouched.",
+        "baseline": "docs/evidence/current/r5t4-d2d3-alternatives.json planA.obj1.criterion2Literal",
+        "diff": "No r5t4 file changed; published fixture reproduced in the freeze list"
+      }
+    }
+  ],
+  "rows": [
+    {
+      "label": "+3V3",
+      "attr": "attr77",
+      "anchor": {
+        "x": 240,
+        "y": 800
+      },
+      "ownWire": "layout:wire:_3V3:flags",
+      "inkBox": {
+        "x1": 259.3,
+        "x2": 272.02,
+        "y1": 795.3,
+        "y2": 799.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "CLK-A0",
+      "attr": "attr78",
+      "anchor": {
+        "x": 600,
+        "y": 390
+      },
+      "ownWire": "layout:wire:CLK_A0",
+      "inkBox": {
+        "x1": 619.3,
+        "x2": 638.38,
+        "y1": 385.3,
+        "y2": 389.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "CLK-A1",
+      "attr": "attr79",
+      "anchor": {
+        "x": 600,
+        "y": 290
+      },
+      "ownWire": "layout:wire:CLK_A1",
+      "inkBox": {
+        "x1": 619.3,
+        "x2": 638.38,
+        "y1": 285.3,
+        "y2": 289.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "CLK-B0",
+      "attr": "attr80",
+      "anchor": {
+        "x": 640,
+        "y": 390
+      },
+      "ownWire": "layout:wire:CLK_B0",
+      "inkBox": {
+        "x1": 659.3,
+        "x2": 677.38,
+        "y1": 385.3,
+        "y2": 389.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": 0.94,
+      "inkForeign": 95.3,
+      "inkMargin": 94.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "CLK-B1",
+      "attr": "attr81",
+      "anchor": {
+        "x": 640,
+        "y": 290
+      },
+      "ownWire": "layout:wire:CLK_B1",
+      "inkBox": {
+        "x1": 659.3,
+        "x2": 676.52,
+        "y1": 285.3,
+        "y2": 289.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": 0.94,
+      "inkForeign": 100.94,
+      "inkMargin": 100,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "GND",
+      "attr": "attr82",
+      "anchor": {
+        "x": 360,
+        "y": 800
+      },
+      "ownWire": "layout:wire:GND:flags",
+      "inkBox": {
+        "x1": 379.3,
+        "x2": 388.84,
+        "y1": 795.3,
+        "y2": 799.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": 0.94,
+      "inkForeign": 0.3,
+      "inkMargin": -0.64,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": false,
+      "bound": true,
+      "status": "warn",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "IO-A0",
+      "attr": "attr83",
+      "anchor": {
+        "x": 280,
+        "y": 390
+      },
+      "ownWire": "layout:wire:IO_A0",
+      "inkBox": {
+        "x1": 299.3,
+        "x2": 315.2,
+        "y1": 385.3,
+        "y2": 389.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "IO-A1",
+      "attr": "attr84",
+      "anchor": {
+        "x": 280,
+        "y": 290
+      },
+      "ownWire": "layout:wire:IO_A1",
+      "inkBox": {
+        "x1": 299.3,
+        "x2": 315.2,
+        "y1": 285.3,
+        "y2": 289.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "IO-B0",
+      "attr": "attr85",
+      "anchor": {
+        "x": 320,
+        "y": 390
+      },
+      "ownWire": "layout:wire:IO_B0",
+      "inkBox": {
+        "x1": 339.3,
+        "x2": 352.64,
+        "y1": 385.3,
+        "y2": 389.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": 0.94,
+      "inkForeign": 95.3,
+      "inkMargin": 94.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "IO-B1",
+      "attr": "attr86",
+      "anchor": {
+        "x": 320,
+        "y": 290
+      },
+      "ownWire": "layout:wire:IO_B1",
+      "inkBox": {
+        "x1": 339.3,
+        "x2": 351.78,
+        "y1": 285.3,
+        "y2": 289.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": 0.94,
+      "inkForeign": 100.94,
+      "inkMargin": 100,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-10",
+      "attr": "attr87",
+      "anchor": {
+        "x": 210,
+        "y": 655
+      },
+      "ownWire": "layout:wire:MCU_10",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.38,
+        "y1": 650.3,
+        "y2": 654.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-11",
+      "attr": "attr88",
+      "anchor": {
+        "x": 210,
+        "y": 665
+      },
+      "ownWire": "layout:wire:MCU_11",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 244.8,
+        "y1": 660.3,
+        "y2": 664.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-12",
+      "attr": "attr89",
+      "anchor": {
+        "x": 210,
+        "y": 675
+      },
+      "ownWire": "layout:wire:MCU_12",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.38,
+        "y1": 670.3,
+        "y2": 674.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-13",
+      "attr": "attr90",
+      "anchor": {
+        "x": 210,
+        "y": 685
+      },
+      "ownWire": "layout:wire:MCU_13",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.38,
+        "y1": 680.3,
+        "y2": 684.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-14",
+      "attr": "attr91",
+      "anchor": {
+        "x": 210,
+        "y": 695
+      },
+      "ownWire": "layout:wire:MCU_14",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.38,
+        "y1": 690.3,
+        "y2": 694.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-15",
+      "attr": "attr92",
+      "anchor": {
+        "x": 210,
+        "y": 705
+      },
+      "ownWire": "layout:wire:MCU_15",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.38,
+        "y1": 700.3,
+        "y2": 704.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-16",
+      "attr": "attr93",
+      "anchor": {
+        "x": 210,
+        "y": 715
+      },
+      "ownWire": "layout:wire:MCU_16",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.38,
+        "y1": 710.3,
+        "y2": 714.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-17",
+      "attr": "attr94",
+      "anchor": {
+        "x": 210,
+        "y": 725
+      },
+      "ownWire": "layout:wire:MCU_17:flags",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.38,
+        "y1": 720.3,
+        "y2": 724.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 20.94,
+      "inkMargin": 20,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-18",
+      "attr": "attr95",
+      "anchor": {
+        "x": 390,
+        "y": 655
+      },
+      "ownWire": "layout:wire:MCU_18",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 650.3,
+        "y2": 654.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 10.94,
+      "inkMargin": 10,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-19",
+      "attr": "attr96",
+      "anchor": {
+        "x": 390,
+        "y": 665
+      },
+      "ownWire": "layout:wire:MCU_19",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.38,
+        "y1": 660.3,
+        "y2": 664.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-2",
+      "attr": "attr97",
+      "anchor": {
+        "x": 210,
+        "y": 835
+      },
+      "ownWire": "layout:wire:MCU_2",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 245.66,
+        "y1": 830.3,
+        "y2": 834.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-20",
+      "attr": "attr98",
+      "anchor": {
+        "x": 390,
+        "y": 675
+      },
+      "ownWire": "layout:wire:MCU_20",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 670.3,
+        "y2": 674.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-21",
+      "attr": "attr99",
+      "anchor": {
+        "x": 390,
+        "y": 765
+      },
+      "ownWire": "layout:wire:MCU_21",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 427.81,
+        "y1": 760.3,
+        "y2": 764.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-22",
+      "attr": "attr100",
+      "anchor": {
+        "x": 390,
+        "y": 775
+      },
+      "ownWire": "layout:wire:MCU_22:flags",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 770.3,
+        "y2": 774.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-25",
+      "attr": "attr101",
+      "anchor": {
+        "x": 390,
+        "y": 785
+      },
+      "ownWire": "layout:wire:MCU_25:flags",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 780.3,
+        "y2": 784.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-26",
+      "attr": "attr102",
+      "anchor": {
+        "x": 390,
+        "y": 795
+      },
+      "ownWire": "layout:wire:MCU_26:flags",
+      "inkBox": {
+        "x1": 409.8,
+        "x2": 428.9,
+        "y1": 790.3,
+        "y2": 794.06
+      },
+      "inkBoxQuality": "exact-8.25-w2-wire",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-27",
+      "attr": "attr103",
+      "anchor": {
+        "x": 390,
+        "y": 805
+      },
+      "ownWire": "layout:wire:MCU_27:flags",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 800.3,
+        "y2": 804.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-28",
+      "attr": "attr104",
+      "anchor": {
+        "x": 390,
+        "y": 815
+      },
+      "ownWire": "layout:wire:MCU_28:flags",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 810.3,
+        "y2": 814.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-29",
+      "attr": "attr105",
+      "anchor": {
+        "x": 210,
+        "y": 745
+      },
+      "ownWire": "layout:wire:MCU_29:flags",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.24,
+        "y1": 740.3,
+        "y2": 744.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 10.94,
+      "inkMargin": 10,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-3",
+      "attr": "attr106",
+      "anchor": {
+        "x": 210,
+        "y": 845
+      },
+      "ownWire": "layout:wire:MCU_3",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 245.66,
+        "y1": 840.3,
+        "y2": 844.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-30",
+      "attr": "attr107",
+      "anchor": {
+        "x": 210,
+        "y": 755
+      },
+      "ownWire": "layout:wire:MCU_30:flags",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.24,
+        "y1": 750.3,
+        "y2": 754.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-31",
+      "attr": "attr108",
+      "anchor": {
+        "x": 210,
+        "y": 765
+      },
+      "ownWire": "layout:wire:MCU_31:flags",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 247.81,
+        "y1": 760.3,
+        "y2": 764.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": 0.94,
+      "inkForeign": 0.3,
+      "inkMargin": -0.64,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": false,
+      "bound": true,
+      "status": "warn",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-32",
+      "attr": "attr109",
+      "anchor": {
+        "x": 210,
+        "y": 775
+      },
+      "ownWire": "layout:wire:MCU_32:flags",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.24,
+        "y1": 770.3,
+        "y2": 774.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": 0.94,
+      "inkForeign": 0.3,
+      "inkMargin": -0.64,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": false,
+      "bound": true,
+      "status": "warn",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-33",
+      "attr": "attr110",
+      "anchor": {
+        "x": 210,
+        "y": 785
+      },
+      "ownWire": "layout:wire:MCU_33:flags",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.24,
+        "y1": 780.3,
+        "y2": 784.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": 0.94,
+      "inkForeign": 0.3,
+      "inkMargin": -0.64,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": false,
+      "bound": true,
+      "status": "warn",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-34",
+      "attr": "attr111",
+      "anchor": {
+        "x": 210,
+        "y": 795
+      },
+      "ownWire": "layout:wire:MCU_34:flags",
+      "inkBox": {
+        "x1": 229.33,
+        "x2": 248.48,
+        "y1": 790.3,
+        "y2": 794.06
+      },
+      "inkBoxQuality": "exact-8.25-w1",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-35",
+      "attr": "attr112",
+      "anchor": {
+        "x": 210,
+        "y": 895
+      },
+      "ownWire": "layout:wire:MCU_35",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.24,
+        "y1": 890.3,
+        "y2": 894.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-36",
+      "attr": "attr113",
+      "anchor": {
+        "x": 210,
+        "y": 905
+      },
+      "ownWire": "layout:wire:MCU_36",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.24,
+        "y1": 900.3,
+        "y2": 904.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-37",
+      "attr": "attr114",
+      "anchor": {
+        "x": 210,
+        "y": 805
+      },
+      "ownWire": "layout:wire:MCU_37",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.38,
+        "y1": 800.3,
+        "y2": 804.06
+      },
+      "inkBoxQuality": "model-fallback",
+      "anchorOwn": 0,
+      "anchorForeign": 5,
+      "anchorMargin": 5,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-38",
+      "attr": "attr115",
+      "anchor": {
+        "x": 210,
+        "y": 815
+      },
+      "ownWire": "layout:wire:MCU_38",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 248.24,
+        "y1": 810.3,
+        "y2": 814.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-39",
+      "attr": "attr116",
+      "anchor": {
+        "x": 390,
+        "y": 685
+      },
+      "ownWire": "layout:wire:MCU_39",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 680.3,
+        "y2": 684.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-4",
+      "attr": "attr117",
+      "anchor": {
+        "x": 210,
+        "y": 855
+      },
+      "ownWire": "layout:wire:MCU_4",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 245.66,
+        "y1": 850.3,
+        "y2": 854.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-40",
+      "attr": "attr118",
+      "anchor": {
+        "x": 390,
+        "y": 695
+      },
+      "ownWire": "layout:wire:MCU_40",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 690.3,
+        "y2": 694.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-41",
+      "attr": "attr119",
+      "anchor": {
+        "x": 390,
+        "y": 705
+      },
+      "ownWire": "layout:wire:MCU_41",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 427.81,
+        "y1": 700.3,
+        "y2": 704.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-42",
+      "attr": "attr120",
+      "anchor": {
+        "x": 390,
+        "y": 715
+      },
+      "ownWire": "layout:wire:MCU_42",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 710.3,
+        "y2": 714.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-43",
+      "attr": "attr121",
+      "anchor": {
+        "x": 390,
+        "y": 725
+      },
+      "ownWire": "layout:wire:MCU_43",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 720.3,
+        "y2": 724.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-44",
+      "attr": "attr122",
+      "anchor": {
+        "x": 390,
+        "y": 885
+      },
+      "ownWire": "layout:wire:MCU_44",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 880.3,
+        "y2": 884.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 20,
+      "anchorMargin": 20,
+      "inkOwn": 0.94,
+      "inkForeign": 20.94,
+      "inkMargin": 20,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-45",
+      "attr": "attr123",
+      "anchor": {
+        "x": 390,
+        "y": 745
+      },
+      "ownWire": "layout:wire:MCU_45",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 740.3,
+        "y2": 744.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 10.94,
+      "inkMargin": 10,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-46",
+      "attr": "attr124",
+      "anchor": {
+        "x": 390,
+        "y": 755
+      },
+      "ownWire": "layout:wire:MCU_46",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 428.67,
+        "y1": 750.3,
+        "y2": 754.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": 0.94,
+      "inkForeign": 5.3,
+      "inkMargin": 4.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "MCU-5",
+      "attr": "attr125",
+      "anchor": {
+        "x": 210,
+        "y": 875
+      },
+      "ownWire": "layout:wire:MCU_5",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 245.66,
+        "y1": 870.3,
+        "y2": 874.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-6",
+      "attr": "attr126",
+      "anchor": {
+        "x": 210,
+        "y": 885
+      },
+      "ownWire": "layout:wire:MCU_6",
+      "inkBox": {
+        "x1": 229.3,
+        "x2": 245.66,
+        "y1": 880.3,
+        "y2": 884.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 10,
+      "anchorMargin": 10,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "MCU-7",
+      "attr": "attr127",
+      "anchor": {
+        "x": 390,
+        "y": 905
+      },
+      "ownWire": "layout:wire:MCU_7",
+      "inkBox": {
+        "x1": 409.3,
+        "x2": 425.66,
+        "y1": 900.3,
+        "y2": 904.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 20,
+      "anchorMargin": 20,
+      "inkOwn": 0.94,
+      "inkForeign": 15.3,
+      "inkMargin": 14.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "POWER-A0",
+      "attr": "attr128",
+      "anchor": {
+        "x": 600,
+        "y": 910
+      },
+      "ownWire": "layout:wire:POWER_A0",
+      "inkBox": {
+        "x1": 619.3,
+        "x2": 647.71,
+        "y1": 905.3,
+        "y2": 909.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "POWER-A1",
+      "attr": "attr129",
+      "anchor": {
+        "x": 600,
+        "y": 810
+      },
+      "ownWire": "layout:wire:POWER_A1",
+      "inkBox": {
+        "x1": 619.3,
+        "x2": 647.71,
+        "y1": 805.3,
+        "y2": 809.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": null,
+      "inkForeign": null,
+      "inkMargin": null,
+      "inkApplicable": false,
+      "anchorStrict": true,
+      "inkStrict": null,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "strict-nearer test not met"
+    },
+    {
+      "label": "POWER-B0",
+      "attr": "attr130",
+      "anchor": {
+        "x": 640,
+        "y": 910
+      },
+      "ownWire": "layout:wire:POWER_B0",
+      "inkBox": {
+        "x1": 659.3,
+        "x2": 686.85,
+        "y1": 905.3,
+        "y2": 909.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": 0.94,
+      "inkForeign": 95.3,
+      "inkMargin": 94.36,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    },
+    {
+      "label": "POWER-B1",
+      "attr": "attr131",
+      "anchor": {
+        "x": 640,
+        "y": 810
+      },
+      "ownWire": "layout:wire:POWER_B1",
+      "inkBox": {
+        "x1": 659.3,
+        "x2": 686.42,
+        "y1": 805.3,
+        "y2": 809.06
+      },
+      "inkBoxQuality": "measured-width-tile",
+      "anchorOwn": 0,
+      "anchorForeign": 40,
+      "anchorMargin": 40,
+      "inkOwn": 0.94,
+      "inkForeign": 100.94,
+      "inkMargin": 100,
+      "inkApplicable": true,
+      "anchorStrict": true,
+      "inkStrict": true,
+      "bound": true,
+      "status": "pass",
+      "marginRule": "margin <= 1.0 or bound"
+    }
+  ]
+}
