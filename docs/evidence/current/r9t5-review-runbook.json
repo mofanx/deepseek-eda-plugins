@@ -1,0 +1,179 @@
+{
+  "task": "r9t5 - third-party review of t1: is the r9t1 runbook actually followable, not just a retelling of one success",
+  "reviewer": "eda4 / j6",
+  "generatedAt": "2026-10-24T14:06:00Z",
+  "generatedAtLocal": "2026-10-24T22:06:00+08:00",
+  "headline": "Overall: 成立 (sound), with three info-level notes and no falsification found. The runbook is genuinely followable: every registration step ships an executable command plus the expected output, the browser-context requirement is stated three times, and #manual/#pop are named with a DOM probe. Its three recorded failures are not invented - I hit all three myself, independently, in the same session: the TAB_FAILED PermissionError on default.json, the stale pinned id CEB3AD7543E8B2BEB1F3A9FE26F0BE6A (which my own tab-list printed verbatim at 13:39:57.378Z), and the StandardOutputEncoding capture failure. Steps carry a count at every hop (0,0,0,0,1,1), not just first and last. The new timestamp 13:39:55.037Z differs from all three 12:36/12:37 moments, t53 exited 0 with 5/5, and I reproduced the same six values twice more (13:40:16.452Z and 14:04:06.771Z), so the numbers are not stale substitutions. The one real defect is in step 3: the DOM check it gives tests PRESENCE, while the judgement it asks for is VISIBILITY - I ran the runbook's exact eval at 14:03:45.760Z and it returned manual:true/pop:true/popTag:BUTTON while those elements were hidden=true, offsetParent=null and 0 px wide. It does not invalidate the runbook (section 1.2 already tells a replayer with count=1 not to re-register), but a literal replayer can be told 'present' about an element they cannot click.",
+  "reviewed": {
+    "head": "b6927beca0d216797fdccd0142b6b7d12ff96bec",
+    "originMaster": "c34bb90a216141d5ee7773a61c7ae957d474bd1f",
+    "aheadBehind": "2 0 (fe6e7e8 = j5's t1 commit, b6927be = my r9t3 commit; both unpushed because the network failed)",
+    "workingTree": "clean before my review; the only later additions are my own .tmp scratch files, removed at the end",
+    "runbookBlob": "a6db8dea8e20a4ed97f2d383c44f943d48b14a3c docs/evidence/current/r9t1-window-registration-runbook.md",
+    "r9t2Blob": "700be07941f95aff95ebc55f4152084be0e1a7f5 docs/evidence/current/r9t2-second-live-session.json",
+    "reviewedCommittedVersion": true,
+    "note": "git ls-tree -r HEAD returned the same blobs and git status --porcelain was empty, so what I read is the committed version, not a working-tree draft"
+  },
+  "criteria": [
+    {
+      "id": "1-head-blob",
+      "verdict": "成立",
+      "claim": "the reviewed files are the committed ones",
+      "evidence": "git ls-tree -r HEAD -> runbook a6db8de, r9t2 700be07; git status --porcelain empty"
+    },
+    {
+      "id": "2-followable",
+      "verdict": "成立",
+      "claim": "every step gives an executable command and its expected output, states the browser context, and names the selectors",
+      "evidence": [
+        "browser context is stated three times: L5 '在同一浏览器、同一 profile 中'; L19 '同一个浏览器、同一个 profile'; L38 '如果只有临时实例/无编辑器 tab，停止；不要用临时浏览器冒充同一 profile'",
+        "preflight commands L29-31: dpx -V / dpx list / dpx tab-list, with L36 expecting 'default 会话有 user_connected: true、auto_connect: true' - I ran dpx list myself at 14:02 and it returned exactly user_connected:true, auto_connect:true, auto_connect:true (port 63046, real_port 9222), so the expectation is real, not decorative",
+        "landing step L64 dpx tab-new 'http://127.0.0.1:49620/landing' with L68 expected title 'dsh-eda-bridge: register EasyEDA'",
+        "selectors named explicitly L101-102 (#manual paragraph, #pop button) plus a DOM probe at L108, and L119 forbids substituting a JS window.open for a real click",
+        "click step L138 dpx click '#pop' with the two health checks and the pass criteria L156-161",
+        "t53 step L173 uses cmd /c ... > file 2>&1 with L191 'exit 0 otherwise you may not write PASS'",
+        "probe step L206 with judgement criteria L228-234"
+      ],
+      "boundary": "the editor itself has no operational step: L19 only says the tab '已经在同一个浏览器、同一个 profile 中加载完成'. That is a precondition, not a step, so a replayer starting with no editor tab dead-ends at L38 'stop'. For this runbook's stated scope (registering an already-open editor) that is acceptable, but it means the document cannot cold-start a session."
+    },
+    {
+      "id": "3-step-completeness",
+      "verdict": "成立",
+      "claim": "every step records edaWindowCount and a timestamp, not only the endpoints",
+      "evidence": "runbook section 7 table has 11 rows with counts: 13:38:56.830Z (0), 13:39:09.940Z (0), 13:39:10.161Z (0), 13:39:12.358Z (0), 13:39:23.081Z (0), 13:39:24.834Z (0), 13:39:33.364Z (0 -> 1), 13:39:37.358Z (1), 13:39:55.037Z-13:39:55.696Z (1), 13:40:03.087Z-13:40:03.631Z (1); r9t2.steps mirrors this with an edaWindowCount on every entry (preflight 0, open-landing 0, bind-and-inspect 0, click-pop 1, t53 1, plus3v3-and-pages 1)"
+    },
+    {
+      "id": "4-replay-authenticity",
+      "verdict": "成立",
+      "claim": "the failure -> fix -> success trail is self-consistent and does not claim steps it did not do",
+      "evidence": [
+        "failure 1 (TAB_FAILED): runbook L74-89 and r9t2.failuresAndFixes[0] both quote the same PermissionError on C:\\Users\\yanwuning\\.dp_cli\\sessions\\default.json. I hit this error myself at 2026-10-24T13:39:16.204Z on my own first tab-new, before I knew their document existed - independent corroboration that the error is real",
+        "failure 2 (NO_SUCH_TAB): runbook L127 and r9t2.failuresAndFixes[1] quote 'pinned: CEB3AD7543E8B2BEB1F3A9FE26F0BE6A'. My own dpx tab-list at 13:39:57.378Z printed \"pinned\": \"CEB3AD7543E8B2BEB1F3A9FE26F0BE6A\" - the same stale id, verbatim, from a different agent's session minutes later",
+        "failure 3 (StandardOutputEncoding): runbook L195-201 and r9t2.failuresAndFixes[2] quote 'Program 'node.exe' failed to run: StandardOutputEncoding is only supported when standard output is redirected.' I hit the identical error in my own polling loop at 13:52 and again on a dpx call, and had to switch to cmd /c redirection - same fix they documented",
+        "the success path itself is arithmetically consistent: click at 13:39:33.364Z, health sample at 13:39:37.358Z, t53 start 13:39:55.037Z, probe 13:40:03.087Z; r9t2 windows 0 -> 1 only after the click"
+      ],
+      "notClaimedButCouldHaveBeen": "they never claim a canvas action or a save; r9t2.boundaries states 'Only the landing page was clicked; no editor canvas click or type' and the pre/post invariant gate agrees (21/8/13/55/55/2 on both sides)"
+    },
+    {
+      "id": "5-new-reading-legitimacy",
+      "verdict": "成立",
+      "claim": "the new timestamp is genuinely new, and the values were read live rather than copied from 12:36/12:37",
+      "evidence": [
+        "13:39:55.037Z differs from 12:36:10.642Z, 12:36:46.855Z and 12:37:34.222Z - string comparison, no overlap",
+        "t53 exit 0 (r9t2.t53.exitCode = 0) AND 5/5 passes - the two are consistent, so this is not a 'non-zero but called PASS' case; rawLines quotes all five PASS lines plus '[t53] PASS exit 0'",
+        "the six values 21 / 8 / 13 / 55 / 55 / 2 come from that run, and part/netflag plus the page table come from a separate live probe at 13:40:03.087Z (r9t2.liveProbe), not from the earlier session's files",
+        "I reproduced the same six values twice on my own: 13:40:16.452Z and 14:04:06.771Z, both exit 0, 5/5 - so the recorded numbers are not a one-off artefact"
+      ]
+    },
+    {
+      "id": "6-cross-check-with-r9t3",
+      "verdict": "成立",
+      "claim": "the two readings agree item by item",
+      "j5TimestampUtc": "2026-10-24T13:39:55.037Z",
+      "myTimestampsUtc": ["2026-10-24T13:40:16.452Z", "2026-10-24T14:04:06.771Z"],
+      "gapSecondsToFirstMine": 21.415,
+      "gapSecondsToSecondMine": 1451.734,
+      "items": [
+        { "item": "components", "theirs": 21, "mine": 21, "delta": 0 },
+        { "item": "part", "theirs": 8, "mine": 8, "delta": 0 },
+        { "item": "netflag", "theirs": 13, "mine": 13, "delta": 0 },
+        { "item": "wires", "theirs": 55, "mine": 55, "delta": 0 },
+        { "item": "wirePairs", "theirs": 55, "mine": 55, "delta": 0 },
+        { "item": "pages", "theirs": 2, "mine": 2, "delta": 0 },
+        { "item": "MAIN uuid", "theirs": "b275cd23e45c4271bead56f66d4f98fe", "mine": "b275cd23e45c4271bead56f66d4f98fe", "delta": "same" },
+        { "item": "P1 uuid", "theirs": "d224f8d13804e759", "mine": "d224f8d13804e759", "delta": "same" },
+        { "item": "activeUuid", "theirs": "b275cd23e45c4271bead56f66d4f98fe", "mine": "b275cd23e45c4271bead56f66d4f98fe", "delta": "same" },
+        { "item": "+3V3", "theirs": "part (layout:flag:_3V3:bus:240, U?, name +3V3)", "mine": "part (layout:flag:_3V3:bus:240, U?, name +3V3)", "delta": "same" },
+        { "item": "windowId", "theirs": "25883914a72e5cbb", "mine": "25883914a72e5cbb", "delta": "same" },
+        { "item": "t53 exit / checks", "theirs": "0 / 5/5", "mine": "0 / 5/5 (twice)", "delta": "same" }
+      ],
+      "conclusion": "zero numeric disagreement, so nothing to reconcile and nothing to average. One provenance note rather than a discrepancy: their reading follows their own registration (click 13:39:33.364Z), while my two readings are read-only samples on that same registration - the window id is identical, so these are three samples of one registration, not three independent registrations."
+    },
+    {
+      "id": "7-write-boundary",
+      "verdict": "成立",
+      "claim": "no canvas write, and the only click is on the landing page",
+      "evidence": [
+        "Select-String over the runbook for save|modify|create|delete|clear|openDocument|click returns six lines, of which L21 and L262 are prohibitions and L138/L167/L246 are the landing click '#pop'; no executable line invokes a document mutation",
+        "git diff --name-status c34bb90 HEAD shows only four added files (their two docs, my two r9t3 files) - no source, no t53, no package",
+        "the invariant gate itself is the strongest boundary evidence: it passes 5/5 before their run and 5/5 in my two runs after it, so no component, wire, page or id was added, removed or renamed by the session",
+        "the editor tab was never navigated: my tab-list at 13:41:17Z and again at 14:03:53Z still shows https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58"
+      ]
+    },
+    {
+      "id": "8-self-proof",
+      "verdict": "成立",
+      "claim": "freshness actually runs, packages 0, wrote 0",
+      "evidence": [
+        "I ran node docs/evidence/review/shared/freshness.mjs --check myself -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0 (matches r9t2.selfProof.freshness exactly)",
+        "packages: git diff --name-only c34bb90 HEAD -- packages -> 0 lines (I first got a bogus '1' because the capture failed on StandardOutputEncoding and @($null).Count is 1; I redid it with cmd /c redirection to get the real 0)",
+        "wrote=0 is consistent with the diff: their commit adds exactly two documentation files (git diff --name-status c34bb90 fe6e7e8)"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "info",
+      "title": "step 3's DOM probe tests presence, the judgement asks for visibility",
+      "detail": "L108 runs manual:!!document.querySelector('#manual') and pop:!!document.querySelector('#pop'), then L119 judges '#manual 可见、#pop 存在且是 BUTTON'. querySelector finds a hidden element, so the probe cannot establish visibility. I ran the runbook's exact command at 2026-10-24T14:03:45.760Z on the live landing page and it returned {\"manual\":true,\"pop\":true,\"popTag\":\"BUTTON\"}, while a visibility probe on the same page at the same moment returned {\"manualHiddenAttr\":true,\"manualOffsetParent\":false,\"manualRect\":0,\"popRect\":0} - both elements were present and 0 px wide. This is exactly the short-circuit case: when the relay already has a window, the page hides #manual and stops polling, so a literal replayer is told 'present' about an element they cannot click. My own attempt to click it at 13:41:01.131Z failed with '元素不可交互(hidden)'.",
+      "whyItIsNotFatal": "section 1.2 L59 already tells a replayer whose count is 1 not to re-register, and section 8 warns that /health is not a liveness probe. The defect is in the check's wording and command, not in the procedure's intent.",
+      "suggestedFix": "change L108 to return manualVisible: getComputedStyle(document.querySelector('#manual')).display !== 'none' && document.querySelector('#manual').offsetParent !== null (plus the same for #pop), and change L119 to judge on that field"
+    },
+    {
+      "id": "F2",
+      "severity": "info",
+      "title": "'about 2 seconds' understates the observed 4.0 s",
+      "detail": "L269 says '真人点击 #pop 后约 2 秒计数 0 -> 1', and L139 sleeps 2 s, but the recorded samples are click 13:39:33.364Z -> health 13:39:37.358Z, i.e. 3.994 s. The extra time is plausibly the click round trip plus command startup, so the numbers are not contradictory - only the summary's '2 seconds' is optimistic. A replayer should wait and re-poll rather than time out at 2 s."
+    },
+    {
+      "id": "F3",
+      "severity": "info",
+      "title": "hardcoded tab index 1",
+      "detail": "L94 and L131 use dpx tab-select 1. In this session the landing tab happened to be index 1, but the index depends on how many tabs the user has open. Selecting by URL fragment (dpx tab-select 49620/landing) works and is stable - I used it when closing the landing tabs. The runbook's L131 advice 'do not reuse the old pinned id' is right; selecting by URL would make it robust."
+    },
+    {
+      "id": "F4",
+      "severity": "boundary",
+      "title": "no operational step for opening the editor",
+      "detail": "L19 treats 'the editor tab is already loaded in the same browser/profile' as a precondition and L38 says to stop otherwise. That is honest but it means the document cannot cold-start a session; it only replays registration onto an editor that is already open."
+    }
+  ],
+  "alsoVerified": {
+    "dpxListExpectation": "the runbook's expected dpx list fields are real: 'user_connected': true and 'auto_connect': true were both present in my own run (session default, real_port 9222, bridge_pid 23104)",
+    "dpxEvalSyntax": "dpx eval accepts 'return {...}' - its own --help shows 'dpx eval \"return Array.from(document.links).map(l=>l.href)\"' as an example, so L108's syntax is valid",
+    "snapshotUnderSandbox": "dpx snapshot --mode brief failed for me with PermissionError on C:\\Users\\yanwuning\\.dp_cli\\sessions\\refs\\default.json - the same sandbox cause as TAB_FAILED, not a syntax error. j5's runbook covers the TAB_FAILED variant of this denial but not the snapshot/refs variant, and a reviewer following it inside a write-restricted sandbox will hit it at step 3"
+  },
+  "reproducedLive": [
+    { "at": "2026-10-24T13:40:16.452Z", "what": "t53", "exit": 0, "checks": "5/5", "values": "21/8/13/55/55/2" },
+    { "at": "2026-10-24T13:40:22.019Z", "what": "live probe", "exit": 0, "result": "part 8, netflag 13, +3V3 part, pages MAIN b275cd23 + P1 d224f8d1, active MAIN" },
+    { "at": "2026-10-24T14:04:06.771Z", "what": "t53 (again, 24 min after j5)", "exit": 0, "checks": "5/5", "values": "21/8/13/55/55/2" },
+    { "at": "2026-10-24T14:04:01.885Z", "what": "health", "result": "edaConnected true, edaWindowCount 1, activeWindowId 25883914a72e5cbb" }
+  ],
+  "boundaries": [
+    "I did not re-register from 0 windows: the window was already registered when I began (13:39:51.485Z) and stayed up throughout, so I could not re-run the 0 -> 1 transition myself. That part of the runbook is verified by corroboration (my own TAB_FAILED and stale-pinned-id collisions, plus the unchanged window id) rather than by my own registration.",
+    "dpx needed escalated file access to write its session under C:\\Users\\yanwuning\\.dp_cli; those exact commands ran escalated and changed nothing inside the repository.",
+    "One reading at one moment does not show stability; the window has now held for about 25 minutes, which is still not a long-term claim."
+  ],
+  "selfProof": {
+    "reviewWrote": 1,
+    "reviewFile": "docs/evidence/current/r9t5-review-runbook.json",
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "packagesAdded": 0,
+    "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> FRESH v4, exit 0 (run by me during this review)",
+    "packages": "git diff --name-only c34bb90 HEAD -- packages -> 0 lines (re-measured with cmd /c redirection after a failed capture produced a false 1)",
+    "scratchCleanup": "my .tmp-* scratch files were removed; git status --porcelain shows only this review file"
+  },
+  "baseline": "HEAD b6927be (origin c34bb90, ahead 2); runbook blob a6db8de; r9t2 blob 700be07",
+  "diff": "adds docs/evidence/current/r9t5-review-runbook.json only; does not modify the runbook, r9t2, t53, the guide or any package",
+  "reproSteps": [
+    "git ls-tree -r HEAD -- docs/evidence/current/r9t1-window-registration-runbook.md docs/evidence/current/r9t2-second-live-session.json",
+    "node docs/evidence/review/shared/freshness.mjs --check",
+    "git diff --name-only c34bb90 HEAD -- packages",
+    "Invoke-RestMethod http://127.0.0.1:49620/health",
+    "node docs/evidence/review/t53-verify-main.mjs --json",
+    "dpx list   # confirms user_connected / auto_connect as the runbook claims"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
