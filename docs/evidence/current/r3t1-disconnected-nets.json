@@ -61,7 +61,7 @@
         "item": "shapes",
         "old": "9xpoly 1 / 7xpoly 1 / 1xH 53",
         "new": "5xpoly 1 / 4xpoly 1 / 1xH 53",
-        "status": "already voided by r2t1 v2 id 4 (§14.33.2); this run reproduces it"
+        "status": "stride-derived (segment parse), NOT connectivity-derived; already voided by r2t1 v2 id 4 (§14.33.2); this run reproduces it"
       }
     ],
     "unaffected": [
@@ -71,7 +71,7 @@
       { "item": "the two dx value sets over all |dy|<6 pairs", "old": "as printed at L2282", "new": "identical", "why": "anchors are identical under both strides; any set derived from anchors is therefore identical (the probe compares the same-row subset directly, and the full-anchor equality carries the rest)" },
       { "item": "wires / nettedWires / distinctNets / pages", "old": "55 / 55 / 55 / 2", "new": "identical", "why": "counts do not depend on segment parsing" }
     ],
-    "count": "2 stride-affected items, 5 unaffected groups (model A, model B, row gaps, the two dx sets, four counts)", "category": "disconnectedNets is connectivity-derived; shapes is stride-derived (segment parse), not connectivity-derived. distinctNets (55) is the only other connectivity-derived field and it does not move."
+    "count": "2 stride-affected items, 5 unaffected groups - each named in the array below: modelA_firstVertex / modelB_longestMidpoint / row gap / the two dx value sets over all |dy|<6 pairs / wires, nettedWires, distinctNets, pages", "category": "disconnectedNets is connectivity-derived; shapes is stride-derived (segment parse), not connectivity-derived. distinctNets (55) is the only other connectivity-derived field and it does not move."
   },
   "t38Line109": {
     "site": "docs/evidence/review/t38-cross-review-t2.mjs L104-121: comment L104; union-find L109-117; L113 registers points at i += 2 (correct - every coordinate must enter the table); L114 unions at i += 2 (the defect - should be i += 4)",
