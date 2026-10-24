@@ -7,8 +7,11 @@
 // RUN IT BEFORE AND AFTER EVERY BRIDGE SCRIPT. The contract is the exit code:
 //   0  all five invariants hold
 //   1  at least one invariant broke - the diff id lists are printed
-//   2  the gate could not run: bridge unreachable or the editor is not connected
-//      (2 is NOT a pass: no evidence was collected)
+//   2  the gate could not run: bridge unreachable, or the relay is up but no
+//      editor window is registered, or the editor is not connected
+//      (2 is NOT a pass: no evidence was collected). The three cases carry
+//      different reasons so they can be told apart: BRIDGE_UNREACHABLE,
+//      BRIDGE_NO_EDA_WINDOW, EDA_NOT_CONNECTED.
 //
 // What it asserts (all against docs/evidence/current/t31-dataset.json, the
 // pre-incident snapshot of the same MAIN page):
@@ -105,7 +108,18 @@ async function main() {
   try {
     bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 15_000 })
   } catch (e) {
-    fail('BRIDGE_UNREACHABLE', String((e && e.message) || e).slice(0, 200))
+    const msg = String((e && e.message) || e).slice(0, 200)
+    // Error classification only; no gate logic and no threshold lives here.
+    // A relay that ANSWERS but has ZERO registered editor windows is a
+    // different fault from "nothing is listening on any scanned port". Both
+    // used to be reported as BRIDGE_UNREACHABLE, which is how a registration
+    // problem got read for many rounds as a dead transport. The code is
+    // preferred over the message when the client supplies one.
+    const errCode = String((e && e.code) || '')
+    if (errCode === 'SCHEMATIC_BRIDGE_NO_EDA' || /NO_EDA|not connected|edaConnected/i.test(msg)) {
+      fail('BRIDGE_NO_EDA_WINDOW', msg)
+    }
+    fail('BRIDGE_UNREACHABLE', msg)
   }
 
   const READ = `

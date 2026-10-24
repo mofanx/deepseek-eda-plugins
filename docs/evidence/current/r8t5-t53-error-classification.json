@@ -1,0 +1,217 @@
+{
+  "task": "r8t5 - fix t53's catch-all mislabel and restate the branch taxonomy as mutually exclusive and exhaustive",
+  "generatedAt": "2026-10-24T12:30:00Z",
+  "generatedAtLocal": "2026-10-24T20:30:00+08:00",
+  "headAtGeneration": "f6e18397de7861db4f66b03a9a9af6453bc3b418",
+  "containingCommit": "not recorded inside this file on purpose: a file cannot name the commit that adds it. Find it with `git log -1 --format=%H -- docs/evidence/current/r8t5-t53-error-classification.json`",
+  "changed": {
+    "file": "docs/evidence/review/t53-verify-main.mjs",
+    "blobBefore": "4cba9fd2d66407ca5196cae785331e7d8a222a24",
+    "kind": "error classification only",
+    "whatChanged": "the discover() catch-all `fail('BRIDGE_UNREACHABLE', msg)` was split: a SCHEMATIC_BRIDGE_NO_EDA code (or NO_EDA / not connected / edaConnected text) now fails with BRIDGE_NO_EDA_WINDOW; everything else still fails with BRIDGE_UNREACHABLE. The 200-char detail slice, the exit code 2, the gate logic, the baseline comparison and every invariant check are untouched.",
+    "thresholdsTouched": "none - t53 contains no threshold constant at all (no d<=6, no TEXT_RADIUS, no d<=12, no stride); the gate compares live sets against t31-dataset.json. Verified by grepping t53 for those tokens before editing: 0 hits."
+  },
+  "beforeAfter": {
+    "whyItMatters": "the task requires the BEFORE output from the same no-window state, not a recollection. Both runs are below, 28 seconds apart, against the same relay instance.",
+    "stateIsTheSame": {
+      "healthDuringAfterRun": "{\"service\":\"easyeda-bridge\",\"bridge\":\"dsh-eda-bridge\",\"status\":\"ok\",\"edaConnected\":false,\"edaWindowCount\":0,\"activeWindowId\":null,\"pendingRequests\":0,\"timestamp\":1792844617896}",
+      "beforeRunAt": "2026-10-24T12:23:00.410Z",
+      "afterRunAt": "2026-10-24T12:23:28.346Z",
+      "gapSeconds": 27.9,
+      "sameRelay": "the relay was not restarted between the runs; /health kept edaConnected:false and edaWindowCount:0, and both runs produced the byte-identical 200-char detail",
+      "underlyingError": {
+        "capturedBy": "docs/evidence/review/r8t5-probe-discover-error.mjs",
+        "name": "SchematicError",
+        "code": "SCHEMATIC_BRIDGE_NO_EDA",
+        "messageLength": 677,
+        "note": "t53 slices to 200 chars, so the tool's printed detail is a prefix of this. The code is the authoritative classifier."
+      }
+    },
+    "before": {
+      "human": {
+        "command": "node docs/evidence/review/t53-verify-main.mjs",
+        "exitCode": 2,
+        "stdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that e\n[t53] no invariant was evaluated; this is exit 2, not a pass"
+      },
+      "json": {
+        "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+        "exitCode": 2,
+        "stdout": "{\"at\":\"2026-10-24T12:23:00.410Z\",\"gate\":\"MAIN invariants\",\"readOnly\":true,\"baseline\":{\"source\":\"docs/evidence/current/t31-dataset.json\",\"components\":21,\"wires\":55,\"main\":\"b275cd23e45c4271bead56f66d4f98fe\",\"pages\":2},\"checks\":[],\"exit\":2,\"ok\":false,\"reason\":\"BRIDGE_UNREACHABLE\",\"detail\":\"easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that e\"}"
+      }
+    },
+    "after": {
+      "human": {
+        "command": "node docs/evidence/review/t53-verify-main.mjs",
+        "exitCode": 2,
+        "stdout": "[t53] CANNOT JUDGE (BRIDGE_NO_EDA_WINDOW): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that e\n[t53] no invariant was evaluated; this is exit 2, not a pass"
+      },
+      "json": {
+        "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+        "exitCode": 2,
+        "stdout": "{\"at\":\"2026-10-24T12:23:28.346Z\",\"gate\":\"MAIN invariants\",\"readOnly\":true,\"baseline\":{\"source\":\"docs/evidence/current/t31-dataset.json\",\"components\":21,\"wires\":55,\"main\":\"b275cd23e45c4271bead56f66d4f98fe\",\"pages\":2},\"checks\":[],\"exit\":2,\"ok\":false,\"reason\":\"BRIDGE_NO_EDA_WINDOW\",\"detail\":\"easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that e\"}"
+      }
+    },
+    "diffOfBehaviour": "identical exit (2), identical ok (false), identical checks ([]), identical baseline, identical detail; ONLY reason changed: BRIDGE_UNREACHABLE -> BRIDGE_NO_EDA_WINDOW. That is exactly the claim being demonstrated: the same no-window state used to be reported as a dead transport and now names the real fault.",
+    "hooks": {
+      "note": "the pre-existing test hooks still resolve to their own reasons, so the split did not swallow them",
+      "T53_FORCE_NO_EDA=1": "exit 2, reason EDA_NOT_CONNECTED (before and after)",
+      "T53_FORCE_UNREACHABLE=1": "exit 2, reason BRIDGE_UNREACHABLE (before and after)"
+    }
+  },
+  "isEdaNotConnectedNowReachable": {
+    "question": "the task asks to make EDA_NOT_CONNECTED a reachable branch",
+    "answer": "yes, and by the real path rather than only by the hook",
+    "why": "previously discover() threw SCHEMATIC_BRIDGE_NO_EDA and the catch-all turned it into BRIDGE_UNREACHABLE, so the execute-time NO_EDA branch at L129 could never be reached in the zero-window state. Now discover() reports BRIDGE_NO_EDA_WINDOW and returns, so a window that exists at discover time and disappears before or during execute falls through to the execute handler, where NO_EDA / not connected / edaConnected text maps to EDA_NOT_CONNECTED.",
+    "honestLimit": "I could not exercise that execute-time transition this round, because reaching execute requires a registered window and there is none. The claim is therefore structural (the guard no longer shadows it) plus hook-verified (T53_FORCE_NO_EDA still yields EDA_NOT_CONNECTED), not an observed live NO_EDA-after-successful-discover."
+  },
+  "taxonomy": {
+    "requirement": "mutually exclusive, exhaustive, and explicitly answering whether a fourth branch is needed",
+    "verdictOnFourthBranch": "YES - a fourth branch is needed, and in fact a fifth, plus an explicit success terminal. A three-branch taxonomy cannot be exhaustive: the client itself can report nine transport codes (bridge.ts L55-66: UNAVAILABLE, NO_EDA, TIMEOUT, CIRCUIT_OPEN, EXECUTION, PROTOCOL, CONNECT_TIMEOUT, DISCONNECTED, WINDOW_LOST), so any three-way split must merge distinct faults.",
+    "branches": [
+      {
+        "id": "a",
+        "name": "nothing is listening",
+        "detection": "every scanned port 49620-49630 refuses TCP (ECONNREFUSED) and therefore yields no HTTP /health response",
+        "means": "the relay process is not running",
+        "t53Reason": "BRIDGE_UNREACHABLE",
+        "clientCode": "SCHEMATIC_BRIDGE_UNAVAILABLE"
+      },
+      {
+        "id": "b",
+        "name": "relay up, zero editor windows",
+        "detection": "a port answers GET /health with 200 and the body has service=easyeda-bridge, bridge=dsh-eda-bridge, edaConnected=false, edaWindowCount=0",
+        "means": "the transport is healthy; the editor page has not registered with this relay instance",
+        "t53Reason": "BRIDGE_NO_EDA_WINDOW (new)",
+        "clientCode": "SCHEMATIC_BRIDGE_NO_EDA",
+        "thisIsTheStateWeMeasured": true
+      },
+      {
+        "id": "c",
+        "name": "a window is registered but the call fails",
+        "detection": "/health reports edaWindowCount>=1 (and/or edaConnected=true), yet POST /execute fails or times out",
+        "means": "the fault is inside the registered window - it went away mid-call, or the page-side gateway is busy/wedged",
+        "t53Reason": "EDA_NOT_CONNECTED when the failure text says the window is gone; BRIDGE_CALL_FAILED otherwise",
+        "clientCodes": "SCHEMATIC_BRIDGE_WINDOW_LOST, SCHEMATIC_BRIDGE_TIMEOUT, SCHEMATIC_BRIDGE_EXECUTION, SCHEMATIC_BRIDGE_DISCONNECTED"
+      },
+      {
+        "id": "d",
+        "name": "a port answers but it is not this bridge (fourth branch, REQUIRED)",
+        "detection": "TCP connects and something answers, but /health is absent, not JSON, or its service/bridge id differs from easyeda-bridge / dsh-eda-bridge",
+        "means": "another daemon squats the port; bridge.ts keeps scanning (L331-332) and, if nothing else answers, collapses this into UNAVAILABLE - so the CLIENT cannot tell (a) from (d), which is why the taxonomy must name it separately",
+        "t53Reason": "BRIDGE_UNREACHABLE (indistinguishable from (a) at t53's level; stated as a known limit, not silently merged)",
+        "clientCode": "SCHEMATIC_BRIDGE_UNAVAILABLE (merged with (a)), or SCHEMATIC_BRIDGE_PROTOCOL when a response shape is unrecognised"
+      },
+      {
+        "id": "e",
+        "name": "a port accepts TCP but the probe stalls (fifth branch, REQUIRED for exhaustiveness)",
+        "detection": "TCP connect succeeds, yet GET /health does not answer within the probe deadline",
+        "means": "a hung or half-open listener, or a firewall swallowing the response",
+        "t53Reason": "BRIDGE_UNREACHABLE today (the discover timeout also lands in the same catch); noted as a remaining conflation, out of this task's scope",
+        "clientCode": "SCHEMATIC_BRIDGE_TIMEOUT / SCHEMATIC_BRIDGE_CONNECT_TIMEOUT"
+      },
+      {
+        "id": "success",
+        "name": "terminal state, not a failure branch",
+        "detection": "/health edaConnected=true and edaWindowCount>=1 and execute returns data",
+        "means": "the gate can actually judge; exit 0 (all five invariants) or 1 (an invariant broke)",
+        "t53Reason": "none - exit 0 or 1",
+        "clientCode": "none"
+      }
+    ],
+    "mutualExclusivity": "each state is decided by two observations only - whether a port yields an /health response, and what that response says about edaConnected / edaWindowCount - so exactly one branch applies at a time. (a) and (d) both yield 'no usable bridge' at the client, which is an acknowledged merge in bridge.ts, not an ambiguity introduced here.",
+    "httpStatusIsNotACriterion": {
+      "rule": "500 / 503 must NOT appear in any branch definition. The status code varies by relay version and by which layer answers, so it identifies nothing.",
+      "evidence": "POST /execute in the zero-window state returns 503 with {\"success\":false,\"error\":\"No EDA window connected. Please connect an EDA window first.\"} - measured by r8t1 and re-measurable today. The REGISTER_HINT text says a landing-only window answers 500, i.e. a DIFFERENT state (a window that registered but has no project).",
+      "whoAlreadySaidSo": "r8t1 line 83: 'DISCREPANCY WITH THE TASK'S PREMISE, stated plainly: the response is 503, not 500, and the body is NOT the EASYEDA_BRIDGE_REGISTER_HINT text.' r8t1 line 174 lists 'the relay returns HTTP 500 with the REGISTER_HINT sentence when no editor is attached' among the beliefs it corrects.",
+      "correctionOfTheRecord": "the 'branch b = 500 + REGISTER_HINT' wording originated in the t1/r8t1 task prompt, not in r8t1's own text: r8t1 kept the prompt's branch label 'b' but replaced its criterion with 'relay up, edaConnected false, 0 windows'. So the self-contradiction was in the inherited label, and r8t1 had already flagged it. The fix is to strip the code from the definition, which is what the taxonomy above does."
+    }
+  },
+  "correctionsKept": [
+    {
+      "id": "dual-ports-one-instance",
+      "kept": "49620 and 49630 listening simultaneously is ONE relay instance, not two daemons: bin/dsh-eda-bridge.mjs L18-22 makes 49630 the fixed second listener for the editor's built-in run-api-gateway; the HTTP API takes the first free port in 49620-49629."
+    },
+    {
+      "id": "relay-does-not-return-500-hint",
+      "kept": "the relay does not answer 500 with the REGISTER_HINT sentence when no editor is attached; it answers 503 with a short JSON error. The hint is composed client-side in bridge.ts L47."
+    },
+    {
+      "id": "t53-mislabel",
+      "kept": "t53's discover() catch-all reported every discovery failure as BRIDGE_UNREACHABLE, including SCHEMATIC_BRIDGE_NO_EDA, so a registration fault read as a dead transport for many rounds. Fixed here, with the before/after above as proof."
+    }
+  ],
+  "stateChangedDuringThisRound": {
+    "whatHappened": "an editor window registered between the AFTER run (12:23:28Z) and 12:24:58Z. /health flipped from edaConnected:false/0 windows to edaConnected:true/1 window (activeWindowId 25883914a72e5cbb), and t53 began exiting 0.",
+    "healthAfterRegistration": "{\"service\":\"easyeda-bridge\",\"bridge\":\"dsh-eda-bridge\",\"status\":\"ok\",\"edaConnected\":true,\"edaWindowCount\":1,\"activeWindowId\":\"25883914a72e5cbb\",\"pendingRequests\":0,\"timestamp\":1792844704193}",
+    "edaWindowsAfterRegistration": "{\"windows\":[{\"windowId\":\"25883914a72e5cbb\",\"connected\":true,\"active\":true}],\"activeWindowId\":\"25883914a72e5cbb\",\"count\":1}",
+    "doesItInvalidateTheBeforeAfterProof": "no. Both runs were real and 27.9 s apart in the zero-window state; that state has simply ended. It additionally proves the fix did not break the success path.",
+    "t53Now": {
+      "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+      "at": "2026-10-24T12:24:58.286Z",
+      "exitCode": 0,
+      "ok": true,
+      "checks": [
+        "components = 21: PASS (21 / expected 21)",
+        "part = 8, netflag = 13: PASS (part=8 netflag=13)",
+        "component id set = baseline (both directions): PASS (extra=0 missing=0)",
+        "wires = 55 and id|net pairs = baseline: PASS (wires=55 pairs=55 extra=0 missing=0)",
+        "pages unchanged, MAIN id intact: PASS (pages=2 MAIN=present active=b275cd23e45c4271bead56f66d4f98fe)"
+      ],
+      "counts": { "components": 21, "part": 8, "netflag": 13, "wires": 55, "wirePairs": 55, "pages": 2 },
+      "diff": { "extraIds": [], "missingIds": [], "extraPairs": [], "missingPairs": [] },
+      "meaning": "5/5 PASS. All four diff lists are empty. This is the round's real closure: the gate ran against the live canvas."
+    },
+    "independentLiveCrossCheck": {
+      "script": "docs/evidence/review/r8t5-live-componenttype-crosscheck.mjs",
+      "why": "t53's word is not evidence enough for the two numbers the session wanted; this counts by componentType directly instead of by Designator",
+      "exitCode": 0,
+      "stdout": "{\"comps\":21,\"byType\":{\"part\":8,\"netflag\":13},\"pages\":2,\"pageNames\":[\"MAIN\",\"P1\"],\"activeUuid\":\"b275cd23e45c4271bead56f66d4f98fe\",\"activeName\":\"MAIN\"}",
+      "agreesWithT53": "yes, item for item: 21 / part 8 / netflag 13 / pages 2 / MAIN active"
+    },
+    "consequencesForEarlierConclusions": {
+      "part8netflag13": "were 'OFFLINE RECONSTRUCTION ONLY' because t31 has no componentType. A live componentType count now exists and agrees: 8 / 13. The reconstruction is superseded BY MEASUREMENT as of this timestamp, but the earlier artifacts' statements about their own time remain true - they are not being edited here.",
+      "pages2": "was 'offline unprovable, historic assertion only'. A live page-list read now returns exactly 2 (MAIN + P1) and t53's page check passes, so a live reading exists as of 2026-10-24T12:24:58Z. Whoever owns r7t1/r7t5/the guide should record this timestamped live reading; I am NOT editing those artifacts in this task.",
+      "notClaimed": "this does not retroactively prove the canvas matched at any earlier time, and it does not make the bridge permanently available - a window can drop again."
+    }
+  },
+  "boundaries": {
+    "pidListenerLayer": {
+      "status": "STILL UNTESTED",
+      "why": "Get-NetTCPConnection, Get-CimInstance Win32_Process and netstat all return 拒绝访问 in this sandbox, so the owning PID of 49620/49630 remains unknown.",
+      "whatIsKnownInstead": "a listener exists and is this implementation, proven by TCP connect succeeding on 49620 and 49630 plus /health returning service=easyeda-bridge, bridge=dsh-eda-bridge.",
+      "notClaimed": "no claim is made about which process, which browser, or whether a project is open."
+    },
+    "exitZeroAndOnePaths": {
+      "status": "exit 0 path DID get exercised, after a window registered at ~12:25",
+      "evidence": "t53 --json at 2026-10-24T12:24:58.286Z returned exit 0, ok true, 5/5 PASS with counts 21/8/13/55/55/2 and four empty diff lists",
+      "exit1Path": "still not exercised: it needs a deliberate divergence from the baseline, and I will not break the canvas to test it. The diff touches only the discover() catch block, so exit 0/1 assignment is untouched by construction.",
+      "whyItIsSafe": "the diff touches only the discover() catch block plus one header comment; no check, baseline comparison, threshold or exit-code assignment was edited."
+    }
+  },
+  "selfProof": {
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "packagesNew": 0,
+    "filesChanged": ["docs/evidence/review/t53-verify-main.mjs", "docs/evidence/review/r8t5-probe-discover-error.mjs", "docs/evidence/review/r8t5-live-componenttype-crosscheck.mjs", "docs/evidence/current/r8t5-t53-error-classification.json"],
+    "scriptChangesOnlyUnder": "docs/evidence/review/ (t53-verify-main.mjs modified; two read-only probes added)",
+    "noCanvasWriteGrep": {
+      "pattern": "save|modify|create|delete|clear|openDocument|writeFile|setContent (case-insensitive)",
+      "onT53WholeFile": "2 hits, both pre-existing comment prose, not calls: L26 '// that cannot be deleted, see 14.35.8' and L32 '// No save, no delete, no create, no modify, no openDocument.' So the whole file is NOT literally NO_MATCHES; it is NO_MATCHES as call sites.",
+      "onT53AddedLinesOnly": "NO_MATCHES - `git diff -U0` filtered to added lines yields zero hits, i.e. this change introduced no such verb at all. This is the stronger statement.",
+      "onNewProbe": "NO_MATCHES - r8t5-probe-discover-error.mjs imports only node:url and node:path, calls discover() and prints the error",
+      "verdict": "no canvas write call added or invoked; the two t53 hits are the existing read-only contract written out in prose"
+    },
+    "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0"
+  },
+  "baseline": "t53 blob 4cba9fd at HEAD f6e1839; discover() catch-all emitted BRIDGE_UNREACHABLE for SCHEMATIC_BRIDGE_NO_EDA",
+  "diff": "docs/evidence/review/t53-verify-main.mjs: +22 -3 (one header comment block, one classification split in the discover catch). No invariant check, baseline comparison, threshold or exit code touched.",
+  "reproSteps": [
+    "node docs/evidence/review/t53-verify-main.mjs --json   # reason BRIDGE_NO_EDA_WINDOW, exit 2",
+    "node docs/evidence/review/r8t5-probe-discover-error.mjs  # code SCHEMATIC_BRIDGE_NO_EDA, full 677-char message",
+    "set T53_FORCE_NO_EDA=1 && node docs/evidence/review/t53-verify-main.mjs --json   # EDA_NOT_CONNECTED, exit 2",
+    "set T53_FORCE_UNREACHABLE=1 && node docs/evidence/review/t53-verify-main.mjs --json   # BRIDGE_UNREACHABLE, exit 2",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins show HEAD -- docs/evidence/review/t53-verify-main.mjs"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs --json"
+}
