@@ -1,0 +1,202 @@
+{
+  "task": "r2t4 - independent re-measurement of the pressed row at x 214-252 / y 787-797 at >=16 px/unit, and review of the glyph determination",
+  "mode": "read-only. No document write, no canvas write, no save. One new capture (screen grab of the editor drawing area) and this JSON.",
+  "reviewedAt": "2026-10-24",
+  "headAtStart": "e90f377452d344a1a9329487b5aacc54d1613811",
+  "headNow": "92732e5735554f0d0f776431788a06c79cb89b79",
+  "origin": "92732e5735554f0d0f776431788a06c79cb89b79",
+  "revListLeftRight": "0 0",
+  "headDrift": "e90f377 -> 511b196 (r2t2 amend of r6t2) -> 92732e5 (r2t3 / r6t5 close-up), both by other members while this review ran; docs/evidence only, 9 files, no document or canvas change, so the capture taken at e90f377 still describes the same drawing.",
+
+  "r6t5Status": {
+    "final": "committed while this review was running: 511b196 -> 92732e5 'docs(evidence): r2t3 high-magnification MCU-34 glyph close-up'. It was absent when the task began and untracked for most of the work; the review below is of the committed artifact.",
+    "blobs": {
+      "json": "ac9f04438473b1a9b4a8fe5eb92383ada7fa4313",
+      "glyphPng": "0308fa05655a23e83447544738079add6fadc96e",
+      "contextPng": "6abeb6f58163a757b13587c280b5b799b766b01a",
+      "corridorPng": "36667dfc6af736618f29ad80072dc1de86a2aeee"
+    },
+    "glyphPngSha256": "0b3427c5b76c12a28ce324b47bd91ac898ced70a32fe554429a83065700c3fb6",
+    "capturedAtHead": "511b19626bbd69581efee4a63023fd760451ad93",
+    "driftSinceCapture": "e90f377 -> 511b196 -> 92732e5 touches docs/evidence only (9 files: r6t2 json, 3 PNGs, 4 scripts, 1 json). No package, tsconfig, guide, canvas or document change, so nothing had to be redrawn for this review.",
+    "itsVerdict": "① - the pressed glyph is pin number 31 under the MCU-34 box, at 25.9 px/unit"
+  },
+
+  "capture": {
+    "whyNotDpx": "dpx in this session is bound to a Chrome start page (a test screenshot showed google.com; the canvas query returned []), so it cannot see the EDA editor. The editor is an Edge window and the committed 660x2030 frames came from PowerShell CopyFromScreen - the same mechanism is used here, at a new optical zoom.",
+    "method": "bridge zoomToRegion(214, 252, 797, 787) then a 1:1 CopyFromScreen grab of the editor drawing area; camera restored with zoomToAllPrimitives afterwards",
+    "grabRegion": { "x": 60, "y": 70, "w": 920, "h": 1730 },
+    "png": "docs/evidence/current/r2t4-glyph-closeup.png",
+    "pngSha256": "b7aeb57abe29e32637b7e8598232f77140e5e153165fdc65a59e984a1a76f629",
+    "pngBytes": 250301,
+    "notReused": "no existing crop was scaled up; this is a fresh editor render, not interpolation"
+  },
+
+  "scale": {
+    "selfCalibration": "pin rows are exactly 10 units apart; measured from the blue label band pitch: 376 -> 785 -> 1192 -> 1601 = 409/407/409 px, mean 408.3 px per 10 units",
+    "pxPerUnitMeasured": 40.83,
+    "crossCheck": "blue label ink height 156 px / 3.76 units = 41.5 px/unit; the two differ by 1.6%, explained by antialias inclusion at both glyph ends",
+    "t3Scale": 8.25,
+    "ratioVsT3": 4.95,
+    "ratioExplanation": "the >5% difference is by construction, not a disagreement: t3's frames were a wide 80-unit view at 8.25 px/unit, this capture is a 38-unit view at ~41 px/unit. The comparable quantity is unit-space position and glyph width, not the scale factor.",
+    "above16": true
+  },
+
+  "glyphSegmentation": {
+    "method": "column runs of black ink (R,G,B all < 110) inside each text line; runs narrower than 0.6 units are discarded as antialias specks; blue runs (B > R+40 and B > G+40) separated so label ink cannot be counted as a glyph",
+    "row795Pinned": {
+      "apiGroundTruth": "Pin Number 31 at (224, 794.09), visible=true, parent u1-e44; Net label MCU-34 at (250, 795), flag component; Pin Name (4 chars) renders at x 252.85-268.48",
+      "blackRuns": [
+        { "x0": 235.64, "x1": 238.79, "w": 3.15, "y0": 790.3, "y1": 794.67 },
+        { "x0": 240.73, "x1": 241.7, "w": 0.97, "y0": 790.79, "y1": 794.67 }
+      ],
+      "glyphCount": 2,
+      "totalGlyphWidth": 6.06,
+      "blueLabel": {
+        "box": { "x0": 229.33, "x1": 248.48, "w": 19.15 },
+        "inkMeasuredAtThisZoom": { "px": [47, 647], "w": 600, "units": 14.7, "pxPerUnit": 40.83, "glyphs": 6 },
+        "note": "19.15 is the white box (r6t4's bbox); the blue ink inside it is 14.7 units at this zoom, so 19.15 must not be quoted as the label's glyph-run length. The count comparison is 6 blue glyphs versus 2 black glyphs, and the black ink lies inside the box either way."
+      },
+      "reading": "two black glyphs, 6.06 units wide, inside the 19.15-unit box: this is a two-digit number, not a six-character net name"
+    },
+    "row785Control": {
+      "apiGroundTruth": "Pin Number 32 at (224, 784.09, u1-e48); MCU-33 at (250, 785)",
+      "blackRuns": [
+        { "x0": 235.64, "x1": 238.79, "w": 3.15 },
+        { "x0": 239.52, "x1": 242.67, "w": 3.15 }
+      ],
+      "glyphCount": 2,
+      "totalGlyphWidth": 7.03,
+      "reading": "the control row also shows exactly two digits; 32 is 0.97 units wider than 31, which is what '2' being wider than '1' predicts"
+    },
+    "whereThe17p8CameFrom": {
+      "claim": "r6t3 said the pressed band is 17.8 units wide (about 6 glyphs) and therefore could not be the two-digit 31",
+      "refuted": "the 17.8 was a bounding box, not a glyph span. Segmenting the same band into runs gives real glyphs at 235.64-238.79 and 240.73-241.70; the box edges came from single-pixel antialias specks at x 230.18, 232.12, 232.97, 247.52 and 248, each of width 0.00-0.36 units and height 0.00-0.37 units",
+      "consequence": "the width argument in r6t3 was a measurement artifact; the glyph count is 2"
+    }
+  },
+
+  "threeWay": {
+    "options": "① the black text under the label is the pin number (two digits); ② it is the six-character net name again (a duplicate render); ③ undecidable from the available crops",
+    "verdict": "① 成立",
+    "evidence": [
+      "2 black glyph runs totalling 6.06 units versus 6 blue glyphs inside a 19.15-unit box - not the same string",
+      "the black number column x 235.6-242.7 lies inside the box span 229.33-248.48, so the label presses the NUMBER, exactly as the host read it ('MCU-34 压引脚编号 31')",
+      "the pin name sits at x 252.85-268.48, outside the label span, so the label is not pressing the name",
+      "the API says the pin at that row is '31' and the neighbour row is '32'; the measured widths 6.06 and 7.03 follow the same order"
+    ],
+    "②": "不成立 - a duplicate net name would be 6 glyphs / 19 units; 2 glyphs were measured",
+    "③": "不成立 at ~41 px/unit - the two glyphs separate cleanly, so the earlier 'undecidable' state was a resolution limit of the 8.25 px/unit frame, not a property of the drawing"
+  },
+
+  "reviewOfT3": {
+    "r6t5": {
+      "verdictToReview": "① - two glyphs, a 3 at page x235.51-238.71 and a 1 at x240.49-241.65, union 6.14 units, both inside the box x229.33-248.48",
+      "reMeasurement": {
+        "independentCapture": "this review's own 40.83 px/unit grab, a different zoom and a different screenshot, segmented by column runs",
+        "chars": [
+          { "char": "3", "r6t5": [235.51, 238.71], "mine": [235.64, 238.79], "deltaX0": 0.13, "deltaX1": 0.08 },
+          { "char": "1", "r6t5": [240.49, 241.65], "mine": [240.73, 241.7], "deltaX0": 0.24, "deltaX1": 0.05 }
+        ],
+        "union": { "r6t5": [235.51, 241.65], "mine": [235.64, 241.7], "r6t5Width": 6.14, "myWidth": 6.06, "delta": 0.08 },
+        "charCount": { "r6t5": 2, "mine": 2, "match": true },
+        "frameX": [214, 252],
+        "crossesFrame": "no - the union 235.5-241.7 leaves 21.5 units of margin on the left and 10.3 on the right; no glyph touches either edge",
+        "crossesFrameY": "no - glyph pageY 789.68-794.74 sits inside 787-797; the glyphs do overhang the 3.76-unit white box vertically by 0.62/0.68, but the box is not the frame and the task's test is the frame",
+        "tolerance": "0.5 unit per boundary; the largest disagreement is 0.24 units, so all four boundaries and the count agree"
+      },
+      "verdict": "① 成立",
+      "supporting": "its two-character split, its union and its height-based separation of the label edge fragments are all reproduced independently. Its explanation of the 230.18-248.0 envelope is the same one this review reaches from the run data: the envelope's edges are 0.4-0.5-unit-tall antialias fragments, not glyphs.",
+      "whatIsStillSoft": "its 25.9 px/unit comes from the row pitch (259 px per 10 units, four samples 258-260) and is not the same scale as this review's 40.83; both are self-calibrated from drawing geometry, so neither depends on the requested rectangle. Its 19.15-unit figure is the white box, while its own blue-ink measurement at that zoom is 491 px = 18.96 units; this review measures the blue ink at 600 px = 14.7 units, so 19.15 should be read as the box, not as the glyph run length. The character count does not depend on that distinction."
+    },
+    "r6t3": {
+      "whatItDid": "it did NOT conclude. Its residual section kept the glyph identity open and asked for a higher-resolution tile before anyone cites 'presses 31'.",
+      "usingAppearanceAsConclusion": "不适用 - it did not pick an option from appearance; if anything it over-refused",
+      "butItsReasonWasWrong": "the stated reason (band is 17.8 units, about 6 glyphs) is refuted above. Correct abstention, incorrect basis.",
+      "verdict": "partial",
+      "note": "if t3 had asserted ② on that width argument, this review would be 不成立; it asserted nothing, so the failure is a bad measurement in the support, not a bad conclusion."
+    }
+  },
+
+  "affectedList": {
+    "underConclusion": "①",
+    "rule": "under ① the black band is the pin number, so every computation that used that band as the pin number's ink stands unchanged",
+    "items": [
+      { "item": "r6t1 4.37 / 6.42", "status": "stands", "why": "both are separations between the pin-number band and the label ink; the band identity is confirmed as the number" },
+      { "item": "r5t4 3.81 / 2.85 / 1.62 / 2.10", "status": "stands", "why": "derived from the same band and label boxes" },
+      { "item": "r5t6 1.54 / 4.70", "status": "stands", "why": "same pair, same rows" },
+      { "item": "r6t2 1.00 margin", "status": "stands", "why": "the margin is computed from ink boxes, and the boxes measured here are unchanged (229.33-248.48 label, 235.6-242.7 number)" },
+      { "item": "r6t3's own residual claim (6 glyphs)", "status": "作废", "why": "refuted by run segmentation; this is the only item that changes, and it is my own description, not a number in the four artifacts above" }
+    ],
+    "completeness": "nothing in the four artifacts is invalidated and nothing extra was added: exactly one description (mine) is retired, zero numbers move. A list that retired 4.37/6.42/1.54/4.70/1.00 would be over-reporting, and a list that kept the 6-glyph claim would be under-reporting.",
+    "r6t5ListCheck": {
+      "groupsRequired": ["r6t1 4.37/6.42", "r5t4 3.81/2.85/1.62/2.10", "r5t6 1.54/4.70", "r6t2 1.00"],
+      "groupsPresent": ["r6t1 4.37/6.42", "r5t4 3.81/1.62/2.10 with 2.85 marked independent", "r5t6 1.54/4.70", "r6t2 1.00"],
+      "omissions": "none - all four groups are named",
+      "extras": "r6t4's 232-244 column envelope and r5t2's 235.64-241.82 exact ink are added, but both are genuinely affected measurements (they are the two prior readings that disagree), so they are scope, not padding",
+      "counterfactualBranch": "its wouldLoseObjectIfNot31 list correctly keeps r5t6 and r6t2 standing even under ②/③ (they measure label-versus-wire geometry, not glyph identity) and correctly retires r6t1 and r5t4's font-shrink options. No item is retired that survives under ②/③, and none is kept that loses its object.",
+      "verdict": "complete - no partial on this item"
+    }
+  },
+
+  "item6_t1t2Corrections": {
+    "r6t1": {
+      "12/14 to 12/13": "成立 - counts.netflagComponents 13, netflagsOnPinRows 12, netflagTable 13 rows, GND off-row at (400,840), +3V3 listed separately as componentType 'part'",
+      "4.37 / 3.76 direction": "成立 - up min 4.37, down min 3.76, globalMinimum 3.76 direction down, each with its side effect",
+      "5.82 to 6.42 attribution": "成立 - adopted 6.42 against the fixed MCU-33 label bottom 783.88, 5.82 kept as 'conservative' from the moving pin 32 at 784.48",
+      "rollback": "成立 - no constant to restore, session-scoped id re-mint (attribute ids measured, netflag ids stated as unmeasured), symbol route, three required snapshots"
+    },
+    "r6t2": {
+      "104/107": "成立 - correctionsFromR6t3.comparisonSites names both lines with the inclusive text and the strict replacement",
+      "flip list": "成立 - guide18 enumerates 12 tiles + 4 closeups + 2 W rows, all flip=false except W1/W2",
+      "1.0 boundary": "成立 - thresholdBoundary lists seven exact-1.00 observations and says 'a boundary value, not a safety margin'"
+    },
+    "missing": "none of the seven named corrections is missing"
+  },
+
+  "pushState": {
+    "headAtStart": "e90f377452d344a1a9329487b5aacc54d1613811",
+    "headAfterOtherCommits": "92732e5735554f0d0f776431788a06c79cb89b79",
+    "origin": "92732e5735554f0d0f776431788a06c79cb89b79",
+    "revListLeftRight": "0 0",
+    "unpushed": "none",
+    "whichReportWasTrue": "t1's report of a clean 0 0 was correct at the time. The 'origin d7acac3, ahead 2' reading was taken during an earlier push window and described a transient state."
+  },
+
+  "gates": {
+    "t53": "PASS 5/5 exit 0 (21 components, 8 part + 13 netflag, 55 wires, 55 id|net pairs, 2 pages, MAIN b275cd23e45c4271bead56f66d4f98fe)",
+    "freshness": "FRESH v4, packages 5, exit 0",
+    "packagesNew": 0,
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "cameraRestored": {
+      "restoredRect": { "left": 5.5, "right": 904.5, "bottom": -348.4375, "top": 1518.4375 },
+      "note": "the capture run lost the bridge connection before its own restore step, so the camera was restored by a separate call and the rect above is what came back"
+    },
+    "invariants": "before and after digests compared in the capture run: identical (21 components, 55 wires, 2 pages)"
+  },
+
+  "residual": [
+    {
+      "id": "glyph-identity-is-settled-but-the-fit-call-is-not",
+      "status": "open",
+      "note": "the glyph count and width are measured; what cannot be read from pixels is which of the two black texts is 'the pin number' and which is 'the pin name'. The API supplies that mapping (Pin Number 31 at y 794.09, Pin Name at y 790.08), and both were rendered, so the close-up contains two black strings per row. The claim 'the label presses the number' rests on the x-span argument (number column inside the label span, name column outside), which is geometric and independent of the API labels."
+    }
+  ],
+
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master  # e90f377, 0 0",
+    "node docs/evidence/review/r2t4-glyph-closeup.mjs  # zoomToRegion(214,252,797,787) + CopyFromScreen -> r2t4-glyph-closeup.png (sha b7aeb57a)",
+    "node docs/evidence/review/r2t4-restore-camera.mjs  # zoomToAllPrimitives -> {left:5.5,right:904.5,...}",
+    "pwsh -File docs/evidence/review/r2t4-textlines.ps1  # black row runs -> 4 lines; row795 glyphs [235.64-238.79][240.73-241.70] + name 4 runs",
+    "pwsh -File docs/evidence/review/r2t4-lines.ps1  # name/number bands, row795 vs row785 control",
+    "node docs/evidence/review/r2t4-row-labels.mjs  # API: Pin Number 31 @ (224,794.09), MCU-34 @ (250,795)",
+    "pwsh -File docs/evidence/review/r2t4-segment2.ps1  # blue band pitch 409/407/409 px per 10 units -> 40.83 px/unit",
+    "pwsh -File docs/evidence/review/r2t4-hi-lines.ps1 -X0 110 -X1 640  # independent line discovery on the new capture",
+    "git ls-tree -r HEAD -- docs/evidence/current/r6t5-mcu34-glyph-closeup.json  # blob ac9f044; PNG blob 0308fa0, content sha256 0b3427c5",
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS 5/5 exit 0",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs"
+}
