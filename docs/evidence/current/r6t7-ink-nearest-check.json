@@ -4,6 +4,14 @@
   "status": "advisory-report",
   "head": "c84731967e478cec66c34686ea6d8255c71b2601",
   "origin": "c84731967e478cec66c34686ea6d8255c71b2601",
+  "headAtRemediation": "e7e94a20d8dcd139bced04553bf60c192f6b338d",
+  "headAtCommit": "f45a943c8ba51529953fc5cd8a7084c7890e5d5c",
+  "headAdvancedDuringRemediation": {
+    "from": "e7e94a20d8dcd139bced04553bf60c192f6b338d",
+    "to": "f45a943c8ba51529953fc5cd8a7084c7890e5d5c",
+    "via": "concurrent guide 6.42 correction by another member",
+    "effectOnTarget": "none: f45a943 changes only r9t1-main-view-guide.md; the two r6t7 blobs are unchanged, and the remediation commit parent is f45a943."
+  },
   "aheadBehind": "0 0",
   "baseline": "HEAD c847319; t31-dataset.json and r6t7-ink-boxes.json; r6t2 normalLabelProbes and r5t4 planA.obj1 fixture are read-only references",
   "diff": "new advisory check + box builder + 55-row boxes + report; no t53, r9t1, r5t4, d<=6, package, guide or document change",
@@ -47,6 +55,7 @@
     "notASafetyMargin": "MCU-33 is exactly 1.00 in the r6t2 four-sample set; a 0.02 unit box movement flips it to hard fail. 1.0 is a boundary, never a safe margin.",
     "reject0_8": "0.8 converts the six exact-1.00 normal-label warnings into hard fail: false positives on known-normal bus-adjacent labels; stricter is not safer here.",
     "reject1_2": "1.2 turns a real 1.1 inversion into a warning; it softens the gate and needs a larger sample, not a flip-count argument.",
+    "notLowered": "未采纳任何调低（not adopted）：0.8 会把已知正常的 1.00 警告变成 hard fail，1.2 会把真实 1.1 反转软化成 warning；2/4 四样本的 MCU-25/27 记为 warn 而非 fail，1.0 保持不变。",
     "mcu33": {
       "label": "MCU-33",
       "attr": "attr110",
@@ -179,6 +188,11 @@
         "effect": "Same omission; published PASS becomes WARN with margin -0.28, not a hard fail."
       }
     ],
+    "statusDisposition": {
+      "MCU-25": "warn (margin -1.00; hard fail requires foreign >1.0 closer, so exactly -1.00 is the boundary)",
+      "MCU-27": "warn (margin -0.28; not fail)",
+      "threshold": "1.0 retained; no lowering adopted"
+    },
     "conclusion": "2/4 reproduce exactly (MCU-28 0.58/5.67, MCU-33 1.12/0.12). MCU-25 and MCU-27 do not: their nearest foreign wires are the GND flag segments at y780/y800, only 0.12/0.48 from the published boxes, not MCU-26 at 11.12/5.48. r6t2's four-sample foreign set omitted GND; the rule itself is consistent. Both are warn under strict <, not hard fail, so no gate changes."
   },
   "anchorComparison": {
@@ -190,7 +204,7 @@
   "observedDiscrepancies": [
     {
       "item": "r6t2 W1 says ink own 0.30 / foreign 0.80",
-      "finding": "The committed W1 box y790.30-794.06 against the y=795 wire gives inkOwn 0.94, and the nearest foreign +3V3 y=800 gives 5.94, not 0.30/0.80. The W1 0.30/0.80 pair cannot be reproduced from the committed box; it appears to use a different vertical box. It is not used as a calibration value here."
+      "finding": "The committed W1 box y790.30-794.06 against the y=795 wire gives inkOwn 0.94. +3V3 y=800 gives 5.94, but it is not the nearest foreign; the nearest foreign is MCU-33 y=785 at 790.30-785 = 5.30. The W1 0.30/0.80 pair cannot be reproduced from the committed box; it appears to use a different vertical box. 5.94 is retained as the valid +3V3 distance, but not as the nearest. It is not used as a calibration value here."
     },
     {
       "item": "r6t2 four-sample MCU-25 and MCU-27 omit the GND flag wire",
@@ -258,6 +272,17 @@
     ],
     "declaration": "Existing gate conclusions are unchanged. This freeze list is observational; it does not rewrite t53, r9t1, r5t4 or any gate exit code."
   },
+  "corrections": [
+    {
+      "id": "w1-nearest-foreign-distance",
+      "original": "原写 +3V3 y=800（5.94）为 nearest foreign。",
+      "actual": "实为 MCU-33 y=785 的 5.30；+3V3 y=800 的 5.94 仍是有效距离，只是不是 nearest。",
+      "preserved": "+3V3 y=800 remains a valid distance 800-794.06 = 5.94; only the \"nearest\" label was wrong.",
+      "discoveredBy": "j6 (r6t9)",
+      "basis": "W1 ink box y790.30-794.06; MCU-33 wire y=785; +3V3 wire y=800; 790.30-785=5.30; 800-794.06=5.94.",
+      "effect": "None on classification: W1 inkOwn 0.94, inkForeign 5.30, margin 4.36, pass either way; no gate or threshold change."
+    }
+  ],
   "readOnlyProof": {
     "bridgeCalls": [],
     "editorWrites": 0,
