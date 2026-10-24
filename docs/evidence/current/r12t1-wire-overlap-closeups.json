@@ -100,6 +100,18 @@
       "note": "MAIN / dsh-t19-... / V0.1 are separately legible; no overlap with the label column or the cell borders in this frame. The text31/text32 A-box overlap claimed for this area is not visible here; it is not reproduced at this zoom."
     },
     {
+      "tag": "titleA",
+      "file": "docs/evidence/current/r12t1-titleA.png",
+      "sha256": "b0830e87a945cb2dec018d1704a1db689dc211e2acb0256081774f10c607c830",
+      "bytes": 94475,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 380, "y1": 17, "x2": 460, "y2": 263 },
+      "pxPerUnit": 8.25,
+      "role": "title block boundary: end of 图样名称 and start of MAIN, straddling the cell border at x~404",
+      "verdict": "无候选",
+      "note": "The 图样名称 label ends inside its cell; the cell border is a clean vertical gap (~4 units); MAIN starts in the value cell after the border. The claimed text31/text32 overlap does not reproduce at 8.25 px/unit. This is a negative result for the A-box claim, not a confirmation."
+    },
+    {
       "tag": "restored",
       "file": "docs/evidence/current/r12t1-restored.png",
       "sha256": "8918efe5eaa8366002f654d59b2c917a61fa0d85f636a1795f53d2cbc2363daa",
@@ -124,6 +136,12 @@
       "confirmed": true,
       "where": "MCU left labels cover pin names; MCU right labels sit on the red pin stubs; POWER/IO/CLK labels overlap the red component outlines; +3V3 overlaps VOUT and the symbol outline.",
       "coordinates": "MCU left: page x 210-237, y 898-910 (label and pin name share the bbox); MCU right: PA10 x 253-271, MCU-34 x 270.5-290, y 795-804; POWER: x 600-660, y 905-915 / 805-815; IO: x 280-340, y 390-400 / 290-300; CLK: x 600-660, y 390-400 / 290-300. All approximate, mapped at 8.25 px/unit."
+    },
+    "aBox": {
+      "claim": "the title block shows a text31/text32 overlap band (图样名称 vs MAIN)",
+      "result": "not reproduced at 8.25 px/unit",
+      "evidence": "r12t1-titleA.png straddles the x~404 cell border: the 图样名称 label ends inside its cell, a clean border gap follows, and MAIN starts in the value cell. No glyph ink crosses the border and the two texts do not share pixels.",
+      "note": "this is a negative result for the A-box claim; if the host's red box is at another x (e.g. 图号/图幅 at x 590-700), that area was not in this frame."
     }
   },
   "w1w2": {
