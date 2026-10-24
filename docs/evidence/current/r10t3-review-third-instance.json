@@ -1,0 +1,284 @@
+{
+  "task": "r10t3 - independent review of r10t2: is the reading its own registration, is the environment left degraded, and does the N1 patch actually stop probing the wrong page",
+  "reviewer": "eda4 / t3",
+  "reviewOf": "r10t2",
+  "generatedAt": "2026-10-24T14:40:00.000Z",
+  "generatedAtLocal": "2026-10-24T22:40:00.000+08:00",
+  "headAtReview": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+  "originAtReview": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+  "aheadBehindAtReview": "0 0",
+  "headAdvancedDuringReview": {
+    "to": "2ee6714b7957b7f03d4a40996c256b2e7c2cdf22",
+    "parent": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+    "change": "A docs/evidence/current/r10t4-review-second-instance.json only",
+    "t2BlobAtNewHead": "cad420d1e7b6be1d5d2051c3b04ffe8d014452b8",
+    "t2Changed": false
+  },
+  "reviewed": {
+    "task": "r10t2",
+    "commit": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+    "parent": "07a28abd169f87aef20df73b88bd260ecdf7d9eb",
+    "blob": "cad420d1e7b6be1d5d2051c3b04ffe8d014452b8",
+    "file": "docs/evidence/current/r10t2-third-instance-j6.json",
+    "diff": "git diff --name-status 07a28ab 7fc478c -> only A docs/evidence/current/r10t2-third-instance-j6.json (161 insertions); no source/runbook/t53/guide/package change"
+  },
+  "status": "partial",
+  "verdict": "partial",
+  "headline": "t2's blocked conclusion is supported and the environment is not degraded, but it did not produce an independent registration: its only reading is explicitly RESIDENT-ONLY, with no third-instance count 0 -> 1. Its two collision gaps and values are correct, and the N1 patch is only partial: A merely returns wrongPage=true without throwing, B throws on the editor but uses a prefix test that accepts .../landing-evil and both variants hard-code 49620. t2's own probesAfter timestamp is also earlier than its relay attempts.",
+  "currentEnvironment": {
+    "health49620": {
+      "service": "easyeda-bridge",
+      "bridge": "dsh-eda-bridge",
+      "status": "ok",
+      "edaConnected": true,
+      "edaWindowCount": 1,
+      "activeWindowId": "25883914a72e5cbb",
+      "pendingRequests": 0
+    },
+    "ports": {
+      "49621": false,
+      "49622": false,
+      "49623": false,
+      "meaning": "TCP test false = closed / unreachable; no third instance left behind"
+    },
+    "tabs": {
+      "count": 1,
+      "id": "0FD2ED2506FADC5C01735E5E5C4C9EB0",
+      "url": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58",
+      "editorTabClosedNavigatedClicked": false
+    },
+    "independentT53": {
+      "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+      "at": "2026-10-24T14:38:35.065Z",
+      "exitCode": 0,
+      "ok": true,
+      "checks": 5,
+      "counts": {
+        "components": 21,
+        "part": 8,
+        "netflag": 13,
+        "wires": 55,
+        "wirePairs": 55,
+        "pages": 2
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "1",
+      "criterion": "HEAD/blob/health; review the committed version and confirm the environment is not degraded",
+      "status": "pass",
+      "evidence": {
+        "head": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+        "origin": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+        "aheadBehind": "0 0",
+        "blob": "cad420d1e7b6be1d5d2051c3b04ffe8d014452b8",
+        "r10t2Commit": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+        "parent": "07a28abd169f87aef20df73b88bd260ecdf7d9eb",
+        "health": {"edaConnected": true, "edaWindowCount": 1, "activeWindowId": "25883914a72e5cbb", "pendingRequests": 0},
+        "ports": {"49621": "closed", "49622": "closed", "49623": "closed"},
+        "note": "HEAD and origin are identical, the artifact is the committed one, and the resident relay is healthy; no degraded state remains."
+      }
+    },
+    {
+      "id": "2",
+      "criterion": "registration independence: must show the instance's own count 0 before and count 1 after, via start -> 0 -> click -> 1",
+      "status": "fail",
+      "notEstablished": true,
+      "evidence": {
+        "t2Label": "step3_residentOnlyReading.label = 'RESIDENT-ONLY, explicitly NOT a third-instance result and NOT a 0 -> 1 caused by me'",
+        "t2Reading": "step3_residentOnlyReading.t53: at 2026-10-24T14:35:32.448Z, exit 0, 5/5, counts 21/8/13/55/55/2",
+        "t2Restore": "step5_restore.needed=false; why='I never registered the editor anywhere, so there was nothing to move back'",
+        "t2NoInstance": "step2_thirdInstanceInfeasible: no third instance was started; step5 thirdInstanceToClose='none was ever started'",
+        "missingChain": "No count 0 output, no click, no count 1 output for a third instance; the only count 1 is the resident 49620.",
+        "conclusion": "As an independent registration this is NOT established. t2 did not claim otherwise; it explicitly labelled the number resident-only, so this is an honest blocked result, not a false registration claim."
+      }
+    },
+    {
+      "id": "3",
+      "criterion": "timestamp legality: the new timestamp must differ from the five existing timestamps and r10t1's new timestamp",
+      "status": "pass",
+      "evidence": {
+        "newTimestamp": "2026-10-24T14:35:32.448Z",
+        "existing": [
+          "2026-10-24T12:36:10.642Z",
+          "2026-10-24T12:36:46.855Z",
+          "2026-10-24T12:37:34.222Z",
+          "2026-10-24T13:39:55.037Z",
+          "2026-10-24T13:40:16.452Z"
+        ],
+        "r10t1": "2026-10-24T14:30:57.915Z",
+        "difference": "14:35:32.448Z is distinct from all six; no collision with r10t1.",
+        "chronologyAnomaly": "t2's own probesAfter is 14:34:38.357Z, earlier than its attempts at 14:35:12.306Z / 14:35:12.666Z; the reading timestamp itself is legal, but the probesAfter label is not chronological. See item 5."
+      }
+    },
+    {
+      "id": "4",
+      "criterion": "reading collision: compare t2 with r10t1 and with 13:39:55.037Z item by item, without averaging",
+      "status": "pass",
+      "evidence": {
+        "t2Values": "21/8/13/55/55/2; +3V3=part; pages=MAIN b275cd23 + P1 d224f8d1; windowId 25883914a72e5cbb",
+        "vsR10t1": {
+          "theirs": "2026-10-24T14:30:57.915Z",
+          "gapSeconds": 274.533,
+          "items": {
+            "components": {"theirs": 21, "mine": 21, "delta": 0},
+            "part": {"theirs": 8, "mine": 8, "delta": 0},
+            "netflag": {"theirs": 13, "mine": 13, "delta": 0},
+            "wires": {"theirs": 55, "mine": 55, "delta": 0},
+            "wirePairs": {"theirs": 55, "mine": 55, "delta": 0},
+            "pages": {"theirs": 2, "mine": 2, "delta": 0},
+            "+3V3": {"theirs": "part", "mine": "part (layout:flag:_3V3:bus:240, U?)", "delta": "same type; mine records id"}
+          },
+          "arithmetic": "14:35:32.448Z - 14:30:57.915Z = 274.533 s (verified)"
+        },
+        "vs1339": {
+          "theirs": "2026-10-24T13:39:55.037Z (j5 r9t2)",
+          "gapSeconds": 3337.411,
+          "items": {
+            "components/part/netflag": {"theirs": "21/8/13", "mine": "21/8/13", "delta": 0},
+            "wires/pairs/pages": {"theirs": "55/55/2", "mine": "55/55/2", "delta": 0},
+            "MAIN": {"theirs": "b275cd23e45c4271bead56f66d4f98fe", "mine": "b275cd23e45c4271bead56f66d4f98fe", "delta": 0},
+            "P1": {"theirs": "d224f8d13804e759", "mine": "d224f8d13804e759", "delta": 0},
+            "windowId": {"theirs": "25883914a72e5cbb", "mine": "25883914a72e5cbb", "delta": 0}
+          },
+          "arithmetic": "14:35:32.448Z - 13:39:55.037Z = 3337.411 s (verified)"
+        },
+        "verdict": "No numeric disagreement in either comparison. The only difference is provenance: 13:39:55 followed j5's registration; r10t1 and t2 are read-only samples of the same resident window. No averaging."
+      }
+    },
+    {
+      "id": "5",
+      "criterion": "environment recovery: confirm the resident is true/count 1 and the third instance is closed (ports unreachable)",
+      "status": "pass",
+      "evidence": {
+        "currentHealth": {"edaConnected": true, "edaWindowCount": 1, "activeWindowId": "25883914a72e5cbb", "pendingRequests": 0},
+        "currentPorts": {"49621": "closed", "49622": "closed", "49623": "closed"},
+        "currentTab": "only 0FD2ED2506FADC5C01735E5E5C4C9EB0; editor URL unchanged",
+        "t2Claim": "step5_restore.needed=false because it never registered elsewhere; thirdInstanceToClose='none was ever started'",
+        "t2ChronologyDefect": "step2.wireEvidence.probesAfter.at = 14:34:38.357Z, but attempts are at 14:35:12.306Z/14:35:12.666Z; the 'after' probe cannot be after the attempts. I do not rely on that label. The independent current probes above establish the recovered state.",
+        "verdict": "Environment is not degraded now. t2's own before/after chronology is internally inconsistent (probesAfter precedes attempts), which is a low-level evidence defect, not a current degraded state."
+      }
+    },
+    {
+      "id": "6",
+      "criterion": "N1 patch: does the explicit guard actually distinguish the landing page from the editor page and throw instead of silently passing",
+      "status": "partial",
+      "evidence": {
+        "patchA": "Inside the probe return, wrongPage: !/^http:\\/\\/127\\.0\\.0\\.1:49620\\/landing(?:[/?#]|$)/.test(location.href); plus a prose judgement rule 'if wrongPage === true, stop...'",
+        "patchB": "$landingUrl='http://127.0.0.1:49620/landing'; if (-not $result.url.StartsWith($landingUrl)) { throw \"WRONG_PAGE: ...\" }",
+        "scenario": "Simulated the runbook without §3.1, i.e. the tab-bound URL is the editor page; also tested the landing page, a suffix collision, and the parameterized 49621 landing.",
+        "tests": {
+          "editor": {"patchA_wrongPage": true, "patchB": "THROW WRONG_PAGE"},
+          "landing49620": {"patchA_wrongPage": false, "patchB": "PASS (no throw)"},
+          "landingEvil": {"url": "http://127.0.0.1:49620/landing-evil", "patchA_wrongPage": true, "patchB": "PASS (no throw) - StartsWith false positive"},
+          "landing49621": {"url": "http://127.0.0.1:49621/landing", "patchA_wrongPage": true, "patchB": "THROW WRONG_PAGE - false rejection after r10t1 parameterization"}
+        },
+        "whyPartial": [
+          "Patch A only adds a boolean field; it does not itself throw. If a reader does not also implement the prose rule, the run still returns a negative-looking probe rather than failing.",
+          "Patch B does throw on the actual editor URL, so it is not merely a suggestion without a condition.",
+          "Patch B uses StartsWith, so http://127.0.0.1:49620/landing-evil passes as correct; it is not the runbook's boundary regex.",
+          "Both variants hard-code 49620, conflicting with r10t1's $RelayPort parameterization: a correct 49621 landing is rejected."
+        ],
+        "verdict": "partial: B gives a concrete throw for the actual editor page, but A is only a flag and both variants are neither boundary-safe nor port-parameterized."
+      }
+    },
+    {
+      "id": "7",
+      "criterion": "zero writes: no save/modify/create/delete/clear in the artifact/scripts, and the editor tab was not closed/navigated/clicked",
+      "status": "pass",
+      "evidence": {
+        "writeVerbGrep": "git grep -n -E '\\.save\\(|\\.modify\\(|\\.create\\(|\\.delete\\(|\\.clear\\(|openDocument|writeFile|appendFile|createWriteStream' -- docs/evidence/current/r10t2-third-instance-j6.json -> exit 1, no matches",
+        "editorTab": "tab-list shows one tab, id 0FD2ED2506FADC5C01735E5E5C4C9EB0, editor URL; no navigation/click/close",
+        "t2Claim": "step7: editorTabClosedNavigatedClicked=false; no websocket register injected; no look-alike relay",
+        "verdict": "No write verbs and no editor-tab mutation observed."
+      }
+    },
+    {
+      "id": "8",
+      "criterion": "self-proof: freshness, packages 0, wrote 0",
+      "status": "pass",
+      "evidence": {
+        "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0",
+        "packages": "git status --porcelain -- packages -> 0 lines; git diff --name-status 07a28ab 7fc478c shows only the r10t2 JSON",
+        "wrote": "t2 claims wrote=0; its committed diff contains only the evidence JSON, so no source write is visible. This is a post-hoc diff check, not a live observation of t2's process.",
+        "writeVerbScan": "no script was added or modified; the artifact has no executable write verbs"
+      }
+    }
+  ],
+  "n1Test": {
+    "patchA": {
+      "editor": {"wrongPage": true, "throws": false},
+      "landing49620": {"wrongPage": false, "throws": false},
+      "landingEvil": {"wrongPage": true, "throws": false},
+      "landing49621": {"wrongPage": true, "throws": false}
+    },
+    "patchB": {
+      "editor": {"throws": true, "message": "WRONG_PAGE"},
+      "landing49620": {"throws": false},
+      "landingEvil": {"throws": false, "reason": "StartsWith false positive"},
+      "landing49621": {"throws": true, "reason": "hard-coded 49620; rejects correct parameterized landing"}
+    },
+    "verdict": "partial"
+  },
+  "timelineAnomaly": {
+    "probesBefore": "2026-10-24T14:34:25.105Z",
+    "probesAfter": "2026-10-24T14:34:38.357Z",
+    "attempts": ["2026-10-24T14:35:12.306Z", "2026-10-24T14:35:12.666Z"],
+    "problem": "probesAfter is 33.949 s before attempt1 and 34.309 s before attempt2; it cannot be an 'after' probe of those attempts.",
+    "effect": "Do not use t2's probesAfter as proof that ports stayed closed after its attempts. The independent current probes do prove the recovered environment.",
+    "severity": "low/evidence-quality, not a current degraded state"
+  },
+  "overall": {
+    "verdict": "partial",
+    "why": "t2's blocked conclusion is sound and independently corroborated by my t53 and port probes, and its value comparisons are exact. But the answer to 'is the reading its own registration' is no (it is explicitly resident-only), so the independent-registration criterion is not established. N1 is only partial (A does not throw; B is prefix-weak and both hard-code 49620), and t2's own probesAfter predates its attempts. These are not enough for a clean pass.",
+    "blockedConclusionSupported": true,
+    "independentRegistrationEstablished": false,
+    "environmentRecovered": true,
+    "n1FullyBlocksWrongPage": false
+  },
+  "selfProof": {
+    "freshness": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7} exit 0",
+    "packagesAdded": 0,
+    "wrote": 0,
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "writeVerbScan": "t2 artifact -> no matches (git grep exit 1); review artifact -> no executable writes",
+    "fileWritesThisReview": 1,
+    "tabListRuns": 1
+  },
+  "git": {
+    "headAtReview": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+    "originAtReview": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+    "aheadBehindAtReview": "0 0",
+    "t2Diff": "A docs/evidence/current/r10t2-third-instance-j6.json only; no source/runbook/t53/guide/packages",
+    "trackedChanges": "none before this review artifact"
+  },
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse HEAD:docs/evidence/current/r10t2-third-instance-j6.json",
+    "Invoke-RestMethod http://127.0.0.1:49620/health  # true/count1",
+    "Test-NetConnection 127.0.0.1 -Port 49621/49622/49623  # all false",
+    "node docs/evidence/review/t53-verify-main.mjs --json  # current exit0 5/5",
+    "N1 A: wrongPage = !/^http:\\/\\/127\\.0\\.0\\.1:49620\\/landing(?:[/?#]|$)/.test(url); test editor/landing/landing-evil/49621",
+    "N1 B: if (-not $result.url.StartsWith('http://127.0.0.1:49620/landing')) { throw 'WRONG_PAGE' }; test same URLs"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs --json",
+  "verify": [
+    {
+      "task": "r10t2",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "t2's blocked conclusion is supported: no third instance, resident-only reading explicitly labelled, values match r10t1 and 13:39:55 exactly (gaps 274.533 s / 3337.411 s), current environment true/count1 with 49621-23 closed. However no independent 0->1 exists, N1 is only partial (A no throw; B prefix-weak and hard-codes 49620), and t2's probesAfter timestamp precedes its attempts. Overall partial, not a clean pass.",
+        "baseline": "HEAD 07a28ab; only r10t2 artifact added at 7fc478c; no source/runbook/t53/guide/package change.",
+        "diff": "A docs/evidence/current/r10t2-third-instance-j6.json (161 lines); review adds r10t3-review-third-instance.json only."
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r10t3-review-third-instance.json",
+      "summary": "Independent partial review: committed blob, no own registration, timestamps/readings, recovered environment, N1 A/B tests, zero writes."
+    }
+  ]
+}
