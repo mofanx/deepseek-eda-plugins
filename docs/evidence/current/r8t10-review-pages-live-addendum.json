@@ -1,0 +1,197 @@
+{
+  "task": "r8t10 - independent review of t2's r7t5 liveObservation addendum",
+  "mode": "read-only static review; no canvas, no bridge write, no t53 rerun",
+  "generatedAt": "2026-10-24T20:45:11.245+08:00",
+  "head": "9df8153bb2d513629327d2505f0c5397348f775d",
+  "origin": "52f77403039a4d20f027ac4f7b4b2b6d20040861",
+  "aheadBehind": "1 0",
+  "reviewedAtHead": "9df8153bb2d513629327d2505f0c5397348f775d",
+  "t2Head": "52f77403039a4d20f027ac4f7b4b2b6d20040861",
+  "t2Blob": "31f2d149b98aa904d94d86a37f66404dd7dfc48b",
+  "t2WorkingBlob": "31f2d149b98aa904d94d86a37f66404dd7dfc48b",
+  "guideHead": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+  "guideBlob": "d382726750000b65d38a6ace4533ed16f76deb46",
+  "commitVersionConfirmed": true,
+  "overall": "partial",
+  "verdict": "partial",
+  "summary": "t2 did NOT turn liveProvable into a bare true: it is a string qualified to two 12:36 timestamps and includes the window id. The six required elements are present, the old 18/3/d224/+16/retraction records are preserved, 18 is not changed to 2, the offline-not-provable sentence remains, and self-proof is good. However, liveObservation.recheck records a third live observation at 12:37:34.222Z with t53 exit 0, 5/5 and pageCount 2, while liveProvable says 'true only at' the two 12:36 timestamps and the guide has no 12:37. That is an internal contradiction and a strict same-timestamp/isomorphism failure; hence partial, not pass.",
+  "checks": [
+    {
+      "id": "1-commit-version",
+      "verdict": "成立",
+      "evidence": "HEAD 9df8153; t2 commit 52f7740; HEAD:r7t5 blob = 31f2d149b98aa904d94d86a37f66404dd7dfc48b and working hash-object is identical. The reviewed file is the committed t2 version; guide HEAD:cdfee6d blob d3827267."
+    },
+    {
+      "id": "2-not-bare-true",
+      "verdict": "成立",
+      "evidence": "typeof judgment.liveProvable = string. Exact value begins 'true only at 2026-10-24T12:36:10.642Z and 2026-10-24T12:36:46.855Z ...'. Grep for '\"liveProvable\": true' returned no match; sourceOfTwo.liveProvable remains false and has liveProvableScope explaining it is artifact-only."
+    },
+    {
+      "id": "2b-only-is-accurate",
+      "verdict": "不成立",
+      "evidence": "The same liveObservation has recheck.atUtc 2026-10-24T12:37:34.222Z, t53ExitCode 0, t53Checks 5/5, pageCount 2. That is a third live observation, so 'true only at' the two 12:36 timestamps is false as written."
+    },
+    {
+      "id": "3-six-elements",
+      "verdict": "成立",
+      "evidence": "Times 12:36:10.642Z / 20:36:10.642+08:00 and 12:36:46.855Z / 20:36:46.855+08:00; t53 exitCode 0; checks 5/5; pageTable two {uuid,name}: MAIN/b275cd23e45c4271bead56f66d4f98fe and P1/d224f8d13804e759; activePage MAIN/b275cd23...; windowId 25883914a72e5cbb."
+    },
+    {
+      "id": "4-old-records",
+      "verdict": "成立",
+      "evidence": "t31Source.pagesLength 18, uniqueUuids 18, uniqueNames 3 (MAIN/P1/P2), d224P1 says absent; preservedFacts has t31Pages 18, t31UniqueUuids 18, t31UniqueNames 3, d224InT31 false, extraProbePages 16. notCOnly still says the earlier object-mismatch/dedupe claim is wrong; preservedFacts.retraction says it remains withdrawn and does not revive it. No '当时判断正确' found."
+    },
+    {
+      "id": "5-guide-isomorphic",
+      "verdict": "不成立（严格）",
+      "evidence": "Primary 12:36 fields match guide cdfee6d L278-287: both timestamps, exit0, 5/5, 21/8/13/55/55/2, MAIN b275..., P1 d224..., active MAIN, window 25883914a72e5cbb. But t2's liveObservation.recheck adds 12:37:34.222Z (t53 exit0, 5/5, 2 pages), which the guide does not contain; guide L293 says only the two 12:36 times. The addendum as a whole is therefore not one-to-one with the guide's timestamp set."
+    },
+    {
+      "id": "6-18-and-offline",
+      "verdict": "成立",
+      "evidence": "18 is still 18 (t31 pages 18, uuids 18, names 3; +16 probe pages). noRewrite explicitly says 18 remains 18 and no average; grep found no '平均'/'average' use as a method. The exact offline sentence remains in preservedFacts.offlinePageRow: 离线不可证（仅历史断言）. overall is still a-artifact-provable-live-unproven with overallScope preserving the offline verdict."
+    },
+    {
+      "id": "7-self-proof",
+      "verdict": "成立",
+      "evidence": "freshness FRESH v4 exit0; packages new 0; wrote=0; canvas/document writes 0; only the JSON evidence file was written (fileWrites 1). No bridge write was performed by this review; t53 was not rerun because current /health has edaConnected:false."
+    }
+  ],
+  "evidence": {
+    "liveProvable": {
+      "type": "string",
+      "value": "true only at 2026-10-24T12:36:10.642Z and 2026-10-24T12:36:46.855Z (local 2026-10-24T20:36:10.642+08:00 and 20:36:46.855+08:00): the live getAllSchematicPagesInfo() returned 2 pages (MAIN b275cd23e45c4271bead56f66d4f98fe, P1 d224f8d13804e759), active MAIN, window 25883914a72e5cbb. It is not true for 06:06:59 or 13:51, is not an offline proof, and is not a permanent claim.",
+      "bareTrue": false,
+      "containsBothTimestamps": true,
+      "containsWindow": true
+    },
+    "sixElements": {
+      "atUtc": "2026-10-24T12:36:10.642Z",
+      "atLocal": "2026-10-24T20:36:10.642+08:00",
+      "secondAtUtc": "2026-10-24T12:36:46.855Z",
+      "secondAtLocal": "2026-10-24T20:36:46.855+08:00",
+      "t53ExitCode": 0,
+      "t53Checks": "5/5",
+      "pageTable": [
+        {"uuid": "b275cd23e45c4271bead56f66d4f98fe", "name": "MAIN"},
+        {"uuid": "d224f8d13804e759", "name": "P1"}
+      ],
+      "activePage": {"uuid": "b275cd23e45c4271bead56f66d4f98fe", "name": "MAIN"},
+      "windowId": "25883914a72e5cbb"
+    },
+    "oldRecords": {
+      "t31Pages": 18,
+      "t31UniqueUuids": 18,
+      "t31UniqueNames": 3,
+      "names": ["MAIN", "P1", "P2"],
+      "d224InT31": false,
+      "extraProbePages": 16,
+      "retraction": "The earlier object-mismatch/dedupe claim remains withdrawn; this addendum does not revive it.",
+      "notCOnly": "The earlier object-mismatch/dedupe claim is wrong: both are page-list lengths of the same API and shape; the difference is time and the 16 probe pages.",
+      "noAverage": "18 remains 18; no average, no dedupe, no conversion of 18 into 2."
+    },
+    "guideComparison": {
+      "guidePath": "docs/evidence/current/r9t1-main-view-guide.md",
+      "guideCommit": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+      "lines": "270-297",
+      "primaryMatch": true,
+      "sameFirst": true,
+      "sameSecond": true,
+      "sameWindow": true,
+      "sameExit": true,
+      "sameChecks": true,
+      "sameValues": true,
+      "samePageTable": true,
+      "sameActive": true,
+      "extraRecheck": {
+        "atUtc": "2026-10-24T12:37:34.222Z",
+        "t53ExitCode": 0,
+        "t53Checks": "5/5",
+        "pageCount": 2,
+        "inGuide": false,
+        "contradictsOnly": true
+      }
+    },
+    "noChange": {
+      "18": 18,
+      "averageUsed": false,
+      "offlineSentence": "离线不可证（仅历史断言）",
+      "overall": "a-artifact-provable-live-unproven",
+      "overallScope": "The overall string above is the historical artifact/offline verdict and is intentionally unchanged. The separate timestamped live fact is liveObservation and judgment.liveProvable; it does not turn the offline sources into live proof."
+    },
+    "currentBridge": {
+      "atUtc": "2026-10-24T12:45:11.245Z",
+      "edaConnected": false,
+      "edaWindowCount": 0,
+      "activeWindowId": null,
+      "note": "No t53 rerun was possible or attempted; this review relies on t2/guide's committed 12:36 record and does not claim it is current."
+    }
+  },
+  "finding": {
+    "id": "R8T10-F1",
+    "severity": "medium",
+    "type": "internal contradiction + guide timestamp mismatch",
+    "what": "liveProvable says true only at the two 12:36 timestamps, but liveObservation.recheck records a third live observation at 12:37:34.222Z with t53 exit 0, 5/5 and 2 pages. The guide has only 12:36:10.642 and 12:36:46.855 and says the table applies only to those two moments.",
+    "whyItMatters": "A reader can read 'only' as excluding later observations, while the same object records one; a strict same-timestamp comparison with the guide also fails because 12:37 is absent there. It is not a bare true, but it is an over-claim/extra timestamp.",
+    "notAProblem": "The primary 12:36 values, window id, page table, active page and six elements all match the guide; the defect is the extra recheck versus the 'only' wording, not a wrong page count.",
+    "suggestedFix": "Either drop the 12:37 recheck from this addendum, or change liveProvable to 'true at the aligned 12:36:10.642Z and 12:36:46.855Z; a separate 12:37:34.222Z recheck also observed 2 pages', and if the 12:37 time is to be part of the guide-aligned record, add it to the guide explicitly. Do not silently equate 12:37 with 12:36."
+  },
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "Qualified (not bare) liveProvable, six elements, old records, 18 and offline sentence all pass. Strict guide isomorphism fails because of an extra 12:37:34.222Z recheck (t53 exit0 5/5, 2 pages) absent from the guide and contradicting 'true only at' the two 12:36 timestamps.",
+        "baseline": "t1 guide cdfee6d; t2 liveObservation is the addendum under review.",
+        "diff": "t2 commit 52f7740; r7t5 blob 31f2d149b98aa904d94d86a37f66404dd7dfc48b; added liveObservation, qualified liveProvable, overallAtLiveObservation/overallScope, check 9, r2t2 selfProof/baseline/diff/artifact.",
+        "command": "static JSON/guide/t31 checks; t53 not rerun because current bridge has no window",
+        "exitCode": null,
+        "pageTable": "MAIN b275cd23... / P1 d224f8d...",
+        "window": "25883914a72e5cbb",
+        "extraRecheck": "12:37:34.222Z, t53 exit0, 5/5, pageCount 2, not in guide"
+      }
+    }
+  ],
+  "selfProof": {
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "bridgeWrites": 0,
+    "wrote": 0,
+    "fileWrites": 1,
+    "files": ["docs/evidence/current/r8t10-review-pages-live-addendum.json"],
+    "packagesAdded": 0,
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesDiff": "git diff --name-only cdfee6d HEAD -- packages -> empty",
+    "scope": "Read-only static review; no save/modify/create/delete/clear/openDocument; no t53 rerun; current bridge has edaConnected=false."
+  },
+  "baseline": "HEAD 9df8153; t2 commit 52f7740; t1 guide cdfee6d. t2's r7t5 blob 31f2d149 equals the working file.",
+  "diff": "New review file only: docs/evidence/current/r8t10-review-pages-live-addendum.json. No modification to t2/r7t5, guide, t53, canvas or packages.",
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse HEAD:docs/evidence/current/r7t5-pages-provenance.json; git hash-object the same file",
+    "node -e parse t2 JSON; check typeof judgment.liveProvable and absence of '\"liveProvable\": true'",
+    "node -e parse t31-dataset.json; expect pages18, uuids18, names3, d224 false",
+    "read guide cdfee6d L270-297; compare 12:36 timestamps, window id, 21/8/13/55/55/2, page table, active page",
+    "inspect liveObservation.recheck: 12:37:34.222Z, t53 exit0, 5/5, pageCount2; note no 12:37 in guide",
+    "node docs/evidence/review/shared/freshness.mjs --check; git diff --name-only cdfee6d HEAD -- packages"
+  ],
+  "verifyCommand": "static review only; t53 not rerun because /health currently reports edaConnected=false",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r8t10-review-pages-live-addendum.json",
+      "summary": "t2 review: qualified liveProvable (not bare true), six elements present, old records/18/offline preserved, self-proof good; partial because 12:37 recheck contradicts 'true only at' 12:36 and is absent from guide."
+    },
+    {
+      "type": "command",
+      "summary": "HEAD 9df8153; t2 52f7740; r7t5 blob 31f2d149; guide cdfee6d blob d3827267; t31 18/18/3/d224 false; freshness FRESH v4 exit0; packages0; current health edaConnected:false."
+    },
+    {
+      "type": "test",
+      "summary": "Static checks: no bare '\"liveProvable\": true'; six elements complete; old 18/3/d224/+16/retraction present; primary guide match; strict timestamp/isomorphism fails on extra 12:37 recheck; overall partial."
+    }
+  ]
+}
