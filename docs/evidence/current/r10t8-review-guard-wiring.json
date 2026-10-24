@@ -1,0 +1,399 @@
+{
+  "task": "r3t3 - review t2: is the guard actually wired into the flow, is it paste-runnable, and was any runbook content deleted",
+  "reviewer": "eda4 / j6",
+  "generatedAt": "2026-10-24T15:13:20Z",
+  "generatedAtLocal": "2026-10-24T23:13:20+08:00",
+  "overallVerdict": "partial - 7 of 8 criteria hold, criterion 2 (wiring position) fails as written: the guard's own precondition tells the operator to bind the landing tab first and run the guard afterwards",
+  "headline": "The guard is real, it is wired in front of the visibility probe, and it works when pasted. On the live editor page the runbook's own JS block returns JS_FAILED with `Error: WRONG_PAGE: https://pro.lceda.cn/editor#id=... is not http://127.0.0.1:49620/landing` and dpx exits 1; on a real landing page the same block returns status ok with url = the landing URL and exits 0; and with $RelayPort set to 49621 against that 49620 landing it throws `... is not http://127.0.0.1:49621/landing`, which is the test that distinguishes real parameterization from a hardcoded port. Nothing protected was deleted: every count I compared is equal or higher and the timeline table still has its 10 data rows. t2 also really did run both negatives, recorded in r10t7 at 14:53:42.664Z (unbound) and 14:56:10.070Z (after switching back to the editor). What fails is the placement rule: section 3.0's 执行前置 says to tab-select the landing page first and run the guard after, which is the after-binding order the dispatch says must fail. That choice is documented and defensible - the author ran the guard unbound first, saw it throw because section 2's tab-new does not activate the created tab, and then wrote the runbook to bind first - but as written the guard's remaining job is to catch a select that silently failed, not to keep the probe off the editor page.",
+  "headDrift": {
+    "whatHappened": "I started at HEAD a1eac6b, where the runbook had no section 3.0 (blob b1f352f) and r10t7 did not exist anywhere. Commit 27408b7 ('r3t2 wire N1 guard into runbook front and review t1 final') landed while I was reviewing, and it contains both the runbook change and r10t7.",
+    "headAtStart": "a1eac6ba47ece6183003592251e09fb23853d510",
+    "headAtEnd": "27408b79edfd69b349cd17981b63770afb177ecc",
+    "originAtEnd": "27408b79edfd69b349cd17981b63770afb177ecc",
+    "aheadBehindAtEnd": "1 0 when I measured it, then 0 0 - the author pushed 27408b7 while I was writing this file",
+    "whyItMatters": "my first two conclusions - 'no committed deliverable' and 'r10t7 absent, so no negative case' - were true when I measured them and are obsolete now. I re-checked everything against 27408b7 and report the final state; both obsolete readings are stated here rather than quietly dropped.",
+    "convenientCoincidence": "the runbook blob I had already extracted and executed (3dd34bc) is exactly the blob 27408b7 commits, so my executions apply unchanged to the committed text",
+    "finalReading": "HEAD 27408b7 == origin 27408b7, rev-list 0 0 at the moment I committed"
+  },
+  "artifactsReviewed": {
+    "r10t2": {
+      "path": "docs/evidence/current/r10t2-third-instance-j6.json",
+      "blobAtHead": "1a3c349d355d72b173c165f90fec39f95e4f73c3"
+    },
+    "r10t7": {
+      "path": "docs/evidence/current/r10t7-review-and-wire-guard.json",
+      "blobAtHead": "b5ef91f38c533542cdf987a65c1f5e75b35ca422"
+    },
+    "runbook": {
+      "path": "docs/evidence/current/r9t1-window-registration-runbook.md",
+      "blobAtHead": "3dd34bcb3e40b4f535dd6f00e7564f36512473df",
+      "blobAtStart": "b1f352fbee50569f137196b6de6cf6d13f3ecc39 (no section 3.0)",
+      "guardPresentAtHeadStart": false,
+      "guardPresentAtHeadEnd": true
+    },
+    "commit": {
+      "hash": "27408b79edfd69b349cd17981b63770afb177ecc",
+      "numstat": "239 0 r10t7 / 68 2 runbook"
+    }
+  },
+  "criteria": [
+    {
+      "id": "1-committed-version",
+      "verdict": "成立 at 27408b7 (it was 不成立 when I started)",
+      "requirement": "record HEAD, runbook blob, r10t7 blob, r10t2 blob and confirm the review is against a committed version",
+      "evidence": [
+        "HEAD now 27408b79edfd69b349cd17981b63770afb177ecc, origin a1eac6ba47ece6183003592251e09fb23853d510, rev-list 1 0",
+        "git ls-tree HEAD: runbook blob 3dd34bcb3e40b4f535dd6f00e7564f36512473df, r10t7 blob b5ef91f38c533542cdf987a65c1f5e75b35ca422, r10t2 blob 1a3c349d355d72b173c165f90fec39f95e4f73c3",
+        "27408b7 numstat: r10t7 239 added, runbook 68 added / 2 deleted",
+        "at the start of this review HEAD was a1eac6b, the runbook blob was b1f352f with no 3.0 section, and r10t7 returned 0 files"
+      ],
+      "note": "I could not satisfy this criterion when I began; it became satisfiable only because the author committed mid-review"
+    },
+    {
+      "id": "2-wiring-position",
+      "verdict": "不成立",
+      "requirement": "the guard must sit before section 3 reads #manual/#pop; if its position is after binding, fail",
+      "evidence": {
+        "documentOrder": "section 3.0 at L127, section 3.1 at L191, section 3.3 at L241",
+        "firstVisibilityRead": "the first #manual/#pop read in section 3 is inside the 3.0 block at L153, executed only after the throw - so no visibility read precedes the guard",
+        "butThePreconditionBindsFirst": "L129 verbatim: '所以先按 §3.1 的 URL/title 匹配并 `tab-select` 选中 landing，再执行本步'",
+        "authorsOwnWordsInR10t7": "orderNote: 'The new guard is at the front of section 3, but dpx tab-new returned TAB_FAILED and did not activate the created landing tab. The runbook therefore states that section 3.1 must select landing first. I first ran the guard while the editor was still active (the required unbound negative), then selected landing...'"
+      },
+      "consequence": "operationally the guard runs after the binding, the placement the dispatch says must fail. After a successful exact-URL select the active page is the landing page by construction, so the guard can no longer catch 'the operator is on the editor page' - it can only catch a select that silently did not take effect.",
+      "whyTheChoiceIsDefensible": "running the guard before the select raises a false alarm on a correct procedure, because section 2's tab-new can create the landing tab without activating it; the author measured exactly that and documented the reasoning",
+      "whatWouldSatisfyIt": "either move the guard before tab-select and treat that false alarm as the intended negative, or change 执行前置 to 'run this step first, then select' - as written the section title '拒绝在编辑器页上跑探针' only holds when the select failed"
+    },
+    {
+      "id": "3-paste-runnable",
+      "verdict": "成立",
+      "requirement": "copy the block from the runbook text verbatim and execute it; editor page must throw WRONG_PAGE, landing page must pass",
+      "method": "both fenced powershell blocks were sliced out at the bold markers preceding them, written to .ps1 unmodified, and executed with Invoke-Expression (Get-Content -Raw ...); only $RelayPort / $LandingUrl from section 0.1 were set beforehand, as the runbook instructs. After 27408b7 landed I re-checked that both blocks are still present verbatim in blob 3dd34bc.",
+      "editorPageNegative": {
+        "page": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58",
+        "output": "{\"status\":\"error\",\"code\":\"JS_FAILED\",\"message\":\"JavaScript 执行失败\",\"detail\":\"... Error: WRONG_PAGE: https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58 is not http://127.0.0.1:49620/landing\"}",
+        "dpxExitCode": 1,
+        "verdict": "throws as required"
+      },
+      "landingPagePositive": {
+        "page": "http://127.0.0.1:49620/landing",
+        "output": "{\"status\":\"ok\",\"data\":{\"result\":{\"url\":\"http://127.0.0.1:49620/landing\",\"title\":\"dsh-eda-bridge: register EasyEDA\",\"manual\":{\"exists\":true,\"visible\":false,\"offsetParent\":false,\"rect\":{\"width\":0,\"height\":0},\"display\":\"none\",\"visibility\":\"visible\",\"hiddenAttr\":true},\"pop\":{\"exists\":true,\"visible\":false,\"offsetParent\":false,\"rect\":{\"width\":0,\"height\":0},\"display\":\"inline-block\",\"visibility\":\"visible\",\"hiddenAttr\":false}}}}",
+        "dpxExitCode": 0,
+        "verdict": "passes as required"
+      },
+      "psBlock": {
+        "output": "PASS",
+        "then": "throws WRONG_PAGE: https://pro.lceda.cn/editor#id=%3Ccurrent-editor-id%3E is not http://127.0.0.1:49620/landing",
+        "exitCode": 1,
+        "note": "the PS block demonstrates the accept and the reject case in one snippet, so pasting it always ends in a throw; it is a two-case demonstration, not a drop-in gate"
+      },
+      "defectFound_exitCodePropagation": {
+        "severity": "medium",
+        "detail": "a .ps1 whose last statement is `dpx eval $js` exits 0 even when the guard threw, because PowerShell only reports the native exit code if the script propagates it",
+        "measurements": {
+          "dpxDirect": 1,
+          "scriptWithoutExit": 0,
+          "scriptWithExitLASTEXITCODE": 1
+        },
+        "effect": "an operator or automation that checks the wrapper's exit code sees success on a WRONG_PAGE; the runbook's 'dpx eval 退出 1 ... 停止' is true of dpx but not of a script that merely calls it",
+        "fix": "end the block with `if ($LASTEXITCODE -ne 0) { throw 'guard failed: WRONG_PAGE' }` or `exit $LASTEXITCODE`"
+      }
+    },
+    {
+      "id": "4-parameterization",
+      "verdict": "成立",
+      "requirement": "no 49620 literal inside the blocks; uses $RelayPort/$LandingUrl; 49621 must not be falsely rejected and 49620 must not falsely pass",
+      "literalsInBlocks": {
+        "js": "no '49620' substring",
+        "ps": "no '49620' substring",
+        "method": "substring search over each extracted block"
+      },
+      "discriminatingTest": {
+        "setup": "the runbook JS block executed with $RelayPort = 49621 while the active page was the real http://127.0.0.1:49620/landing",
+        "output": "JS_FAILED ... Error: WRONG_PAGE: http://127.0.0.1:49620/landing is not http://127.0.0.1:49621/landing",
+        "dpxExitCode": 1,
+        "whyItMatters": "a hardcoded 49620 would have passed on that page; throwing proves the port is read from $RelayPort"
+      },
+      "acceptTest": {
+        "setup": "$RelayPort = 49620 on the same landing page",
+        "output": "status ok, url = http://127.0.0.1:49620/landing",
+        "dpxExitCode": 0
+      },
+      "noFalsePass": {
+        "setup": "$RelayPort = 49620 on the editor page",
+        "output": "JS_FAILED WRONG_PAGE",
+        "dpxExitCode": 1
+      },
+      "caveat": "a genuinely 49621-bound landing page cannot be tested here because nothing listens on 49621; the parameterization claim rests on the discriminating test, not on a 49621 page"
+    },
+    {
+      "id": "5-negative-case",
+      "verdict": "成立",
+      "requirement": "check whether the author really ran 'new step with landing not bound -> throws'; positive-only means partial",
+      "fromAuthor": {
+        "unboundNegative": {
+          "at": "2026-10-24T14:53:42.6641763Z",
+          "activeUrl": "editor",
+          "exitCode": 1,
+          "code": "JS_FAILED",
+          "error": "Error: WRONG_PAGE: https://pro.lceda.cn/editor#id=... is not http://127.0.0.1:49620/landing"
+        },
+        "boundPositive": {
+          "at": "2026-10-24T14:56:03.4402383Z",
+          "exitCode": 0,
+          "url": "http://127.0.0.1:49620/landing"
+        },
+        "secondNegativeAfterSwitchingBack": {
+          "at": "2026-10-24T14:56:10.070627Z",
+          "exitCode": 1,
+          "code": "JS_FAILED",
+          "error": "same WRONG_PAGE"
+        }
+      },
+      "fromMe": "I independently ran the same unbound negative on the live editor page and got the same result: dpx exit 1, JS_FAILED, WRONG_PAGE",
+      "note": "the unbound negative is exactly what the guard is for, and the author ran it before deciding to document bind-first ordering - that is why criterion 2 is a deliberate design choice rather than an oversight"
+    },
+    {
+      "id": "6-deletion-check",
+      "verdict": "成立",
+      "requirement": "edaWindowCount timeline still 10 rows, same-profile statements still 5, the three failures still present, #manual/#pop selectors still present; any one missing fails",
+      "method": "count each protected string in git show HEAD~1:<runbook> and in HEAD:<runbook>, then read the diff",
+      "counts": [
+        {
+          "item": "edaWindowCount",
+          "head": 8,
+          "now": 9,
+          "kept": true
+        },
+        {
+          "item": "profile (case-insensitive)",
+          "head": 4,
+          "now": 5,
+          "kept": true
+        },
+        {
+          "item": "TAB_FAILED",
+          "head": 3,
+          "now": 4,
+          "kept": true
+        },
+        {
+          "item": "NO_SUCH_TAB",
+          "head": 1,
+          "now": 1,
+          "kept": true
+        },
+        {
+          "item": "StandardOutputEncoding",
+          "head": 1,
+          "now": 2,
+          "kept": true
+        },
+        {
+          "item": "#manual",
+          "head": 10,
+          "now": 13,
+          "kept": true
+        },
+        {
+          "item": "#pop",
+          "head": 11,
+          "now": 14,
+          "kept": true
+        }
+      ],
+      "timelineRows": {
+        "head": 10,
+        "now": 10,
+        "method": "section 7 data rows = lines beginning with '| `'; 12 table lines = 1 header + 1 separator + 10 data rows",
+        "note": "the dispatch expectation of 10 rows is met on both sides"
+      },
+      "threeFailuresNote": "the string is StandardOutputEncoding, not StandardEncoding as the dispatch wrote; both occurrences are present (L196 comment, L386 the real error text)",
+      "diffNumstat": "68 added, 2 deleted",
+      "theTwoDeletedLines": [
+        "$tabsJson = dpx tab-list",
+        "$tabs = $tabsJson | ConvertFrom-Json"
+      ],
+      "where": "section 3.1's tab-list snippet at the previous HEAD's L132-133",
+      "replacedBy": "cmd /c \"dpx tab-list > .tmp-tabs.json\" then Get-Content ... | ConvertFrom-Json, with a comment that PowerShell 7 raises StandardOutputEncoding when capturing native stdout",
+      "judgment": "an equivalent replacement of the capture mechanism, not a content deletion; it also fixes a real failure mode I hit in this environment. Side effect: it introduces a temp file in the working directory."
+    },
+    {
+      "id": "7-t1-review-accuracy",
+      "verdict": "成立",
+      "requirement": "verify t2's four claims about t1 against the committed version",
+      "checkedAgainst": "HEAD:docs/evidence/current/r10t2-third-instance-j6.json, blob 1a3c349",
+      "results": [
+        {
+          "claim": "function name consistent",
+          "verified": true,
+          "evidence": "declared = Guard-Page, called = [\"Guard-Page\"], Assert-LandingPage occurrences = 0"
+        },
+        {
+          "claim": "$jsTemplate defined",
+          "verified": true,
+          "evidence": "assignment at index 0 of patchA_jsUsage, $jsTemplate.Replace at index 1130 - assignment precedes use"
+        },
+        {
+          "claim": "paste run executed",
+          "verified": true,
+          "evidence": "pasteTests present: psAccept exit 0, jsAccept exit 0, psRejectEvil exit 1, jsRejectEvil exit 1"
+        },
+        {
+          "claim": "step5 after-claim corrected",
+          "verified": true,
+          "evidence": "health = 'edaConnected:true, count:1 (before any attempt)', the after phrase is absent, entry points at 14:44:08.731Z"
+        }
+      ],
+      "conclusion": "all four hold at the committed blob, so t2's 成立 judgment on them is accurate"
+    },
+    {
+      "id": "8-environment",
+      "verdict": "成立",
+      "residentHealth": {
+        "edaConnected": true,
+        "edaWindowCount": 1,
+        "activeWindowId": "25883914a72e5cbb",
+        "pendingRequests": 0
+      },
+      "portResidue": "49621 closed, 49622 closed",
+      "packages": "git status --porcelain -- packages empty; git diff --stat HEAD -- packages empty; git diff --stat 07a28ab HEAD -- packages empty",
+      "noKillNoFakeRegistration": "the resident answered /health with the same activeWindowId throughout, count stayed 1 even across my landing open/close, and no artifact claims a fabricated registration",
+      "tabDiscipline": "I opened exactly one landing tab and closed it; tab-list is back to the single editor tab, count 1"
+    },
+    {
+      "id": "9-self-proof",
+      "verdict": "成立",
+      "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0",
+      "packages": "0 lines",
+      "wrote": 0,
+      "wroteDetail": "my only new tracked file is this review JSON; the landing tab I opened was closed again",
+      "writeVerbScan": {
+        "result": "9 hits, all prose, 0 executable calls",
+        "byWord": {
+          "delete": 6,
+          "create": 3,
+          "modify": 1,
+          "save": 0,
+          "clear": 0
+        },
+        "why": "this file is a review about whether runbook content was deleted, so it necessarily contains the words delete/create/modify in prose: \"68 added, 2 deleted\", \"the two deleted lines\", \"not a content deletion\", \"fileWritesDetail\", and the task title itself",
+        "notClaimingNoMatches": "I am not reporting NO_MATCHES here. In my previous rounds the scan was clean because the files were not about deletion; this one is, so a blanket NO_MATCHES would be false.",
+        "whatIsActuallyTrue": "the file contains no save/modify/create/delete/clear call, import or command; it is a JSON evidence record and nothing in it executes"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "info",
+      "title": "the deliverable landed mid-review and my first two verdicts became obsolete",
+      "detail": "at HEAD a1eac6b the runbook had no 3.0 and r10t7 did not exist; 27408b7 added both while I was reviewing. I re-verified everything against 27408b7 and kept the earlier reading in the headDrift block rather than deleting it."
+    },
+    {
+      "id": "F2",
+      "severity": "medium",
+      "title": "the guard is documented to run after the tab-select binding",
+      "detail": "L129 tells the operator to select the landing tab first. That is the after-binding placement the dispatch rejects. The author's reason is measured and documented in r10t7 (tab-new does not activate the tab), but the consequence is that the guard now only guards against a failed select."
+    },
+    {
+      "id": "F3",
+      "severity": "medium",
+      "title": "the JS block loses its failure in the wrapper's exit code",
+      "detail": "dpx exits 1 on WRONG_PAGE, but a .ps1 whose last line is `dpx eval $js` exits 0. Measured 1 / 0 / 1 for dpx direct, no exit, and exit $LASTEXITCODE."
+    },
+    {
+      "id": "F4",
+      "severity": "low",
+      "title": "r10t7 quotes blocks that are not the runbook's blocks",
+      "detail": "r10t7.runbook.guardBody equals the runbook JS block plus one line ($RelayPort = 49620), and r10t7.runbook.psGuardBody documents a usage-example variant while the runbook carries the 正例/负例 form with $editorUrl. Neither quote is byte-identical to what an operator copies, and guardBody contradicts r10t7's own claim of 'no literal 49620 in the runbook guard code'. The runbook text itself is fine - I executed it and it works - but the evidence artifact points at different text."
+    },
+    {
+      "id": "F5",
+      "severity": "low",
+      "title": "the PS block cannot serve as a gate",
+      "detail": "it prints PASS and then throws on the editor URL, so pasting it verbatim always ends with WRONG_PAGE."
+    },
+    {
+      "id": "F6",
+      "severity": "info",
+      "title": "my first 49621 attempt was invalid and I discarded it",
+      "detail": "I built the header with a double-quoted PowerShell string, so $RelayPort expanded to empty and the page received `const RELAY_PORT = ;`, producing a SyntaxError instead of WRONG_PAGE. I rebuilt it with a literal and re-ran; only the corrected run is reported."
+    }
+  ],
+  "whatIActuallyRan": [
+    {
+      "command": "git rev-parse / rev-list / ls-tree / status",
+      "result": "a1eac6b at start, 27408b7 at end (1 0); runbook blob 3dd34bc at 27408b7, r10t7 blob b5ef91f, r10t2 blob 1a3c349"
+    },
+    {
+      "command": "Get-ChildItem -Recurse -Filter 'r10t7*' (at start)",
+      "result": "0 files"
+    },
+    {
+      "command": "runbook JS block sliced verbatim, Invoke-Expression on the live editor page",
+      "result": "JS_FAILED, Error: WRONG_PAGE ... is not http://127.0.0.1:49620/landing, dpx exit 1"
+    },
+    {
+      "command": "same block on a real landing tab",
+      "result": "status ok, url = http://127.0.0.1:49620/landing, exit 0"
+    },
+    {
+      "command": "same block with $RelayPort = 49621 on that landing",
+      "result": "JS_FAILED, Error: WRONG_PAGE: http://127.0.0.1:49620/landing is not http://127.0.0.1:49621/landing, exit 1"
+    },
+    {
+      "command": "same block with $RelayPort = 49620 on that landing",
+      "result": "status ok, exit 0"
+    },
+    {
+      "command": "dpx eval direct vs .ps1 without / with exit $LASTEXITCODE",
+      "result": "1 / 0 / 1"
+    },
+    {
+      "command": "PS block verbatim",
+      "result": "PASS then WRONG_PAGE on the placeholder editor URL, exit 1"
+    },
+    {
+      "command": "protected string counts and section 7 data rows, HEAD~1 vs HEAD",
+      "result": "all counts equal or higher; 10 rows vs 10 rows; diff 68 added / 2 deleted"
+    },
+    {
+      "command": "t1 four facts against HEAD:r10t2 blob 1a3c349",
+      "result": "all four verified true"
+    },
+    {
+      "command": "r10t7 guardBody / psGuardBody vs the runbook blocks",
+      "result": "not present verbatim; +1 line and a different PS variant respectively"
+    },
+    {
+      "command": "fetch /health, TCP probe 49621/49622",
+      "result": "true / count 1 / 25883914a72e5cbb; both closed"
+    },
+    {
+      "command": "git status/diff -- packages; git diff --stat 07a28ab HEAD -- packages",
+      "result": "all empty"
+    },
+    {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "result": "FRESH v4, exit 0"
+    }
+  ],
+  "boundaries": [
+    "I ran the two blocks of section 3.0, not the whole runbook; sections 3.1 through 7 were only read, not executed.",
+    "A real 49621 landing page cannot exist here because nothing listens on 49621; the parameterization claim rests on the discriminating test.",
+    "My attestation is to runbook blob 3dd34bc, which is exactly what 27408b7 commits.",
+    "One resident reading does not make the bridge stable; the window can drop at any time."
+  ],
+  "baseline": "HEAD a1eac6b (=origin, 0 0) at start: runbook blob b1f352f with no section 3.0, no r10t7. HEAD 27408b7 (1 ahead of origin) at end: runbook blob 3dd34bc with section 3.0, r10t7 blob b5ef91f.",
+  "diff": "adds docs/evidence/current/r10t8-review-guard-wiring.json only; does not modify the runbook, r10t2, r10t7 or any package",
+  "reproSteps": [
+    "git rev-parse HEAD && git ls-tree HEAD -- docs/evidence/current/r9t1-window-registration-runbook.md docs/evidence/current/r10t7-review-and-wire-guard.json   # expect 27408b7, blobs 3dd34bc and b5ef91f",
+    "extract the two fenced blocks under section 3.0 and run them with $RelayPort set; editor tab -> JS_FAILED + WRONG_PAGE + dpx exit 1; landing tab -> status ok + exit 0",
+    "run the JS block with $RelayPort = 49621 against a 49620 landing tab; expect WRONG_PAGE (a hardcoded 49620 would pass)",
+    "measure dpx exit code directly, then again from a .ps1 whose last line is dpx eval; expect 1 and 0",
+    "compare each protected string count between git show HEAD~1:<runbook> and HEAD:<runbook>; expect equal or higher, section 7 data rows 10 to 10",
+    "node -e \"const d=require('./docs/evidence/current/r10t7-review-and-wire-guard.json');console.log(d.pasteability.unboundNegative.exitCode)\"   # expect 1",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
