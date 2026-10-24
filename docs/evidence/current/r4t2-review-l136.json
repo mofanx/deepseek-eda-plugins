@@ -1,0 +1,128 @@
+{
+  "task": "t3",
+  "artifact": "docs/evidence/current/r4t2-review-l136.json",
+  "at": "2026-10-24T04:02:25Z",
+  "atSource": "machine clock ([datetime]::UtcNow), not hand-written",
+  "scope": "independent read-only review of t1 (the P0 documentation fix). No bridge calls, no writes to the guide.",
+  "verdict": "partial",
+  "verdictLine": "the L136 rewrite itself is correct, traceable and free of overreach; but one statement introduced by t1 is factually wrong about r9t3, and the same 'pin name' assertion t1 set out to remove still survives in different words two rows away.",
+
+  "reviewedVersion": {
+    "head": "72b3fbc6372b72ed39d33c69adf99c9b66f011c5",
+    "originMaster": "72b3fbc6372b72ed39d33c69adf99c9b66f011c5",
+    "aheadBehind": "0/0",
+    "treeClean": true,
+    "file": "docs/evidence/current/r9t1-main-view-guide.md",
+    "blobAtHead": "07701342e16eb77a59554190100c0ab7b73c5531",
+    "blobAtT1Commit": "07701342e16eb77a59554190100c0ab7b73c5531",
+    "blobAtParent068ad8f": "1e207be1d1775e9719ee4996d71316fb1b29c7a8",
+    "commitsTouchingFileSinceParent": ["b536763"],
+    "confirmedCommittedVersion": "the blob I read is identical at b536763 and at HEAD (72b3fbc); a later commit (72b3fbc, my own t2 evidence) did not modify the guide. So this review is of the committed t1 content, not of a working-tree draft.",
+    "t1CommitScope": "b536763 touches exactly 1 file, 3 insertions / 1 deletion"
+  },
+
+  "checks": [
+    {
+      "id": 1,
+      "claim": "record HEAD and the file blob, confirm the committed version is what gets reviewed",
+      "verdict": "成立",
+      "evidence": "HEAD = origin/master = 72b3fbc, 0/0, clean tree. guide blob 07701342 at HEAD, at b536763 (t1) and at 72b3fbc (my t2) are all identical; only 068ad8f differs (1e207be1). git log 068ad8f..HEAD -- <file> lists b536763 only.",
+      "command": "git rev-parse HEAD / origin/master; git rev-parse HEAD:<file>; git log --oneline 068ad8f..HEAD -- <file>",
+      "exitCode": 0
+    },
+    {
+      "id": 2,
+      "claim": "L136 (now L138) really corrected: no 'the overlap is the pin-name text' assertion; d=5.0 / t=0.75 kept; the old d=0,t=0.25 void note kept; no new contradiction with the W1/W2 table, L9, L45, L162",
+      "verdict": "部分成立",
+      "evidence": {
+        "corrected": "L138 now reads: '像素上与 `attr111` 墨迹（229.8–248.9）交叠的是 U1 引脚**编号 31**（`PA10` 的 Pin Number）；`PA10` 字形在 252–268 完整可读……真正压住引脚名的是同排的**网络标志名**……不是 `attr111`。' The old assertion is gone from this paragraph; the old wording survives only as a marked quotation ('原句误作『引脚名文字』').",
+        "numbersPreserved": "d=5.0 and t=0.75 appear at L138 and in the W1 row (L135); the void note is intact: '旧表的 `距导线 = 0`、`t = 0.25` 是**步长 2** 的读数……已作废'.",
+        "numbersTraceable": "the new numbers are not invented: 229.8 / 248.9 / 252 / 268 all appear in docs/evidence/current/r2t1-w1w2-adjudication.json (L108 attribute attr111, L116-117 x1=229.8 x2=248.9, L128 'PA10's glyphs render at x 252-268', L14, L43), and the same figures were already in the guide's 2026-10-24 correction block (L164).",
+        "consistentWith9and45": "L9 ('W1 压引脚编号 31，attr102 只擦过导线，压引脚名的是同排标志名') and L45 ('② 网名压引脚编号：W1 的 MCU-34 压 PA10 的引脚号 31……另有一处网络标志名压引脚名（MCU-26 的标志名压 PB10）') agree with the new L138.",
+        "survivingContradiction": {
+          "line": 47,
+          "quote": "原先的 W1/W2 两处经主持人识图改判为**文字-文字**：像素上是网名与**引脚名**字形交叠，几何上标签到导线的 `d=5.0` 只有半个 14pt 字高、且落在段内比例 `t=0.25`/`0.75` 处",
+          "why": "this is the same assertion in different words, applied to both W1 and W2 at once. For W1 it is false (the net name MCU-34 sits on the pin NUMBER 31, the pin name PA10 is fully readable), and it contradicts L45's '另有一处' (one place, not two). It also keeps the void value t=0.25 alongside the current 0.75.",
+          "consequence": "t1's self-report says '旧断言 count=0'. That is accurate for L138 and for the literal string 引脚名文字 (which now appears once, as a quotation), but the assertion itself is still live at L47, so the document still contradicts itself on exactly the point t1 fixed."
+        }
+      },
+      "command": "grep '引脚名文字|229.8|248.9|252|268' <guide>; grep same in r2t1-w1w2-adjudication.json; read L43-48, L135-138, L164",
+      "exitCode": 0
+    },
+    {
+      "id": 3,
+      "claim": "the stale-reference registration exists; if it deleted r9t3's original text or rewrote history, it does not hold",
+      "verdict": "部分成立",
+      "evidence": {
+        "registrationPresent": "L75 carries '> **替代声明**：本表已取代 `r9t3` L41 的『逐字实现』指控……该指控不应再被重开。'",
+        "historyNotRewritten": "r9t3 is untouched: b536763's name-only list is the guide alone, so r9t3-review-view-guide-v2.json was not edited or deleted. The original phrase is preserved as a quotation rather than erased. This part holds.",
+        "factualError": {
+          "quote": "`r9t3-review-view-guide-v2.json` L41 称指南写『规则（代码逐字实现下面这一条）』、该说法为假",
+          "why": "r9t3 declared the head it reviewed: r9t3 L6 'head: 430f3be' and L8 blob 1c77c475d3ccd1e623b973fa49b0380bfa7c2e66. At that exact commit and blob the guide did say it, at L56: '**规则（代码逐字实现下面这一条）**：对每条导线线段 $s$ 与每个锚点 $p$…', and `ValueVisible` has zero matches at 430f3be (git grep exit 1). So the verbatim claim and the missing visibility condition were both real at the reviewed version. The fix landed the next day in dd5e835 (2026-10-22 23:15), after r9t3 was filed against 430f3be on 2026-10-21 17:31.",
+          "verdictOnThis": "r9t3's L41 was correct at the version it declared. Calling it '该说法为假' misstates the record and implies the review was wrong when it was right. What is true is that the charge no longer applies to the current version, which is what the rest of the sentence already says."
+        }
+      },
+      "command": "git grep -n '代码逐字实现' 430f3be -- <guide>; git grep -n 'ValueVisible' 430f3be -- <guide> (exit 1); git rev-parse 430f3be:<guide>; git log --format='%h %ad %s' -1 430f3be dd5e835 b536763",
+      "exitCode": 0
+    },
+    {
+      "id": 4,
+      "claim": "no overreach: host quote and the ※ annotation untouched; TEXT_RADIUS / d≤12 / stride 4 untouched; no PNG modified; wrote=0",
+      "verdict": "成立",
+      "evidence": {
+        "hostQuote": "L152 still declares the host's words as primary text and states that the ※-marked notes are r2t1's editorial additions; L160 still carries the host's original '那两处是网名压引脚名 ※' with the marker in place. The diff does not touch either line.",
+        "criteria": "the diff hunks are only (a) the 2-line insert at L72-73 and (b) the L136→L138 paragraph. L162 ('`d`、`t`、`TEXT_RADIUS`、`d ≤ 12` 都保持原值') and L190 ('TEXT_RADIUS=6、d≤12 原样') are unchanged, and so is the stride-4 discussion (L145, L147).",
+        "noPng": "git show --name-only b536763 lists only the guide; no .png in the commit.",
+        "wroteZero": "no guide edit by this review and no document write. t1's 'no bridge call' claim cannot be verified from the repository - it is a member self-report, recorded here as such rather than as an independently confirmed fact."
+      },
+      "command": "git show --name-only b536763; git diff --unified=6 068ad8f..b536763 -- <guide>",
+      "exitCode": 0
+    },
+    {
+      "id": 5,
+      "claim": "self-proof: freshness --check FRESH, packages zero hits",
+      "verdict": "成立",
+      "evidence": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0. No package manifest is part of b536763 (name-only shows the guide alone), so t1's 'packages 新增 0' is consistent with the commit contents.",
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0
+    }
+  ],
+
+  "requiredFixes": [
+    {
+      "line": 75,
+      "problem": "says r9t3's claim is false, when it was true at the head r9t3 declared (430f3be: phrase at L56, no ValueVisible).",
+      "suggested": "> **替代声明**：本表已取代 `r9t3` L41 的指控。该指控针对 `430f3be` 那一版——该版 L56 确写『规则（代码逐字实现下面这一条）』，且规则缺 `ValueVisible` 条件（`git grep ValueVisible 430f3be` 零命中），指控成立。`dd5e835` 已把规则改成五条件表并全表列出 13 条被排除项，故该指控**不再适用于现版**，不应再被重开。",
+      "why": "keeps the supersession (which is correct) while stating what was true when, instead of denying a valid finding."
+    },
+    {
+      "line": 47,
+      "problem": "still asserts the overlap is '网名与引脚名字形交叠' for both W1 and W2, and still uses the void t=0.25.",
+      "suggested": "原先的 W1/W2 两处经主持人识图改判为**文字-文字**：W1 是网名压**引脚编号 31**（`PA10` 字形完整可读），W2 只有同排**标志名**压 `PB10`；几何上标签到导线的 `d=5.0` 只有半个 14pt 字高、且落在段内比例 `t=0.75` 处",
+      "why": "removes the last copy of the assertion t1 set out to delete, and drops the superseded t=0.25 so L47 stops disagreeing with L45/L135/L138."
+    }
+  ],
+
+  "notDefects": [
+    "the 2-line shift of every later line number (L133/L134 -> L135/L136, L136 -> L138) is a normal consequence of the insert and not a defect; the brief's line numbers refer to the pre-t1 numbering.",
+    "quoting the old wrong wording as '原句误作『引脚名文字』' is good practice, not a leftover: it tells the reader what changed. Only an unmarked repetition would be a defect."
+  ],
+
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "L138 is corrected, its numbers trace to r2t1 and nothing outside the intended lines moved; but L75 misstates r9t3's finding as false (it was true at 430f3be) and L47 still carries the 'pin name' assertion for W1, so t1's '旧断言 count=0' does not hold for the document as a whole.",
+        "baseline": "068ad8f: guide blob 1e207be1, L136 read '像素上真正与字形交叠的是符号内的**引脚名文字**…' with a half-sentence correction at the paragraph end; no supersession note in the rules section",
+        "diff": "b536763: 1 file, +3/-1. (a) 2-line blockquote insert at L72-73 registering that the five-condition table supersedes r9t3 L41; (b) L136 paragraph rewritten so the overlap object is pin number 31 with PA10 readable at 252-268 and the pin-name overlap attributed to the adjacent flag name"
+      }
+    }
+  ],
+
+  "wrote": {
+    "guideEdits": 0,
+    "repoFilesAdded": 1,
+    "note": "this review only adds docs/evidence/current/r4t2-review-l136.json; it does not modify the guide or any existing evidence"
+  }
+}
