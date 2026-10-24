@@ -1,0 +1,466 @@
+{
+  "task": "r2t3 (r5t4) - D2/D3 alternatives: vertical offset vs font size, read-only",
+  "mode": "read-only. No canvas write, no bridge write call, no document change. The only artifact is this JSON.",
+  "head": "f939bc7",
+  "date": "2026-10-24",
+  "premise": "t2 + r5t3 established that sliding each label along its own wire leaves an EMPTY net-clearance interval. This task changes dimension: move perpendicular (page y) or shrink the text.",
+  "criteria": [
+    "1 no overlap with any black glyph",
+    "2 still attributable to its own net: anchor-to-own-wire distance <= 6",
+    "2' the own wire must remain the nearest for the anchor AND for the ink; otherwise the label is attributable to a neighbouring net at one of the two levels",
+    "3 no NEW text-on-foreign-wire instance (d<=12 and 0.05<t<0.95)",
+    "4 readability: font size may not fall below 4"
+  ],
+  "measured": {
+    "fontSizeNow": 6,
+    "fontSizeHistogram": {
+      "wireLabelName": {
+        "6": 55
+      },
+      "flagLabelName": {
+        "6": 14
+      }
+    },
+    "pinPitch": 10,
+    "pinPitchEvidence": "Pin Number y on the u1 columns: 784.085 / 794.085 / 804.085 / 814.085; Pin Name y: 780.085 / 790.085 / 800.085 / 810.085",
+    "labelInk": {
+      "obj1": {
+        "x1": 229.33,
+        "x2": 248.48,
+        "y1": 790.3,
+        "y2": 794.06,
+        "h": 3.76
+      },
+      "obj2": {
+        "x1": 369.18,
+        "x2": 388.21,
+        "y1": 790.3,
+        "y2": 794.06,
+        "h": 3.76
+      }
+    },
+    "pressedInk": {
+      "obj1": {
+        "x1": 234.55,
+        "x2": 241.7,
+        "y1": 790.3,
+        "y2": 794.67,
+        "h": 4.36
+      },
+      "obj2": {
+        "x1": 368.21,
+        "x2": 385.3,
+        "y1": 790.55,
+        "y2": 795.15,
+        "h": 4.61
+      }
+    },
+    "frameScale": "8.25 px/unit (r2t1 frames, reused so the numbers stay comparable with r5t1)"
+  },
+  "planA": {
+    "idea": "translate the label along page y by h so its ink leaves the pressed glyph band",
+    "networkNote": "the label is attached by parentPrimitiveId, so ownership is structural; d<=6 is the audit heuristic. Moving the anchor vertically raises d from 0 to h.",
+    "obj1": {
+      "label": {
+        "x1": 229.33,
+        "x2": 248.48,
+        "y1": 790.3,
+        "y2": 794.06,
+        "h": 3.76
+      },
+      "pressed": {
+        "x1": 234.55,
+        "x2": 241.7,
+        "y1": 790.3,
+        "y2": 794.67,
+        "h": 4.36
+      },
+      "pressedLabel": "31",
+      "gaps": [
+        [
+          774.3,
+          774.67,
+          0.37
+        ],
+        [
+          775.39,
+          779.64,
+          4.25
+        ],
+        [
+          784.48,
+          784.85,
+          0.37
+        ],
+        [
+          784.97,
+          785.33,
+          0.36
+        ],
+        [
+          785.58,
+          790.3,
+          4.72
+        ],
+        [
+          794.67,
+          799.88,
+          5.21
+        ],
+        [
+          804.73,
+          810.06,
+          5.33
+        ],
+        [
+          810.06,
+          810.67,
+          0.61
+        ]
+      ],
+      "feasible": {
+        "up": [],
+        "down": []
+      },
+      "rejectedBecause": {
+        "up": {
+          "1_black_overlap": 252,
+          "2p_ink_not_nearest": 48
+        },
+        "down": {
+          "1_black_overlap": 227,
+          "2p_anchor_not_nearest": 73
+        }
+      },
+      "probes": [
+        {
+          "h": 3.76,
+          "dir": "up",
+          "anchorY": 791.24,
+          "ink": [
+            786.54,
+            790.3
+          ],
+          "dOwn": 3.76,
+          "nearestOtherByAnchor": "MCU-33",
+          "dOtherByAnchor": 6.24,
+          "inkToOwn": 4.7,
+          "nearestOtherByInk": "MCU-33",
+          "inkToOther": 1.54,
+          "presses": [
+            "+3V3@8.76"
+          ]
+        },
+        {
+          "h": 4.24,
+          "dir": "up",
+          "anchorY": 790.76,
+          "ink": [
+            786.06,
+            789.82
+          ],
+          "dOwn": 4.24,
+          "nearestOtherByAnchor": "MCU-33",
+          "dOtherByAnchor": 5.76,
+          "inkToOwn": 5.18,
+          "nearestOtherByInk": "MCU-33",
+          "inkToOther": 1.06,
+          "presses": [
+            "+3V3@9.24"
+          ]
+        },
+        {
+          "h": 4.37,
+          "dir": "down",
+          "anchorY": 799.37,
+          "ink": [
+            794.67,
+            798.43
+          ],
+          "dOwn": 4.37,
+          "nearestOtherByAnchor": "+3V3",
+          "dOtherByAnchor": 0.63,
+          "inkToOwn": 0,
+          "nearestOtherByInk": "+3V3",
+          "inkToOther": 1.57,
+          "presses": [
+            "+3V3@0.63"
+          ]
+        },
+        {
+          "h": 5,
+          "dir": "down",
+          "anchorY": 800,
+          "ink": [
+            795.3,
+            799.06
+          ],
+          "dOwn": 5,
+          "nearestOtherByAnchor": "+3V3",
+          "dOtherByAnchor": 0,
+          "inkToOwn": 0.3,
+          "nearestOtherByInk": "+3V3",
+          "inkToOther": 0.94,
+          "presses": [
+            "+3V3@0.00"
+          ]
+        }
+      ],
+      "criterion2Literal": "PASS for every h in [3.76, 6.0]: d = h <= 6",
+      "verdict": "no-go",
+      "why": "Up clears the digits at h>=3.76 but the INK then sits closer to the row above (MCU-33) than to its own wire, so it reads as the wrong net. Down clears them at h>=4.37 but the anchor lands within 0.1-0.6 of the +3V3 wire at y=800, so the d-rule itself assigns it to +3V3. The two directions fail on two different levels and neither leaves a usable band."
+    },
+    "obj2": {
+      "label": {
+        "x1": 369.18,
+        "x2": 388.21,
+        "y1": 790.3,
+        "y2": 794.06,
+        "h": 3.76
+      },
+      "pressed": {
+        "x1": 368.21,
+        "x2": 385.3,
+        "y1": 790.55,
+        "y2": 795.15,
+        "h": 4.61
+      },
+      "pressedLabel": "PB10",
+      "gaps": [
+        [
+          774.55,
+          775.52,
+          0.97
+        ],
+        [
+          778.42,
+          780.36,
+          1.94
+        ],
+        [
+          784.61,
+          785.7,
+          1.09
+        ],
+        [
+          788.48,
+          790.55,
+          2.07
+        ],
+        [
+          794.79,
+          795.88,
+          1.09
+        ],
+        [
+          798.67,
+          800.61,
+          1.94
+        ],
+        [
+          804.97,
+          806.06,
+          1.09
+        ],
+        [
+          808.85,
+          810.79,
+          1.94
+        ]
+      ],
+      "feasible": {
+        "up": [],
+        "down": []
+      },
+      "rejectedBecause": {
+        "up": {
+          "1_black_overlap": 300
+        },
+        "down": {
+          "1_black_overlap": 300
+        }
+      },
+      "probes": [
+        {
+          "h": 3.76,
+          "dir": "up",
+          "anchorY": 791.24,
+          "ink": [
+            786.54,
+            790.3
+          ],
+          "dOwn": 3.76,
+          "nearestOtherByAnchor": "MCU-25",
+          "dOtherByAnchor": 6.24,
+          "inkToOwn": 4.7,
+          "nearestOtherByInk": "MCU-25",
+          "inkToOther": 1.54,
+          "presses": []
+        },
+        {
+          "h": 4.24,
+          "dir": "up",
+          "anchorY": 790.76,
+          "ink": [
+            786.06,
+            789.82
+          ],
+          "dOwn": 4.24,
+          "nearestOtherByAnchor": "MCU-25",
+          "dOtherByAnchor": 5.76,
+          "inkToOwn": 5.18,
+          "nearestOtherByInk": "MCU-25",
+          "inkToOther": 1.06,
+          "presses": []
+        },
+        {
+          "h": 4.37,
+          "dir": "down",
+          "anchorY": 799.37,
+          "ink": [
+            794.67,
+            798.43
+          ],
+          "dOwn": 4.37,
+          "nearestOtherByAnchor": "MCU-27",
+          "dOtherByAnchor": 5.63,
+          "inkToOwn": 0,
+          "nearestOtherByInk": "GND",
+          "inkToOther": 1.57,
+          "presses": []
+        },
+        {
+          "h": 5,
+          "dir": "down",
+          "anchorY": 800,
+          "ink": [
+            795.3,
+            799.06
+          ],
+          "dOwn": 5,
+          "nearestOtherByAnchor": "MCU-27",
+          "dOtherByAnchor": 5,
+          "inkToOwn": 0.3,
+          "nearestOtherByInk": "GND",
+          "inkToOther": 0.94,
+          "presses": []
+        }
+      ],
+      "verdict": "no-go",
+      "why": "the tallest free black band within d<=6 is 2.07 units while the label is 3.76 units tall, so criterion 1 is unsatisfiable at every h. This is geometric, not a matter of taste."
+    },
+    "fatalPoint": "the brief expected the killer at h>6. It is not: h_min is 3.76-4.37, so d stays under 6 and the label still counts as that wire's label. It breaks EARLIER, at two different places: (a) once h>2.18 the ink is nearer the neighbouring wire than its own - arithmetic: ink-to-own = 0.94+h, ink-to-MCU-33 = 5.30-h, equal at h=2.18; (b) going down, the +3V3 wire at y=800 is only 5 units below, so from h=4.37 the anchor is 0.6 from it, nearer than its own wire. The effective thresholds are therefore 2.18 (ink) and ~4.4 (anchor), both below the h needed to clear the glyph."
+  },
+  "planB": {
+    "idea": "shrink fontSize so the ink narrows enough to stop covering the pressed glyph",
+    "calibration": {
+      "from": 16,
+      "to": 14,
+      "inkFrom": 208.4,
+      "inkTo": 174.7,
+      "ratio": 0.8383,
+      "linearPrediction": 182.35,
+      "note": "ink width scales with font size. The 14pt ink came out 4.2% narrower than the linear prediction, so a linear estimate of the required size is mildly optimistic; the true size would be a few percent LARGER, which does not help a shrink-to-fit plan."
+    },
+    "obj1": {
+      "label": {
+        "x1": 229.33,
+        "x2": 248.48,
+        "y1": 790.3,
+        "y2": 794.06,
+        "h": 3.76
+      },
+      "pressed": {
+        "x1": 234.55,
+        "x2": 241.7,
+        "y1": 790.3,
+        "y2": 794.67,
+        "h": 4.36
+      },
+      "pressedLabel": "31",
+      "origins": [
+        {
+          "origin": "ink-left",
+          "requiredFs": 1.62,
+          "shrinkFeasible": true
+        },
+        {
+          "origin": "ink-right",
+          "requiredFs": 2.1,
+          "shrinkFeasible": true
+        },
+        {
+          "origin": "ink-center",
+          "requiredFs": null,
+          "shrinkFeasible": false
+        },
+        {
+          "origin": "anchor",
+          "requiredFs": 3.81,
+          "shrinkFeasible": true
+        }
+      ],
+      "bestCaseFs": 3.81,
+      "verdict": "no-go",
+      "why": "best case is fs 3.81 (scaling about the attribute anchor), below the floor of 4. The other origins need less: ink-left 1.62, ink-right 2.10; ink-centre is impossible at any size because the pressed glyph contains the label centre."
+    },
+    "obj2": {
+      "label": {
+        "x1": 369.18,
+        "x2": 388.21,
+        "y1": 790.3,
+        "y2": 794.06,
+        "h": 3.76
+      },
+      "pressed": {
+        "x1": 368.21,
+        "x2": 385.3,
+        "y1": 790.55,
+        "y2": 795.15,
+        "h": 4.61
+      },
+      "pressedLabel": "PB10",
+      "origins": [
+        {
+          "origin": "ink-left",
+          "requiredFs": null,
+          "shrinkFeasible": false
+        },
+        {
+          "origin": "ink-right",
+          "requiredFs": 0.9,
+          "shrinkFeasible": true
+        },
+        {
+          "origin": "ink-center",
+          "requiredFs": null,
+          "shrinkFeasible": false
+        },
+        {
+          "origin": "anchor",
+          "requiredFs": 2.85,
+          "shrinkFeasible": true
+        }
+      ],
+      "bestCaseFs": 2.85,
+      "verdict": "no-go",
+      "why": "the label starts at 369.18 while PB10 spans 368.21-385.30, i.e. the glyph covers the label's left edge. Left-pinned shrinking can never move that edge out; centre-pinned is impossible (centre inside the glyph); anchor-pinned needs fs <= 2.85. All below the floor of 4."
+    },
+    "floor": {
+      "value": 4,
+      "rationale": "every visible net label on this page is fs 6 (55 wire + 14 flag). At 8.25 px/unit its ink is 3.76 units tall; at fs 4 it would be 2.51 units (~21 px), already shorter than the pin numbers beside it (4.36-4.85 units). Below 4 the net name becomes the smallest text in its row, subordinate to the number it is meant to name - the fix would swap a collision for a legibility defect. This is a judgement and is labelled as one."
+    }
+  },
+  "overall": "BOTH plans are no-go for BOTH labels. Under the current constraints (d<=6, fs>=4) D2/D3 cannot be fixed by moving the label off the wire or by shrinking it.",
+  "recommendation": [
+    "Register D2 (attr111 / MCU-34 over pin number 31) and D3 (attr43 / MCU-26 flag name over PB10) as known defects. Do not relax d<=6, do not shrink below 4, do not move a label onto the neighbouring row.",
+    "D3 has no geometric room at all (tallest gap 2.07 vs label 3.76). D2 has vertical room but every position that clears the digits mis-assigns the label - at the ink level going up, at the anchor level going down.",
+    "The real fix is upstream and out of scope here: the row pitch is 10 units while the label ink is 3.76 and the pin numbers 4.36-4.85, so a label and a number cannot share a 10-unit row without touching. Either the pin-number placement rule or the row pitch has to change - a layout decision for the host, not a label tweak."
+  ],
+  "gates": {
+    "readOnly": "the two scripts behind this JSON (r5t4-d2d3-alt-scan.ps1, r5t4-d2d3-alt-verdict.mjs) contain no document-mutating call; checked by the committed gate, negative control included",
+    "wrote": 0,
+    "packagesAdded": 0,
+    "counts": "before/after 21 components / 8 part / 13 netflag / 55 wires / 55 pairs / 2 pages (t53 PASS exit 0)"
+  }
+}

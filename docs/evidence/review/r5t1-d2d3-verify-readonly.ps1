@@ -1,8 +1,12 @@
 # r5t1 (D2/D3 rehearsal) - the read-only gate.
 #
-# The three rehearsal scripts are supposed to be read-only. This gate proves it mechanically
-# instead of taking the header comment's word for it: it scans only the three step files
+# The rehearsal scripts are supposed to be read-only. This gate proves it mechanically
+# instead of taking the header comment's word for it: it scans only the step files
 # (never itself), so the method names appearing below cannot pollute the result.
+#
+# Scope note: the gate looks for DOCUMENT-mutating API calls. It does not police plain file I/O,
+# because each step script has to write its own evidence JSON - that artifact is the deliverable.
+# What must stay at zero is canvas writes (save/modify/create/delete/clear on the document).
 #
 # Run from the repo root:
 #   pwsh -File docs/evidence/review/r5t1-d2d3-verify-readonly.ps1
@@ -28,7 +32,10 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $targets = @(
   (Join-Path $repo 'docs\evidence\review\r5t1-d2d3-dump.mjs'),
   (Join-Path $repo 'docs\evidence\review\r5t1-d2d3-scan.ps1'),
-  (Join-Path $repo 'docs\evidence\review\r5t1-d2d3-verdict.mjs')
+  (Join-Path $repo 'docs\evidence\review\r5t1-d2d3-verdict.mjs'),
+  # r5t4 (r2t3) - the two scripts behind r5t4-d2d3-alternatives.json
+  (Join-Path $repo 'docs\evidence\review\r5t4-d2d3-alt-scan.ps1'),
+  (Join-Path $repo 'docs\evidence\review\r5t4-d2d3-alt-verdict.mjs')
 )
 if ($Extra) { $targets += (Resolve-Path $Extra).Path }
 # NOTE on precedence: in PowerShell the comma operator binds tighter than +, so
