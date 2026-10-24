@@ -1,0 +1,262 @@
+{
+  "task": "r7t2 - independent offline MAIN invariant verification, alternate path",
+  "mode": "read-only offline. No import/read of t1 implementation; no file, canvas or bridge writes.",
+  "generatedAt": "2026-10-24T10:30:00.669Z",
+  "head": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+  "path": {
+    "description": "Committed getAll snapshot (63 components + 55 wires) minus the 42 IDs recorded by the restore check; page count from the restore page table.",
+    "dataSource": [
+      "docs/evidence/current/main-snapshot-r3t2.json",
+      "docs/evidence/current/main-restore-verify.json"
+    ],
+    "differentFromT1": [
+      "t1 is planned as a page-source parser; this uses already-committed getAll component/wire records, not page source.",
+      "unit is component row / wire record, not page source tokens or geometry.",
+      "dedupe is by exact component id and exact wire id|net, with a separate 42-ID removal set."
+    ],
+    "limitation": "Both paths ultimately describe the same live MAIN page if t1 is page-source based; this is a different artifact and implementation, not an independent capture. The snapshot is the 63-component pre-restore state, so current 21 is derived by subtracting the recorded 42 IDs."
+  },
+  "sources": [
+    {
+      "path": "docs/evidence/current/main-snapshot-r3t2.json",
+      "sha256": "21c0b28272f9c6a1f647adac2c73d7f1ea96ae4226fbad4d3fec57e52c012f69",
+      "role": "raw component and wire records",
+      "counts": {
+        "components": 63,
+        "wires": 55,
+        "pages": 1
+      },
+      "blob": "7256b3d12d8d43840931acc3f40051936c81ee4f"
+    },
+    {
+      "path": "docs/evidence/current/main-restore-verify.json",
+      "sha256": "012b015fc05a99dcab2b10d0728e5741906676d667da78c658f02dfa671477bd",
+      "role": "42 removed IDs and the 2-page table",
+      "counts": {
+        "removedOriginal": 42,
+        "pages": 2
+      },
+      "blob": "dd89549f4ee0c87c263e74ebfa1507f8167a97dc"
+    }
+  ],
+  "computed": {
+    "devices": 21,
+    "part": 8,
+    "netflag": 13,
+    "wires": 55,
+    "netNamePairs": 55,
+    "pages": 2,
+    "hexIds": 0
+  },
+  "expected": {
+    "devices": 21,
+    "part": 8,
+    "netflag": 13,
+    "wires": 55,
+    "netNamePairs": 55,
+    "pages": 2,
+    "hexIds": 0
+  },
+  "proofs": {
+    "devices": {
+      "status": "provable",
+      "basis": "63 snapshot components minus 42 removedOriginal IDs = 21; all removed IDs were found in the snapshot."
+    },
+    "part": {
+      "status": "provable",
+      "basis": "8 current components with type=part."
+    },
+    "netflag": {
+      "status": "provable",
+      "basis": "13 current components with type=netflag."
+    },
+    "wires": {
+      "status": "provable",
+      "basis": "55 committed wire records."
+    },
+    "netNamePairs": {
+      "status": "provable",
+      "basis": "55 unique wire id|net pairs; 55 unique wire ids; 55 unique net names."
+    },
+    "pages": {
+      "status": "provable-from-page-table",
+      "basis": "2 page records in main-restore-verify.pages (MAIN, P1). The snapshot itself contains only MAIN, so the page table is the only available source for P1.",
+      "caveat": "This proves the committed page table has 2 entries, not that the live canvas currently has 2 pages. The snapshot has one page (MAIN); P1 has no component/wire records in it."
+    },
+    "hexIds": {
+      "status": "provable",
+      "basis": "0 current component IDs match /^[0-9a-f]{8,}$/i; expected 0."
+    }
+  },
+  "crossCheck": {
+    "t1Path": "docs/evidence/current/r7t1-bridgefree-main-verify.json",
+    "status": "compared-with-pages-metric-caveat",
+    "t1Sha256": "33dcdb06d890678da5dda7738d2be28a718e7ecff17eaea8668a534dbbadd993",
+    "t1Provenance": {
+      "source": "docs/evidence/current/t31-dataset.json",
+      "bytes": 131060,
+      "sha256": "ad35b61c891cd3a261c55e5cac4158ca53e3f17ef2541c9add6bd06177a222c9",
+      "main": {
+        "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+        "name": "MAIN"
+      },
+      "mainPageFoundInPages": true,
+      "mainPageIndex": 0,
+      "pageNamesFirstFive": [
+        "MAIN",
+        "P1",
+        "P1",
+        "P1",
+        "P1"
+      ],
+      "lastCommit": "e7644e8 2026-10-21 13:51:29 +0800",
+      "referenceCommit": "9c9ae06 2026-10-24 18:08:00 +0800",
+      "stale": "YES - the source was last committed before 9c9ae06, so it cannot represent the canvas as of that commit"
+    },
+    "t1Numbers": {
+      "devices": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "netNamePairs": 55,
+      "pages": 18,
+      "hexIds": 0
+    },
+    "t1Expected": {
+      "components": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "pairs": 55,
+      "pages": 2
+    },
+    "own": {
+      "devices": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "netNamePairs": 55,
+      "pages": 2,
+      "hexIds": 0
+    },
+    "differences": [
+      {
+        "key": "pages",
+        "t1": 18,
+        "ours": 2
+      }
+    ],
+    "pagesNote": "t1 computed.pages=18 is the number of page records in t31-dataset, not the distinct-page count; t1 itself marks pages NOT PROVABLE and expected.pages=2. This verifier counts main-restore-verify.pages (2 entries: MAIN, P1). The two numbers describe different objects; no average or rounding is used. Neither offline path proves the live page count.",
+    "partNetflagNote": "t1 has no componentType in its source, so its computed part/netflag are null and only reconstruction agrees at 8/13; this source has componentType and counts 8/13 directly.",
+    "note": "Compared only against t1 JSON values; t1 code was not read or imported.",
+    "t1Commit": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+    "t1ReferenceCommit": "9c9ae0697462bc7dad067a2be7824fb3972b44a9",
+    "t1SourceStale": "YES - t1 provenance source t31-dataset.json last commit e7644e8; referenceCommit 9c9ae06; t1 says it cannot represent the canvas as of that commit."
+  },
+  "old101": {
+    "status": "unresolved",
+    "claim": "A prior session mentioned 101 devices, inconsistent with 21.",
+    "checked": [
+      "numeric 101 scan over docs/evidence/current/*.json found only line/h values, no component/device total",
+      "snapshot has 63 components",
+      "restore records 42 removed IDs",
+      "current is 21"
+    ],
+    "explanation": "Not derivable from these sources. I do not guess whether it included another page or a library; a page/library table with 101 rows is missing."
+  },
+  "selfProof": {
+    "scriptImports": [
+      "node:fs",
+      "node:crypto",
+      "node:url",
+      "node:path"
+    ],
+    "scriptWrites": 0,
+    "fileWrites": 0,
+    "canvasWrites": 0,
+    "bridgeCalls": 0,
+    "packagesNew": 0,
+    "wrote": 0,
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "documentWrites": 0,
+    "bridgeWrites": 0,
+    "sourceStable": true
+  },
+  "mismatches": [],
+  "t53": {
+    "command": "node docs/evidence/review/t53-verify-main.mjs",
+    "exitCode": 2,
+    "isPass": false,
+    "stdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass",
+    "note": "offline r7t2 did not call the bridge; t53 was run separately and is not a PASS"
+  },
+  "overall": "cross-checked-with-pages-metric-caveat",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "t1 artifact present; 21/8/13/55/55/0 agree (part/netflag only via t1 reconstruction), but t1 reports 18 page records and marks pages NOT PROVABLE while this path counts 2 page-table entries. The pages difference is explained, not averaged.",
+        "baseline": "t1 source t31-dataset.json has no componentType; this independent source main-snapshot-r3t2.json has componentType and raw wires, with 42 removed IDs from main-restore-verify.json.",
+        "diff": "new r7t2 script and report; no t1 import and no source modification.",
+        "crossCheck": "compared-with-pages-metric-caveat",
+        "own": {
+          "devices": 21,
+          "part": 8,
+          "netflag": 13,
+          "wires": 55,
+          "netNamePairs": 55,
+          "pages": 2,
+          "hexIds": 0
+        },
+        "differences": [
+          {
+            "key": "pages",
+            "t1": 18,
+            "ours": 2
+          }
+        ],
+        "pagesMetric": "t1 pages=18 page records; ours pages=2 page-table entries; t1 marks pages not provable; no average used.",
+        "t1Commit": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+        "t1ReferenceCommit": "9c9ae0697462bc7dad067a2be7824fb3972b44a9",
+        "sourceBlobs": {
+          "main-snapshot-r3t2.json": "7256b3d12d8d43840931acc3f40051936c81ee4f",
+          "main-restore-verify.json": "dd89549f4ee0c87c263e74ebfa1507f8167a97dc"
+        }
+      }
+    }
+  ],
+  "t1Commit": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+  "t1ReferenceCommit": "9c9ae0697462bc7dad067a2be7824fb3972b44a9",
+  "t1SourceStale": "YES - t1 provenance source t31-dataset.json last commit e7644e8; referenceCommit 9c9ae06; t1 says it cannot represent the canvas as of that commit.",
+  "gates": {
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "t53": {
+      "command": "node docs/evidence/review/t53-verify-main.mjs",
+      "exitCode": 2,
+      "isPass": false,
+      "stdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass",
+      "note": "offline r7t2 did not call the bridge; t53 was run separately and is not a PASS"
+    },
+    "packagesNew": 0,
+    "wrote": 0,
+    "writeCalls": 0
+  },
+  "baseline": "No prior r7t2 artifact. Independent sources at review HEAD 045cfecc: main-snapshot-r3t2.json blob 7256b3d, main-restore-verify.json blob dd89549; t1 at 045cfecc (its provenance reference is 9c9ae06 and is marked stale by t1 itself).",
+  "diff": "New files only: docs/evidence/review/r7t2-indep-main-verify.mjs and docs/evidence/current/r7t2-indep-main-verify.json. No source, t1, package, guide or gate file modified.",
+  "reproSteps": [
+    "GIT_HEAD=$(git rev-parse HEAD) node docs/evidence/review/r7t2-indep-main-verify.mjs",
+    "node -e \"const d=require('./docs/evidence/current/r7t2-indep-main-verify.json'); console.log(d.computed)\"",
+    "node docs/evidence/review/t53-verify-main.mjs  # exit 2 BRIDGE_UNREACHABLE, not PASS",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/r7t2-indep-main-verify.mjs"
+}
