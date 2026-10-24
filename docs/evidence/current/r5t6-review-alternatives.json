@@ -1,0 +1,105 @@
+{
+  "task": "r3t1 - independent review of r5t4 D2/D3 alternatives",
+  "reviewedAt": "2026-10-24",
+  "head": "fc0f84c",
+  "headBefore": "3208fc9",
+  "origin": "3208fc9",
+  "headVsOrigin": "1 0",
+  "headDrift": "HEAD was 3208fc9 when the review started; during the review another member committed fc0f84c (guide-only, +24 lines, D2/D3 disposition). The reviewed artifact blob 6d8952117ac465bcb73fca4fc341765f1357ab1a is identical at both commits. I re-pinned to fc0f84c, re-read the new guide lines, and re-ran the key PNG measurements; the numbers are unchanged.",
+  "artifact": {
+    "path": "docs/evidence/current/r5t4-d2d3-alternatives.json",
+    "commit": "3208fc9",
+    "blob": "6d8952117ac465bcb73fca4fc341765f1357ab1a",
+    "headField": "f939bc7",
+    "headFieldNote": "The artifact's own head field is f939bc7 (the base at generation), not its commit 3208fc9. The committed blob is what was reviewed; the field is a metadata base, not a claim that the file is at f939bc7."
+  },
+  "overall": "partial",
+  "overallReason": "The Plan A and Plan B no-go decisions are sound, and the criterion-2 handling is honest: at h=3.76 the anchor d=3.76<=6 passes, but the ink is 4.70 from its own wire and only 1.54 from MCU-33, so the label reads as the wrong net. That is a real d<=6 rule gap. Plan B's calibration, 3.81 best case, 2.07 gap, and floor-4 decision also hold. The defect is the root-cause claim: 4.85 has no measured source (the artifact measures 4.36 and 4.61; my pin 31 is 4.36, pin 21 is 3.88), and 3.76+4.61=8.37<10, so the statement 'a label and a number cannot share a 10-unit row' is not supported by those numbers. The root-cause direction (layout-level, not a label tweak) is right; the specific arithmetic/wording is not. Hence partial, not sound, but not unsound: no no-go is converted to go and no measurement is fabricated.",
+  "findings": [
+    {
+      "id": "version",
+      "verdict": "pass with metadata note",
+      "evidence": "3208fc9 blob 6d89521, HEAD fc0f84c same blob; re-pinned after drift. The artifact's head field f939bc7 is the generation base, not its commit; not a measurement error."
+    },
+    {
+      "id": "planA-geometry",
+      "verdict": "成立",
+      "raw": "blue MCU-34 ink: x 229.33-248.48, y 790.30-794.06, h=3.76; black 31: x 234.18-241.70, y 790.30-794.67, h=4.36; MCU-33 wire y=785; own +3V3 wire y=795.",
+      "computed": "h=3.76 up: ink y 786.54-790.30; inkToMCU33 = 786.54-785 = 1.54; inkToOwn = 795-790.30 = 4.70.",
+      "note": "The green y=790 run in the frame is not a wire in the live geometry (no segment at y790 x210-250); it is an overlay/flag graphic, so MCU-33 is the nearest wire. The label ink bottom and the black 31 top are both 790.30: they abut at h=3.76 with 0 gap, so 'clears' is a boundary statement, not a visible gap. The 1.54/4.70 arithmetic is correct."
+    },
+    {
+      "id": "criterion2-honesty",
+      "verdict": "成立",
+      "artifactQuote": "criterion2Literal: PASS for every h in [3.76, 6.0]: d = h <= 6",
+      "artifactWhy": "Up clears the digits at h>=3.76 but the INK then sits closer to the row above (MCU-33) than to its own wire, so it reads as the wrong net.",
+      "finding": "The reason is valid. The project's d<=6 audit checks only the anchor-to-own-wire distance. At h=3.76 the anchor passes (3.76), while the ink is 4.70 to own and 1.54 to MCU-33; a reader associates the ink with MCU-33. This is an explicit rule gap: d<=6 alone can pass a label that visually belongs to a neighbouring net. The r5t4 artifact adds criterion 2' and applies it openly; the audit rule itself should adopt an ink-nearest check for any vertical/label move, not leave it as an ad hoc exception.",
+      "ruleGap": "Add: own wire must be nearest both for the anchor and for the ink box; otherwise no-go or human review. This is more important than the single no-go because a future move can satisfy d<=6 while producing the same misreading."
+    },
+    {
+      "id": "planB-calibration",
+      "verdict": "成立 with derivation note",
+      "raw": "208.4 is the measured 16pt text31 ink width (404.9-613.3); 174.7 is derived as 579.63-404.9 from the D1 14pt right edge, not an independent left/right re-scan. Ratio 174.7/208.4=0.8383; linear 208.4*14/16=182.35; 182.35-174.7=7.65; 7.65/182.35=4.20% narrower.",
+      "bestCase": "obj1 best case 3.81 (artifact discrete step 0.005; exact with its pressed x1 234.55 is about 3.83; with my measured x1 234.18 it is about 3.77; all below 4). obj2 best case 2.85 (exact about 2.86; below 4). Floor 4 is unchanged; it was not lowered to make the plan work.",
+      "obj2Gap": "Independent black-cluster scan: gap 788.48-790.55 = 2.07; label ink height 3.76 > 2.07, and the next gaps are 1.94/1.09, so no vertical band fits. The 2.07-vs-3.76 no-go is sound.",
+      "note": "The 174.7 derivation is consistent with D1 but is not an independent measurement of the new width; the artifact should label it derived. The 4.2% direction is correct: the actual shrink is smaller than linear, so a shrink-to-fit needs a slightly larger fs, not a smaller one."
+    },
+    {
+      "id": "rootCause",
+      "verdict": "不成立 as stated (root-cause direction sound)",
+      "artifactQuote": "The real fix is upstream and out of scope here: the row pitch is 10 units while the label ink is 3.76 and the pin numbers 4.36-4.85, so a label and a number cannot share a 10-unit row without touching.",
+      "measured": {
+        "pitch": 10,
+        "pitchSource": "Pin Number y 784.085 / 794.085 / 804.085 / 814.085; Pin Name y 780.085 / 790.085 / 800.085 / 810.085",
+        "labelInk": 3.76,
+        "pin31": 4.36,
+        "pin21": 3.88,
+        "PB10": 4.61,
+        "unsourced": "4.85 appears only in the artifact/guide prose; the artifact's pressedInk measures 4.36 and 4.61, and my independent pin31/pin21 scans give 4.36 and 3.88. No committed measurement supports 4.85."
+      },
+      "arithmetic": "3.76+4.36=8.12; 3.76+4.61=8.37; 3.76+4.85=8.61. All are below 10. The numbers therefore do not prove 'cannot share a 10-unit row'. The actual obstruction is fixed vertical placement: the label is on its own wire and the pin number at the pin; moving up reaches MCU-33 at h>2.18 and moving down reaches +3V3 at h>=4.37; obj2's largest black gap is 2.07.",
+      "verdictText": "The direction is sound (the fix is layout-level, not a label tweak), but the specific 4.85 and '10-unit row cannot fit' wording is not supported. Remove/source 4.85 and rewrite the sentence to the fixed-anchor/adjacent-wire reason. Therefore root cause partial, not sound."
+    },
+    {
+      "id": "gates",
+      "verdict": "pass",
+      "evidence": "t53 PASS 5/5 exit 0 (environment available; the prompt's expected exit 2 did not occur and is not fabricated); freshness FRESH v4 exit 0; packages new 0; wrote=0 document; verify-readonly PASS 5 files; no PNG/criteria change. alt-verdict writes the evidence JSON and alt-scan writes %TEMP%; neither writes the document. I did not run alt-verdict (it would rewrite the artifact); the PNG measurements above are independent."
+    }
+  ],
+  "guideImpact": {
+    "commit": "fc0f84c",
+    "change": "Adds the D2/D3 disposition and repeats the 4.36-4.85 / 'same row cannot fit' root cause. That repetition has the same unsourced 4.85 and arithmetic issue; the guide should be corrected with the r5t4 root-cause wording.",
+    "r5t6Line": "The new guide says r5t6-review-alternatives.json does not exist and the conclusion is still awaiting third-party review. This artifact is that review; the line is now superseded. I did not edit the guide (review scope); a one-line sync is recommended."
+  },
+  "gates": {
+    "t53": "PASS 5/5 exit 0",
+    "freshness": "FRESH, baselineVersion 4, exit 0",
+    "packagesNew": 0,
+    "wrote": 0,
+    "readOnlyGate": "PASS, 5 files, 0 document-mutating calls",
+    "noPng": true,
+    "noCriteriaChange": true
+  },
+  "verify": [
+    {
+      "task": "r5t4",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "Plan A 1.54/4.70 independently reproduced; criterion 2 is honest and exposes a real d<=6 ink-nearest gap; Plan B 3.81/2.85, 2.07 gap, and floor 4 are sound. Root cause overclaims 4.85 and '10-unit row cannot fit' (3.76+4.61<10); the direction is right but the wording/number is not. No no-go was converted to go.",
+        "baseline": "3208fc9 r5t4 artifact blob 6d89521; head field f939bc7",
+        "diff": "review only: fc0f84c guide +24 lines; no r5t4 artifact change"
+      }
+    }
+  ],
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master  # 3208fc9 -> fc0f84c; artifact blob 6d89521 at both",
+    "Read docs/evidence/current/r5t4-d2d3-alternatives.json lines 60-212 and 354-466",
+    "Scan r2t1-w1-frame.png: blue bbox 229.33-248.48 / 790.30-794.06; black 31 bbox 234.18-241.70 / 790.30-794.67",
+    "MCU-33 wire y=785; own +3V3 wire y=795; at h=3.76 -> 1.54 / 4.70",
+    "Scan r2t1-w2-frame.png black clusters: gap 788.48-790.55 = 2.07; label height 3.76",
+    "pwsh -File docs/evidence/review/r5t1-d2d3-verify-readonly.ps1  # PASS",
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS 5/5 exit 0",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
