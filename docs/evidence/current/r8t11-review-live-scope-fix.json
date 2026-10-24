@@ -1,0 +1,160 @@
+{
+  "task": "t3 - third-party review of t1's r7t5 liveProvable scope fix (the author is j5; this reviewer is not the author)",
+  "reviewer": "eda4 member (third party)",
+  "generatedAt": "2026-10-24T13:12:00Z",
+  "generatedAtLocal": "2026-10-24T21:12:00+08:00",
+  "reviewedAtHead": "74bc61ba95c5232c76bd565f4bb5b76edac099d9",
+  "headline": "The fix holds. liveProvable now states three observed moments including the retained recheck, and no longer asserts 'only at' the two 12:36 moments; the recheck was not deleted to hide the old contradiction - its timestamps, exit code, 5/5 and pageCount are byte-identical to the pre-fix blob and only its note text was rewritten. healthIsNotLivenessProof carries every element the task demanded, including the half that matters most (/health still reporting edaConnected:true). The old a-verdict, sourceOfTwo false, overall string, 18/18/3/d224/+16 and the withdrawn-object-mismatch record are all intact. I independently recounted t31 rather than trusting the artifact's numbers: 18 pages, 18 distinct uuids, 3 names (MAIN/P1/P2), d224f8d1 absent, 18-2=16. The three live timestamps match the synced guide verbatim. Two info-level blemishes, neither of which changes a conclusion: the third local timestamp is 4 ms off its UTC conversion, and one provenance sentence is slightly loose about which observation corroborated what.",
+  "items": [
+    {
+      "id": 1,
+      "question": "record HEAD and the r7t5 blob, confirm the committed version was reviewed, and handle drift",
+      "verdict": "成立",
+      "evidence": {
+        "head": "74bc61ba95c5232c76bd565f4bb5b76edac099d9",
+        "origin": "74bc61ba95c5232c76bd565f4bb5b76edac099d9 (0 0, clean at the start and at the end)",
+        "r7t5Blob": "fd18e4323bd8031bc9260111b1e1f46c93716057, 430 lines, 32436 bytes",
+        "guideBlob": "3835fdee5675cdf72c09c2defaae84d35834026a",
+        "reviewedBlobIsCommitted": "the working-tree file parses to the same content and status --porcelain was empty, so HEAD == working tree == reviewed version",
+        "headDrift": "none during the review",
+        "t1Range": "6d0ddba..74bc61b = fe94418, 64dd414, 74bc61b, and each of the three touches only docs/evidence/current/r7t5-pages-provenance.json (git show --name-only per commit)"
+      }
+    },
+    {
+      "id": 2,
+      "question": "does liveProvable resolve the 'only at two moments' contradiction in a self-consistent way (case a/b/c), and is 'only' not merely deleted while two timestamps remain",
+      "verdict": "成立",
+      "evidence": {
+        "case": "a - the timestamp list includes the third moment AND 'only' no longer conflicts",
+        "quote": "judgment.liveProvable = \"true at three observed moments: 2026-10-24T12:36:10.642Z, 2026-10-24T12:36:46.855Z, and 2026-10-24T12:37:34.222Z (local 2026-10-24T20:36:10.642+08:00, 20:36:46.855+08:00, and 20:37:34.218+08:00): the live getAllSchematicPagesInfo() returned 2 pages (MAIN b275cd23e45c4271bead56f66d4f98fe, P1 d224f8d13804e759), active MAIN, window 25883914a72e5cbb. The third moment is the extra recheck, not a replacement for the two original 12:36 moments. It is not true for 06:06:59 or 13:51, is not an offline proof, and is not a permanent or long-term availability claim.\"",
+        "theTrapWasAvoided": "if 'only' had been deleted while leaving two timestamps, the item would fail. It did not: the string went from 'true only at <two>' to 'true at three observed moments', and the third timestamp was added rather than the qualifier being dropped.",
+        "remainingOnlyAt": "the phrase still appears twice in the file, both descriptive rather than assertive: L11 t1Task (\"fix the 'only at two moments' contradiction\") and L383 t1Baseline (\"liveProvable said 'only at' the two 12:36 moments\"). Both describe the pre-fix state on purpose.",
+        "oldValueForComparison": "pre-fix blob 31f2d14: \"true only at 2026-10-24T12:36:10.642Z and 2026-10-24T12:36:46.855Z ... is not a permanent claim\" - the new string strengthens 'permanent' to 'permanent or long-term availability claim'"
+      }
+    },
+    {
+      "id": 3,
+      "question": "is liveObservation.recheck still there, or was it deleted/edited to 'remove' the contradiction",
+      "verdict": "成立",
+      "evidence": {
+        "present": "liveObservation.recheck = {\"atUtc\":\"2026-10-24T12:37:34.222Z\",\"atLocal\":\"2026-10-24T20:37:34.218+08:00\",\"t53ExitCode\":0,\"t53Checks\":\"5/5\",\"pageCount\":2,\"note\":\"...\"}",
+        "notDeleted": "the object exists at HEAD with all five substantive fields",
+        "deepCompareAgainstPreFixBlob": "I extracted blob 31f2d14 and compared the recheck objects: util.isDeepStrictEqual -> false, and the ONLY differing field is note. atUtc, atLocal, t53ExitCode, t53Checks, pageCount are identical.",
+        "noteChange": "old note: 'It is not substituted for the aligned 12:36 timestamps and is not a retroactive claim.' -> new note: 'It is the third observed moment in judgment.liveProvable, not a replacement for the two original 12:36 moments and not a retroactive claim.' The rewrite makes the note agree with the new liveProvable; it does not weaken or remove any recorded value.",
+        "whyThisIsNotAFailure": "the task fails the artifact if evidence is deleted to make a contradiction vanish. Here the evidence (timestamps, exit 0, 5/5, pageCount 2) is untouched; only the prose label changed, and it changed to be more specific."
+      }
+    },
+    {
+      "id": 4,
+      "question": "does healthIsNotLivenessProof carry 12:39:01.011Z, BRIDGE_CALL_FAILED, the raw disconnected body, AND the '/health still says true' half",
+      "verdict": "成立",
+      "evidence": {
+        "atUtc": "\"2026-10-24T12:39:01.011Z\" (atLocal 2026-10-24T20:39:01.011+08:00)",
+        "t53": "{\"exitCode\":2,\"reason\":\"BRIDGE_CALL_FAILED\"}",
+        "executeError": "{\"success\":false,\"error\":\"EDA window \\\"25883914a72e5cbb\\\" disconnected\"} - the raw body, verbatim",
+        "healthHalf": "healthAtSameMoment = {\"edaConnected\":true,\"edaWindowCount\":1,\"pendingRequests\":1,\"activeWindowId\":\"25883914a72e5cbb\"} - this is the half whose absence would force partial, and it is present with count 1 and pendingRequests 1 both spelled out",
+        "conclusion": "\"/health 不能作为窗口存活的判据，只有 /execute 会出卖它\"",
+        "scope": "'Observed at 2026-10-24T12:39:01.011Z; not a current claim and not a long-term availability claim. /health still advertised the window while /execute reported it disconnected.' - correctly fenced in time rather than asserted as a standing fact",
+        "infoBlemish": "evidenceOrigin says the 12:39 observation was 'independently corroborated in kind by r8t9's observation of the same /health-vs-/execute inconsistency at that timestamp'. My r8t9 recorded the /execute 500 body as a separate read taken shortly after the 12:39:01.011Z t53 run, not at that exact millisecond, and did not stamp its own time. 'In kind, same window id, same error string' is defensible; 'at that timestamp' is slightly loose. It does not affect the substance."
+      }
+    },
+    {
+      "id": 5,
+      "question": "are the old records intact: a-verdict, sourceOfTwo.liveProvable=false, overall and scope, 18 uuids, 3 names, d224f8d1 absent, +16 probe pages, the retraction",
+      "verdict": "成立",
+      "evidence": {
+        "aVerdict": "judgment.choice = \"a\"",
+        "sourceOfTwo": "sourceOfTwo.liveProvable = false",
+        "overall": "\"a-artifact-provable-live-unproven\"",
+        "overallScope": "\"The overall string above is the historical artifact/offline verdict and is intentionally unchanged. The separate timestamped live fact is liveObservation and judgment.liveProvable; it does not turn the offline sources into live proof.\"",
+        "counts": "pageCountTimeline.at1351 = {\"pages\":18,\"uniqueUuids\":18,\"names\":3,\"delta\":16,\"d224Present\":false}",
+        "preservedFactsBlock": "liveObservation.preservedFacts = {t31Pages:18, t31UniqueUuids:18, t31UniqueNames:3, d224InT31:false, extraProbePages:16, retraction:'The earlier object-mismatch/dedupe claim remains withdrawn; this addendum does not revive it.', offlinePageRow:'离线不可证（仅历史断言）'}",
+        "retractionWordForWord": "L210 and L218 at HEAD are byte-identical to L197 and L205 of the pre-fix blob: \"No retroactive claim is made for 06:06:59 or 13:51; the earlier object-mismatch/dedupe explanation remains withdrawn.\" and the retraction field. Keyword counts unchanged old->new: 撤回 1->1, retract 2->2, wrong 1->1; 'withdraw' 2->3 because t1Diff adds one occurrence describing the change.",
+        "notB": "judgment.notB still explains why b fails, scoped to the committed artifact"
+      }
+    },
+    {
+      "id": 6,
+      "question": "do r7t5's three timestamps match the guide (synced by t2) verbatim, and if not, where exactly do they differ",
+      "verdict": "成立",
+      "evidence": {
+        "method": "extracted every ISO timestamp from both files and diffed the sets",
+        "guideTimestamps": ["2026-10-24T12:36:10.642Z", "2026-10-24T12:36:46.855Z", "2026-10-24T12:37:34.222Z", "2026-10-24T20:36:10.642+08:00", "2026-10-24T20:36:46.855+08:00", "2026-10-24T20:37:34.218+08:00"],
+        "r7t5LiveTimestamps": "contains all six of the above, plus 2026-10-21T05:54:46.324Z (r3t2 pre-snapshot), 2026-10-21T06:06:59.935Z (restore artifact), 2026-10-24T12:39:01.011Z and 20:39:01.011+08:00 (health observation), and 2026-10-24T20:55:00+08:00 (generatedAt)",
+        "verbatimMatch": "the six live strings are character-for-character identical in both files; nothing in the guide is missing from r7t5",
+        "extraOnesAreLegitimate": "the restore/snapshot timestamps describe offline sources the guide summarises separately, and 12:39:01.011Z appears in the guide in time-only form ('实测 12:39:01.011Z'), which is the same value",
+        "alignmentNote": "r7t5's liveObservation.alignment correctly says the baseline guide cdfee6d had only the first two and that the sync landed in 6d0ddba"
+      }
+    },
+    {
+      "id": 7,
+      "question": "independently recompute t31: 18 pages, 18 distinct uuids, 3 names, d224f8d1 absent",
+      "verdict": "成立",
+      "evidence": {
+        "command": "node -e reading docs/evidence/current/t31-dataset.json, mapping pages to uuid and name",
+        "results": "pages is an array of length 18; 18 distinct uuids; 3 distinct names [\"MAIN\",\"P1\",\"P2\"]; d224f8d1 present = false; no empty uuid; 18-2 = 16",
+        "whyNamesAreThree": "P1 appears on many distinct uuids - e.g. the first entries are b275cd23/MAIN, 03feee84/P1, 06ceb6de/P1 - so the correct metric is distinct uuids (18), not distinct names (3)",
+        "matchesArtifact": "these independently computed numbers equal r7t5's pageCountTimeline.at1351 and preservedFacts, so the artifact's numbers are not merely self-reported"
+      }
+    },
+    {
+      "id": 8,
+      "question": "self-proof: freshness actually run, packages 0, wrote 0",
+      "verdict": "成立",
+      "evidence": {
+        "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0 (run by me at the reviewed HEAD)",
+        "packages": "git diff --name-only 6d0ddba 74bc61b -- packages -> empty",
+        "wrote": "0 - this review only read files and ran read-only commands; no bridge call, no canvas or document write",
+        "scopeOfT1": "the three t1 commits touch r7t5 only; the guide and t53 blobs are identical at 6d0ddba and 74bc61b (a45b725 and 3835fd respectively), which independently confirms t1's claim that it did not edit the guide or t53"
+      }
+    }
+  ],
+  "observationTimeArithmetic": {
+    "finding": "the third local timestamp is 4 ms away from its UTC counterpart's exact +08 conversion",
+    "detail": "12:37:34.222Z + 08:00 = 20:37:34.222+08:00, but both r7t5 and the guide record 20:37:34.218+08:00. The two 12:36 pairs convert exactly (10.642 -> 10.642 and 46.855 -> 46.855).",
+    "likelyCause": "the third moment's UTC was taken from t53's output and its local from a second clock read, so the two are independent samples rather than a conversion",
+    "impact": "none on any conclusion - it does not touch which moments were observed or what was seen; it is a rounding/transcription artifact",
+    "whyIAmNotUnilaterallyFixingIt": "correcting it means editing both r7t5 (j5's file) and the guide (mine), and the two must stay byte-identical per the task; a one-sided fix would create exactly the kind of cross-artifact mismatch this review is meant to catch"
+  },
+  "overall": {
+    "verdict": "sound",
+    "why": "Every item passes on its own terms. The specific hazards were: (i) dropping 'only' while keeping two timestamps - avoided, three timestamps were added; (ii) deleting the recheck to erase the contradiction - avoided, all five substantive fields are identical to the pre-fix blob and only the note was rewritten to agree with the new claim; (iii) recording the disconnected failure without the '/health still says true' half - avoided, that half is present with count 1 and pendingRequests 1. The old verdict surface is intact, including the retraction verbatim. The numbers in the artifact reproduce when I recount t31 myself. The three live timestamps match the guide character-for-character, and the guide edit was mine (6d0ddba) rather than something t1 slipped in.",
+    "infoLevelFindings": [
+      "third local timestamp is 4 ms off the exact +08 conversion (recorded 218, arithmetic gives 222); consistent across both artifacts, conclusion-neutral",
+      "healthIsNotLivenessProof.evidenceOrigin calls r8t9 a corroboration 'at that timestamp'; r8t9's /execute read was a separate, unstamped observation of the same window and error string - 'in kind' is right, 'at that timestamp' is loose"
+    ],
+    "whatIWouldAskBeforeCallingItPerfect": "reconcile the 4 ms pair once, in one place, so r7t5 and the guide keep the same strings and neither carries an avoidable arithmetic blemish"
+  },
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "t1's r7t5 fix is honest and complete. judgment.liveProvable moved from 'true only at <two 12:36 moments>' to 'true at three observed moments' with 12:37:34.222Z added and the third explicitly labelled the extra recheck rather than a replacement. The retained recheck object is unchanged in every substantive field (timestamps, t53ExitCode 0, 5/5, pageCount 2) versus the pre-fix blob; only its note text was rewritten. healthIsNotLivenessProof contains 12:39:01.011Z, exit 2 / BRIDGE_CALL_FAILED, the verbatim disconnected body, and the /health half (edaConnected true, count 1, pendingRequests 1). Old records are intact: choice a, sourceOfTwo.liveProvable false, overall 'a-artifact-provable-live-unproven' plus scope, 18 pages / 18 distinct uuids / 3 names / d224f8d1 absent / +16 probe pages, and the withdrawn object-mismatch record verbatim. I recounted t31 independently and got the same 18/18/3/false/16. The three live timestamps are identical to the guide's. Scope confirmed: 6d0ddba..74bc61b touches r7t5 only; guide and t53 blobs are unchanged.",
+        "baseline": "r7t5 blob 31f2d149b98aa904d94d86a37f66404dd7dfc48b at HEAD 6d0ddba; liveProvable then read 'true only at' the two 12:36 moments, no healthIsNotLivenessProof, recheck already 12:37:34.222Z",
+        "diff": "r7t5 blob fd18e432 at HEAD 74bc61b: 76 insertions / 15 deletions for the content fix, 17/10 for head-drift metadata, 3/3 for wording; no guide or t53 edit",
+        "howVerified": "ls-tree for the blob; node parse and deep-compare of liveObservation.recheck against the pre-fix blob extracted with git cat-file; string search for 'only at' with line numbers; node dump of healthIsNotLivenessProof; independent recount of t31-dataset.json; regex diff of ISO timestamps between r7t5 and the guide; UTC->+08 conversion check; git show --name-only per t1 commit; freshness --check"
+      }
+    }
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "bridgeCalls": 0,
+    "packagesAdded": 0,
+    "filesChanged": ["docs/evidence/current/r8t11-review-live-scope-fix.json"],
+    "freshness": "FRESH, baselineVersion 4, packages 5, files 21, configs 8, tsconfigs 7, exit 0 (run by me)"
+  },
+  "baseline": "HEAD 74bc61b (= origin); r7t5 blob fd18e43; pre-fix r7t5 blob 31f2d14 at 6d0ddba; guide blob 3835fde",
+  "diff": "new file docs/evidence/current/r8t11-review-live-scope-fix.json only; no other file read was modified",
+  "reproSteps": [
+    "git -C D:/projects/nodejs/deepseek-eda-plugins rev-parse HEAD; rev-parse origin/master; rev-list --left-right --count HEAD...origin/master; status --porcelain",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins ls-tree -r HEAD -- docs/evidence/current/r7t5-pages-provenance.json   # blob fd18e43",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins cat-file blob 31f2d14 > old.json   # pre-fix blob for the recheck deep-compare",
+    "node -e \"parse r7t5; compare liveObservation.recheck old vs new with util.isDeepStrictEqual; print healthIsNotLivenessProof\"",
+    "node -e \"read t31-dataset.json; print pages.length, distinct uuid count, distinct names, d224 presence\"",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
