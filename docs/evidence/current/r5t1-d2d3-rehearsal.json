@@ -1,0 +1,312 @@
+{
+  "task": "t2 (r5t1) - D2/D3 read-only rehearsal: how far can each of the two labels move along its own wire, and does the label still hold its net afterwards",
+  "mode": "rehearsal / read-only. No canvas write in this run: no primitive was changed, added or removed, and nothing was written to the document.",
+  "head": "720a7b6",
+  "date": "2026-10-24",
+  "brief": "Two objects only: attr111 (MCU-34 over pin NUMBER 31) and the netflag name layout:flag:MCU_26:0 (MCU-26 over pin NAME PB10). attr102 is explicitly out of scope.",
+  "attr102Excluded": "attr102 (390,795) is NOT analysed: this rehearsal was told not to touch it, and the reason holds up - its ink box 409.79-428.94 contains zero black glyphs, only a green wire grazing its lower edge",
+  "readOnlyProof": {
+    "command": "Select-String -Path .tmp-r5t1-* -Pattern '\\.save\\s*\\(|\\.modify\\s*\\(|\\.create\\s*\\(|\\.delete\\s*\\(|\\.clear\\s*\\('",
+    "result": "0 matches",
+    "bareIdentifiers": "Select-String -Path .tmp-r5t1-* -Pattern '\\b(save|modify|create|delete|clear)\\b' -> 0 matches",
+    "note": "the script headers were rewritten to remove the words themselves, so the grep is not satisfied by a comment that merely promises not to write"
+  },
+  "method": {
+    "geometry": "live read through the bridge at 720a7b6: sch_PrimitiveWire.getAll (55 wires, 62 segments), sch_PrimitiveAttribute.getAll (662), sch_PrimitiveText.getAll (39), dmt_Schematic.getAllSchematicPagesInfo (2)",
+    "segmentEncoding": "sch_PrimitiveWire.line packs FOUR numbers per segment (not a continuous polyline). Parsing it as a polyline invents bridging segments - that mistake produced a spurious d=0 baseline in the first pass and was corrected before any number was recorded",
+    "inkBoxes": "pixel scan of the committed frames r2t1-w1-frame.png (rect x 200-280, y 672-918, 8.25 px/unit) and r2t1-w2-frame.png (x 355-435), band y 787.5-797.5 so the 785 and 805 pin rows do not merge into the 795 row. Ink is split by colour: black = pin text, blue = net-label text, green = wire",
+    "inkBoxCaveat": "the flag name of layout:flag:MCU_34:0 starts at 269.33 (measured) but runs past the right edge of the w1 frame at 280; its end 288.5 is inferred from the 19.15-unit advance of the other 6-character label, and is flagged as inferred rather than measured",
+    "overlapTest": "all x-overlap decisions are valid because every compared pair also overlaps in y: attr111 ink y 790.27-794.15 vs digit 31 y 790.27-794.76; attr43 y 790.27-794.15 vs PB10 y 787.49-797.67",
+    "dDefinition": "d = distance from the label anchor to the nearest segment of a FOREIGN wire; t = clamped projection parameter on that segment; the pressing rule is d<=6 and t in (0.05,0.95)"
+  },
+  "objects": [
+    {
+      "key": "obj1",
+      "id": "attr111",
+      "originalAttributes": {
+        "key": "Name",
+        "value": "MCU-34",
+        "x": 210,
+        "y": 795,
+        "fontSize": 6,
+        "parentPrimitiveId": "layout:wire:MCU_34:flags",
+        "valueVisible": true
+      },
+      "kind": "wire label (belongs to its wire)",
+      "ownWire": {
+        "id": "layout:wire:MCU_34:flags",
+        "net": "MCU-34",
+        "segments": [
+          [
+            210,
+            795,
+            250,
+            795
+          ]
+        ],
+        "length": 40,
+        "direction": "+x, toward the pin at (250,795)"
+      },
+      "pressedObject": {
+        "what": "U1 pin NUMBER",
+        "parent": "u1-e44",
+        "attrId": "1b7c73e1e853f28f",
+        "key": "Pin Number",
+        "value": "31",
+        "x": 224,
+        "y": 794.08502,
+        "measuredInkX": [
+          235.64,
+          241.82
+        ]
+      },
+      "labelInk": {
+        "x1": 229.33,
+        "x2": 248.48,
+        "width": 19.15,
+        "source": "measured, blue channel, w1 frame"
+      },
+      "movable": {
+        "feasibleS": [
+          0,
+          40
+        ],
+        "outwardRoom": 0,
+        "why": "the anchor sits exactly on the outer end of its own wire (210), so s<0 leaves the wire at once; the only room is inward, toward the pin (+x, s in [0,40])"
+      },
+      "blackTextOnRow": [
+        {
+          "name": "pin number 31",
+          "box": [
+            235.64,
+            241.82
+          ],
+          "blocksS": [
+            0,
+            12.45
+          ]
+        },
+        {
+          "name": "pin name PA10",
+          "box": [
+            252.85,
+            268.85
+          ],
+          "blocksS": [
+            4.4,
+            39.5
+          ]
+        },
+        {
+          "name": "layout:flag:MCU_34:0 name",
+          "box": [
+            269.33,
+            288.5
+          ],
+          "blocksS": [
+            20.9,
+            40
+          ],
+          "note": "end inferred from glyph advance"
+        }
+      ],
+      "cleanWindows": [],
+      "d": {
+        "baseline": {
+          "d": 5,
+          "wire": "layout:wire:_3V3:flags",
+          "net": "+3V3",
+          "t": 0.75,
+          "pressing": true
+        },
+        "alongSweep": "d stays 5.000 (t falling 0.75 -> 0.0) until s=30, then 7.071 at s=35 and 10.000 (MCU-33, t=1.0, no press) at s=40",
+        "bound": "d never exceeds 12; the +3V3 press at s=0 is PRE-EXISTING, not created by a move, and it disappears for s>=30",
+        "crossCheck": "this reproduces the guide figure for W1: d=5.0 at t=0.75"
+      },
+      "criteria": {
+        "c1_noOverlapWithPressed": {
+          "verdict": "UNSATISFIABLE",
+          "evidence": "clearing 31 needs s>=12.45, but every s>=12.45 is covered by PA10 [4.4,39.5] or by the MCU-34 flag name [20.9,40]; the three intervals chain end to end and leave no gap"
+        },
+        "c2_stillOwnNet": {
+          "verdict": "PASS",
+          "evidence": "for all s in [0,40] the anchor stays on the segment (210,795)-(250,795); a wire label takes its net from the wire it is attached to, so MCU-34 is kept"
+        },
+        "c3_dBoundAndNoNewForeignPress": {
+          "verdict": "PASS",
+          "evidence": "d<=12 everywhere in the sweep and no NEW rule hit appears; the only hit (+3V3, d=5, t=0.75) exists already at s=0"
+        }
+      },
+      "goNoGo": "no-go",
+      "why": "criterion 1 has no solution: this row carries three texts 31 / PA10 / flag-name within 34 units, so any along-wire translation that escapes one lands on the next. Moving 12.45 units trades \"on 31\" for \"on PA10\"; moving 39.5 trades it for \"on the flag name\""
+    },
+    {
+      "key": "obj2",
+      "id": "attr43",
+      "originalAttributes": {
+        "key": "Name",
+        "value": "MCU-26",
+        "x": 350,
+        "y": 795,
+        "fontSize": 6,
+        "parentPrimitiveId": "layout:flag:MCU_26:0",
+        "valueVisible": true
+      },
+      "kind": "netflag name (belongs to the flag component, not to attr102)",
+      "ownWire": {
+        "id": "layout:wire:MCU_26:flags",
+        "net": "MCU-26",
+        "segments": [
+          [
+            390,
+            795,
+            350,
+            795
+          ]
+        ],
+        "length": 40,
+        "direction": "-x as stored (pin 390 -> flag 350); moving toward the pin is +x"
+      },
+      "pressedObject": {
+        "what": "U1 pin NAME",
+        "parent": "u1-e108",
+        "attrId": "78b5755ab720f604",
+        "key": "Pin Name",
+        "value": "PB10",
+        "x": 367,
+        "y": 790.08502,
+        "measuredInkX": [
+          368.7,
+          385.67
+        ]
+      },
+      "labelInk": {
+        "x1": 369.18,
+        "x2": 388.3,
+        "width": 19.12,
+        "source": "start measured in the w2 frame; end 388.3 taken from the r2t1 readback because the blue cluster at 377.42-390.39 merges with the flag edge"
+      },
+      "movable": {
+        "feasibleS": [
+          0,
+          40
+        ],
+        "outwardRoom": 0,
+        "why": "anchor on the flag end (350) of a 40-unit wire; s<0 leaves the wire, so the only room is toward the pin"
+      },
+      "blackTextOnRow": [
+        {
+          "name": "pin name PB10",
+          "box": [
+            368.7,
+            385.67
+          ],
+          "blocksS": [
+            0,
+            16.45
+          ]
+        },
+        {
+          "name": "pin number 21",
+          "box": [
+            395.36,
+            401.67
+          ],
+          "blocksS": [
+            7.1,
+            32.45
+          ]
+        },
+        {
+          "name": "attr102 wire-label ink",
+          "box": [
+            409.79,
+            428.94
+          ],
+          "blocksS": [
+            21.5,
+            40
+          ]
+        }
+      ],
+      "cleanWindows": [],
+      "d": {
+        "baseline": {
+          "d": 10,
+          "wire": "layout:wire:MCU_25:flags",
+          "net": "MCU-25",
+          "t": 1,
+          "pressing": false
+        },
+        "alongSweep": "d falls to 5.000 against the GND wire from s=15 onward, with t entering (0.05,0.95) at s=15 and staying there through s=40",
+        "bound": "d stays <=12, but the move CREATES a new foreign-wire press (GND)",
+        "crossCheck": "the baseline d=10.0 with t=1.0 explains why this label is not currently in the pressing list: t sits exactly on a segment end"
+      },
+      "criteria": {
+        "c1_noOverlapWithPressed": {
+          "verdict": "UNSATISFIABLE",
+          "evidence": "clearing PB10 needs s>=16.45; from there 21 blocks [7.1,32.45] and attr102 blocks [21.5,40], so [16.45,40] is fully covered"
+        },
+        "c2_stillOwnNet": {
+          "verdict": "PASS",
+          "evidence": "anchor stays on the flag-to-pin segment for all s in [0,40]; the net comes from the flag component, which is not being moved"
+        },
+        "c3_dBoundAndNoNewForeignPress": {
+          "verdict": "FAIL",
+          "evidence": "from s=15 the moved name sits 5.0 units above the GND wire with t in (0.05,0.95) - a NEW text-on-foreign-wire instance that does not exist at s=0"
+        }
+      },
+      "goNoGo": "no-go",
+      "why": "criterion 1 has no solution and criterion 3 is actively violated: moving this name buys nothing and adds a GND press of its own"
+    }
+  ],
+  "notEvaluated": [
+    "perpendicular moves (the anchor must stay on its own wire for criterion 2, so only the along-wire axis was swept)",
+    "moving the pin number/name attributes of u1-e44 / u1-e108 (a different fix class, and it edits the symbol)",
+    "re-spacing the row or moving the wires themselves",
+    "attr102 - excluded by the brief"
+  ],
+  "ifHostOverrules": {
+    "obj1": "there is no along-wire value to approve. If the intent is \"get MCU-34 off the digits\", the least-bad candidates are s=12.5 (presses PA10 instead) or s=39.5 (presses the flag name), both of which move the defect rather than remove it. Neither is recommended.",
+    "obj2": "no value to approve either: s=32.5 clears PB10 and 21 but lands on attr102, and every s>=15 adds a GND press.",
+    "conclusion": "a real fix for D2/D3 cannot be a translation along these wires. It needs a change of class (re-space the row, move the flag/label to another row, or shift the wires), which is a different task and was not rehearsed here."
+  },
+  "counts": {
+    "before": {
+      "components": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "netIdPairs": 55,
+      "pages": 2,
+      "texts": 39,
+      "attributes": 662,
+      "segments": 62
+    },
+    "after": {
+      "components": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "netIdPairs": 55,
+      "pages": 2
+    },
+    "note": "before = the geometry dump taken at the start of this task; after = t53-verify-main.mjs run at the end (PASS, exit 0). No write happened in between, so the equality is expected rather than impressive."
+  },
+  "t53": {
+    "command": "node docs/evidence/review/t53-verify-main.mjs",
+    "exitCode": 0,
+    "result": "PASS 5/5 (components 21, part 8 + netflag 13, component id set, wires 55 + pairs 55, pages 2 / MAIN id intact)",
+    "readOnly": "the script was grepped for .save/.modify/.create/.delete/.clear before running: 0 hits"
+  },
+  "corrections": [
+    "first pass reported a baseline d=0.000 for obj1; that was an artefact of parsing wire.line as a polyline. With four-numbers-per-segment the baseline is d=5.000 at t=0.750, which matches the guide",
+    "pin number 31 ink is 235.64-241.82, not the 243-250 that calibrating from pin number 21 (offset +19.36) would suggest: the two pins sit on opposite sides of the symbol and use different alignment, so each was measured rather than inferred"
+  ],
+  "gates": {
+    "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> status FRESH, strictLib false, baselineVersion 4, packages 5, files 21, configs 8, tsconfigs 7; exit 0",
+    "wrote": 0,
+    "wroteMeaning": "zero write-side bridge calls and zero document changes; the only file this task creates is this JSON",
+    "packagesAdded": 0
+  }
+}
