@@ -1,0 +1,170 @@
+{
+  "task": "r8t3 - review of t2's r8t2 session diagnosis: did it invent a root cause in order to make the story close?",
+  "reviewer": "eda4 member (self-directed)",
+  "generatedAt": "2026-10-24T11:52:00Z",
+  "generatedAtLocal": "2026-10-24T19:52:00+08:00",
+  "reviewedAtHead": "a71757ed89079d50fa482095a7194f67865ff8e2",
+  "reviewed": {
+    "task": "t2 / r8t2",
+    "commit": "0fd561f",
+    "artifact": {
+      "path": "docs/evidence/current/r8t2-bridge-session-diagnosis.json",
+      "blob": "8ab1f78f32236697b427fb77f14ddd7c2a1c1117",
+      "lines": 207,
+      "ownHeadField": "ba8f0f97f28c80b71001e44e65b3f5aef7aabc85",
+      "containingCommit": "0fd561f"
+    },
+    "committedVersionVerified": true,
+    "gitStateAtReview": "HEAD = origin = a71757e, rev-list 0 0, working tree clean"
+  },
+  "headline": "It did NOT invent a root cause. t2's verdict is 'relay is up, zero EDA editor windows registered', which is exactly what I measured independently at the transport layer; it also refuses to name an open project, active document, active page or MAIN, and refuses to assert what j6 said. The remaining issues are informational: its own head field is the generation base, and one branch-exclusion line cites /health where the real support is 'zero windows'.",
+  "items": [
+    {
+      "id": 1,
+      "question": "record HEAD and the r8t2 blob, confirm the committed version was reviewed",
+      "verdict": "成立",
+      "evidence": {
+        "head": "a71757e (HEAD = origin, 0 0, clean)",
+        "blob": "8ab1f78f32236697b427fb77f14ddd7c2a1c1117",
+        "containingCommit": "0fd561f - `git show --name-only 0fd561f` lists only docs/evidence/current/r8t2-bridge-session-diagnosis.json",
+        "note": "the artifact's own head field says ba8f0f9, which is the commit it was GENERATED on, not the commit that contains it. Recorded as an info defect, not a blocker: 0fd561f is one commit after ba8f0f9."
+      }
+    },
+    {
+      "id": 2,
+      "question": "is its root-cause branch compatible with my transport-layer evidence, or does it contradict it?",
+      "verdict": "成立",
+      "verdictType": "互证 (mutual confirmation), not duplication and not contradiction",
+      "evidence": {
+        "t2Branch": "branchAnalysis.actual.id = 'relay-up-no-eda-window', supported: true",
+        "t2Quote": "L22 meaning: 'The relay process is alive and answering. It has zero registered editor windows and no active window. This is not 'no listener': the listener returns HTTP 200. It is not HTTP 500: the request succeeded. It is not a handshake mismatch: there is no window with which to handshake.'",
+        "myTransportEvidence": [
+          "TCP: 127.0.0.1:49620 connected=true, 127.0.0.1:49630 connected=true, 49621..49629 ECONNREFUSED (r8t1)",
+          "GET /health -> 200 with edaConnected:false, edaWindowCount:0, activeWindowId:null (r8t1)",
+          "GET /eda-windows -> {\"windows\":[],\"activeWindowId\":null,\"count\":0} (r8t1)",
+          "POST /execute -> 503 {\"success\":false,\"error\":\"No EDA window connected. Please connect an EDA window first.\"} (r8t1)"
+        ],
+        "agreement": "both say the listener is alive and no editor window is registered; neither of us says 'no process listening'",
+        "whatEachAdds": {
+          "t2Adds": "the session-layer consequence: with zero windows, an open project, active document, active page and MAIN activity are all unobservable, and the saveOwnDocument trap cannot be tested",
+          "iAdd": "the transport-layer proof: TCP establishes on both ports, /health and /eda-windows are 200, and /execute returns 503 with a no-window error - so 'unreachable' is demonstrably the wrong word"
+        },
+        "contradiction": "none found"
+      }
+    },
+    {
+      "id": 3,
+      "question": "is its evidence reproducible - did it paste raw output rather than paraphrase?",
+      "verdict": "成立",
+      "evidence": {
+        "health": "command `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:49620/health` + httpStatus 200 + every field of the body (service, bridge, status, edaConnected, edaWindowCount, activeWindowId, pendingRequests, timestamp). I reproduced the same body myself.",
+        "probe": "command `node docs/evidence/review/r6t1-probe-bridge.mjs` + exitCode 2 + the full stdout string verbatim. I re-ran it: exit 2, same leading text.",
+        "t53": "command `node docs/evidence/review/t53-verify-main.mjs --json` + exitCode 2 + stdoutSummary fields. I re-ran it and every reported field matches mine exactly (see item 5).",
+        "processEvidence": "it reports getProcessMainWindowTitle 'empty', tasklist/netstat/CIM ACCESS_DENIED - these are NOT raw lines, but it explicitly says 'Process/window-title evidence is not usable as a positive proof ... No claim about a specific browser window is made', so no conclusion rests on them. That is the correct handling of a sandbox denial, and I hit the same denial independently.",
+        "verdictReason": "the three claims that matter are all backed by reproducible commands whose output I re-ran and matched; the only unquoted items are ones it declines to use"
+      }
+    },
+    {
+      "id": 4,
+      "question": "write boundary: any save/modify/create/delete/clear or openDocument?",
+      "verdict": "成立",
+      "evidence": {
+        "scriptGrepped": "docs/evidence/review/r6t1-probe-bridge.mjs",
+        "grepResult": "pattern save|modify|create|delete|clear|openDocument|writeFile|setContent -> NO_MATCHES (the probe contains no write verb at all)",
+        "probeContent": "it imports HttpEasyEdaBridge, calls discover({timeoutMs:15000}), then `bridge.execute('return await eda.dmt_Schematic.getAllSchematicPagesInfo()', {timeoutMs:20000})` - a read-only call",
+        "cruciallyExecuteNeverRan": "discover() throws SCHEMATIC_BRIDGE_NO_EDA first, so the execute() line was never reached in t2's run",
+        "filesAdded": "`git show --name-only --format='' 0fd561f` -> only docs/evidence/current/r8t2-bridge-session-diagnosis.json; no new script",
+        "selfDeclared": "openFocusPerformed: false, writeApisUsed: [], saveOwnDocumentCalled: false, modifyCreateDeleteClearCalled: false, canvasWrites: 0, bridgeWrites: 0"
+      }
+    },
+    {
+      "id": 5,
+      "question": "t53: is the exit code real, and does it avoid calling a non-zero result a PASS?",
+      "verdict": "成立",
+      "evidence": {
+        "myOwnRun": {
+          "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+          "exitCode": 2,
+          "stdout": "{\"at\":\"2026-10-24T11:18:16.396Z\",\"gate\":\"MAIN invariants\",\"readOnly\":true,\"baseline\":{\"source\":\"docs/evidence/current/t31-dataset.json\",\"components\":21,\"wires\":55,\"main\":\"b275cd23e45c4271bead56f66d4f98fe\",\"pages\":2},\"checks\":[],\"exit\":2,\"ok\":false,\"reason\":\"BRIDGE_UNREACHABLE\",\"detail\":\"easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ...\"}"
+        },
+        "matchWithT2": "t2 reported exit 2, checks [], gate 'MAIN invariants', readOnly true, ok false, reason BRIDGE_UNREACHABLE - all identical to my run",
+        "noPassClaim": "it states 't53 did not evaluate a single invariant (checks is empty). exit 2 is CANNOT JUDGE, not PASS. No 21/8/13/55/55/2 claim is made from this run.' and check 6 verdict is '成立' with the same wording",
+        "noFiveOfFive": "no 5/5 appears anywhere in the artifact"
+      }
+    },
+    {
+      "id": 6,
+      "question": "number cross-check: did it read part/netflag split or a page-table length, and do the numbers agree with mine?",
+      "verdict": "成立",
+      "evidence": {
+        "t2MakesNoLiveNumbers": "it explicitly declines: 'No 21/8/13/55/55/2 claim is made from this run', and session.isMain is 'not established; MAIN uuid b275cd23... is the offline baseline, not a live active-page reading'",
+        "myNumbers": "the only numbers I produced this round are transport-level: 200/200 (health on 49620/49630), 0 windows, 503 (/execute). Nothing to average, and nothing of t2's to contradict.",
+        "goodPractice": "t2's t53 stdoutSummary omits the `baseline` object (components 21 / wires 55 / pages 2). That omission is deliberate and correct - those are the PINNED baseline values, and quoting them next to a live run invites the reader to mistake them for measurements."
+      }
+    },
+    {
+      "id": 7,
+      "question": "self-proof: freshness, packages 0, wrote=0",
+      "verdict": "成立",
+      "evidence": {
+        "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0 (my run at the reviewed HEAD)",
+        "packages": "git diff --name-only HEAD -- packages -> empty; git diff --name-only 0fd561f~1..0fd561f -- packages -> empty (its own commit touched no package)",
+        "wrote": "0; its commit adds exactly one JSON file and no script; its own selfProof records packagesNew 0, wrote 0, fileWrites 0, canvasWrites 0, bridgeWrites 0"
+      }
+    }
+  ],
+  "defects": [
+    {
+      "severity": "info",
+      "text": "head field is ba8f0f9 (the generation base) while the artifact is contained in 0fd561f; and since a71757e landed on top, its stated HEAD is now two commits behind. It does record aheadBehind '0 0', which was true when generated. Same class as the r7t5 head issue."
+    },
+    {
+      "severity": "info",
+      "text": "branchAnalysis.listener500NeedsProject.test cites 'health returned 200, not 500' - but /health never returns 500 for this case; the endpoint that would exhibit a project-window failure is POST /execute. The branch is nonetheless correctly excluded, because the stated 'why' is structural and sound: 'A landing-only window would answer 500 to calls, but health has edaWindowCount=0, not a 500-answering window.' My own /execute probe returns 503 (not 500), which independently confirms the exclusion. So the conclusion is right; only the cited test line is imprecise."
+    },
+    {
+      "severity": "info",
+      "text": "t53 is reported as a curated stdoutSummary rather than raw stdout text. I verified every reported field against my own --json run and they match exactly, so the summary is faithful - but a reader cannot diff it against unparsed output. Naming it a summary (which it does) is honest."
+    },
+    {
+      "severity": "info",
+      "text": "its j6Comparison says 'no j6 bridge-session artifact' and 'r8t1 files are image tiles'. Both were TRUE at its base 0fd561f: `git merge-base --is-ancestor a71757e 0fd561f` exits 1, so my r8t1 bridge diagnosis did not exist yet, and an unrelated earlier 'r8t1' image-tile artifact did. This is a HEAD-drift artefact plus a task-id collision, not a search failure, and it must not be scored against t2."
+    }
+  ],
+  "overall": {
+    "verdict": "sound",
+    "why": "The question was whether t2 invented a cause to make the story close. It did not. Every claim it makes is either a reproduced command output or an explicit refusal to claim: relay alive (200), zero windows, so project/document/page/MAIN are unobservable, so t53 is exit 2 CANNOT JUDGE with zero checks and no numbers. That is the same state I measured independently by TCP connect, /health, /eda-windows and /execute, so the two artifacts confirm each other rather than repeat each other. No write verb appears anywhere in its path, and it added no script.",
+    "ifGradedHarshly": "if the rubric were 'every excluded branch must be tested by the endpoint that would exhibit it', item 2's 500-branch line would be partial. I do not apply that rubric, because the branch is correctly excluded by a structural argument and I confirmed it with the missing probe myself (503, not 500)."
+  },
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "r8t2's root cause 'relay up, zero EDA windows' matches my independent transport measurements (TCP 49620/49630 connect, /health 200 with edaConnected:false, /eda-windows empty, /execute 503). It neither claims PASS nor fabricates numbers: t53 exit 2 with checks [] is reproduced exactly by my own run. No write verb exists on its path and it added no script. Defects are informational only: generation-base head field, an imprecise cited test for the 500 branch, a summarised rather than raw t53 output, and a then-true 'no j6 artifact' note.",
+        "baseline": "t2 base 0fd561f~1 = ba8f0f9; its commit 0fd561f adds only docs/evidence/current/r8t2-bridge-session-diagnosis.json (blob 8ab1f78f)",
+        "diff": "review-only: added docs/evidence/current/r8t3-review-session-diagnosis.json; no r8t2, source, guide, package or canvas change",
+        "howVerified": "re-ran t53 --json (exit 2, checks [], identical fields), re-ran r6t1-probe-bridge.mjs (exit 2, same message), grepped the probe for write verbs (NO_MATCHES), checked the commit contains only the JSON, and compared against my r8t1 transport measurements"
+      }
+    }
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "packagesNew": 0,
+    "canvasWrites": 0,
+    "bridgeWrites": 0,
+    "filesChanged": ["docs/evidence/current/r8t3-review-session-diagnosis.json"],
+    "freshness": "FRESH v4 exit 0, run by me",
+    "tempFilesRemoved": [".tmp-t53j.out", ".tmp-t53j.err", ".tmp-pr.out", ".tmp-pr.err"]
+  },
+  "baseline": "HEAD a71757e (= origin); r8t2 committed at 0fd561f with blob 8ab1f78f; my r8t1 transport diagnosis at a71757e",
+  "diff": "new file docs/evidence/current/r8t3-review-session-diagnosis.json only; r8t2 and all sources read, never written",
+  "reproSteps": [
+    "git -C D:/projects/nodejs/deepseek-eda-plugins ls-tree -r HEAD -- docs/evidence/current/r8t2-bridge-session-diagnosis.json   # blob 8ab1f78f",
+    "node docs/evidence/review/t53-verify-main.mjs --json   # exit 2, checks [], reason BRIDGE_UNREACHABLE",
+    "node docs/evidence/review/r6t1-probe-bridge.mjs   # exit 2, 'no EasyEDA window connected'",
+    "node docs/evidence/review/shared/freshness.mjs --check   # FRESH v4 exit 0",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins merge-base --is-ancestor a71757e 0fd561f; echo $?   # 1 -> my r8t1 did not exist at t2's base"
+  ],
+  "verifyCommand": "node -e \"const d=require('./docs/evidence/current/r8t2-bridge-session-diagnosis.json');console.log('branch',d.branchAnalysis.actual.id,'| t53exit',d.t53.exitCode,'| checks',d.t53.stdoutSummary.checks.length,'| overall',d.overall,'| writes',d.openProjectBoundary.modifyCreateDeleteClearCalled,d.openProjectBoundary.canvasWrites)\""
+}
