@@ -40,8 +40,8 @@
     },
     {
       "id": "P6_push_state",
-      "verdict": "blocked",
-      "raw": "HEAD=1788d9d, origin/master=7af7518, ahead 4 / behind 0. Unpushed commits: f4051ed (t4 r4t3 D1 review), 444c7aa (t1 stale sync), 53efda5 (t4 r4t4 review), 1788d9d (t1 L52/L75 correction). Push attempt: git push origin master -> exit 128, fatal: unable to access https://github.com/mofanx/deepseek-eda-plugins.git/: Failed to connect to github.com port 443 after 21089 ms: Could not connect to server. This is a network-side block, not a content defect; .git has no WIP and the working tree is clean."
+      "verdict": "成立",
+      "raw": "At review time HEAD=1788d9d, origin/master=7af7518, ahead 4 / behind 0; unpushed commits were f4051ed (t4 r4t3 D1 review), 444c7aa (t1 stale sync), 53efda5 (t4 r4t4 review), 1788d9d (t1 L52/L75 correction). The first push attempts failed with exit 128: 'Failed to connect to github.com port 443 after 21089 ms: Could not connect to server'. After committing this review as 5bab714, the retry succeeded: 'To https://github.com/mofanx/deepseek-eda-plugins.git 7af7518..5bab714 master -> master', exit 0. Final HEAD=origin=5bab714, HEAD...origin/master = 0 0; the pre-push blocked state is preserved in push.aheadBefore/lastErrorCode."
     },
     {
       "id": "P7_gates",
@@ -50,15 +50,21 @@
     }
   ],
   "push": {
-    "head": "1788d9d",
-    "origin": "7af7518",
-    "ahead": 4,
-    "behind": 0,
-    "unpushed": ["f4051ed", "444c7aa", "53efda5", "1788d9d"],
-    "pushedAt": null,
-    "lastErrorCode": 128,
-    "lastError": "Failed to connect to github.com port 443 after 21089 ms: Could not connect to server",
-    "note": "No force-push; this review commit will add one more unpushed commit if the network remains down."
+    "headAtReview": "1788d9d",
+    "originBefore": "7af7518",
+    "aheadBefore": 4,
+    "behindBefore": 0,
+    "unpushedBefore": ["f4051ed", "444c7aa", "53efda5", "1788d9d"],
+    "status": "success",
+    "pushedAt": "2026-10-24T04:28:04Z",
+    "pushedRange": "7af7518..5bab714",
+    "headAfter": "5bab714",
+    "originAfter": "5bab714",
+    "aheadAfter": 0,
+    "behindAfter": 0,
+    "lastErrorCode": null,
+    "lastError": null,
+    "note": "Initial pushes failed with 443/exit 128; the final retry succeeded (7af7518..5bab714). The review commit 5bab714 is pushed; this follow-up commit corrects the recorded push state to success."
   },
   "gates": {
     "freshness": "FRESH v4, exit 0 at 1788d9d",
@@ -72,7 +78,7 @@
       "task": "t1",
       "verdict": "pass",
       "evidence": {
-        "summary": "Both defects I raised in r4t4 are fixed correctly at 1788d9d. L52 now marks the text31/text32 A-box instance as D1 pre-fix/historical (579.63, inside 583.68 by 4.05), keeps the paragraph and all four category verdicts, states the current text-text instance is the W1/W2 group with W1 pressing pin number 31, and is consistent with L9/L45/L183. L75's both greps are now path-scoped; I independently confirm the guide-only ValueVisible grep is 0 (exit 1), the whole-tree grep is exactly 10 files, and '代码逐字实现' hits guide L56. L177 is untouched (text30 14/text32 14/text33 16, no text31). r9t3 zero diff, host quote and ※ retained, criteria/band/stride unchanged, no PNG. Gates FRESH v4 / packages 0 / wrote 0. Push is blocked by GitHub 443 (exit 128), an environment issue, not a content defect.",
+        "summary": "Both defects I raised in r4t4 are fixed correctly at 1788d9d. L52 now marks the text31/text32 A-box instance as D1 pre-fix/historical (579.63, inside 583.68 by 4.05), keeps the paragraph and all four category verdicts, states the current text-text instance is the W1/W2 group with W1 pressing pin number 31, and is consistent with L9/L45/L183. L75's both greps are now path-scoped; I independently confirm the guide-only ValueVisible grep is 0 (exit 1), the whole-tree grep is exactly 10 files, and '代码逐字实现' hits guide L56. L177 is untouched (text30 14/text32 14/text33 16, no text31). r9t3 zero diff, host quote and ※ retained, criteria/band/stride unchanged, no PNG. Gates FRESH v4 / packages 0 / wrote 0. Push initially failed with GitHub 443/exit 128 but succeeded on retry (7af7518..5bab714); final HEAD=origin, 0 0.",
         "baseline": "53efda5 guide blob fda4925: L52 still said '文字-文字 = 已证实（text31 压 text32…）' as current; L75 used the bare 'git grep ValueVisible 430f3be 零命中'",
         "diff": "1788d9d: 1 file 2+/2-: L52 rewritten to D1 pre-fix/historical with current W1/W2 and W1 pin 31; L75 both greps scoped to -- docs/evidence/current/r9t1-main-view-guide.md with the whole-tree 10-file warning. L177/host quote/※/criteria/r9t3/PNG untouched."
       }
