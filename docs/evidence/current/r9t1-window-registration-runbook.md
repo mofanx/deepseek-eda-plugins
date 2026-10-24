@@ -124,13 +124,79 @@ dpx tab-list
 
 ## 3. 绑定 landing，并判定 `#manual` / `#pop` 是否**可见**
 
+### 3.0 先过 guard：拒绝在编辑器页上跑探针（N1）
+
+**位置**：§2 已打开 `$LandingUrl`、尚未读 `#manual`/`#pop` 之前；本步放在 §3 标题之后，保证不会被 §3.3 的可见性读取绕过。**执行前置**：§2 的 `tab-new` 可能只创建标签页而不激活（本次即返回 `TAB_FAILED` 但标签页已出现），所以先按 §3.1 的 URL/title 匹配并 `tab-select` 选中 landing，再执行本步；若当前活动页仍是编辑器或不是 `$LandingUrl`，本步必须 `throw WRONG_PAGE`，这是负例，不得当作通过。
+
+**来源**：guard 主体逐字取自 t1 最终版 `a1eac6b` 的 `patchA_js` / `patchB_powershell`；t1 最终版的 `patchA_jsUsage` 已自带 `$jsTemplate` 的 here-string，`patchB` 也已统一使用 `Guard-Page`。本步骤保留 guard 主体，并在 runbook 中显式给出模板与调用，端口由 `$RelayPort` 传入，不写死 49620。
+
+**JS 版（`dpx eval`）**：
+
+```powershell
+$jsTemplate = @'
+(() => {
+  const RELAY_PORT = @@RELAY_PORT@@;
+  const norm = (u) => `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, '')}`;
+  const expected = new URL('http://127.0.0.1:' + RELAY_PORT + '/landing');
+  const actual = new URL(location.href);
+  if (norm(actual) !== norm(expected)) {
+    throw new Error(`WRONG_PAGE: ${actual.href} is not ${expected.href}`);
+  }
+  const probe = (sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return { exists: false, visible: false, offsetParent: null, rect: null, display: null, visibility: null, hiddenAttr: null };
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    const visible = el.offsetParent !== null && r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+    return { exists: true, visible, offsetParent: el.offsetParent !== null, rect: { width: r.width, height: r.height }, display: s.display, visibility: s.visibility, hiddenAttr: el.hidden };
+  };
+  return { url: location.href, title: document.title, manual: probe('#manual'), pop: probe('#pop') };
+})()
+'@
+$js = $jsTemplate.Replace('@@RELAY_PORT@@', [string]$RelayPort)
+dpx eval $js
+```
+
+预期：
+
+- 当前页是 `$LandingUrl`：`dpx eval` 退出 0，返回对象里的 `url` 等于 `$LandingUrl`；这才允许进入 §3.1/§3.3。
+- 当前页是编辑器或 `.../landing-evil` 等非精确 landing：`dpx eval` 退出 1，输出 `JS_FAILED` / `Error: WRONG_PAGE: ... is not ...`；**停止，不要读可见性、不要点击。**
+
+**PowerShell 版（本地校验同一判定）**：
+
+```powershell
+function Guard-Page {
+  param([int]$RelayPort, [string]$Href)
+  $LandingUrl = "http://127.0.0.1:$RelayPort/landing"
+  $expected = [Uri]$LandingUrl
+  $actual = [Uri]$Href
+  $norm = { param($u) $u.GetLeftPart([System.UriPartial]::Path).TrimEnd('/') }
+  if ((& $norm $actual) -ne (& $norm $expected)) {
+    throw "WRONG_PAGE: $($actual.AbsoluteUri) is not $($expected.AbsoluteUri)"
+  }
+  return 'PASS'
+}
+
+# 正例（当前是 landing）：PASS
+Guard-Page -RelayPort $RelayPort -Href "$LandingUrl"
+
+# 负例（当前是编辑器）：必须 throw WRONG_PAGE
+# 用当前编辑器 tab 的 URL 替换下面的占位值；不要用 landing URL 冒充负例。
+$editorUrl = 'https://pro.lceda.cn/editor#id=<current-editor-id>'
+Guard-Page -RelayPort $RelayPort -Href $editorUrl
+```
+
+预期：landing 返回 `PASS`；编辑器 URL 抛 `WRONG_PAGE`。本节不删除、不重排后文的 `edaWindowCount` 时间线、同 profile 说明、三次失败记录以及 `#manual`/`#pop` 选择器。
+
 ### 3.1 按 URL/title 匹配 landing，禁止盲选索引
 
 `tab-new` 之后标签顺序可能变化，**不要写死标签索引**。用 `tab-list` 的 URL 与 title 同时匹配，匹配不到或匹配不唯一就报错退出：
 
 ```powershell
-$tabsJson = dpx tab-list
-$tabs = $tabsJson | ConvertFrom-Json
+# PowerShell 7 直接捕获 dpx 的 native stdout 可能报 StandardOutputEncoding；
+# 用文件重定向读取，避免 §3.1 在可复现环境下失败。
+cmd /c "dpx tab-list > .tmp-tabs.json"
+$tabs = Get-Content .tmp-tabs.json -Raw | ConvertFrom-Json
 $matches = @($tabs.data.tabs | Where-Object {
   $_.url -match $LandingPattern -and
   $_.title -eq 'dsh-eda-bridge: register EasyEDA'

@@ -1,0 +1,239 @@
+{
+  "task": "r3t2",
+  "generatedAt": "2026-10-24T14:59:26.1447377Z",
+  "status": "pass",
+  "verdict": "pass",
+  "baseline": {
+    "head": "c8d6016d6bdf4b1850dbe6638dc0834f427ef653",
+    "origin": "c8d6016d6bdf4b1850dbe6638dc0834f427ef653",
+    "headOrigin": "0 0",
+    "note": "started after c8d6016; t1 then advanced to a1eac6b during this task, and this review follows a1eac6b"
+  },
+  "t1Review": {
+    "commit": "a1eac6ba47ece6183003592251e09fb23853d510",
+    "parent": "c8d6016d6bdf4b1850dbe6638dc0834f427ef653",
+    "blob": "1a3c349d355d72b173c165f90fec39f95e4f73c3",
+    "verdict": "pass",
+    "points": [
+      {
+        "id": 1,
+        "requirement": "function declaration and usage are verbatim consistent",
+        "pass": true,
+        "evidence": "t1 final patchB_powershell declares function Guard-Page and calls Guard-Page; the t1 name probe records declared name = Guard-Page, called name(s) = [\"Guard-Page\"], occurrences of Assert-LandingPage = 0; Get-Command Assert-LandingPage returns not defined."
+      },
+      {
+        "id": 2,
+        "requirement": "$jsTemplate is defined or removed",
+        "pass": true,
+        "evidence": "t1 final patchA_jsUsage opens with $jsTemplate = @' ... '@ and only then does $js = $jsTemplate.Replace('@@RELAY_PORT@@', [string]$RelayPort); jsAccept then prints DPX_OK EVAL_OK and RESULT: ACCEPT."
+      },
+      {
+        "id": 3,
+        "requirement": "the text extracted from the committed blob is executed as-is, not by calling a helper directly",
+        "pass": true,
+        "evidence": "t1 pasteTests.method: the block text is pulled out of the committed blob with git show, sliced by marker, and executed as written; PowerShell uses Invoke-Expression, JavaScript uses a vm sandbox with a stubbed page. Accept cases are not edited; reject cases change exactly one literal. psAccept OUTPUT: PASS / RESULT: ACCEPT; jsAccept OUTPUT: DPX_OK EVAL_OK {\"url\":\"http://127.0.0.1:49620/landing\",...} / RESULT: ACCEPT; jsRejectEvil gives WRONG_PAGE.",
+        "caveat": "the t1 jsAccept transport substitutes a local dpx stub that writes $js and evaluates it in vm; the wrapper code, here-string and Replace call are unchanged. The independent r3t2 run used the real dpx on the landing tab and passed."
+      },
+      {
+        "id": 4,
+        "requirement": "step5 wording \"again after\" is corrected",
+        "pass": true,
+        "evidence": "step5 now records health as edaConnected:true, count:1 (before any attempt); the old \"again after\" claim is retracted with replacementPointer to probesAfterAttempts 2026-10-24T14:44:08.731Z; Select-String for \"again after\" on the current t1 file returns 0 matches."
+      }
+    ],
+    "pasteTests": {
+      "method": "the old harness called the guard function directly, which cannot fail on a broken usage line. Now the block text is pulled out of the committed blob with git show, sliced by marker, and executed as written - PowerShell through Invoke-Expression, JavaScript through a vm sandbox with a stubbed page. Nothing in the block is edited for the accept cases; the reject cases change exactly one literal and say so.",
+      "psAccept": {
+        "file": ".tmp-patchB.ps1",
+        "command": "pwsh -NoProfile -Command \"& '.\\\\.tmp-run-block.ps1'\"",
+        "stdout": [
+          "OUTPUT: PASS",
+          "RESULT: ACCEPT"
+        ],
+        "exitCode": 0
+      },
+      "psRejectEvil": {
+        "file": ".tmp-patchB-evil.ps1 (same block, $Href literal changed to landing-evil)",
+        "command": "same runner",
+        "stdout": [
+          "ERROR: WRONG_PAGE: http://127.0.0.1:49620/landing-evil is not http://127.0.0.1:49620/landing",
+          "RESULT: THROW"
+        ],
+        "exitCode": 1,
+        "note": "the runner exits 3 from its own catch block; the outer pwsh -Command wrapper reports 1, which is what I measured and therefore what I record"
+      },
+      "psAccept49621": {
+        "file": ".tmp-patchB-49621.ps1 (both port literals set to 49621)",
+        "command": "same runner",
+        "stdout": [
+          "OUTPUT: PASS",
+          "RESULT: ACCEPT"
+        ],
+        "exitCode": 0
+      },
+      "jsAccept": {
+        "file": ".tmp-patchA-usage.ps1",
+        "command": "pwsh -NoProfile -Command \"& '.\\\\.tmp-run-js-usage.ps1'\" with STUB_URL=http://127.0.0.1:49620/landing",
+        "stdout": [
+          "OUTPUT: DPX_OK EVAL_OK {\"url\":\"http://127.0.0.1:49620/landing\",\"title\":\"stub-page\",\"manual\":{\"exists\":false,\"visible\":false,\"offsetParent\":null,\"rect\":null,\"display\":null,\"visibility\":null,\"hiddenAttr\":null},\"pop\":{\"exists\":false,\"visible\":false,\"offsetParent\":null,\"rect\":null,\"display\":null,\"visibility\":null,\"hiddenAttr\":null}}",
+          "RESULT: ACCEPT"
+        ],
+        "exitCode": 0,
+        "transportNote": "dpx is replaced by a local function that writes $js to a file and evaluates it in a vm with a stubbed location/document; the wrapper code, the here-string and the Replace call are executed unchanged"
+      },
+      "jsAccept49621": {
+        "file": ".tmp-patchA-usage-49621.ps1 ($RelayPort = 49621) with page http://127.0.0.1:49621/landing",
+        "stdout": [
+          "OUTPUT: DPX_OK EVAL_OK {\"url\":\"http://127.0.0.1:49621/landing\",...}",
+          "RESULT: ACCEPT"
+        ],
+        "exitCode": 0
+      },
+      "jsRejectEvil": {
+        "file": ".tmp-patchA-usage.ps1 with page http://127.0.0.1:49620/landing-evil",
+        "stdout": [
+          "ERROR: dpx eval failed (exit 1): EVAL_THROW WRONG_PAGE: http://127.0.0.1:49620/landing-evil is not http://127.0.0.1:49620/landing",
+          "RESULT: THROW"
+        ],
+        "exitCode": 1
+      },
+      "whatThisWouldHaveCaught": "with the old text, psAccept returns CommandNotFoundException (Assert-LandingPage) and jsAccept fails on a null $jsTemplate. Both are paste-path failures that the direct-call harness reported as 8/8 pass. That gap is exactly what these runs close."
+    },
+    "step5": {
+      "current": "edaConnected:true, count:1 (before any attempt)",
+      "againAfterOccurrences": 0,
+      "replacementPointer": "the post-attempt reading is probesAfterAttempts at 2026-10-24T14:44:08.731Z (finished 14:44:21.110Z), which is a separate probe, not this one",
+      "removed": "the trailing half-clause that claimed this same reading also covered the state after the attempts",
+      "why": "this reading is 87.69 s before the first start attempt at 14:35:12.306Z. It never described a post-attempt state, so the phrase made a true reading support a false claim"
+    },
+    "finalJsUsage": "$jsTemplate = @'\n(() => {\n  const RELAY_PORT = @@RELAY_PORT@@;\n  const norm = (u) => `${u.protocol}//${u.host}${u.pathname.replace(/\\/+$/, '')}`;\n  const expected = new URL('http://127.0.0.1:' + RELAY_PORT + '/landing');\n  const actual = new URL(location.href);\n  if (norm(actual) !== norm(expected)) {\n    throw new Error(`WRONG_PAGE: ${actual.href} is not ${expected.href}`);\n  }\n  const probe = (sel) => {\n    const el = document.querySelector(sel);\n    if (!el) return { exists: false, visible: false, offsetParent: null, rect: null, display: null, visibility: null, hiddenAttr: null };\n    const r = el.getBoundingClientRect();\n    const s = getComputedStyle(el);\n    const visible = el.offsetParent !== null && r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';\n    return { exists: true, visible, offsetParent: el.offsetParent !== null, rect: { width: r.width, height: r.height }, display: s.display, visibility: s.visibility, hiddenAttr: el.hidden };\n  };\n  return { url: location.href, title: document.title, manual: probe('#manual'), pop: probe('#pop') };\n})()\n'@\n$RelayPort = 49620\n$js = $jsTemplate.Replace('@@RELAY_PORT@@', [string]$RelayPort)\ndpx eval $js",
+    "finalPsBlock": "function Guard-Page {\n  param([int]$RelayPort, [string]$Href)\n  $LandingUrl = \"http://127.0.0.1:$RelayPort/landing\"\n  $expected = [Uri]$LandingUrl\n  $actual = [Uri]$Href\n  $norm = { param($u) $u.GetLeftPart([System.UriPartial]::Path).TrimEnd('/') }\n  if ((& $norm $actual) -ne (& $norm $expected)) {\n    throw \"WRONG_PAGE: $($actual.AbsoluteUri) is not $($expected.AbsoluteUri)\"\n  }\n  return 'PASS'\n}\n\n# usage example - complete and runnable as written:\n$RelayPort = 49620\n$Href = 'http://127.0.0.1:49620/landing'\nGuard-Page -RelayPort $RelayPort -Href $Href"
+  },
+  "runbook": {
+    "path": "docs/evidence/current/r9t1-window-registration-runbook.md",
+    "source": "t1 a1eac6b guard bodies (patchA_js / patchB_powershell); runbook adds the t1-final $jsTemplate assignment and calls the declared Guard-Page",
+    "inserted": "section 3.0, immediately after the section 3 heading and before section 3.1",
+    "guardBody": "$jsTemplate = @'\n(() => {\n  const RELAY_PORT = @@RELAY_PORT@@;\n  const norm = (u) => `${u.protocol}//${u.host}${u.pathname.replace(/\\/+$/, '')}`;\n  const expected = new URL('http://127.0.0.1:' + RELAY_PORT + '/landing');\n  const actual = new URL(location.href);\n  if (norm(actual) !== norm(expected)) {\n    throw new Error(`WRONG_PAGE: ${actual.href} is not ${expected.href}`);\n  }\n  const probe = (sel) => {\n    const el = document.querySelector(sel);\n    if (!el) return { exists: false, visible: false, offsetParent: null, rect: null, display: null, visibility: null, hiddenAttr: null };\n    const r = el.getBoundingClientRect();\n    const s = getComputedStyle(el);\n    const visible = el.offsetParent !== null && r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';\n    return { exists: true, visible, offsetParent: el.offsetParent !== null, rect: { width: r.width, height: r.height }, display: s.display, visibility: s.visibility, hiddenAttr: el.hidden };\n  };\n  return { url: location.href, title: document.title, manual: probe('#manual'), pop: probe('#pop') };\n})()\n'@\n$RelayPort = 49620\n$js = $jsTemplate.Replace('@@RELAY_PORT@@', [string]$RelayPort)\ndpx eval $js",
+    "psGuardBody": "function Guard-Page {\n  param([int]$RelayPort, [string]$Href)\n  $LandingUrl = \"http://127.0.0.1:$RelayPort/landing\"\n  $expected = [Uri]$LandingUrl\n  $actual = [Uri]$Href\n  $norm = { param($u) $u.GetLeftPart([System.UriPartial]::Path).TrimEnd('/') }\n  if ((& $norm $actual) -ne (& $norm $expected)) {\n    throw \"WRONG_PAGE: $($actual.AbsoluteUri) is not $($expected.AbsoluteUri)\"\n  }\n  return 'PASS'\n}\n\n# usage example - complete and runnable as written:\n$RelayPort = 49620\n$Href = 'http://127.0.0.1:49620/landing'\nGuard-Page -RelayPort $RelayPort -Href $Href",
+    "parameterization": "dpx guard uses @@RELAY_PORT@@ and substitutes [string]$RelayPort; PS Guard-Page takes [int]$RelayPort and derives $LandingUrl = \"http://127.0.0.1:$RelayPort/landing\"; no literal 49620 in the runbook guard code.",
+    "expected": [
+      "landing: dpx eval exit 0, returned url equals $LandingUrl; allowed to continue",
+      "editor or landing-evil: dpx eval exit 1, JS_FAILED with WRONG_PAGE; stop and do not read #manual/#pop"
+    ],
+    "diff": {
+      "insertions": 68,
+      "deletions": 2,
+      "deletedLines": [
+        "$tabsJson = dpx tab-list",
+        "$tabs = $tabsJson | ConvertFrom-Json"
+      ],
+      "deletedProtectedContent": false,
+      "check": "git diff --check: exit 0",
+      "note": "the only two removed lines are the section 3.1 native-stdout capture; they are replaced by the file-redirection form so the exact section 3.1 is pasteable in PowerShell 7. No protected timeline/profile/failure/selector content was removed."
+    },
+    "protectedContent": {
+      "baseline": {
+        "edaWindowCount": 8,
+        "TAB_FAILED": 3,
+        "manual": 10,
+        "pop": 11,
+        "sameBrowser": 3
+      },
+      "after": {
+        "edaWindowCount": 9,
+        "TAB_FAILED": 4,
+        "manual": 13,
+        "pop": 14,
+        "sameBrowser": 3
+      },
+      "verdict": "all counts only increased or stayed equal; no protected content was removed"
+    }
+  },
+  "pasteability": {
+    "orderNote": "The new guard is at the front of section 3, but dpx tab-new returned TAB_FAILED and did not activate the created landing tab. The runbook therefore states that section 3.1 must select landing first. I first ran the guard while the editor was still active (the required unbound negative), then selected landing with the exact section 3.1, reran the same guard (positive), ran section 3.3, and finally switched back to the editor for a second negative.",
+    "unboundNegative": {
+      "at": "2026-10-24T14:53:42.6641763Z",
+      "activeUrl": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58",
+      "exitCode": 1,
+      "code": "JS_FAILED",
+      "error": "Error: WRONG_PAGE: https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58 is not http://127.0.0.1:49620/landing",
+      "verdict": "throws, does not silently pass"
+    },
+    "binding": {
+      "at": "2026-10-24T14:55:58.5606512Z",
+      "matches": 1,
+      "matched": "{\"index\":1,\"id\":\"0EDD2949A256E4164ECD0C9EC314C52D\",\"url\":\"http://127.0.0.1:49620/landing\",\"title\":\"dsh-eda-bridge: register EasyEDA\"}",
+      "selectExitCode": 0,
+      "selectMessage": "已绑定，dpx 命令将在此标签页执行"
+    },
+    "positive": {
+      "at": "2026-10-24T14:56:03.4402383Z",
+      "exitCode": 0,
+      "url": "http://127.0.0.1:49620/landing",
+      "title": "dsh-eda-bridge: register EasyEDA",
+      "manualVisible": false,
+      "popVisible": false,
+      "verdict": "passes only on exact landing"
+    },
+    "visibility": {
+      "at": "2026-10-24T14:56:04.7465226Z",
+      "exitCode": 0,
+      "url": "http://127.0.0.1:49620/landing",
+      "manual": "exists:true, visible:false, offsetParent:false, rect:0x0, display:none, hiddenAttr:true",
+      "pop": "exists:true, visible:false, offsetParent:false, rect:0x0, display:inline-block, hiddenAttr:false",
+      "verdict": "#manual and #pop are not visible; do not click"
+    },
+    "boundNegative": {
+      "at": "2026-10-24T14:56:10.070627Z",
+      "activeUrl": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58",
+      "exitCode": 1,
+      "code": "JS_FAILED",
+      "error": "Error: WRONG_PAGE: https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58 is not http://127.0.0.1:49620/landing",
+      "verdict": "same guard fails on editor after binding too"
+    },
+    "psLocal": {
+      "positive": "PASS",
+      "negative": "WRONG_PAGE: https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58 is not http://127.0.0.1:49620/landing",
+      "negativeResult": "THROW",
+      "functionName": "Guard-Page",
+      "assertLandingPageDefined": false
+    },
+    "cleanup": {
+      "landingCloseExitCode": 0,
+      "landingCloseMessage": "标签页已关闭",
+      "tabCountAfter": 1,
+      "remainingTab": "0FD2ED2506FADC5C01735E5E5C4C9EB0",
+      "remainingUrl": "https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58",
+      "editorUntouched": "the editor tab was never closed, navigated, or clicked; only tab-select changed the active tab"
+    }
+  },
+  "environment": {
+    "health": "{\"service\":\"easyeda-bridge\",\"bridge\":\"dsh-eda-bridge\",\"status\":\"ok\",\"edaConnected\":true,\"edaWindowCount\":1,\"activeWindowId\":\"25883914a72e5cbb\",\"pendingRequests\":0}",
+    "tabList": "{\"tabs\":[{\"index\":0,\"id\":\"0FD2ED2506FADC5C01735E5E5C4C9EB0\",\"url\":\"https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58\",\"title\":\"dsh-t19-real-ic-1792425596633 | MAIN.dsh-t19-real-ic-1792425596633 | 嘉立创EDA(专业版) - V4.1.78\",\"pinned\":true}],\"count\":1}",
+    "secondInstance": {
+      "rerun": false,
+      "citations": [
+        "dsh-eda-bridge.mjs L612-617 (same implementation already running; no new instance)",
+        "dsh-eda-bridge.mjs L69-72 (built-in gateway fixed at 49630)",
+        "bridge.ts L311, L333-335 (gateway fixed port)",
+        "t53 L132 (discover scans 49620-49630, no --port)"
+      ]
+    }
+  },
+  "selfProof": {
+    "freshness": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}",
+    "packages": 0,
+    "wrote": 0,
+    "writeVerbScan": "NO_MATCHES over the runbook diff (patterns .save(, .modify(, .create(, .delete(, .clear(); no matches). The guard itself contains no editor write calls and was never used to modify the document.",
+    "editorMutation": "none; tab count remained one editor tab"
+  },
+  "git": {
+    "headBeforeThisArtifact": "a1eac6ba47ece6183003592251e09fb23853d510",
+    "originBeforeThisArtifact": "a1eac6ba47ece6183003592251e09fb23853d510",
+    "headOrigin": "0 0",
+    "files": [
+      "docs/evidence/current/r9t1-window-registration-runbook.md",
+      "docs/evidence/current/r10t7-review-and-wire-guard.json"
+    ]
+  }
+}
