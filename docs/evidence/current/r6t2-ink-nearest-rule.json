@@ -8,6 +8,28 @@
   "head": "8faf500",
   "headAtReview": "10ed08e",
   "mode": "proposal only. No file outside this JSON is changed. The rule is not written into the guide and no commit changes t53, r9t1, r5t4 or shared code.",
+  "statusNote": "Still pending-approval, not applied. This edit only supplies the three corrections from r6t3 and resolves the push-state report; ruleText and preciseDefinition are unchanged.",
+  "versionAndPush": {
+    "headAtEdit": "ee0fe70eabc7ab4022a1c32ed5e35d5156e9523e",
+    "originAtEdit": "ee0fe70eabc7ab4022a1c32ed5e35d5156e9523e",
+    "aheadBehindAtEdit": "0 0",
+    "rawAtEdit": {
+      "gitRevParseHEAD": "ee0fe70eabc7ab4022a1c32ed5e35d5156e9523e",
+      "gitRevParseOriginMaster": "ee0fe70eabc7ab4022a1c32ed5e35d5156e9523e",
+      "gitRevListLeftRightCount": "0\t0",
+      "gitStatusShort": ""
+    },
+    "headAtCommit": "the r2t2 commit that contains this JSON (child of e90f377; exact hash in the final response)",
+    "originAtCommit": "e90f377452d344a1a9329487b5aacc54d1613811",
+    "aheadBehindAtCommit": "1 0",
+    "rawAtCommit": {
+      "gitRevParseOriginMaster": "e90f377452d344a1a9329487b5aacc54d1613811",
+      "gitRevListLeftRightCount": "1\t0",
+      "gitStatusShort": " M docs/evidence/current/r6t2-ink-nearest-rule.json (only this file staged/committed; .tmp-r2t4/ and r2t4-glyph-closeup.mjs are another member's untracked files and were not touched)"
+    },
+    "history": "r6t2 was originally written at HEAD 8faf500 / review 10ed08e; those top-level fields are historical and are not rewritten. At the edit, raw output was HEAD=origin=ee0fe70, 0 0. Before the r2t2 commit, origin advanced through 94beeea and e90f377 (r2t1 fixes); the r2t2 commit was therefore created on top of e90f377, so it is a normal one-commit local lead, not the earlier two-commit failed-push state. The earlier 2 0 at ee0fe70/d7acac3 was a transient push state; it is not the current relation.",
+    "conclusion": "Definitive: at the edit HEAD = origin = ee0fe70, 0 0. At the r2t2 commit, HEAD is the new r2t2 commit, origin = e90f377, 1 0. This is a single local lead over the current origin, not a remote divergence. The final post-push HEAD and origin are reported in the response."
+  },
   "problem": "The current audit uses d<=6 on the label ANCHOR only. r5t4 Plan A satisfies d=3.76 at h=3.76 while the ink is 4.70 from its own wire and 1.54 from MCU-33; a reader assigns the text to the wrong net. The no-go in r5t4 was found by human inspection, not by the numeric rule. This proposal makes the missing ink-nearest dimension explicit and testable.",
   "ruleText": "For every visible net-name label L with an identified own wire W and foreign wires F: (1) the anchor must be strictly nearer to W than to every F; (2) the visible ink rectangle must be strictly nearer to W than to every F when the ink x-range intersects the own wire x-range; if it does not, ink is N/A and only the anchor test applies; (3) the existing anchor bound d(anchor,W)<=6 is retained. A label passes only if both applicable strict-nearer tests and the bound hold. Ties are not 'nearest': strict < is required. For automation, a hard fail needs a margin: fail only when a foreign wire is strictly more than 1.0 unit closer than W; a margin in [0,1.0] (including a tie) is review/warn, not an automatic pass and not a hard fail.",
   "preciseDefinition": {
@@ -20,6 +42,94 @@
     "severity": "PASS only if anchorOwn < anchorForeignMin AND inkOwn < inkForeignMin AND anchorOwn <= 6. HARD FAIL if (anchorForeignMin < anchorOwn - 1.0) OR (inkForeignMin < inkOwn - 1.0). WARN/REVIEW otherwise (ties and margins <=1.0). A WARN is not a pass; it requires a human decision.",
     "margin": 1.0,
     "marginRationale": "Data-driven separation: the r5t4 moved-label true positive has margin 4.70-1.54=3.16; the clean normal labels MCU-25/27/28 have margins 10.0/4.72/5.09; the bus-adjacent normal MCU-33 has margin 1.00. A 1.0 margin keeps the clean labels passing, makes MCU-33 a warning, and still hard-fails the true r5t4 case. Use strict >1.0 for fail so MCU-33's exact 1.00 is a warning, not a hard fail."
+  },
+  "correctionsFromR6t3": {
+    "source": "docs/evidence/current/r6t3-review-ink-rule.json, overall 成立, checks[rule-flip-list-completeness] and [severity-band-is-a-softening]",
+    "status": "corrections recorded in the proposal; it remains pending-approval and is not applied",
+    "comparisonSites": {
+      "r5t4-d2d3-alt-verdict.mjs": {
+        "line104": {
+          "current": "if (!(own.d <= ds[0].d)) { bump('2p_anchor_not_nearest'); continue }",
+          "strict": "if (!(own.d < ds[0].d)) { bump('2p_anchor_not_nearest'); continue }",
+          "affectedCurrentEntries": ["planA.obj1 up h=5.00", "planA.obj2 up h=5.00"],
+          "effect": "At h=5.00 the anchor ties 5.00/5.00 for both objects (obj1 MCU-33; obj2 MCU-25). The inclusive <= lets the entry reach line107, which rejects it on ink; strict < changes only the rejection bucket to 2p_anchor_not_nearest. No feasible interval, pass/fail set, or overall no-go changes. The line is masked today but must still be strict because the rule says strict < for the anchor.",
+          "notAffected": "down h=5.00 is not an anchor tie (obj1 +3V3 is 0 away; obj2 GND is 0 away); no other 0.02-grid tie was found."
+        },
+        "line107": {
+          "current": "if (!(inkOwn <= inkOther)) { bump('2p_ink_not_nearest'); continue }",
+          "strict": "if (!(inkOwn < inkOther)) { bump('2p_ink_not_nearest'); continue } (or hand the tie to the 1.0 warning classifier)",
+          "affectedCurrentEntries": ["planA.obj1 up h=2.18", "planA.obj2 up h=2.18"],
+          "effect": "At h=2.18 inkOwn=inkForeign=3.12 for both objects (obj1 MCU-33; obj2 MCU-25). Inclusive <= would pass the tie, but criterion 1 (clearBlack) rejects h=2.18 first because the shifted label still overlaps the black glyph band, so the tie never reaches line107 in the current sweep. Strict < changes no current pass/fail; if criterion 1 were removed, the tie must be a warning, not a pass.",
+          "notAffected": "h=5.00 is an anchor tie, not an ink tie; no second ink tie was found on the 0.02 grid."
+        },
+        "authority": "r6t3's missing1: line104 was not named; both 104 and 107 must be changed together. r6t3's missing3: r5t1-d2d3-verdict.mjs:44 nearest() returns the nearest FOREIGN wire (own excluded); it is not an own-vs-foreign comparison, so no strict < change is proposed there, but it is named so it is not mistaken for the anchor site."
+      }
+    },
+    "guide18": {
+      "definition": "The guide's only 18-row surface is: 12 tile rows (L17-L28) + 4 closeup rows (L34-L37) + 2 W rows (L135-L136) = 18. No tile or closeup attribution verdict changes; only W1/W2 do.",
+      "rows": [
+        {"row": "r0c0", "guideLine": 17, "old": "tile inventory, no net-name", "new": "N/A, unchanged", "flip": false},
+        {"row": "r0c1", "guideLine": 18, "old": "tile inventory, no net-name", "new": "N/A, unchanged", "flip": false},
+        {"row": "r1c0", "guideLine": 19, "old": "IO net-name inventory", "new": "tile inventory unchanged; no attribution verdict to flip", "flip": false},
+        {"row": "r1c1", "guideLine": 20, "old": "CLK net-name inventory", "new": "tile inventory unchanged", "flip": false},
+        {"row": "r2c0", "guideLine": 21, "old": "IO net-name inventory", "new": "tile inventory unchanged", "flip": false},
+        {"row": "r2c1", "guideLine": 22, "old": "CLK net-name inventory", "new": "tile inventory unchanged", "flip": false},
+        {"row": "r3c0", "guideLine": 23, "old": "device/flag/net-name inventory", "new": "tile inventory unchanged; flag warnings are tracked in netflags13", "flip": false},
+        {"row": "r3c1", "guideLine": 24, "old": "no net-name", "new": "N/A, unchanged", "flip": false},
+        {"row": "r4c0", "guideLine": 25, "old": "device/flag/net-name inventory", "new": "tile inventory unchanged; W1/W2 handled on their own rows", "flip": false},
+        {"row": "r4c1", "guideLine": 26, "old": "POWER net-name inventory", "new": "tile inventory unchanged", "flip": false},
+        {"row": "r5c0", "guideLine": 27, "old": "text inventory", "new": "N/A, unchanged", "flip": false},
+        {"row": "r5c1", "guideLine": 28, "old": "text inventory", "new": "N/A, unchanged", "flip": false},
+        {"row": "closeup-1", "guideLine": 34, "old": "text41/text61 not overlapping", "new": "N/A for wire attribution, unchanged", "flip": false},
+        {"row": "closeup-2", "guideLine": 35, "old": "D1 pre-fix text31/text32", "new": "N/A for wire attribution, unchanged", "flip": false},
+        {"row": "closeup-3", "guideLine": 36, "old": "text27 anchor containment", "new": "N/A for wire attribution, unchanged", "flip": false},
+        {"row": "closeup-4", "guideLine": 37, "old": "rect0 contains rect1", "new": "N/A for wire attribution, unchanged", "flip": false},
+        {"row": "W1", "guideLine": 135, "old": "foreignHits candidate: attr111 MCU-34, old nearest +3V3 at d=5.0/t=0.75", "new": "PASS on wire attribution: own MCU_34 wire is 0 at (210,795), foreign +3V3 is 5.0; ink own 0.30 vs foreign 0.80. Old candidate came from excluding the own-wire endpoint. Text-text (pin NUMBER 31) is unchanged, not cleared", "flip": true},
+        {"row": "W2", "guideLine": 136, "old": "foreignHits candidate: attr102 MCU-26, old nearest GND at d=5.0/t=0.75", "new": "PASS on wire attribution: own MCU_26 wire is 0 at (390,795), foreign GND is 5.0; ink x 409.8-428.9 does not intersect own x 350-390, so ink is N/A. Text-text via the adjacent flag name MCU-26 over PB10 is unchanged", "flip": true}
+      ],
+      "summary": "2 candidates flip to PASS (W1 L135, W2 L136); no tile/closeup row flips. The old foreignHits count of 2 falls to 0 for wire attribution, but the text-text defect W1/W2 is not cleared by this rule."
+    },
+    "netflags13": {
+      "surface": "13 netflag components: GND + MCU-17/22/25/26/27/28/29/30/31/32/33/34. 12 are on pin rows; GND is off-row at y=840. +3V3 at (200,720) is a netport/part, not a netflag and not counted.",
+      "method": "Anchor: point-to-segment, own wire = same-net layout:wire:*:flags, all other nets foreign. Ink: reuse the two independently measured L/R name boxes (L x229.33-248.48; R x369.18-388.21; y=row-4.88..row-1.12) because the flag name boxes are the same font and alignment as the measured wire-label boxes. Per-flag x/y is from t31-dataset.json; the warning set is derived, not a per-flag pixel scan.",
+      "rows": [
+        {"net": "MCU-17", "attr": "attr31", "x": 250, "y": 725, "onPinRow": true, "ownWire": "layout:wire:MCU_17:flags", "anchor": "own 0.00, foreign 20.00", "inkOwn": 1.12, "inkForeign": 20.00, "margin": 18.88, "verdict": "pass", "guideLine": 23},
+        {"net": "MCU-29", "attr": "attr55", "x": 250, "y": 745, "onPinRow": true, "ownWire": "layout:wire:MCU_29:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 11.12, "margin": 10.00, "verdict": "pass", "guideLine": 23},
+        {"net": "MCU-30", "attr": "attr59", "x": 250, "y": 755, "onPinRow": true, "ownWire": "layout:wire:MCU_30:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 5.12, "margin": 4.00, "verdict": "pass", "guideLine": 23},
+        {"net": "MCU-31", "attr": "attr63", "x": 250, "y": 765, "onPinRow": true, "ownWire": "layout:wire:MCU_31:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 0.12, "margin": -1.00, "nearestForeign": "+3V3 y760", "verdict": "warn (not hard fail: -1.00 is not < -1.0)", "guideLine": 23},
+        {"net": "MCU-22", "attr": "attr35", "x": 350, "y": 775, "onPinRow": true, "ownWire": "layout:wire:MCU_22:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 0.12, "margin": -1.00, "nearestForeign": "GND y770", "verdict": "warn (not hard fail: -1.00 is not < -1.0)", "guideLine": 23},
+        {"net": "MCU-32", "attr": "attr67", "x": 250, "y": 775, "onPinRow": true, "ownWire": "layout:wire:MCU_32:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 0.12, "margin": -1.00, "nearestForeign": "+3V3 y770", "verdict": "warn (not hard fail: -1.00 is not < -1.0)", "guideLine": 23},
+        {"net": "MCU-33", "attr": "attr71", "x": 250, "y": 785, "onPinRow": true, "ownWire": "layout:wire:MCU_33:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 0.12, "margin": -1.00, "nearestForeign": "+3V3 y780", "verdict": "warn (not hard fail: -1.00 is not < -1.0)", "guideLine": 23},
+        {"net": "MCU-25", "attr": "attr39", "x": 350, "y": 785, "onPinRow": true, "ownWire": "layout:wire:MCU_25:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 0.12, "margin": -1.00, "nearestForeign": "GND y780", "verdict": "warn (not hard fail: -1.00 is not < -1.0)", "guideLine": 23},
+        {"net": "MCU-34", "attr": "attr75", "x": 250, "y": 795, "onPinRow": true, "ownWire": "layout:wire:MCU_34:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 5.12, "margin": 4.00, "verdict": "pass", "guideLine": 25},
+        {"net": "MCU-26", "attr": "attr43", "x": 350, "y": 795, "onPinRow": true, "ownWire": "layout:wire:MCU_26:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 5.12, "margin": 4.00, "verdict": "pass", "guideLine": 25},
+        {"net": "MCU-27", "attr": "attr47", "x": 350, "y": 805, "onPinRow": true, "ownWire": "layout:wire:MCU_27:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 0.12, "margin": -1.00, "nearestForeign": "GND y800", "verdict": "warn (not hard fail: -1.00 is not < -1.0)", "guideLine": 25},
+        {"net": "MCU-28", "attr": "attr51", "x": 350, "y": 815, "onPinRow": true, "ownWire": "layout:wire:MCU_28:flags", "anchor": "own 0.00, foreign 10.00", "inkOwn": 1.12, "inkForeign": 5.12, "margin": 4.00, "verdict": "pass", "guideLine": 25},
+        {"net": "GND", "attr": "attr27", "x": 400, "y": 840, "onPinRow": false, "ownWire": "layout:wire:GND:flags", "anchor": "own 0.00, foreign 26.93", "inkOwn": null, "inkForeign": null, "margin": null, "verdict": "pass (anchor; no per-flag box measured)", "guideLine": 25}
+      ],
+      "summary": "12 pin-row flags: 6 pass (MCU-17, MCU-26, MCU-28, MCU-29, MCU-30, MCU-34) + 6 warn (MCU-22, MCU-25, MCU-27, MCU-31, MCU-32, MCU-33) + 0 hard fail. GND off-row passes on anchor. The 6 warnings are all exactly -1.00, so a 0.02 shift or any threshold change to 0.8/0.9 turns them into hard fail; 1.0 is the boundary, not a safety margin."
+    },
+    "thresholdBoundary": {
+      "value": 1.0,
+      "exactObservations": [
+        {"label": "MCU-31 flag", "own": 1.12, "foreign": 0.12, "margin": 1.00, "status": "warn"},
+        {"label": "MCU-22 flag", "own": 1.12, "foreign": 0.12, "margin": 1.00, "status": "warn"},
+        {"label": "MCU-32 flag", "own": 1.12, "foreign": 0.12, "margin": 1.00, "status": "warn"},
+        {"label": "MCU-33 flag", "own": 1.12, "foreign": 0.12, "margin": 1.00, "status": "warn"},
+        {"label": "MCU-25 flag", "own": 1.12, "foreign": 0.12, "margin": 1.00, "status": "warn"},
+        {"label": "MCU-27 flag", "own": 1.12, "foreign": 0.12, "margin": 1.00, "status": "warn"},
+        {"label": "MCU-33 normal wire label", "own": 1.12, "foreign": 0.12, "margin": 1.00, "status": "warn"}
+      ],
+      "hardFailRule": "foreign < own - 1.0. At exactly 1.00 the condition is false, so it is a warning; a 0.02 shift toward inversion makes it true. This is a boundary value, not a safety margin.",
+      "recommendation": "Keep 1.0 and label it CRITICAL/BOUNDARY, not a safe margin; require a re-derive on any ink-box movement (the 0.02 shift already flips). Do not change to 0.8 or 1.2 merely to reduce flips.",
+      "cost0.8": "Turns the six exact-1.00 flag warnings (and the MCU-33 normal probe) into hard fail: false positives on known-normal bus-adjacent labels; 0.8 is a stricter gate, not a safer one.",
+      "cost1.2": "Keeps them warning, but also turns true inversions in (1.0,1.2) into warnings; that softens the gate and can miss a real 1.1 inversion. The 3.16 true positive still hard-fails. 1.2 must be recorded as a relaxation, not a safety improvement.",
+      "decision": "No change: 1.0 + explicit critical label + human review at the boundary. Any threshold change requires approval and a larger sample, not a flip-count argument."
+    },
+    "r5t1NearestHelper": {
+      "path": "docs/evidence/review/r5t1-d2d3-verdict.mjs:44",
+      "finding": "nearest(px,py,ownId) deliberately iterates segsExcept(ownId), so it returns the nearest FOREIGN wire only. It is not an own-vs-foreign nearest comparison and has no tie to make strict. No change is proposed, but it is named so a future editor does not add a redundant/misleading strict comparison there."
+    }
   },
   "filesToChange": [
     {
@@ -35,7 +145,12 @@
     {
       "path": "docs/evidence/review/r5t4-d2d3-alt-verdict.mjs",
       "status": "proposed adoption",
-      "change": "Replace line 107 `if (!(inkOwn <= inkOther))` with the shared strict/margin classifier; keep line 102's own.d > D_TEXT. The r5t4 h=3.76 no-go stays; only the tie semantics change. This prevents the ad hoc 2' from drifting from the audit rule."
+      "change": "Change BOTH inclusive comparisons: line104 `if (!(own.d <= ds[0].d))` -> strict `<` (anchor), and line107 `if (!(inkOwn <= inkOther))` -> strict `<` or the shared 1.0-margin classifier (ink). Keep line102's own.d > D_TEXT. Line104 affects planA.obj1/obj2 up h=5.00 (reason only; line107 already rejects it); line107 affects planA.obj1 up h=2.18 (tie 3.12/3.12, but criterion 1 black overlaps first, so no current pass changes). The r5t4 h=3.76 no-go stays; only tie semantics and reason buckets change. This prevents the ad hoc 2' from drifting from the audit rule."
+    },
+    {
+      "path": "docs/evidence/review/r5t1-d2d3-verdict.mjs",
+      "status": "named, no change proposed",
+      "change": "nearest() at :44 returns the nearest FOREIGN wire (own excluded); it is not an own-vs-foreign anchor test. Name it in the change list, but do not add a strict comparison there."
     },
     {
       "path": "docs/evidence/review/t53-verify-main.mjs",
@@ -188,9 +303,13 @@
   },
   "thresholdDiscussion": {
     "chosenMargin": 1.0,
-    "whyOneUnit": "Clean normal margins are 10.0 / 4.72 / 5.09; the bus-adjacent normal probe MCU-33 is 1.00; the true positive is 3.16. 1.0 keeps the clean labels pass, keeps MCU-33 a warning, and still hard-fails the true positive. It is a warning boundary, not a license to pass: a warning is not a pass.",
-    "whatWouldChangeIt": "If the pixel/ink boxes change by more than about 0.5 unit, or if a real label has a true margin between 1.0 and 3.16, re-derive from a larger sample. Do not hand-tune per label.",
-    "strictVsInclusive": "Strict < is chosen. A tie is not nearest; the old <= at r5t4 line 107 must change. Exact equality at h=2.18 is a warning, not a pass."
+    "whyOneUnit": "Clean normal margins are 10.0 / 4.72 / 5.09; the bus-adjacent normal probe MCU-33 is 1.00; the true positive is 3.16. The full netflag surface adds six flags at exactly -1.00 (MCU-22/25/27/31/32/33). 1.0 keeps the clean labels pass, keeps all seven exact-boundary observations as warnings, and still hard-fails the true positive. It is a warning boundary, not a license to pass: a warning is not a pass.",
+    "whatWouldChangeIt": "Any ink-box movement at the boundary: 0.02 unit already flips an exact-1.00 warning to hard fail. Re-derive from a larger sample; do not hand-tune per label.",
+    "strictVsInclusive": "Strict < is chosen. A tie is not nearest; the old <= at r5t4 line 107 must change, and line104 must change with it (see correctionsFromR6t3.comparisonSites). Exact equality at h=2.18 is a warning, not a pass; at h=5.00 it is an anchor tie masked by the ink reject.",
+    "boundary": "1.0 sits exactly on six netflag ink observations plus the normal MCU-33 wire-label probe (seven observations; MCU-33 appears twice). The hard-fail test is foreign < own - 1.0; at exactly 1.00 it is false, so these are WARN, not hard fail. A 0.02 shift turns at least one into hard fail. This is a critical boundary value, not a safety margin.",
+    "recommendation": "Keep 1.0 and label it CRITICAL/BOUNDARY with mandatory human review; re-derive on any box movement. Do not lower to 0.8 (it turns the known-normal six flags + MCU-33 into hard false positives) and do not raise to 1.2 (it softens 1.0-1.2 true inversions to warnings). If a change is ever approved, record it as a severity change, not a safety improvement.",
+    "cost0.8": "Six normal flags plus MCU-33 become hard fail, blocking known-normal bus-adjacent labels; a stricter gate, not a safer one.",
+    "cost1.2": "The six stay warning, but true inversions with margin 1.0-1.2 also become warnings; the gate is relaxed and may miss a real inversion. 3.16 still hard-fails. Not recommended without a larger sample."
   },
   "applicabilityBoundary": [
     "Visible Key=Name labels only; ValueVisible false is N/A (not a pass).",
@@ -211,7 +330,7 @@
     "Negative control: a hidden label or a pin annotation must be N/A, not pass.",
     "Do not add these tests to t53; put them in a new r6t2 test or the r9t1 generator test harness."
   ],
-  "implementationSketch": "shared/label-nearest.mjs: export functions and classify(). r9t1-main-view-guide.mjs: import classify; after line 179 build inkRects from the existing pixel scan; push inkNearestWarnings/Fails into summary; add guide prose only after approval. r5t4-d2d3-alt-verdict.mjs: import classify; replace line 107. t53-verify-main.mjs: unchanged. No code in this task writes any of those files.",
+  "implementationSketch": "shared/label-nearest.mjs: export functions and classify(). r9t1-main-view-guide.mjs: import classify; after line 179 build inkRects from the existing pixel scan; push inkNearestWarnings/Fails into summary; add guide prose only after approval. r5t4-d2d3-alt-verdict.mjs: import classify; replace BOTH line104 anchor and line107 ink inclusive comparisons. r5t1-d2d3-verdict.mjs:44 is foreign-only nearest(); name it but do not add a strict comparison. t53-verify-main.mjs: unchanged. No code in this task writes any of those files.",
   "verify": [
     {
       "task": "r5t4",
@@ -233,21 +352,25 @@
     }
   ],
   "gates": {
-    "t53": "PASS 5/5 exit 0 at 8faf500 (available; did not report exit 2)",
-    "freshness": "FRESH, baselineVersion 4, exit 0",
+    "t53": "PASS 5/5 exit 0 at ee0fe70 (components 21 = 8 part + 13 netflag, id sets equal both ways, wires 55/pairs 55, pages 2, MAIN b275cd23e45c4271bead56f66d4f98fe)",
+    "freshness": "FRESH, baselineVersion 4, packages 5, exit 0",
     "packagesNew": 0,
     "packagesCurrent": 5,
     "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
     "codeChanged": false,
     "guideEdited": false
   },
   "reproSteps": [
-    "Read docs/evidence/review/r5t4-d2d3-alt-verdict.mjs lines 100-108 (<= tie behavior) and r9t1-main-view-guide.mjs lines 137-179 (anchor-only filter)",
-    "Read the r5t4 boxes from docs/evidence/current/r5t4-d2d3-alternatives.json",
-    "Pixel scan W1 for MCU-33/35/36/37 ink boxes; use r5t1-geom.json for own wires",
-    "Compute rectangle-to-segment distances and margins; verify MCU-25/27/28 pass, MCU-33 warn, MCU-35/36/37 N/A, r5t4 moved 3.16 fail",
+    "Read docs/evidence/review/r5t4-d2d3-alt-verdict.mjs lines 100-108: line104 anchor <=, line107 ink <=; read r6t3-review-ink-rule.json checks[rule-flip-list-completeness]",
+    "Read docs/evidence/current/t31-dataset.json (55 wires/662 attrs/21 comps) and the two measured L/R flag boxes (L 229.33-248.48, R 369.18-388.21)",
+    "For each of the 13 netflag Name attrs, compute point-to-own/foreign wire and rectangle-to-segment margins; classify pass/warn/hard-fail with margin 1.0",
+    "For W1/W2, resolve own wire from parentPrimitiveId (not nearest foreign) and recompute anchor/ink; record candidate->pass",
+    "Enumerate the 18 guide rows: 12 tiles (L17-L28) + 4 closeups (L34-L37) + 2 W rows (L135-L136)",
     "node docs/evidence/review/t53-verify-main.mjs  # PASS 5/5 exit 0",
-    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0",
+    "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master  # ee0fe70/ee0fe70/0 0"
   ],
-  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs"
 }
