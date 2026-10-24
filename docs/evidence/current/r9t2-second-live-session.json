@@ -1,0 +1,211 @@
+{
+  "task": "r9t2 - second live EasyEDA window registration and t53 read",
+  "mode": "live replay from edaWindowCount=0; landing-only click; no canvas write",
+  "generatedAt": "2026-10-24T13:40:50.063Z",
+  "generatedAtLocal": "2026-10-24T21:40:50.071+08:00",
+  "headAtSession": "c34bb90a216141d5ee7773a61c7ae957d474bd1f",
+  "originAtSession": "c34bb90a216141d5ee7773a61c7ae957d474bd1f",
+  "aheadBehindAtSession": "0 0",
+  "runbook": "docs/evidence/current/r9t1-window-registration-runbook.md",
+  "windowId": "25883914a72e5cbb",
+  "newTimestampUtc": "2026-10-24T13:39:55.037Z",
+  "newTimestampLocal": "2026-10-24T21:39:55.041+08:00",
+  "newTimestampDistinctFrom": [
+    "2026-10-24T12:36:10.642Z",
+    "2026-10-24T12:36:46.855Z",
+    "2026-10-24T12:37:34.222Z"
+  ],
+  "registration": {
+    "trigger": "same-browser relay /landing; automatic popup was blocked (#manual visible); a real dpx click on #pop opened the landing window; BroadcastChannel woke the editor's built-in gateway, which dialed ws://127.0.0.1:49630 and sent {type:'register'}",
+    "before": {
+      "atUtc": "2026-10-24T13:38:56.830Z",
+      "health": {"service":"easyeda-bridge","bridge":"dsh-eda-bridge","status":"ok","edaConnected":false,"edaWindowCount":0,"activeWindowId":null,"pendingRequests":0},
+      "edaWindows": {"windows":[],"activeWindowId":null,"count":0}
+    },
+    "clickAtUtc": "2026-10-24T13:39:33.364Z",
+    "afterClickAtUtc": "2026-10-24T13:39:37.358Z",
+    "afterClickHealth": {"service":"easyeda-bridge","bridge":"dsh-eda-bridge","status":"ok","edaConnected":true,"edaWindowCount":1,"activeWindowId":"25883914a72e5cbb","pendingRequests":0},
+    "afterClickEdaWindows": {"windows":[{"windowId":"25883914a72e5cbb","connected":true,"active":true}],"activeWindowId":"25883914a72e5cbb","count":1},
+    "countTransition": "0 -> 1"
+  },
+  "steps": [
+    {
+      "step": "preflight",
+      "atUtc": "2026-10-24T13:38:56.830Z",
+      "action": "health and eda-windows before any action",
+      "edaWindowCount": 0,
+      "result": "edaConnected:false; windows=[]; activeWindowId=null"
+    },
+    {
+      "step": "open-landing",
+      "atUtc": "2026-10-24T13:39:10.161Z",
+      "action": "dpx tab-new http://127.0.0.1:49620/landing",
+      "edaWindowCount": 0,
+      "result": "TAB_FAILED permission on default.json, but tab-list at 13:39:12.358Z showed the landing tab was created (count:2)"
+    },
+    {
+      "step": "bind-and-inspect",
+      "atUtc": "2026-10-24T13:39:23.081Z",
+      "action": "dpx tab-select 1; snapshot; DOM eval",
+      "edaWindowCount": 0,
+      "result": "landing bound; #manual=true; #pop=true; popTag=BUTTON; health still 0"
+    },
+    {
+      "step": "click-pop",
+      "atUtc": "2026-10-24T13:39:33.364Z",
+      "action": "dpx click '#pop'; wait 2s",
+      "edaWindowCount": 1,
+      "result": "click ok; health at 13:39:37.358Z: true/count1/active 25883914a72e5cbb"
+    },
+    {
+      "step": "t53",
+      "atUtc": "2026-10-24T13:39:55.037Z",
+      "action": "node docs/evidence/review/t53-verify-main.mjs",
+      "edaWindowCount": 1,
+      "result": "exit 0; 5/5; 21/8/13/55/55/2; pages active MAIN"
+    },
+    {
+      "step": "plus3v3-and-pages",
+      "atUtc": "2026-10-24T13:40:03.087Z",
+      "action": "node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs",
+      "edaWindowCount": 1,
+      "result": "part=8 netflag=13; +3V3 type=part; pageCount=2; MAIN/P1; active MAIN"
+    }
+  ],
+  "t53": {
+    "command": "cmd /c \"node docs/evidence/review/t53-verify-main.mjs > .tmp-r9t2-t53.txt 2>&1\"",
+    "startUtc": "2026-10-24T13:39:55.037Z",
+    "startLocal": "2026-10-24T21:39:55.041+08:00",
+    "endUtc": "2026-10-24T13:39:55.696Z",
+    "endLocal": "2026-10-24T21:39:55.696+08:00",
+    "exitCode": 0,
+    "checks": "5/5",
+    "values": {
+      "components": 21,
+      "parts": 8,
+      "netflags": 13,
+      "wires": 55,
+      "pairs": 55,
+      "pages": 2
+    },
+    "page": "MAIN b275cd23e45c4271bead56f66d4f98fe; active MAIN",
+    "rawLines": [
+      "[t53] MAIN invariant gate - read-only",
+      "  PASS  components = 21: 21 / expected 21",
+      "  PASS  part = 8, netflag = 13: part=8 netflag=13",
+      "  PASS  component id set = baseline (both directions): extra=0 missing=0",
+      "  PASS  wires = 55 and id|net pairs = baseline: wires=55 pairs=55 extra=0 missing=0",
+      "  PASS  pages unchanged, MAIN id intact: pages=2 MAIN=present active=b275cd23e45c4271bead56f66d4f98fe",
+      "[t53] PASS exit 0"
+    ],
+    "healthBefore": {"edaConnected":true,"edaWindowCount":1,"activeWindowId":"25883914a72e5cbb","pendingRequests":0},
+    "healthAfter": {"edaConnected":true,"edaWindowCount":1,"activeWindowId":"25883914a72e5cbb","pendingRequests":0}
+  },
+  "liveProbe": {
+    "command": "cmd /c \"node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs > .tmp-r9t2-probe.txt 2>&1\"",
+    "startUtc": "2026-10-24T13:40:03.087Z",
+    "endUtc": "2026-10-24T13:40:03.631Z",
+    "exitCode": 0,
+    "total": 21,
+    "byType": {"part": 8, "netflag": 13},
+    "plus3v3": [
+      {"id":"layout:flag:_3V3:bus:240","type":"part","designator":"U?","name":"+3V3"}
+    ],
+    "pageCount": 2,
+    "pages": [
+      {"uuid":"b275cd23e45c4271bead56f66d4f98fe","name":"MAIN"},
+      {"uuid":"d224f8d13804e759","name":"P1"}
+    ],
+    "activeUuid": "b275cd23e45c4271bead56f66d4f98fe"
+  },
+  "failuresAndFixes": [
+    {
+      "where": "tab-new",
+      "rawError": "{\"status\":\"error\",\"code\":\"TAB_FAILED\",\"message\":\"创建标签页失败\",\"detail\":\"[Errno 13] Permission denied: 'C:\\\\Users\\\\yanwuning\\\\.dp_cli\\\\sessions\\\\default.json'\"}",
+      "observed": "tab-list at 13:39:12.358Z showed the landing tab was actually created (count:2)",
+      "fix": "verify with tab-list, then tab-select 1; do not switch to a temporary browser/profile"
+    },
+    {
+      "where": "snapshot after tab-new",
+      "rawError": "RuntimeError: NO_SUCH_TAB; pinned CEB3AD7543E8B2BEB1F3A9FE26F0BE6A; available tabs 0FD... and DFB...",
+      "observed": "old pinned tab id was stale; landing existed",
+      "fix": "tab-list then tab-select 1 before snapshot; do not reuse the old pinned id"
+    },
+    {
+      "where": "t53 output capture",
+      "rawError": "Program 'node.exe' failed to run: StandardOutputEncoding is only supported when standard output is redirected.",
+      "observed": "PowerShell capture wrapper failed before script launch; health stayed true",
+      "fix": "use cmd /c \"node ... > file 2>&1\" then Get-Content -Raw; check LASTEXITCODE, do not treat empty capture as PASS"
+    }
+  ],
+  "judgment": {
+    "registrationSucceeded": true,
+    "edaWindowCountGreaterThanZero": true,
+    "t53ExitZero": true,
+    "t53Pass": "5/5",
+    "newRead": true,
+    "oldValuesSubstituted": false,
+    "stableAvailabilityClaim": false,
+    "note": "This proves one replay at the recorded times only; the window may drop later, and /health alone is not sufficient for later liveness."
+  },
+  "boundaries": [
+    "Only the landing page was clicked; no editor canvas click or type.",
+    "No save/modify/create/delete/clear/openDocument.",
+    "t53 was run only after health showed edaWindowCount=1.",
+    "The 12:36/12:37 values are not used as this read; this read is timestamped 13:39:55.037Z.",
+    "One successful replay is not a claim of stable or long-term bridge availability."
+  ],
+  "selfProof": {
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "bridgeWrites": 0,
+    "wrote": 0,
+    "packagesAdded": 0,
+    "fileWrites": 2,
+    "files": [
+      "docs/evidence/current/r9t1-window-registration-runbook.md",
+      "docs/evidence/current/r9t2-second-live-session.json"
+    ],
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesDiff": "git diff --name-only c34bb90a HEAD -- packages -> empty",
+    "grep": {
+      "command": "select executable lines of t53 and r8t8 scripts; match saveOwnDocument,.save(,.modify(,.create(,.delete(,.clear(,openDocument",
+      "output": "NO_MATCHES"
+    }
+  },
+  "baseline": "HEAD c34bb90a216141d5ee7773a61c7ae957d474bd1f; /health edaConnected:false, edaWindowCount:0; /eda-windows count0; one editor tab with tab=*b275cd23e45c4271bead56f66d4f98fe.",
+  "diff": "Added the runbook and this JSON only; no source, guide, t53, package or canvas change.",
+  "reproSteps": [
+    "health/eda-windows: expect false/0 before start",
+    "dpx tab-new http://127.0.0.1:49620/landing; if TAB_FAILED, tab-list to confirm the tab exists",
+    "dpx tab-select 1; dpx snapshot --mode brief; DOM eval #manual/#pop",
+    "dpx click '#pop'; wait 2s; health/eda-windows expect true/count>=1",
+    "node docs/evidence/review/t53-verify-main.mjs # exit0 5/5 21/8/13/55/55/2",
+    "node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs # part8 netflag13 +3V3 part pages2"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r9t1-window-registration-runbook.md",
+      "summary": "Executable same-browser landing registration runbook with preflight, #manual/#pop, real click, health/eda-windows criteria, t53 and probe, plus the TAB_FAILED, stale-pinned-tab and capture failures and their fixes."
+    },
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r9t2-second-live-session.json",
+      "summary": "Second live session: 13:39:37.358Z registration 0->1, t53 13:39:55.037Z exit0 5/5 21/8/13/55/55/2, +3V3 part, page table 2 (MAIN/P1), new timestamp distinct from 12:36/12:37."
+    },
+    {
+      "type": "command",
+      "summary": "dpx tab-new/tab-select/click #pop; health false0 -> true1 active 25883914a72e5cbb; eda-windows count0 -> count1; t53 exit0; probe exit0; current health true1."
+    },
+    {
+      "type": "test",
+      "summary": "t53 PASS 5/5: 21/8/13/55/55/2, pages2 MAIN; probe total21 part8 netflag13, +3V3 type=part, pageCount2; no canvas writes."
+    }
+  ]
+}
