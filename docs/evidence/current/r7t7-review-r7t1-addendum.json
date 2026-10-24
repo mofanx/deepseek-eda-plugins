@@ -1,0 +1,219 @@
+{
+  "task": "r2t4 - review t2 push and the r7t1 addendum grading: push honesty, coverageLimits, guide levels, and boundary protection",
+  "mode": "read-only review; only this JSON is added",
+  "generatedAt": "2026-10-24T20:05:00+08:00",
+  "head": "f78a041ef53c0f0fe7efc280cc7cca04ee58dd33",
+  "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+  "aheadBehind": "4 0",
+  "t2": {
+    "commit": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+    "parent": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+    "finalClaim": "HEAD=origin=f2fe9a0, 0 0",
+    "atItsCommit": {
+      "revParseT2": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+      "revParseOrigin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+      "revListLeftRightCount": "0 0",
+      "mergeBaseIsAncestorExit": 0,
+      "verdict": "TRUE at t2's commit: f2fe is on origin/master."
+    },
+    "currentState": {
+      "head": "f78a041ef53c0f0fe7efc280cc7cca04ee58dd33",
+      "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+      "revListLeftRightCount": "4 0",
+      "explanation": "The 4 unpushed commits are 9fd (r7t4), 094 (r7t3), 04d (r2t2) and f78 (r7t5). t2's f2fe is already origin/master; current ahead is NOT a t2 false 0 0."
+    },
+    "reportHeadField": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+    "reportHeadFieldMeaning": "r7t2's JSON `head` records the review-time HEAD 045c, not the final commit f2fe. This is a stale/non-final field, not a push lie; the final commit f2fe is actually on origin.",
+    "pushVerdict": "pass - t2's claimed HEAD=origin=f2fe, 0 0 was true at its commit; f2fe is origin/master."
+  },
+  "coverageLimits": {
+    "path": "docs/evidence/current/r7t1-bridgefree-main-verify.json",
+    "commit": "04d53e4d36169901e1f472829e4ed21f534bfa1b",
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "not-all-six",
+        "found": "coverageLimits.readThisFirst: 'This artifact is NOT all six invariants verified offline. Of the six MAIN invariants, 21 / 55 / 55 / 0 ...; part=8 and netflag=13 are only RECONSTRUCTED ...; pages=2 is NOT provable at all.'",
+        "judgment": "成立 - explicitly not all six"
+      },
+      {
+        "id": "pages-unprovable",
+        "found": "coverageLimits.items[0]: invariant 'pages = 2', status 'NOT PROVABLE offline', why 'the source records 18 page records, not 2 ... No offline arithmetic turns 18 into 2', historicAssertionOnly true.",
+        "judgment": "成立 - pages not written as provable; no average or rewrite"
+      },
+      {
+        "id": "part-netflag-reconstruction",
+        "found": "coverageLimits.items[1]: invariant 'part = 8, netflag = 13', status 'OFFLINE RECONSTRUCTION ONLY - not a proof', why 'no componentType ... 8 is reconstructed ... 13 is reconstructed as the remainder', negativeControl 14.",
+        "judgment": "成立 - reconstruction explicitly not proof"
+      },
+      {
+        "id": "circularity-first",
+        "found": "coverageLimits.headlineRisk: 'CIRCULARITY, stated first because it limits every number below: t31-dataset.json is exactly the baseline that t53 compares ... Calling that an offline verification of MAIN would be self-reference, not verification.'",
+        "judgment": "成立 - t31/t53 baseline circularity is first and explicit"
+      }
+    ],
+    "pagesScopeCaveat": "The source also lists main-restore-verify.pages length 2; as an artifact that page table is directly countable, but it is the same restore event and not a live/deduped current page proof. The addendum's 'NOT PROVABLE offline' is therefore correct for a live/independent verification, which is the t53 question; it does not claim 18 is 2."
+  },
+  "guide": {
+    "path": "docs/evidence/current/r9t1-main-view-guide.md",
+    "commit": "04d53e4d36169901e1f472829e4ed21f534bfa1b",
+    "section": "MAIN 六项不变量的可验证性分级 (2026-10-24, r2t2), lines 251-270",
+    "verdict": "pass",
+    "rows": [
+      {
+        "invariant": "21 / 55 / 55 / 0",
+        "guide": "组件总数 21 离线可证; 导线 55 离线可证; 网名对 55 离线可证; 组件 hex id 0 离线可证",
+        "matchesR7t4": true,
+        "note": "r7t4 also found these directly measured and matching."
+      },
+      {
+        "invariant": "8 / 13",
+        "guide": "part 8 离线可重建，不计为证明; netflag 13 离线可重建，不计为证明",
+        "matchesR7t4": true,
+        "note": "r7t4: no componentType in t31; 8/13 only reconstruction, not proof; guide says the same and gives the +3V3/14 negative control."
+      },
+      {
+        "invariant": "pages 2",
+        "guide": "离线不可证（仅历史断言）; 18 条页记录; 2 是 t53 --pages 默认值与 main-restore.pages 长度; 两者不是同一对象; 无算式把 18 变 2",
+        "matchesR7t4": true,
+        "note": "r7t4: t1's 18 vs2 is not a proof of pages=2; guide does not write pages as provable."
+      }
+    ],
+    "notAllOfflineStatement": "line 270: 't53 需要桥。桥不可用时，上表的分级就是可达到的上限——不是「六项已全部离线验证」'.",
+    "overclaimCheck": "No row says all six are offline-verified; no row says pages=2 is proven. The only direct page-table number is explicitly qualified as a different object and not an offline proof of the live count."
+  },
+  "boundaries": {
+    "base": "04d53e4^ (094a1143)",
+    "headBeforeThisReview": "f78a041",
+    "diffNames": [
+      "M docs/evidence/current/r7t1-bridgefree-main-verify.json",
+      "A docs/evidence/current/r7t5-pages-provenance.json",
+      "M docs/evidence/current/r9t1-main-view-guide.md"
+    ],
+    "guideNumstat": "22 additions, 0 deletions",
+    "protectedFiles": [
+      "docs/evidence/current/r9t3-review-view-guide-v2.json",
+      "docs/evidence/current/r9t1-main-overview.png",
+      "docs/evidence/current/r4t1-d1-text31-shrink.json",
+      "docs/evidence/current/r5t4-d2d3-alternatives.json",
+      "docs/evidence/current/r5t6-review-alternatives.json",
+      "docs/evidence/current/r6t1-layout-layer-feasibility.json"
+    ],
+    "protectedZeroDiff": true,
+    "rawProtectedCommand": "git diff --name-only 04d^ HEAD -- <protected files> -> empty",
+    "otherProtected": {
+      "r9t3": "zero diff",
+      "three-hashes": "guide's original hash lines unchanged; guide diff is additions only (22/0)",
+      "host-quotes-and-※": "original lines 216-230 unchanged; no deletions",
+      "criteria-and-stride": "TEXT_RADIUS=6/d≤12/stride 4 original lines unchanged; additions only",
+      "PNG": "r9t1-main-overview.png zero diff",
+      "D1": "r4t1-d1-text31-shrink.json zero diff",
+      "r5t4": "r5t4-d2d3-alternatives.json zero diff",
+      "r5t6": "r5t6-review-alternatives.json zero diff",
+      "r6t1": "r6t1-layout-layer-feasibility.json zero diff",
+      "D2D3": "guide only adds the grading section at line 251; no §D2/D3 line deleted",
+      "h-values": "h=2.18 / 4.70 / 1.54 original arithmetic lines unchanged; no deletions"
+    },
+    "verdict": "pass - additions only, protected zero diff"
+  },
+  "selfProof": {
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "bridgeWrites": 0,
+    "note": "This review writes only docs/evidence/current/r7t7-review-r7t1-addendum.json; no bridge/canvas/package changes."
+  },
+  "checks": [
+    {
+      "id": "1-t2-push",
+      "verdict": "成立（t2 当时）",
+      "evidence": "f2fe rev-parse = f2fe; origin = f2fe; rev-list f2fe...origin = 0 0; merge-base is-ancestor exit0. t2's 0 0 is true at f2fe. Current 4 0 is later unpushed work, not t2."
+    },
+    {
+      "id": "2-current-vs-t2",
+      "verdict": "成立（区分）",
+      "evidence": "Current HEAD f78a041, origin f2fe, 4 0. This does not retroactively make t2's f2fe 0 0 false; t2 is literally origin. Current delivery remains blocked."
+    },
+    {
+      "id": "3-t2-report-head",
+      "verdict": "成立（low caveat）",
+      "evidence": "r7t2 JSON head=045c, not final commit f2fe; stale field. The final claim f2fe is true; not a push lie."
+    },
+    {
+      "id": "4-coverageLimits",
+      "verdict": "成立",
+      "evidence": "pages2 NOT PROVABLE; part/netflag OFFLINE RECONSTRUCTION ONLY - not a proof; circularity first; not all six."
+    },
+    {
+      "id": "5-guide-grading",
+      "verdict": "成立",
+      "evidence": "21/55/55/0 offline provable; 8/13 reconstruction not proof; pages2 not provable/historical; line270 not all six offline verified."
+    },
+    {
+      "id": "6-no-overclaim",
+      "verdict": "成立",
+      "evidence": "No pages=2 proven claim; no all-six-offline claim; no reconstruction called proof."
+    },
+    {
+      "id": "7-boundaries",
+      "verdict": "成立",
+      "evidence": "04d^..HEAD changes only r7t1, r7t5, guide; guide 22/0 additions; protected files zero diff; §D2/D3 and h values unchanged."
+    },
+    {
+      "id": "8-self-proof",
+      "verdict": "成立",
+      "evidence": "freshness FRESH v4 exit0; packages new0; wrote0; no bridge/canvas writes."
+    }
+  ],
+  "overall": "sound",
+  "delivery": "t2 pass at its commit; current local ahead4 remains unpushed due 443, not t2's falsehood",
+  "overallReason": "t2's f2fe is literally origin/master, so its 0 0 was true at its commit. The current 4 0 is later t3/t4/r2t2/r7t5 work, not a t2 lie. coverageLimits and the guide grade exactly as required: 21/55/55/0 provable, 8/13 reconstruction only, pages2 unprovable/historical, circularity first, no all-six claim. Guide and protected files show additions only / zero diff.",
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "t2's own commit f2fe is origin/master; f2fe...origin = 0 0. Current 4 0 is later unpushed work, not a t2 0 0 lie. r7t2 JSON head field 045c is stale but final claim f2fe is true.",
+        "baseline": "t2 parent 045c; t2 commit f2fe adds r7t2 script/JSON; origin f2fe at that time.",
+        "diff": "t2 2 files only; no source/t53/gate/package changes.",
+        "command": "git rev-parse f2fe; git rev-parse origin/master; git rev-list --left-right --count f2fe...origin/master; git merge-base --is-ancestor f2fe origin/master",
+        "exitCode": 0,
+        "t2Count": "0 0",
+        "currentCount": "4 0",
+        "t2AtOrigin": true,
+        "t2ReportHead": "045c (stale review head, low caveat)"
+      }
+    }
+  ],
+  "baseline": "t2 parent 045cfecc; t2 commit f2fe9a0; addendum r2t2 at 04d53e4 adds coverageLimits to r7t1 and grading to guide; current f78a041 includes later r7t5.",
+  "diff": "New file only: docs/evidence/current/r7t7-review-r7t1-addendum.json. No source, t1, guide, package, gate or PNG modification.",
+  "reproSteps": [
+    "git rev-parse f2fe; git rev-parse origin/master; git rev-list --left-right --count f2fe...origin/master; git merge-base --is-ancestor f2fe origin/master",
+    "git rev-parse HEAD; git rev-list --left-right --count HEAD...origin/master",
+    "node -e \"const d=require('./docs/evidence/current/r7t1-bridgefree-main-verify.json'); console.log(JSON.stringify(d.coverageLimits,null,2))\"",
+    "git diff --numstat 04d^ HEAD -- docs/evidence/current/r9t1-main-view-guide.md",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r7t7-review-r7t1-addendum.json",
+      "summary": "t2 推送核对（f2fe 当时 0 0 真、当前4 0 是后续）、coverageLimits 三段、指南四级、保护文件零 diff、自证。"
+    },
+    {
+      "type": "command",
+      "summary": "f2fe...origin=0 0；当前 f78...origin=4 0；guide 22/0；protected zero diff；freshness FRESH v4 exit0；packages0。"
+    },
+    {
+      "type": "test",
+      "summary": "t2 的 f2fe 是 origin；当前 ahead 不归咎 t2；coverageLimits/guide 无 pages 可证或全六项离线声称；§D2/D3与h值原样。"
+    }
+  ]
+}
