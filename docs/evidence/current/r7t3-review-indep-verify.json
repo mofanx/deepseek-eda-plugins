@@ -1,0 +1,172 @@
+{
+  "task": "r7t3 - independent review of t2 (r7t2 alternative-path MAIN verifier)",
+  "reviewer": "t3 (eda4), self-directed",
+  "at": "2026-10-24T10:33:33Z",
+  "atLocal": "2026-10-24T18:33:33+08:00",
+  "reviewedAtHead": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+  "reviewed": {
+    "task": "t2",
+    "commit": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+    "parent": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+    "artifacts": [
+      {
+        "path": "docs/evidence/review/r7t2-indep-main-verify.mjs",
+        "blob": "dfb6c080b99148db1c0dd409038bcca413efe671",
+        "bytes": 239,
+        "sha256": "a6618d49c0e549cd67fcbc7b25eb8b4d7447594b04e48b76e2a172ccf09e7a50",
+        "unit": "239 lines"
+      },
+      {
+        "path": "docs/evidence/current/r7t2-indep-main-verify.json",
+        "blob": "32584387575bd6100414ab754312d96a33a6df0d",
+        "sha256": "3736f1ed4d97f2c1ef0f0569576b407823344724f0a39ac0b709b580b2bbaf5b",
+        "unit": "262 lines"
+      }
+    ],
+    "inputs": [
+      {
+        "path": "docs/evidence/current/main-snapshot-r3t2.json",
+        "blob": "7256b3d12d8d43840931acc3f40051936c81ee4f"
+      },
+      {
+        "path": "docs/evidence/current/main-restore-verify.json",
+        "blob": "dd89549f4ee0c87c263e74ebfa1507f8167a97dc"
+      }
+    ],
+    "committedVersionVerified": true,
+    "howVerified": "git ls-tree -r HEAD + Get-FileHash on the working tree; tree clean at f2fe9a0 so the files I read are byte-identical to the committed blobs"
+  },
+  "items": [
+    {
+      "id": 1,
+      "question": "record HEAD, blobs, script sha; confirm the committed version was reviewed",
+      "verdict": "成立",
+      "evidence": {
+        "head": "f2fe9a0 (HEAD = origin, rev-list --left-right --count = 0 0, status clean)",
+        "blobs": "r7t2 .mjs dfb6c08, .json 3258438; inputs 7256b3d and dd89549",
+        "sha256": "a6618d49...a50 / 3736f1ed...f5b, computed from the working tree at a clean f2fe9a0"
+      },
+      "defect": {
+        "severity": "low",
+        "text": "the report field `head` is 045cfec - the HEAD at generation time - while the artifact is committed at f2fe9a0. No reviewedAtHead / headAtCommit pair disambiguates the two, so a reader quoting `head` alone gets a hash that does not contain the artifact. Same class of defect as r6t7's stale `head`."
+      }
+    },
+    {
+      "id": 2,
+      "question": "is it genuinely independent, or a copy of t1?",
+      "verdict": "成立 (implementation independent; evidentiary independence limited - and it says so itself)",
+      "evidence": {
+        "noImport": "grep over the file: no import of r7t1, no require of it, no child_process, no spawn. The only reference is readFileSync of docs/evidence/current/r7t1-bridgefree-main-verify.json (L25/L83/L89), guarded by existsSync, used only to fill the comparison table.",
+        "differentSources": "t1 parses docs/evidence/current/t31-dataset.json (21 components, no componentType). t2 parses main-snapshot-r3t2.json (63 components, has `type`) plus main-restore-verify.json (42 removedOriginal ids, page table). Different files, different blobs - not a re-read of the same artifact.",
+        "differentUnit": "t2's unit is one component row / one wire record with explicit `type`; t1's unit is a page-export component without any type field. Confirmed by reading both: real difference in the data model, not just in wording.",
+        "differentDedup": "t2 dedupes by exact component id and by exact wire id|net, with a separate 42-ID removal set. t1 has no removal set."
+      },
+      "deeperFinding": {
+        "claim": "the 21 agreement is not a second measurement",
+        "why": "main-restore-verify.json already asserts components: 21 itself, and it is also the source of the 42 removedOriginal ids. So 63 - 42 = 21 re-derives the number that the same record already states, from the pre-restore state of the same page. The two artifacts are before and after of one restore operation, not two independent captures.",
+        "whoSaysIt": "t2 states it in path.limitation: 'this is a different artifact and implementation, not an independent capture. The snapshot is the 63-component pre-restore state, so current 21 is derived by subtracting the recorded 42 IDs.'",
+        "weight": "independent as code and as derivation path; NOT independent as evidence about the live canvas. It upgrades 21 from 'member self-report' to 'recomputed from committed records', which is real but weaker than a second bridge read. It must not be counted as a second measurement of the canvas."
+      },
+      "defect": {
+        "severity": "low",
+        "text": "path.differentFromT1[0] says t1 'is planned as a page-source parser'. t1 is not a page-source parser: no .epro2/.esch exists in the repo, and r7t1 parses a committed page *export* (t31-dataset.json). The distinction matters, because it is the reason t1 has no componentType. Mischaracterizes the other task; does not affect t2's own numbers."
+      }
+    },
+    {
+      "id": 3,
+      "question": "stride 4 for wires; netflag by componentType (+3V3 is a part); stride 2 or attr-name counting would be an automatic fail",
+      "verdict": "成立 (with a scope correction on the stride item)",
+      "evidence": {
+        "netflag": "counted via `component.type` (L58-L59: byType.set(component.type, ...)), i.e. the same basis as componentType, not by id or name. I verified the trap is genuinely avoided rather than accidentally passing: in main-snapshot-r3t2.json the component {id: 'layout:flag:_3V3:bus:240', type: 'part', name: '+3V3'} exists, survives the 42-ID removal, and is counted among the 8 parts.",
+        "removalSet": "I re-derived the split myself: the snapshot has 63 components; all 42 removedOriginal ids are type=netflag, so 55-42 = 13 netflags and the 8 parts are untouched. current = 21, byType = {part: 8, netflag: 13}. No id or name heuristics involved.",
+        "stride": "NOT APPLICABLE, not wrong: the script never parses `Line` and never segments a wire; the wire invariant is `snap.wires.length` = 55 records. It therefore cannot commit the stride-2 error (69 segments / 5 phantom diagonals), but it also does not independently corroborate the 62-segment figure that r7t1 reports.",
+        "noNameBasedCounting": "grep confirms no /MCU|GND|3V3/ style classifier anywhere in the file."
+      }
+    },
+    {
+      "id": 4,
+      "question": "six items item-by-item against r7t1, no averaging",
+      "verdict": "成立",
+      "table": [
+        { "item": "components/devices", "r7t1": 21, "r7t2": 21, "status": "PASS" },
+        { "item": "part", "r7t1": "8 (reconstruction only)", "r7t2": "8 (type field)", "status": "PASS (r7t1 value is a reconstruction; r7t2 measures it directly)" },
+        { "item": "netflag", "r7t1": "13 (reconstruction only)", "r7t2": "13 (type field)", "status": "PASS (same caveat)" },
+        { "item": "wires", "r7t1": 55, "r7t2": 55, "status": "PASS" },
+        { "item": "net-name pairs", "r7t1": 55, "r7t2": 55, "status": "PASS" },
+        { "item": "pages", "r7t1": "18 (page records in t31)", "r7t2": "2 (entries in main-restore-verify.pages)", "status": "NOT COMPARABLE - different objects; no average taken" },
+        { "item": "component hex ids", "r7t1": 0, "r7t2": 0, "status": "PASS" }
+      ],
+      "evidence": {
+        "recompute": "I re-ran t2's script myself: computed {devices: 21, part: 8, netflag: 13, wires: 55, netNamePairs: 55, pages: 2, hexIds: 0}, mismatches [], exit 0.",
+        "crossCheck": "t2's report records differences: [{key: 'pages', t1: 18, ours: 2}] and nothing else; its t1Sha256 33dcdb06... matches my r7t1 artifact's actual sha256 byte for byte, so it read the committed t1 rather than an older draft.",
+        "noAveraging": "pagesNote states 'The two numbers describe different objects; no average or rounding is used. Neither offline path proves the live page count.' I confirm no averaged or blended page value appears anywhere in the report."
+      },
+      "caveatOnPages": "all three page numbers in play are 2026-10-21 snapshots of a volatile object: t31 records 18 page records at 13:51, main-restore-verify records a 2-entry page table at 06:06 with a *different* P1 uuid (d224f8d1...) than t31's P1 (03feee84...). Page ids re-register, so neither number is usable as 'current'. t53's 2 is a --pages default, not a measurement."
+    },
+    {
+      "id": 5,
+      "question": "the 101-devices note: verifiable arithmetic, or unresolved without guessing?",
+      "verdict": "成立",
+      "evidence": {
+        "noSourceOnDisk": "I ran my own scan: `101` appears in 5 files under docs/evidence/current/*.json and in no markdown. Every occurrence is a line number (r9t1:101, L101), an attribute id (attr101), a coordinate (y 1014.8 / h: 101), or a hash fragment (...d101cf...). No component/device total of 101 exists anywhere.",
+        "t2Behavior": "status: 'unresolved', explanation: 'Not derivable from these sources. I do not guess whether it included another page or a library; a page/library table with 101 rows is missing.' No estimated or substituted number.",
+        "arithmeticOffered": "63 snapshot components - 42 removedOriginal = 21, and all 42 ids are present in the snapshot (the script hard-fails otherwise, and it exits 0). The arithmetic it does offer is checkable and I checked it."
+      },
+      "defect": {
+        "severity": "info",
+        "text": "its checked[0] enumerates the scan hits as 'only line/h values'; the set also includes attr101 and hash fragments. The conclusion (no component/device total) still holds - I verified it - but the enumeration is incomplete."
+      }
+    },
+    {
+      "id": 6,
+      "question": "self-proof: freshness, packages 0, wrote=0, t53 real exit code",
+      "verdict": "成立",
+      "evidence": {
+        "freshness": "I ran it myself: `node docs/evidence/review/shared/freshness.mjs --check` -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0. Matches the value recorded in t2's selfProof.freshness.",
+        "packages": "git diff --name-only 045cfec..HEAD -- packages is empty; f2fe9a0 adds exactly 2 files, both under docs/evidence.",
+        "writes": "grep for .save|.modify|.create|.delete|.clear calls and writeFileSync/appendFileSync/createWriteStream/child_process/spawn/exec/execSync/fetch -> NO_MATCHES. Imports are node:fs (readFileSync, existsSync), node:crypto, node:url, node:path.",
+        "t53": "I ran it myself rather than trusting the record: exit 2, '[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE) ... [t53] no invariant was evaluated; this is exit 2, not a pass'. t2's report carries exitCode: 2, isPass: false and the same raw stdout, so it did not launder t53 into a pass.",
+        "wrote": "0; sourceStable true (it hashes its two inputs; the blobs I read are the ones at HEAD)"
+      }
+    }
+  ],
+  "defects": [
+    { "severity": "low", "text": "`head` = 045cfec is the generation-time HEAD, not the commit f2fe9a0 that contains the artifact; no reviewedAtHead/headAtCommit pair." },
+    { "severity": "low", "text": "path.differentFromT1[0] describes t1 as a 'page-source parser'; t1 parses a committed page export, because no page source exists in the repo." },
+    { "severity": "info", "text": "old101.checked[0] says the 101 scan found 'only line/h values'; attr101 and hash fragments are also present. Conclusion unaffected." }
+  ],
+  "overall": {
+    "verdict": "sound",
+    "why": "the implementation is genuinely independent (different sources, different unit, different dedup, no import of t1), the two historical traps are avoided for real rather than by luck - netflag by `type` with +3V3 verified as a part among the 8, and no stride-2 segmentation at all - all six comparable numbers reproduce, pages is reported as a different object without averaging, 101 is left unresolved without guessing, and t53 is carried as exit 2 / isPass false. The three defects are narrative-level and do not move a number.",
+    "scopeWarning": "sound here means 'internally sound and honestly scoped', not 'independent confirmation of the canvas'. Both t1 and t2 derive from 2026-10-21 bridge snapshots of the same MAIN page; t2 reconstructs 21 from the pre-restore snapshot and the restore's own removal list. The live canvas is still unverified in this session because t53 has never returned 0."
+  },
+  "myOwnRuns": [
+    { "command": "git rev-parse HEAD / origin/master / rev-list --left-right --count HEAD...origin/master", "result": "f2fe9a0 / f2fe9a0 / 0 0, status clean" },
+    { "command": "node docs/evidence/review/r7t2-indep-main-verify.mjs", "exitCode": 0, "stdout": "computed {devices:21, part:8, netflag:13, wires:55, netNamePairs:55, pages:2, hexIds:0}; mismatches []; overall cross-checked-with-pages-metric-caveat" },
+    { "command": "node docs/evidence/review/shared/freshness.mjs --check", "exitCode": 0, "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}" },
+    { "command": "node docs/evidence/review/t53-verify-main.mjs", "exitCode": 2, "stdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass" },
+    { "command": "Select-String r7t2-indep-main-verify.mjs for mutator/write/spawn/fetch calls", "result": "NO_MATCHES" },
+    { "command": "git diff --name-only 045cfec..HEAD -- packages", "result": "empty" }
+  ],
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "independent implementation confirmed; netflag by type with +3V3 correctly counted as a part; 21/8/13/55/55/0 reproduce; pages reported as a different object with no averaging; 101 unresolved without guessing; t53 exit 2 carried honestly; 3 low/info narrative defects.",
+        "baseline": "no r7t2 and no r7t3 before f2fe9a0; reviewed at HEAD f2fe9a0 with blobs dfb6c08 and 3258438",
+        "diff": "review-only addition: docs/evidence/current/r7t3-review-indep-verify.json; no t1, t2, source, package or guide file modified"
+      }
+    }
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "packagesNew": 0,
+    "bridgeCalls": 0,
+    "canvasWrites": 0,
+    "filesChangedByThisReview": [
+      "docs/evidence/current/r7t3-review-indep-verify.json"
+    ],
+    "freshness": "FRESH v4 exit 0 (run by me)"
+  }
+}
