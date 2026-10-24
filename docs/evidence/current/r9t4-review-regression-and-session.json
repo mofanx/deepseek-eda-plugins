@@ -1,0 +1,232 @@
+{
+  "task": "r9t4 - independent review of t2 (regression test validity and live-reading collision)",
+  "reviewer": "eda4 / t3",
+  "generatedAt": "2026-10-24T14:04:02.166Z",
+  "generatedAtLocal": "2026-10-24T22:04:02.166+08:00",
+  "headAtReview": "b6927beca0d216797fdccd0142b6b7d12ff96bec",
+  "originAtReview": "c34bb90a216141d5ee7773a61c7ae957d474bd1f",
+  "aheadBehindAtReview": "2 0",
+  "reviewed": {
+    "task": "t2",
+    "commit": "b6927beca0d216797fdccd0142b6b7d12ff96bec",
+    "parent": "fe6e7e894f47a9d6fa95a0c0dac5c730f42cad58",
+    "testBlob": "2adfecd4d9c220fc1a830523293194302bd67597",
+    "t53Blob": "a45b7255a0f84ad37409ccaad2d0189b198e3374",
+    "r9t3Blob": "fe1429325ed4e9cc6f8fc5a2722f56aa51280775",
+    "r9t2Blob": "700be07941f95aff95ebc55f4152084be0e1a7f5",
+    "t2Files": [
+      "docs/evidence/review/t53-classification-regression.mjs",
+      "docs/evidence/current/r9t3-second-live-session-j6.json"
+    ]
+  },
+  "verdict": "partial",
+  "overallReason": "The test is real, not a rubber stamp: deliberately removing the disconnected branch in a temporary copy makes case a fail while the mutated gate still exits 2, and restoring the committed file turns the suite green. The test does assert exact reasons and exit 2 for a/b1/b2/b3/b4/c1/c2/d. But it does NOT execute an assertion of BRIDGE_NO_EDA_WINDOW in this run: with one window registered, case e only asserts the gate exits 0/ok true, and the script itself prints that this reason is not asserted. The t2 headline's '9/9 cases assert exact reason strings' is therefore broader than the executed evidence. All other checks pass.",
+  "findings": [
+    {
+      "id": "1",
+      "requirement": "record HEAD, test blob, t53 blob; confirm the committed version was reviewed",
+      "status": "pass",
+      "evidence": {
+        "head": "b6927beca0d216797fdccd0142b6b7d12ff96bec",
+        "testBlob": "2adfecd4d9c220fc1a830523293194302bd67597",
+        "t53BlobHead": "a45b7255a0f84ad37409ccaad2d0189b198e3374",
+        "t53BlobAtC34": "a45b7255a0f84ad37409ccaad2d0189b198e3374",
+        "r9t3Blob": "fe1429325ed4e9cc6f8fc5a2722f56aa51280775",
+        "t2Parent": "fe6e7e894f47a9d6fa95a0c0dac5c730f42cad58",
+        "note": "HEAD is the t2 commit; the test and artifact are read from HEAD, not the working tree."
+      }
+    },
+    {
+      "id": "2",
+      "requirement": "the test must turn red when t53's disconnected branch is broken, and green when restored",
+      "status": "pass",
+      "evidence": {
+        "normalCommand": "node docs/evidence/review/t53-classification-regression.mjs",
+        "normalExitCode": 0,
+        "normalSummary": "### ALL GREEN - 9/9 passed, exit-code contract: every branch must be 2",
+        "redSetup": "temporary docs/evidence/review-red/ copy; changed only the copied t53 regex from '/disconnected|window lost|no such window/i' to '/window lost|no such window/i'",
+        "redExitCode": 1,
+        "redSummary": "### FAILURES: 1 - 8/9 passed, exit-code contract: every branch must be 2",
+        "redCaseA": "FAIL a: expected reason=BRIDGE_WINDOW_DISCONNECTED exit=2; actual reason=BRIDGE_CALL_FAILED exit=2 (process status 2)",
+        "whyThisIsStrongerThanNonZero": "the broken gate still exited 2; the test failed because the exact reason changed, proving it is not merely checking 'non-zero'",
+        "committedT53HashBefore": "a45b7255a0f84ad37409ccaad2d0189b198e3374",
+        "committedT53HashAfter": "a45b7255a0f84ad37409ccaad2d0189b198e3374",
+        "restoreCommand": "rm -rf docs/evidence/review-red; node docs/evidence/review/t53-classification-regression.mjs",
+        "restoreExitCode": 0,
+        "restoreSummary": "### ALL GREEN - 9/9 passed, exit-code contract: every branch must be 2"
+      }
+    },
+    {
+      "id": "3",
+      "requirement": "assert exact reason strings (BRIDGE_WINDOW_DISCONNECTED / BRIDGE_CALL_FAILED / EDA_NOT_CONNECTED / BRIDGE_NO_EDA_WINDOW) and exit 2, not merely non-zero",
+      "status": "partial",
+      "evidence": {
+        "exactAssertions": "a, b1, b2, b3, b4 -> BRIDGE_WINDOW_DISCONNECTED exit 2; c1, c2 -> BRIDGE_CALL_FAILED exit 2; d -> EDA_NOT_CONNECTED exit 2",
+        "exactCount": "8 of 9 cases assert a specific reason",
+        "missing": "case e did not assert BRIDGE_NO_EDA_WINDOW; with 1 window registered it asserted only exit=0, ok=true",
+        "testOwnDisclosure": "script output: 'e no env, but 1 window(s) registered -> gate runs instead ... note: BRIDGE_NO_EDA_WINDOW itself is NOT asserted in this run'",
+        "artifactLines": "r9t3 line 24 and line 41 say case (e) is conditional and was not asserted; line 39 marks notAsserted=BRIDGE_NO_EDA_WINDOW",
+        "conditionalCode": "t53-classification-regression.mjs lines 155-164 contain an exact assertion for BRIDGE_NO_EDA_WINDOW when /health reports 0 windows, but that path was not executed in this run",
+        "headlineOverclaim": "r9t3 line 6 says '9/9 cases assert exact reason strings and the exit-2 contract'; that is inaccurate for case e and is contradicted by the artifact's own lines 24/39/41",
+        "verdictReason": "not merely 'non-zero' (exact reasons are checked for 8 cases), but the fourth requested reason was not executed; the test's coverage is incomplete rather than fake"
+      }
+    },
+    {
+      "id": "4",
+      "requirement": "no logic changes: classification regex, thresholds, slice(0,200), exit 2; d<=6 / TEXT_RADIUS=6 / d<=12 / stride 4 unchanged",
+      "status": "pass",
+      "evidence": {
+        "t2OnlyDiff": "git diff --name-status fe6e7e8 b6927be -> only A t53-classification-regression.mjs and A r9t3-second-live-session-j6.json",
+        "t53Diff": "git diff fe6e7e8 b6927be -- docs/evidence/review/t53-verify-main.mjs -> empty",
+        "t53BlobSame": "c34:t53 = a45b7255a0f84ad37409ccaad2d0189b198e3374 = HEAD:t53",
+        "classificationRegex": "line 167 still contains SCHEMATIC_BRIDGE_WINDOW_LOST / SCHEMATIC_BRIDGE_DISCONNECTED / disconnected|window lost|no such window",
+        "slice": "slice(0, 200) still at lines 121 and 160",
+        "exit2": "fail() still sets result.exit = 2 at line 77",
+        "geometry": "guide diff c34..HEAD is empty; guide line 304 still contains TEXT_RADIUS=6 and d<=12, lines 150/172 contain d<=6, line 211 contains stride 4; no existing file was modified by t2",
+        "r7t5Blob": "fd18e4323bd8031bc9260111b1e1f46c93716057 (unchanged)"
+      }
+    },
+    {
+      "id": "5",
+      "requirement": "collide t2's reading with r9t2: timestamp, 21/8/13/55/55/2, part/netflag, page-table length",
+      "status": "pass",
+      "evidence": {
+        "t2Timestamp": "2026-10-24T13:40:16.452Z",
+        "r9t2Timestamp": "2026-10-24T13:39:55.037Z",
+        "deltaSeconds": 21.415,
+        "t2Values": {"components":21,"part":8,"netflag":13,"wires":55,"wirePairs":55,"pages":2},
+        "r9t2Values": {"components":21,"parts":8,"netflags":13,"wires":55,"pairs":55,"pages":2},
+        "t2PageCount": 2,
+        "r9t2PageCount": 2,
+        "t2Pages": [
+          {"uuid":"b275cd23e45c4271bead56f66d4f98fe","name":"MAIN"},
+          {"uuid":"d224f8d13804e759","name":"P1"}
+        ],
+        "r9t2Pages": [
+          {"uuid":"b275cd23e45c4271bead56f66d4f98fe","name":"MAIN"},
+          {"uuid":"d224f8d13804e759","name":"P1"}
+        ],
+        "plus3v3": "both part (layout:flag:_3V3:bus:240, U?)",
+        "activePage": "both MAIN b275cd23e45c4271bead56f66d4f98fe",
+        "windowId": "both 25883914a72e5cbb",
+        "t53Exit": "both 0",
+        "t53Checks": "both 5/5",
+        "disagreements": "none in any value; no averaging and no correction of one by the other",
+        "provenanceDifference": "r9t2 followed j5's own registration at 13:39:33.364Z/13:39:37.358Z; t2 first probed at 13:39:51.485Z and found the window already up. t2 labels this as a second reading on j5's registration, not as an independent registration."
+      }
+    },
+    {
+      "id": "6",
+      "requirement": "writing review: no 'one successful replay means the bridge is stable', no old values substituted",
+      "status": "pass",
+      "evidence": {
+        "notStable": "r9t3 line 123: 'This is one reading at one moment. It does not show the bridge is stable...'; line 99 labels registration as partial, not success",
+        "oldValues": "12:36/12:37/12:39 timestamps appear only in the distinct-from list and boundaries, never as the new reading; t2's new timestamp is 13:40:16.452Z",
+        "registrationHonesty": "line 84: 'attempted, NOT achieved by me'; line 97 explains the window was already registered by j5 14.1 s earlier",
+        "caveat": "the only wording defect is line 6's '9/9 cases assert exact reason strings', which overstates case e; that is reported under finding 3, not as a stability claim"
+      }
+    },
+    {
+      "id": "7",
+      "requirement": "self-proof: freshness, packages 0, wrote 0",
+      "status": "pass",
+      "evidence": {
+        "freshness": {
+          "command": "node docs/evidence/review/shared/freshness.mjs --check",
+          "exitCode": 0,
+          "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+        },
+        "packagesDiff": "git diff --name-only c34bb90 HEAD -- packages -> empty",
+        "packagesAdded": 0,
+        "wrote": 0,
+        "canvasWrites": 0,
+        "documentWrites": 0,
+        "nodeCheck": "node --check docs/evidence/review/t53-classification-regression.mjs -> exit 0",
+        "writeVerbScan": "t53-classification-regression.mjs for .save(|.modify(|.create(|.delete(|.clear(|openDocument|writeFile|appendFile|createWriteStream -> NO_MATCHES",
+        "fileWritesThisReview": 1,
+        "fileWritesNote": "only this review JSON is new; no t2 file was modified"
+      }
+    }
+  ],
+  "redGreenProof": {
+    "committedNormal": {
+      "exitCode": 0,
+      "summary": "### ALL GREEN - 9/9 passed, exit-code contract: every branch must be 2"
+    },
+    "temporaryBreak": {
+      "file": "docs/evidence/review-red/t53-verify-main.mjs (deleted after the test)",
+      "mutation": "'/disconnected|window lost|no such window/i' -> '/window lost|no such window/i'",
+      "caseA": "expected BRIDGE_WINDOW_DISCONNECTED exit 2; actual BRIDGE_CALL_FAILED exit 2; test judged FAIL",
+      "exitCode": 1,
+      "summary": "### FAILURES: 1 - 8/9 passed, exit-code contract: every branch must be 2"
+    },
+    "restoredCommitted": {
+      "exitCode": 0,
+      "summary": "### ALL GREEN - 9/9 passed, exit-code contract: every branch must be 2"
+    },
+    "committedT53Unchanged": {
+      "before": "a45b7255a0f84ad37409ccaad2d0189b198e3374",
+      "after": "a45b7255a0f84ad37409ccaad2d0189b198e3374"
+    }
+  },
+  "readingCrossCheck": {
+    "t2": {
+      "readAt": "2026-10-24T13:40:16.452Z",
+      "t53Exit": 0,
+      "checks": "5/5",
+      "components": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wirePairs": 55,
+      "pages": 2,
+      "pageTable": ["MAIN b275cd23e45c4271bead56f66d4f98fe", "P1 d224f8d13804e759"],
+      "plus3v3": "part (layout:flag:_3V3:bus:240, U?)",
+      "windowId": "25883914a72e5cbb"
+    },
+    "r9t2": {
+      "readAt": "2026-10-24T13:39:55.037Z",
+      "t53Exit": 0,
+      "checks": "5/5",
+      "components": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "wirePairs": 55,
+      "pages": 2,
+      "pageTable": ["MAIN b275cd23e45c4271bead56f66d4f98fe", "P1 d224f8d13804e759"],
+      "plus3v3": "part (layout:flag:_3V3:bus:240, U?)",
+      "windowId": "25883914a72e5cbb"
+    },
+    "deltaSeconds": 21.415,
+    "disagreements": "none"
+  },
+  "baseline": "HEAD b6927be (t2 commit), parent fe6e7e8, origin c34bb90; t53 blob a45b725; test blob 2adfecd; guide unchanged.",
+  "diff": "Added docs/evidence/current/r9t4-review-regression-and-session.json only. No t2 file, t53, guide, package or canvas change.",
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse HEAD:docs/evidence/review/t53-classification-regression.mjs; git rev-parse HEAD:docs/evidence/review/t53-verify-main.mjs",
+    "node docs/evidence/review/t53-classification-regression.mjs",
+    "copy test+t53 to docs/evidence/review-red/; change only copied t53 regex '/disconnected|window lost|no such window/i' to '/window lost|no such window/i'; run copied test -> exit 1, case a FAIL; delete temp; run committed test -> exit 0",
+    "git diff --name-status fe6e7e8 b6927be; git diff fe6e7e8 b6927be -- docs/evidence/review/t53-verify-main.mjs",
+    "node docs/evidence/review/shared/freshness.mjs --check; git diff --name-only c34bb90 HEAD -- packages; node --check docs/evidence/review/t53-classification-regression.mjs"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-classification-regression.mjs",
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "The test is genuine: breaking the disconnected branch in a temp copy makes case a fail while the gate still exits 2, and restoring the committed file returns 9/9 green. Exact reason+exit2 assertions cover a/b1/b2/b3/b4/c1/c2/d. However, the fourth reason BRIDGE_NO_EDA_WINDOW is not asserted in this run; case e only asserts exit0/ok true because a window is registered, and t2's own artifact says so. t2's headline overstates 9/9 exact reasons. t53 logic and guide constants are unchanged; the two readings match in every value with a 21.415 s offset; no stability claim or old-value substitution.",
+        "baseline": "HEAD b6927be; t53 blob a45b725; test blob 2adfecd; guide unchanged from c34bb90.",
+        "diff": "t2 added t53-classification-regression.mjs and r9t3-second-live-session-j6.json only; no existing file changed."
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r9t4-review-regression-and-session.json",
+      "summary": "Independent t3 review: HEAD/blob proof, red-green counterfactual, exact-reason coverage (partial for BRIDGE_NO_EDA_WINDOW), no-logic-change checks, 21.415 s reading collision, wording and self-proof."
+    }
+  ]
+}
