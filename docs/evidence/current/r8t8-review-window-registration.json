@@ -1,0 +1,186 @@
+{
+  "task": "r8t8 - review of t2's r8t7 window-registration attempt: did it call a live bridge 'connected' when only the relay was up, and did it blame the environment instead of naming the blocker?",
+  "reviewer": "eda4 member (self-directed)",
+  "generatedAt": "2026-10-24T12:34:00Z",
+  "generatedAtLocal": "2026-10-24T20:34:00+08:00",
+  "reviewedAtHead": "dc7beb160a8e79974441185088ab3130f231e541",
+  "reviewed": {
+    "task": "t2 / r8t7",
+    "artifact": {
+      "path": "docs/evidence/current/r8t7-window-registration-attempt.json",
+      "blob": "ef2f5a01c39c64b360307b23eb6c5699966fe5e2",
+      "bytes": 18224,
+      "lines": 254,
+      "containingCommit": "dc7beb1 (= HEAD at review time)",
+      "ownHeadField": "701e312",
+      "ownHeadAtCommitField": "701e312",
+      "committedVersionVerified": true
+    },
+    "gitStateAtReview": "HEAD = origin = dc7beb1, rev-list 0 0, working tree clean",
+    "headDrift": {
+      "threeStates": [
+        { "at": "attempt start", "head": "f6e1839", "note": "the artifact records this as headAtAttempt" },
+        { "at": "content finalised / commit parent", "head": "701e312", "note": "r8t5 landed here mid-attempt; the artifact records this as head AND headAtCommit" },
+        { "at": "commit containing the artifact", "head": "dc7beb1", "note": "the artifact's own commit; only the JSON was added" }
+      ],
+      "anchoredTo": "I reviewed the version contained in dc7beb1, blob ef2f5a01",
+      "doesDriftAffectTheResult": "no: the t53 blob at attempt, at commit and at review are all eead9c2, which I verified with ls-tree at HEAD. So the PASS refers to the same t53 that ships in HEAD."
+    }
+  },
+  "headline": "Both traps are absent. It did NOT pass off 'relay up' as 'bridge connected': it shows /health going 0 -> 1 with a concrete windowId, /eda-windows listing that window, t53 exiting 0, and a live execute returning real component/page data - and that window is still registered under the same id when I checked. It also did NOT blame the environment: it names the exact blocker (window.open without a user gesture, with manualHidden=false as positive evidence) and the exact remedy (a real click on #pop), then performed it. My independent re-run of t53 and my own live componentType/page probe both match its numbers item for item.",
+  "items": [
+    {
+      "id": 1,
+      "question": "record HEAD and the r8t7 blob, confirm the committed version was reviewed",
+      "verdict": "成立",
+      "evidence": {
+        "head": "dc7beb1 (HEAD = origin, rev-list 0 0, clean)",
+        "blob": "ef2f5a01c39c64b360307b23eb6c5699966fe5e2, 18224 bytes, 254 lines",
+        "containingCommit": "dc7beb1; `git show --name-status dc7beb1` lists exactly one add: docs/evidence/current/r8t7-window-registration-attempt.json",
+        "infoDefect": "its own head and headAtCommit fields both say 701e312, which is the PARENT of dc7beb1 - i.e. the generation base, not the containing commit. Same class as r7t5/r8t2. It does record the drift event itself ('r8t5 committed 701e312 during this attempt') and both t53 blobs as eead9c2, so nothing is hidden.",
+        "blobClaimVerified": "it claims t53 blob eead9c2 at both attempt and commit; `git ls-tree -r HEAD -- docs/evidence/review/t53-verify-main.mjs` returns eead9c2034274094c15846b71d5df989bf01dca0 - true at HEAD"
+      }
+    },
+    {
+      "id": 2,
+      "question": "does every trigger condition carry a source file and line number, or is it an unsourced 'just open the editor'?",
+      "verdict": "成立",
+      "verdictType": "sourced, with one prose-only sub-claim noted",
+      "evidence": {
+        "shape": "sourceProtocol.localRefs gives 10 entries, every one of them file:line. triggerConditions is a separate 5-item list; the conditions are not paired inline with their refs, but each maps to a numbered localRef and I verified the mapping.",
+        "whatIVerifiedInSource": [
+          "dsh-eda-bridge.mjs:261-282 - read verbatim: `function attachEdaClient(ws)`, `if (msg.type === 'register' && (msg.windowId || msg.tabId))`, `edaClients.set(registeredWindowId, ws)`, and 'Auto-select the first window'. Exactly the claimed handshake.",
+          "http-api.mjs routes - exactly four, at L46 GET /health, L60 GET /eda-windows, L69 POST /eda-windows/select, L89 POST /execute. A repo-wide search for '/register' across packages/eda-core/bin/*.mjs and src/*.ts returns nothing, so 'no /register endpoint' is true, not assumed.",
+          "http-api.mjs:111-119 - `const unavailable = /no eda window connected|not connected|no longer connected/i.test(message)` then `replyJson(res, unavailable ? 503 : 500, ...)`. The 503-not-500 claim is code-exact.",
+          "BroadcastChannel - it is NOT only in the third-party page: dsh-eda-bridge.mjs:20 ('run-api-gateway dials after an `api/landing?port=` BroadcastChannel trigger') and :197 ('after the BroadcastChannel post') document it locally, and those are inside the 18-22 / 196-230 ranges it cited.",
+          "bridge.ts:44 - EASYEDA_BRIDGE_LANDING_URL is literally 'https://pro.lceda.cn/api/landing?port=49620'."
+        ],
+        "honestLimitItDeclared": "it states the pro.lceda.cn landing page is `vendoredInRepo: false` and that 'its exact JavaScript cannot be quoted line-by-line', then supports the mechanism with local comments plus the observed registration. That is the correct way to cite a third-party page.",
+        "infoDefect": "triggerConditions[4] ('the project should be loaded ... schematic page list is non-empty') cites bridge.ts:47, which is the EASYEDA_BRIDGE_REGISTER_HINT prose constant - not an enforced check. I searched every 'page' mention in bridge.ts (L47, L201, L358): there is no code that tests the page list length. So that sub-claim is documented expectation, not enforced behaviour. It is not load-bearing here, because the live page list was non-empty (2 entries) anyway."
+      }
+    },
+    {
+      "id": 3,
+      "question": "is /health or /eda-windows quoted raw at every step, or only at the two endpoints?",
+      "verdict": "成立",
+      "evidence": {
+        "trajectoryAsQuoted": [
+          "baseline: health {status 200, edaConnected false, edaWindowCount 0, activeWindowId null} + windows {windows [], count 0}",
+          "after opening /landing: healthAfter {status 200, edaConnected false, edaWindowCount 0} - the popup was blocked, count stayed 0",
+          "before the click: healthBefore {edaConnected false, edaWindowCount 0, activeWindowId null}",
+          "after the click: 12 timestamped polls from 2026-10-24T12:24:16.368Z to 12:24:27.488Z, every one 'edaConnected=true edaWindowCount=1 activeWindowId=25883914a72e5cbb', plus windowsAfter listing that one window"
+        ],
+        "whyThatMatters": "the intermediate readings are exactly what proves WHICH step took effect: opening /landing alone left the count at 0, and only the real click flipped it to 1. With endpoints only, an observer could not tell whether tab-new or the click did it.",
+        "infoDefects": [
+          "the 'select landing and inspect fallback' step has no health value of its own; it is covered by the next step's healthBefore = 0, so the chain is unbroken but not literally every step.",
+          "the #pop click carries no timestamp (only status/message/locator), so the summary's 'within about 1 s' is an inference, not a measurement. What IS measured is the bound: the last 0-reading precedes the click and the first 1-reading is 12:24:16.368Z. (The landing page self-polls every 800 ms, which makes ~1 s plausible, but plausible is not measured.)"
+        ],
+        "notJustTwoPoints": true
+      }
+    },
+    {
+      "id": 4,
+      "question": "t53: is exit 0 real, are 5/5 and 21/8/13/55/55/2 itemized, are componentType and the live page table read on the spot? And does my own re-run agree field by field?",
+      "verdict": "成立",
+      "evidence": {
+        "itsClaim": "exitCode 0, pass true, checks '5/5', fullOutput quoted verbatim line by line, values {components 21, parts 8, netflags 13, wires 55, pairs 55, extraIds 0, missingIds 0, extraPairs 0, missingPairs 0, pages 2, mainPresent true, activePage b275cd23...}",
+        "myIndependentRun": {
+          "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+          "at": "2026-10-24T12:29:33.359Z",
+          "exitCode": 0,
+          "checks": "5/5, all pass true: 21/21; part=8 netflag=13; extra=0 missing=0; wires=55 pairs=55 extra=0 missing=0; pages=2 MAIN=present active=b275cd23e45c4271bead56f66d4f98fe",
+          "counts": "components 21, part 8, netflag 13, wires 55, wirePairs 55, pages 2",
+          "diff": "extraIds [], missingIds [], extraPairs [], missingPairs [] - all four empty"
+        },
+        "fieldByField": "identical to its report on every field. No discrepancy, so nothing to average and nothing to reconcile.",
+        "liveReadoutIndependentlyReproduced": {
+          "script": "docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs",
+          "exitCode": 0,
+          "stdout": "{\"total\":21,\"byType\":{\"part\":8,\"netflag\":13},\"plus3v3\":[{\"id\":\"layout:flag:_3V3:bus:240\",\"type\":\"part\",\"designator\":\"U?\",\"name\":\"+3V3\"}],\"pageCount\":2,\"pages\":[{\"uuid\":\"b275cd23e45c4271bead56f66d4f98fe\",\"name\":\"MAIN\"},{\"uuid\":\"d224f8d13804e759\",\"name\":\"P1\"}],\"activeUuid\":\"b275cd23e45c4271bead56f66d4f98fe\"}",
+          "agreement": "matches its liveReadout item for item, including the +3V3 primitive id, its componentType=part, designator U?, and both page uuids"
+        },
+        "liveStillTrueNow": "/health at review time: edaConnected true, edaWindowCount 1, activeWindowId 25883914a72e5cbb - the SAME window id it registered. So the registration is not a claim about a past instant that has since vanished; it is still in force, and that independently corroborates the report."
+      }
+    },
+    {
+      "id": 5,
+      "question": "failure-cause quality: is the blocker specific and reproducible, or is it 'environment limitation'?",
+      "verdict": "成立",
+      "verdictType": "inverted test - it reported SUCCESS, and the blocker it names is specific, source-derivable and self-verified",
+      "evidence": {
+        "itDidNotSayEnvironmentLimit": "the words 'environment limitation' do not appear, and it does not stop at 'you need to open the editor'. It names the mechanism: 'window.open needs a user gesture. The relay page calls pop() automatically, but browsers block it; #manual becomes visible and the #pop button is the required real-click path. I used that path.'",
+        "positiveEvidenceNotJustAbsence": "it quotes eval {manualHidden: false, popVisible: true}. I read the landing page source and this is a valid inference, not a guess: the page sets `document.getElementById('manual').hidden = !!popup && !popup.closed`, so manualHidden=false can only happen when the auto window.open produced no open popup - i.e. it was blocked. The evidence and the code agree.",
+        "reproducibleForTheNextPerson": "reproSteps are 7 concrete steps (dpx tab-list, tab-new the relay /landing, tab-select, snapshot, click ref:3, fetch /health, run t53, live getAll). That is an executable checklist, not a description of a limitation.",
+        "notInflatedToBridgeConnected": "the distinction the task warns about is respected: it does not infer 'connected' from the relay answering. It requires /health edaConnected true AND /eda-windows listing a window AND t53 exit 0 AND a live execute returning data. All four are quoted."
+      }
+    },
+    {
+      "id": 6,
+      "question": "write boundary: any save/modify/create/delete/clear, and did it ever call something that could have triggered a save?",
+      "verdict": "成立",
+      "evidence": {
+        "scriptsAdded": "none. `git show --name-only --diff-filter=ACMR --format='' dc7beb1` returns only docs/evidence/current/r8t7-window-registration-attempt.json. So there is no new script in which a write call could hide.",
+        "writeVerbsInCommitDiff": "4 added lines match save/modify/create/delete/clear/openDocument, and all four are the artifact's own assertions that nothing was written ('saveOwnDocumentCalled': false, 'openDocumentCalled': false, the noWriteGrep string, and check 8's evidence text). No call site.",
+        "theOnlyScriptItRan": "t53-verify-main.mjs - the only match is L32, the comment '// No save, no delete, no create, no modify, no openDocument.' No call.",
+        "theRiskyStepChecked": "the #pop click. I read the handler: `const pop = () => { popup = window.open(landing, '_blank', 'popup,width=640,height=480') }; document.getElementById('pop').onclick = pop`. It opens a popup and does nothing else - it cannot save a document. The click was on the relay landing page, not the editor canvas, and it reports canvasClicks 0 / canvasTyping 0.",
+        "disclosedSideEffect": "dpx wrote its own tab-session JSON OUTSIDE the workspace ('under full access; not an editor document'). It is disclosed rather than hidden. This means 'wrote=0' is true for the repo and the document, but not literally for the whole machine - a distinction worth keeping rather than blurring."
+      }
+    },
+    {
+      "id": 7,
+      "question": "self-proof: freshness actually run, packages 0, wrote=0",
+      "verdict": "成立",
+      "evidence": {
+        "freshness": "it reports the FRESH body at exit 0. I re-ran it myself: {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0.",
+        "packages": "it claims `git diff --name-only a71757e HEAD -- packages` is empty. I re-ran exactly that: empty.",
+        "wrote": "commit dc7beb1 adds one JSON; working tree clean at review time; no source, package, guide, canvas or t53 content changed by it"
+      }
+    }
+  ],
+  "defects": [
+    { "severity": "info", "text": "head and headAtCommit both say 701e312, the parent of the containing commit dc7beb1. Generation-base vs containing-commit confusion, same class as earlier rounds; it does record the drift event and blob, so nothing is concealed." },
+    { "severity": "info", "text": "no timestamp on the #pop click, so 'within about 1 s' in the summary is an inference. The causal ordering is still established by three separate zero readings before and twelve one-readings from 12:24:16.368Z after; only the interval is unmeasured." },
+    { "severity": "info", "text": "the 'select landing' step carries no /health value of its own; the chain is closed by the next step's healthBefore = 0, so no gap in state is left unobserved." },
+    { "severity": "info", "text": "triggerConditions[4] sources 'schematic page list is non-empty' to bridge.ts:47, which is the REGISTER_HINT prose constant; no code enforces a non-empty page list (all page mentions in bridge.ts are L47, L201, L358, none of them a check). Prose-sourced expectation, not load-bearing because the live list had 2 entries." },
+    { "severity": "info", "text": "dpx wrote its own tab-session JSON outside the workspace. Disclosed by the author; not a document or canvas write, but it means 'wrote=0' holds for the repo/document rather than for the entire machine." }
+  ],
+  "overall": {
+    "verdict": "sound",
+    "why": "The two failure modes the task asked me to hunt were both absent. Not 'relay up sold as bridge connected': the connection is established by four independent observations (health 0->1 with a window id, /eda-windows listing it, t53 exit 0 with 5/5, and a live execute returning 21 components and 2 pages), and the window is still registered under 25883914a72e5cbb when I checked. Not 'environment limitation': the blocker is named at the exact API level (window.open requires a user gesture), backed by manualHidden=false which the page's own logic makes a valid inference, and then actually worked around with a real click on #pop. My own re-run of t53 reproduced all five checks and all six counts field for field, and my independent live probe reproduced the +3V3 componentType and the MAIN+P1 page table as well.",
+    "whatThisUnlocks": "the live canvas now matches the offline baseline on every invariant, so part=8/netflag=13 and pages=2 are measurements as of this window, not reconstructions. That upgrades the status the earlier artifacts had to carry, and those artifacts should be annotated with this timestamped live reading rather than silently rewritten.",
+    "remainingHonestLimits": "the registered window can be lost again (the relay's heartbeat sweep exists for exactly that); the 800 ms / 1 s timing is bounded but not measured; and no PID-level evidence exists because the sandbox denies Get-NetTCPConnection/CIM/netstat."
+  },
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "r8t7 registers the real editor window and reads it live. I reproduced all of it: /health edaConnected true, edaWindowCount 1, activeWindowId 25883914a72e5cbb (same id, still registered); t53 --json exit 0 with 5/5 PASS and counts 21/8/13/55/55/2 and four empty diff lists, matching its report field for field; my own read-only probe independently returned +3V3 = layout:flag:_3V3:bus:240 componentType part, part 8 / netflag 13, and a 2-entry page table MAIN b275cd23 + P1 d224f8d1. Registration protocol is cited with file:line and I verified the register handler (bin 261-282), the absence of any /register route, and the 503-not-500 mapping (http-api.mjs:119). No script was added, no write verb is called anywhere on its path, and #pop only calls window.open. Defects are informational: generation-base head fields, an unmeasured click interval, one step without its own health sample, one prose-sourced condition, and a disclosed dpx session file outside the workspace.",
+        "baseline": "attempt start f6e1839 with /health edaConnected false and 0 windows; artifact committed in dc7beb1 (blob ef2f5a01); t53 blob eead9c2",
+        "diff": "dc7beb1 adds only docs/evidence/current/r8t7-window-registration-attempt.json; no source, package, guide, canvas or t53 change",
+        "howVerified": "ls-tree for the blob; git show --name-status for the commit contents; /health fetched at review time; t53 --json re-run and compared field by field; a new read-only probe for +3V3 and the page table; source inspection of bin 261-282, the four http-api routes, the absence of /register, http-api.mjs:119, and the #pop handler; grep for write verbs across the added lines and the t53 script; freshness and packages re-run"
+      }
+    }
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "packagesNew": 0,
+    "filesChanged": ["docs/evidence/current/r8t8-review-window-registration.json", "docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs"],
+    "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> FRESH, baselineVersion 4, packages 5, files 21, configs 8, tsconfigs 7, exit 0 (run by me)",
+    "noWriteGrep": "the new probe calls only discover(), sch_PrimitiveComponent.getAll(undefined,false), dmt_Schematic.getAllSchematicPagesInfo() and getCurrentSchematicPageInfo(); a grep for save/modify/create/delete/clear/openDocument finds no call site",
+    "note": "I did not click or type anywhere; this review only read files, /health, and the read-only bridge API."
+  },
+  "baseline": "HEAD dc7beb1 (= origin); r8t7 blob ef2f5a01; /health edaConnected true, 1 window, activeWindowId 25883914a72e5cbb",
+  "diff": "new files: docs/evidence/current/r8t8-review-window-registration.json and docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs; nothing else touched",
+  "reproSteps": [
+    "git -C D:/projects/nodejs/deepseek-eda-plugins ls-tree -r HEAD -- docs/evidence/current/r8t7-window-registration-attempt.json   # blob ef2f5a01",
+    "node -e \"fetch('http://127.0.0.1:49620/health').then(r=>r.json()).then(h=>console.log(JSON.stringify(h)))\"   # edaConnected true, count 1, 25883914a72e5cbb",
+    "node docs/evidence/review/t53-verify-main.mjs --json   # exit 0, 5/5, 21/8/13/55/55/2",
+    "node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs   # +3V3 type part, part8/netflag13, pages 2",
+    "node docs/evidence/review/shared/freshness.mjs --check   # FRESH v4 exit 0",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins diff --name-only a71757e HEAD -- packages   # empty"
+  ],
+  "verifyCommand": "node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs"
+}
