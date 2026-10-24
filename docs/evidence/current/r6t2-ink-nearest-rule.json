@@ -1,0 +1,253 @@
+{
+  "task": "r6t2 - proposed ink-nearest audit rule (pending approval)",
+  "status": "pending-approval",
+  "applied": false,
+  "guideEdited": false,
+  "codeChanged": false,
+  "reviewedAt": "2026-10-24",
+  "head": "8faf500",
+  "headAtReview": "10ed08e",
+  "mode": "proposal only. No file outside this JSON is changed. The rule is not written into the guide and no commit changes t53, r9t1, r5t4 or shared code.",
+  "problem": "The current audit uses d<=6 on the label ANCHOR only. r5t4 Plan A satisfies d=3.76 at h=3.76 while the ink is 4.70 from its own wire and 1.54 from MCU-33; a reader assigns the text to the wrong net. The no-go in r5t4 was found by human inspection, not by the numeric rule. This proposal makes the missing ink-nearest dimension explicit and testable.",
+  "ruleText": "For every visible net-name label L with an identified own wire W and foreign wires F: (1) the anchor must be strictly nearer to W than to every F; (2) the visible ink rectangle must be strictly nearer to W than to every F when the ink x-range intersects the own wire x-range; if it does not, ink is N/A and only the anchor test applies; (3) the existing anchor bound d(anchor,W)<=6 is retained. A label passes only if both applicable strict-nearer tests and the bound hold. Ties are not 'nearest': strict < is required. For automation, a hard fail needs a margin: fail only when a foreign wire is strictly more than 1.0 unit closer than W; a margin in [0,1.0] (including a tie) is review/warn, not an automatic pass and not a hard fail.",
+  "preciseDefinition": {
+    "units": "page units (8.25 px/unit in the r2t1 frames)",
+    "anchor": "distance from the label anchor point (x,y) to the nearest point of a segment; point-to-segment, foot clamped",
+    "ink": "minimum Euclidean distance from the visible ink rectangle (x1,x2,y1,y2) to the nearest point of a segment; 0 when the rectangle intersects the segment. Evaluate it only when the ink x-range intersects the own wire x-range; if the text sits beyond a wire end, ink is N/A and only the anchor test applies. Do not use the current y-only boxDist as the general definition: it is correct for the horizontal rows in r5t4 but misses vertical wires; a shared rect-to-segment routine is required.",
+    "ownWire": "for a wire label, parentPrimitiveId is the wire; for a flag name, resolve the flag to its same-net wire (e.g. layout:wire:MCU_26:flags). If no single own wire can be resolved, the label is N/A, not a pass.",
+    "foreignWires": "all wire segments whose net differs from the own net; exclude the own wire and same-net branches. Do not apply the c3 t in (0.05,0.95) gate to the ink-nearest test: a wire endpoint is still visually a wire; t stays a separate c3 rule.",
+    "strictness": "strict < for both anchor and ink; equality is NOT nearest. The current r5t4 code uses inkOwn <= inkOther (line 107), so it would pass a tie; that is the specific line to change.",
+    "severity": "PASS only if anchorOwn < anchorForeignMin AND inkOwn < inkForeignMin AND anchorOwn <= 6. HARD FAIL if (anchorForeignMin < anchorOwn - 1.0) OR (inkForeignMin < inkOwn - 1.0). WARN/REVIEW otherwise (ties and margins <=1.0). A WARN is not a pass; it requires a human decision.",
+    "margin": 1.0,
+    "marginRationale": "Data-driven separation: the r5t4 moved-label true positive has margin 4.70-1.54=3.16; the clean normal labels MCU-25/27/28 have margins 10.0/4.72/5.09; the bus-adjacent normal MCU-33 has margin 1.00. A 1.0 margin keeps the clean labels passing, makes MCU-33 a warning, and still hard-fails the true r5t4 case. Use strict >1.0 for fail so MCU-33's exact 1.00 is a warning, not a hard fail."
+  },
+  "filesToChange": [
+    {
+      "path": "docs/evidence/review/shared/label-nearest.mjs",
+      "status": "new (proposed)",
+      "change": "Add pure exports pointSegmentDistance(), rectSegmentDistance(), nearestWire(), classifyLabelAttribution({anchor, inkRect, ownWire, foreignWires, anchorLimit=6, margin=1.0}). Return {anchorOwn, anchorForeign, inkOwn, inkForeign, nearest, severity, margin}. No bridge or file I/O in this module."
+    },
+    {
+      "path": "docs/evidence/review/r9t1-main-view-guide.mjs",
+      "status": "proposed integration",
+      "change": "After foreignHits (line ~179), call classifyLabelAttribution for each visible Name attr. The generator currently has no ink bbox: it has attributes/geometry and TEXT_RADIUS only. Therefore add an inkRect input from the existing pixel scan (r5t1-d2d3-scan.ps1/r5t4-d2d3-alt-scan.ps1 output) or a new read-only bbox source; do not infer width from fontSize. Add inkNearestFails/inkNearestWarnings to the summary JSON and a separate guide section only after this proposal is approved. Do not rewrite the existing d<=6 sentence until then."
+    },
+    {
+      "path": "docs/evidence/review/r5t4-d2d3-alt-verdict.mjs",
+      "status": "proposed adoption",
+      "change": "Replace line 107 `if (!(inkOwn <= inkOther))` with the shared strict/margin classifier; keep line 102's own.d > D_TEXT. The r5t4 h=3.76 no-go stays; only the tie semantics change. This prevents the ad hoc 2' from drifting from the audit rule."
+    },
+    {
+      "path": "docs/evidence/review/t53-verify-main.mjs",
+      "status": "not selected",
+      "why": "t53's contract is five MAIN invariants (component counts/id sets, 55 wire id|net pairs, pages/MAIN uuid) and its exit 0/1/2 semantics. It has no text geometry, no ink bbox and no bridge-free pixel source; adding label attribution would turn a count gate into a different gate and make normal near-bus labels fail the MAIN invariant. If a hard gate is wanted, add a separate r6t2 geometry gate (or a new tNN) that consumes the pixel/ink input; do not overload t53."
+    }
+  ],
+  "recomputeExisting": {
+    "method": "Read-only re-use of r5t4/r5t1 boxes and the independent normal-label scans; no document changes. Anchor distances use point-to-segment; ink distances use rectangle-to-segment (horizontal rows in this data, so vertical gap with x-overlap is exact).",
+    "r5t4": {
+      "planA.obj1": {
+        "atH376": {
+          "anchorOwn": 3.76,
+          "anchorForeignMin": 6.24,
+          "inkOwn": 4.7,
+          "inkForeignMin": 1.54,
+          "margin": 3.16,
+          "severity": "hard-fail",
+          "overall": "no-go unchanged"
+        },
+        "atH218": {
+          "inkOwn": 3.12,
+          "inkForeignMin": 3.12,
+          "margin": 0,
+          "strictNearest": false,
+          "severity": "warn (and black overlap at h=2.18 anyway)",
+          "note": "The old <= would pass this tie; the proposal's strict < does not. No overall decision changes because h=2.18 is inside the black-glyph overlap."
+        },
+        "criterion2Literal": {
+          "old": "PASS for every h in [3.76,6.0]: d=h<=6",
+          "new": "anchor literal PASS remains, but combined criterion 2 FAILS at h=3.76 because inkOwn 4.70 > inkForeign 1.54; this is the one PASS->FAIL to name.",
+          "overall": "no-go unchanged"
+        }
+      },
+      "planA.obj2": {
+        "overall": "no-go unchanged; black gaps 2.07/1.94 < label 3.76; the ink-nearest rule is not needed to reach no-go"
+      },
+      "planB.obj1": {
+        "bestCaseFs": 3.81,
+        "overall": "no-go unchanged; below floor 4"
+      },
+      "planB.obj2": {
+        "bestCaseFs": 2.85,
+        "overall": "no-go unchanged; below floor 4"
+      }
+    },
+    "r5t1": {
+      "obj1.c2_stillOwnNet": {
+        "verdict": "PASS unchanged",
+        "inkOwn": 0.94,
+        "inkForeignMin": 5.3,
+        "margin": 4.36,
+        "anchorOwn": 0,
+        "anchorForeignMin": 5,
+        "reason": "own +3V3 wire y795 vs MCU-33 y785; the label ink is clearly nearer own. c1 is UNSATISFIABLE and overall no-go unchanged."
+      },
+      "obj1.c3": {
+        "verdict": "PASS unchanged"
+      },
+      "obj2.c2_stillOwnNet": {
+        "verdict": "PASS unchanged",
+        "inkOwn": 0.94,
+        "inkForeignMin": 5.3,
+        "margin": 4.36,
+        "anchorOwn": 0,
+        "anchorForeignMin": 5,
+        "reason": "own MCU-26 wire y795 vs MCU-25 y785; at s=12.01 the GND y800 is 5.94 away, still farther. c2 remains PASS."
+      },
+      "obj2.c3": {
+        "verdict": "FAIL unchanged; s>12.0, first .01-grid hit 12.01, d=5,t=.05025"
+      },
+      "overall": "no-go unchanged for both objects; no r5t1 pass flips under the new rule."
+    },
+    "summary": "No overall no-go/go decision changes. The only named PASS->FAIL is r5t4.planA.obj1.criterion2Literal (literal anchor PASS becomes combined criterion-2 FAIL); the r5t4 overall no-go was already the same. r5t1 c2 PASS values remain PASS."
+  },
+  "normalLabelProbes": {
+    "purpose": "Check whether a strict nearest rule would false-positive normal labels that are drawn on their own wire.",
+    "sample": [
+      {
+        "label": "MCU-25",
+        "anchor": [350, 785],
+        "ownWire": "layout:wire:MCU_25:flags (390,785)-(350,785)",
+        "ink": [369.18, 388.21, 780.12, 783.88],
+        "inkOwn": 1.12,
+        "nearestForeign": "MCU-26 y795",
+        "inkForeignMin": 11.12,
+        "margin": 10.0,
+        "strict": "pass",
+        "withMargin": "pass"
+      },
+      {
+        "label": "MCU-27",
+        "anchor": [350, 805],
+        "ownWire": "layout:wire:MCU_27:flags (390,805)-(350,805)",
+        "ink": [369.18, 388.33, 800.48, 804.24],
+        "inkOwn": 0.76,
+        "nearestForeign": "MCU-26 y795",
+        "inkForeignMin": 5.48,
+        "margin": 4.72,
+        "strict": "pass",
+        "withMargin": "pass"
+      },
+      {
+        "label": "MCU-28",
+        "anchor": [350, 815],
+        "ownWire": "layout:wire:MCU_28:flags (390,815)-(350,815)",
+        "ink": [369.18, 388.21, 810.67, 814.42],
+        "inkOwn": 0.58,
+        "nearestForeign": "MCU-27 y805",
+        "inkForeignMin": 5.67,
+        "margin": 5.09,
+        "strict": "pass",
+        "withMargin": "pass"
+      },
+      {
+        "label": "MCU-33",
+        "anchor": [210, 785],
+        "ownWire": "layout:wire:MCU_33:flags (210,785)-(250,785)",
+        "ink": [229.33, 248.48, 780.12, 783.88],
+        "inkOwn": 1.12,
+        "nearestForeign": "+3V3 y780",
+        "inkForeignMin": 0.12,
+        "margin": 1.0,
+        "strict": "not nearest (foreign closer)",
+        "withMargin": "warn (margin exactly 1.0; hard fail requires >1.0)"
+      }
+    ],
+    "notApplicable": [
+      {
+        "label": "MCU-35",
+        "why": "ink x 229.33-248.48 vs own wire x 150-210: no x-overlap; the text sits beyond the wire end, so ink-nearest is N/A. Anchor-only applies."
+      },
+      {
+        "label": "MCU-36",
+        "why": "ink x 229.33-248.48 vs own wire x 150-210: no x-overlap; N/A for ink-nearest."
+      },
+      {
+        "label": "MCU-37",
+        "why": "ink x 229.33-248.48 vs own wire x 150-210: no x-overlap; N/A for ink-nearest. A naive rectangle test would see own distance about 19.33 and +3V3 0.48 and hard-fail a normal label; that is exactly the false positive the x-overlap boundary prevents."
+      }
+    ],
+    "truePositive": {
+      "label": "r5t4 MCU-34 moved up h=3.76",
+      "inkOwn": 4.7,
+      "inkForeignMin": 1.54,
+      "margin": 3.16,
+      "withMargin": "hard fail"
+    },
+    "falsePositiveAssessment": "Three ink-overlapping normal labels (MCU-25, MCU-27, MCU-28) pass cleanly with margins 10.0 / 4.72 / 5.09. MCU-33 is also normal and ink-overlapping but bus-adjacent: inkOwn 1.12 vs +3V3 0.12, margin 1.00, so strict nearest fails; the 1.0 margin makes it a warning, not a hard fail. MCU-35/36/37 are N/A because their ink does not overlap the own wire (text beyond the wire end); without that boundary a naive rectangle test would hard-fail MCU-37 (own 19.33 vs +3V3 0.48) and likely MCU-35/36, a false positive. No hard false positive among the normal labels that satisfy the boundary; the only warning is a genuine bus-adjacency ambiguity."
+  },
+  "thresholdDiscussion": {
+    "chosenMargin": 1.0,
+    "whyOneUnit": "Clean normal margins are 10.0 / 4.72 / 5.09; the bus-adjacent normal probe MCU-33 is 1.00; the true positive is 3.16. 1.0 keeps the clean labels pass, keeps MCU-33 a warning, and still hard-fails the true positive. It is a warning boundary, not a license to pass: a warning is not a pass.",
+    "whatWouldChangeIt": "If the pixel/ink boxes change by more than about 0.5 unit, or if a real label has a true margin between 1.0 and 3.16, re-derive from a larger sample. Do not hand-tune per label.",
+    "strictVsInclusive": "Strict < is chosen. A tie is not nearest; the old <= at r5t4 line 107 must change. Exact equality at h=2.18 is a warning, not a pass."
+  },
+  "applicabilityBoundary": [
+    "Visible Key=Name labels only; ValueVisible false is N/A (not a pass).",
+    "Wire labels need a resolvable single own wire from parentPrimitiveId; flag names need the same-net flag wire; if ambiguous, N/A and human review.",
+    "Ink-nearest is evaluated only when the ink x-range intersects the own wire x-range; if the text sits beyond a wire end, ink is N/A and the anchor-only d<=6 check remains. This is required to avoid false hard fails: MCU-35/36/37 in W1 have ink x229.33-248.48 but own wire x150-210, so a naive rectangle test would see own ~19.33 and could hard-fail against a foreign bus 0.48 away.",
+    "Pin annotations (parent ending -eNN) and pin names/numbers are excluded; this rule is for net-name attribution, not black-glyph overlap. The original D2/D3 black overlap still needs criterion 1.",
+    "Foreign wires with the same net are excluded; own wire and same-net branches are not foreign.",
+    "The existing anchor d<=6 bound remains; this rule adds, and does not relax, d<=6.",
+    "A hard fail requires >1.0 margin; a tie or 0-1 margin is a warning and blocks automatic approval. A warning is not a pass.",
+    "Do not apply the rule to labels without a visible ink rectangle or without an own wire; report N/A rather than inventing a box.",
+    "The rule is a visual-association audit, not an electrical ownership change. Structural ownership remains parentPrimitiveId; a warning means the label may be misread, not that the net is electrically wrong."
+  ],
+  "proposedTests": [
+    "Unit: point/segment distance with foot clamped; rectangle/segment distance for overlap, horizontal gap, vertical wire, endpoint.",
+    "r5t4 fixture: moved MCU-34 at h=3.76 -> hard fail with inkOwn 4.70, inkForeign 1.54, margin 3.16; h=2.18 -> warn (strict tie); no overall no-go change.",
+    "r5t1 fixture: obj1/obj2 c2 PASS values (0.94 vs 5.30) remain PASS; obj2 c3 12.01 unchanged.",
+    "Normal-label fixture: MCU-25/27/28 pass (margins 10.0/4.72/5.09); MCU-33 warn (margin 1.00); MCU-35/36/37 N/A for ink because their ink x-range does not intersect their own wire.",
+    "Negative control: a hidden label or a pin annotation must be N/A, not pass.",
+    "Do not add these tests to t53; put them in a new r6t2 test or the r9t1 generator test harness."
+  ],
+  "implementationSketch": "shared/label-nearest.mjs: export functions and classify(). r9t1-main-view-guide.mjs: import classify; after line 179 build inkRects from the existing pixel scan; push inkNearestWarnings/Fails into summary; add guide prose only after approval. r5t4-d2d3-alt-verdict.mjs: import classify; replace line 107. t53-verify-main.mjs: unchanged. No code in this task writes any of those files.",
+  "verify": [
+    {
+      "task": "r5t4",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "The proposed rule keeps all r5t4 no-go decisions; it names the literal anchor PASS -> combined FAIL at h=3.76 and does not convert any no-go to go. The root-cause correction is reviewed separately in r5t7.",
+        "baseline": "3208fc9 r5t4 blob 6d8952117ac465bcb73fca4fc341765f1357ab1a",
+        "diff": "none; proposal only"
+      }
+    },
+    {
+      "task": "r5t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "c2 stays PASS for both objects (ink 0.94 vs foreign 5.30); c3 12.01 unchanged; no r5t1 decision changes.",
+        "baseline": "r5t1-d2d3-rehearsal.json at 10ed08e",
+        "diff": "none; proposal only"
+      }
+    }
+  ],
+  "gates": {
+    "t53": "PASS 5/5 exit 0 at 8faf500 (available; did not report exit 2)",
+    "freshness": "FRESH, baselineVersion 4, exit 0",
+    "packagesNew": 0,
+    "packagesCurrent": 5,
+    "wrote": 0,
+    "codeChanged": false,
+    "guideEdited": false
+  },
+  "reproSteps": [
+    "Read docs/evidence/review/r5t4-d2d3-alt-verdict.mjs lines 100-108 (<= tie behavior) and r9t1-main-view-guide.mjs lines 137-179 (anchor-only filter)",
+    "Read the r5t4 boxes from docs/evidence/current/r5t4-d2d3-alternatives.json",
+    "Pixel scan W1 for MCU-33/35/36/37 ink boxes; use r5t1-geom.json for own wires",
+    "Compute rectangle-to-segment distances and margins; verify MCU-25/27/28 pass, MCU-33 warn, MCU-35/36/37 N/A, r5t4 moved 3.16 fail",
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS 5/5 exit 0",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}

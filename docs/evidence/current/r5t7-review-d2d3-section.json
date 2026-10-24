@@ -1,0 +1,149 @@
+{
+  "task": "r5t7 - independent review of guide section D2/D3 at 10ed08e",
+  "mode": "read-only review. No guide, code, PNG, D1 or r5t4 edit. This JSON is the only artifact.",
+  "reviewedAt": "2026-10-24",
+  "head": "10ed08e",
+  "headAtWrite": "8faf500",
+  "originAtWrite": "8faf500",
+  "headVsOriginAtWrite": "0 0",
+  "headDrift": "Review target was 10ed08e. While I was working, the repository advanced to 8faf500 (commit 'r6t1 layout-layer feasibility') which adds only docs/evidence/current/r6t1-layout-layer-feasibility.json and two r6t1 scripts. The guide and r5t6 are byte-identical between 10ed08e and 8faf500 (verified by git diff and by r5t6 blob 1abf93af2ac2013502ee593ec94604d600b65c0b at both commits), so the section reviewed here is unchanged and the measurements remain valid. I will commit this review on 8faf500.",
+  "section": {
+    "file": "docs/evidence/current/r9t1-main-view-guide.md",
+    "lines": "140-165",
+    "heading": "D2/D3 处置结论（2026-10-24）：三条路都试过，都不可行",
+    "base": "3208fc9",
+    "reviewedCommit": "10ed08e",
+    "diffRange": "3208fc9..10ed08e",
+    "diffFiles": [
+      "A docs/evidence/current/r5t6-review-alternatives.json",
+      "M docs/evidence/current/r9t1-main-view-guide.md"
+    ]
+  },
+  "overall": "sound",
+  "overallReason": "The section uses r5t6's correction correctly. The core inequality is arithmetically exact (h=2.18), h=3.76 is correctly described as a tangent boundary rather than a visible gap, and the h=3.76 probe reproduces 4.70 own / 1.54 MCU-33. The guide explicitly marks the old 'row pitch 10 cannot hold 3.76+4.85' as an initial error, gives 3.76+4.85=8.61<10, and correctly attributes 4.85 to other rows in the same pin-number column (independently measured at 4.85); the layout-layer conclusion is unchanged and is now restated as 'same-y-band + no vertical exit'. All seven cross-checked numbers (3.81/2.85/1.62/2.10/2.07/1.94/12.01) have a source; 1.94 is independently reproduced even though r5t6 only reproduced 2.07. Protected paths have zero diff in the reviewed range.",
+  "checks": [
+    {
+      "id": "core-inequality",
+      "verdict": "成立",
+      "guideQuote": "墨迹到自己导线 `0.94+h`、到上一排 `MCU-33` 导线 `5.30-h`，两者在 `h=2.18` 相等；而脱离 `31` 至少要 `h=3.76`。",
+      "arithmetic": "0.94 = 795 - 794.06; 5.30 = 790.30 - 785; 0.94+h = 5.30-h => 2h = 4.36 => h = 2.18 exactly.",
+      "evidence": "Independent blue/black pixel scan of r2t1-w1-frame.png: label ink x 229.33-248.48, y 790.30-794.06, h=3.76; pin 31 y 790.30-794.67, h=4.36; MCU-33 wire y=785; own +3V3 wire y=795.",
+      "result": "2.18 is exact. No rounding issue."
+    },
+    {
+      "id": "h376-boundary",
+      "verdict": "成立 with boundary clarification",
+      "guideQuote": "上移 `h=3.76` 恰好与 `31` 相切（间隙 `0`，是边界值不是可见净空）……而脱离 `31` 至少要 `h=3.76`。",
+      "finding": "No overlap starts at h=3.76 because the label's bottom 794.06-3.76 = 790.30 equals the black glyph's top 790.30. This is a tangent/closed boundary, not a positive gap: a visible gap requires h>3.76. The guide states both the equality (line 147, '相切/间隙0') and '至少 h=3.76' (line 150), so it is internally consistent; the word '脱离' means no overlap, not visible clearance.",
+      "probe": "At h=3.76: ink 786.54-790.30; to own +3V3 y=795: 795-790.30=4.70; to MCU-33 y=785: 786.54-785=1.54. Both match r5t6 and the guide."
+    },
+    {
+      "id": "root-cause-correction",
+      "verdict": "成立",
+      "guideQuotes": [
+        "初判写\"行距 10 单位装不下 3.76 + 4.36–4.85\"；复核指出 `3.76+4.85=8.61 < 10`，该算术说法不成立，且 `4.85` 是同列其它行的引脚号高度、非本行。",
+        "已改为上面的\"同带钉死＋双向无出口\"表述，**结论（属排版层决策、非标签微调）不变**。"
+      ],
+      "initialErrorMarked": true,
+      "counterexample": "3.76+4.85=8.61<10; 3.76+4.36=8.12<10; 3.76+4.61=8.37<10. The row has enough total height, so 'cannot share a 10-unit row' is not the reason.",
+      "four85Source": "Independent W1 pin-number-column scan (x 232-244, y 770-822) gives clusters 779.64-784.48 h=4.85 and 799.88-804.73 h=4.85; the pressed row is 790.30-794.67 h=4.36 (pin 31). So 4.85 belongs to other-row pin numbers (Pin Number y 784.085 / 804.085), not the pressed 31. The guide's attribution is correct.",
+      "layoutConclusion": "The replacement cause is correct: the label ink 790.30-794.06 lies wholly inside the pin number 790.30-794.67 (overlap 3.76); moving up beyond h=2.18 makes MCU-33 the nearest wire; moving down h>=4.37 puts the anchor within 0.63 of +3V3 (and h=5.00 at x210,y800 gives d=0.00); along-wire is blocked. The conclusion 'layout-layer decision, not a label tweak' is unchanged and sound."
+    },
+    {
+      "id": "numeric-crosscheck",
+      "verdict": "成立",
+      "guideQuote": "最乐观（绕锚点缩放）需 `fs=3.81`；绕墨迹左端 `1.62`、绕右端 `2.10`……绕锚点需 `fs=2.85`……最大黑字空隙只有 **2.07**（上）／`1.94`（下）……`s>12.0` 起新增 GND 压字（实测 `12.01`）",
+      "numbers": {
+        "obj1": {
+          "anchor": 3.81,
+          "ink-left": 1.62,
+          "ink-right": 2.10,
+          "ink-center": null
+        },
+        "obj2": {
+          "anchor": 2.85,
+          "ink-left": null,
+          "ink-right": 0.9,
+          "ink-center": null
+        },
+        "gaps": {
+          "above": "2.07 at 788.48-790.55",
+          "below": "1.94 at 798.67-800.61 (the immediate below gap is 1.09 at 794.79-795.88; 1.94 is the largest below gap, so the guide's '最大...1.94（下）' is accurate)"
+        },
+        "c3": {
+          "gnd": "(360,800)-(400,800)",
+          "tAt1200": 0.05,
+          "tAt1201": 0.05025,
+          "firstGridSample": 12.01,
+          "s15": {
+            "d": 5,
+            "t": 0.125
+          }
+        }
+      },
+      "provenance": {
+        "3.81/2.85/1.62/2.10": "recomputed from the r5t4 boxes with the same 0.005 k step: obj1 k=.635/.27/.35 -> 3.81/1.62/2.10; obj2 k=.475/.15 -> 2.85/0.90; center is inside the pressed glyph and has no solution.",
+        "2.07": "independent W2 black-cluster scan 788.48-790.55.",
+        "1.94": "independent W2 black-cluster scan 798.67-800.61; also at 778.42-780.36. r5t4 lists a third at 808.85-810.79, but that one was not needed and my scan split it into 1.21/0.73. r5t6 only reproduced 2.07, so this review checked 1.94 explicitly; it is real, not assumed.",
+        "12.01": "t=(s-10)/40; s=12.00 gives t=.05 exactly (not >.05); the first 0.01-grid sample is 12.01 with t=.05025 and d=5; s=15 gives d=5,t=.125. The GND segment is present in live geometry."
+      }
+    },
+    {
+      "id": "protected-diff",
+      "verdict": "成立",
+      "finding": "git diff --name-status 3208fc9 10ed08e shows only A r5t6-review-alternatives.json and M r9t1-main-view-guide.md. The protected paths (r9t3*, PNGs, D1 JSON, r5t4-d2d3-alternatives.json) have no diff: `git diff --name-status 3208fc9 10ed08e -- 'docs/evidence/current/r9t3*' 'docs/evidence/current/*.png' 'docs/evidence/current/r4t1*' 'docs/evidence/current/r4t3*' 'docs/evidence/current/r5t4-d2d3-alternatives.json'` exits 0 with no output.",
+      "r5t6Blob": "1abf93af2ac2013502ee593ec94604d600b65c0b at both 10ed08e and 8faf500",
+      "r5t7Before": "absent (Test-Path false), so this is the missing r5t7 terminal review"
+    }
+  ],
+  "residualNotes": [
+    "h=3.76 is a tangent boundary, not a visible gap. The guide says this explicitly in line 147; if a reader wants positive clearance, h>3.76 is required. This is a wording clarification, not a numerical error.",
+    "1.94 is the largest gap below the pressed row, not the immediate one (immediate 1.09). The guide says '最大 ... 1.94（下）', which is correct; the label is 3.76 tall, so neither 2.07 nor 1.94 can hold it.",
+    "4.85 is independently confirmed as an other-row pin-number height; r5t4's own measured entries only list 4.36/4.61, so the guide's attribution is an improvement over the artifact and should be cited to this review or another scan for traceability.",
+    "r5t6 line '唯一被推翻的是根因的算术表述' is slightly narrower than r5t6's full finding (it also flagged 4.85 provenance). The guide now supplies the 4.85 attribution and the arithmetic correction, so the substance is addressed; this is a wording nit, not a reason to withhold sound."
+  ],
+  "gates": {
+    "t53": "PASS 5/5 exit 0 (environment available; no exit 2)",
+    "freshness": "FRESH, baselineVersion 4, exit 0",
+    "packagesNew": 0,
+    "packagesCurrent": 5,
+    "wrote": 0,
+    "readOnlyDump": "r5t1-d2d3-dump.mjs read-only; wrote only %TEMP%/r5t1-geom.json",
+    "guideEdited": false,
+    "r5t4Edited": false,
+    "pngEdited": false
+  },
+  "verify": [
+    {
+      "task": "r5t4",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "The no-go and 1.54/4.70 findings stand; the guide now corrects the only root-cause arithmetic defect. 4.85 is verified as other-row, so the guide's attribution is sound. The r5t4 artifact itself remains historical and still contains the old sentence.",
+        "baseline": "3208fc9 r5t4 blob 6d8952117ac465bcb73fca4fc341765f1357ab1a",
+        "diff": "review of guide at 10ed08e; no r5t4 file change in 3208fc9..10ed08e"
+      }
+    },
+    {
+      "task": "r5t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "c3 onset 12.01 is correct: GND (360,800)-(400,800), t=(s-10)/40, s=12.00 gives exactly .05, first .01-grid hit 12.01; s=15 gives d=5,t=.125. Both r5t1 objects remain no-go for c1; no c3 or number changes.",
+        "baseline": "r5t1-d2d3-rehearsal.json at 10ed08e",
+        "diff": "none"
+      }
+    }
+  ],
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master  # 10ed08e target; 8faf500 current at write",
+    "git diff --name-status 3208fc9 10ed08e  # A r5t6 + M guide only",
+    "git diff --name-status 3208fc9 10ed08e -- protected paths  # empty",
+    "node docs/evidence/review/r5t1-d2d3-dump.mjs  # read-only geometry to %TEMP%",
+    "Pixel scan r2t1-w1-frame.png: label 229.33-248.48 / 790.30-794.06; pin31 790.30-794.67; MCU-33 y785; own y795",
+    "Pixel scan r2t1-w2-frame.png: 2.07=788.48-790.55; 1.94=798.67-800.61",
+    "Pixel scan W1 pin-number column: 4.85 at 779.64-784.48 and 799.88-804.73",
+    "node -e '...' planB k-step: obj1 3.81/1.62/2.10; obj2 2.85/0.90",
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS 5/5 exit 0",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
