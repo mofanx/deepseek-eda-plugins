@@ -2,6 +2,7 @@
   "task": "r6t1 - layout-layer feasibility: can one offset constant separate the pin number from the net label?",
   "mode": "read-only. No document write, no canvas write, no save. The only file written is this JSON.",
   "date": "2026-10-24",
+  "revision": "r2t1 - accounting corrections after r6t4 (commit ee0fe70); decision unchanged",
   "liveRead": {
     "page": {
       "uuid": "b275cd23e45c4271bead56f66d4f98fe",
@@ -13,14 +14,15 @@
   },
   "verdict": {
     "decision": "no-go",
+    "unchanged": true,
     "reasons": [
       "no single offset constant exists in the repo, so premise (1) of the task fails on the facts",
       "the pin number y is owned by the vendor symbol (hardcoded, orientation-dependent: deltas -4/-5/0/+0.5), so changing it is a symbol rebuild",
       "the only in-repo lever for the flag name is the flag component position, which is the \"thirteen edits\" case the standing rules already reject",
       "a symbol-level edit would change all 70 pin-number attributes on this page (45 visible) and any other project bound to the same library symbol"
     ],
-    "whatWouldWork": "if the host ever gains a symbol-level lever, the safe window is a uniform lift of 4.37-5.82 units (measured: below 4.37 the number stays inside the label, above 5.82 it reaches the previous row ink that ends at 784.48)",
-    "doNot": "do not edit the library symbol in place, do not rebuild the symbol, do not move 12+ flags one by one, do not shrink the font (already no-go at 3.81/2.85)"
+    "whatWouldWork": "if the host ever gains a symbol-level lever, the safe window is a uniform lift of 4.37-6.42 units (below 4.37 the number stays inside the label, above 6.42 it reaches MCU-33's fixed label at 783.88); downward 3.76-5.81 also clears this label but deepens a neighbour overlap, so upward is the usable direction",
+    "doNot": "do not edit the library symbol in place, do not rebuild the symbol, do not move 12 flags one by one, do not shrink the font (already no-go at 3.81/2.85)"
   },
   "answers": {
     "one": "No such shared constant exists. The pin number y comes from the vendor symbol document; the flag name y comes from the flag component position computed in layout.ts. They are not the same lever, so changing one cannot fix both.",
@@ -29,19 +31,32 @@
       "premiseCorrection": "the task states \"any non-zero offset separates them\" - that is false: the two ink boxes share their top edge (790.30), so a small shift leaves them overlapping",
       "up": {
         "min": 4.37,
-        "max": 5.82,
-        "meaning": "lift \"31\" until its bottom clears the label top, before it reaches the row above"
+        "max": 6.42,
+        "maxConservative": 5.82,
+        "meaning": "lift the band until its bottom clears the label top; the bound is the fixed MCU-33 label bottom 783.88",
+        "sideEffect": "moves toward MCU-33: at the 4.37 minimum the band sits 0.93 units above MCU-33's wire (785)"
       },
       "down": {
         "min": 3.76,
         "max": 5.81,
-        "meaning": "push \"31\" below the label bottom, before it reaches the next row"
+        "meaning": "push the band below the label bottom; the bound is the next row's label top 800.48",
+        "sideEffect": "moves toward +3V3: at the 3.76 minimum the band bottom is -1.57 units above the +3V3 run (800)"
       },
       "minimumSafe": 4.37,
-      "windowWidth": 1.45
+      "globalMinimum": 3.76,
+      "globalMinimumDirection": "down",
+      "windowWidthUp": 2.05,
+      "upperBoundChoice": {
+        "adopted": 6.42,
+        "adoptedWhy": "the fixed obstacle is MCU-33's blue label (x 229.33-248.48, bottom 783.88), because it does not move when the pin numbers do; 6.42 is the true bound under the \"all 70 move\" premise",
+        "conservative": 5.82,
+        "conservativeWhy": "5.82 comes from the black band ending at 784.48, which is the moving pin-number 32, not a fixed obstacle; using it is safe but understates the window by 0.60",
+        "rejected": "PA11 measures x 252.85-269.33 in the same frame, x-disjoint from the pressed column x 232-244, so it cannot bound the shift even though its ink sits at y 776-778"
+      },
+      "downCaveat": "the \"3.76 downward\" figure is the minimum for moving THIS number. Under the document's own \"one symbol-level offset moves all 70\" premise, 3.76 also pushes the neighbour pin-30 band (799.88-804.73) deeper into the fixed row-805 label (800.48-804.24), where it already overlaps; so downward is the smaller number but not a page-level improvement. Adopted value remains 4.37 upward."
     },
-    "three": "A symbol-level change would move all 70 pin-number attributes at once (45 of them visible; one edit, but in the library, and for every project using C23922). The flag route instead moves 12 of the 14 flag names individually (the \"thirteen edits\" case), and each move drags its stub and wire with it.",
-    "four": "There is no constant to restore. Rolling back a library-symbol edit means restoring the vendor symbol document, which this repo does not own; a project-local copy may be created and the original museum copy is not addressable from here. That is a symbol rebuild - high risk.",
+    "three": "A symbol-level change would move all 70 pin-number attributes at once (45 visible; one edit, but in the library, and for every project using C23922). The flag route instead moves 12 of the 13 netflag components individually (the \"thirteen edits\" case), and each move drags its stub and wire with it. The +3V3 bus is a `part`, not a netflag, so it is outside that denominator; GND is a netflag but sits off the pin rows at (400,840).",
+    "four": "There is no constant to restore, so \"put the original constant back\" does not apply. What restoring would actually require: (a) if the flag route was used, move the same flags back and save, then cold-read; but reopening a document re-mints the 13 netflag instance ids, so a byte-identical comparison only holds within the same session - across a reopen you can compare geometry and net names, not ids; (b) if the symbol route was used, the only restore is reverting the symbol document itself, which this repo does not own and cannot address from here; a project-local copy may exist but the original museum copy is unreachable. Minimum snapshots to keep before any attempt: (1) the page document source (or a .epro2 project export) covering all 13 netflags plus the 70 pin-number attrs, (2) the C23922 symbol document source as it is today, (3) the cold-read invariant JSON (21 components / 8 part + 13 netflag / 55 wires / 55 name pairs / 2 pages / MAIN uuid b275cd23e45c4271bead56f66d4f98fe) so \"nothing else moved\" can be shown after the restore. Without all three, a rollback cannot be verified - only asserted.",
     "five": "no-go"
   },
   "counts": {
@@ -93,6 +108,11 @@
       "Global Net Name": 14,
       "Multi-Part Group": 1
     },
+    "components": 21,
+    "componentTypes": {
+      "part": 8,
+      "netflag": 13
+    },
     "pinNumberClass": 70,
     "pinNumberVisible": 45,
     "pinNumberHidden": 25,
@@ -101,95 +121,232 @@
     "pinNameClass": 70,
     "pinTypeClass": 70,
     "pinTypeVisible": 0,
-    "flagNameAttrs": 14,
-    "wireLabelNameAttrs": 55,
-    "flagsOnPinRows": [
+    "flagLikeNameAttrs": 14,
+    "netflagComponents": 13,
+    "netflagsOnPinRows": 12,
+    "netflagsOffPinRows": [
+      "GND"
+    ],
+    "netflagDenominator": 13,
+    "nonNetflagNameAttrs": [
       {
         "net": "+3V3",
+        "componentType": "part",
+        "at": [
+          200,
+          720
+        ]
+      }
+    ],
+    "wireLabelNameAttrs": 55,
+    "netflagRows": [
+      {
+        "net": "+3V3",
+        "parent": "layout:flag:_3V3:bus:240",
         "x": 200,
         "y": 720,
-        "rowIsPinRow": false
+        "componentType": "part",
+        "isNetflag": false,
+        "onPinRow": false
       },
+      {
+        "net": "GND",
+        "parent": "layout:flag:GND:bus:360",
+        "x": 400,
+        "y": 840,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": false
+      },
+      {
+        "net": "MCU-17",
+        "parent": "layout:flag:MCU_17:0",
+        "x": 250,
+        "y": 725,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-22",
+        "parent": "layout:flag:MCU_22:0",
+        "x": 350,
+        "y": 775,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-25",
+        "parent": "layout:flag:MCU_25:0",
+        "x": 350,
+        "y": 785,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-26",
+        "parent": "layout:flag:MCU_26:0",
+        "x": 350,
+        "y": 795,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-27",
+        "parent": "layout:flag:MCU_27:0",
+        "x": 350,
+        "y": 805,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-28",
+        "parent": "layout:flag:MCU_28:0",
+        "x": 350,
+        "y": 815,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-29",
+        "parent": "layout:flag:MCU_29:0",
+        "x": 250,
+        "y": 745,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-30",
+        "parent": "layout:flag:MCU_30:0",
+        "x": 250,
+        "y": 755,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-31",
+        "parent": "layout:flag:MCU_31:0",
+        "x": 250,
+        "y": 765,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-32",
+        "parent": "layout:flag:MCU_32:0",
+        "x": 250,
+        "y": 775,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-33",
+        "parent": "layout:flag:MCU_33:0",
+        "x": 250,
+        "y": 785,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      },
+      {
+        "net": "MCU-34",
+        "parent": "layout:flag:MCU_34:0",
+        "x": 250,
+        "y": 795,
+        "componentType": "netflag",
+        "isNetflag": true,
+        "onPinRow": true
+      }
+    ],
+    "netflagTable": [
       {
         "net": "GND",
         "x": 400,
         "y": 840,
-        "rowIsPinRow": false
+        "onPinRow": false
       },
       {
         "net": "MCU-17",
         "x": 250,
         "y": 725,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-22",
         "x": 350,
         "y": 775,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-25",
         "x": 350,
         "y": 785,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-26",
         "x": 350,
         "y": 795,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-27",
         "x": 350,
         "y": 805,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-28",
         "x": 350,
         "y": 815,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-29",
         "x": 250,
         "y": 745,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-30",
         "x": 250,
         "y": 755,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-31",
         "x": 250,
         "y": 765,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-32",
         "x": 250,
         "y": 775,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-33",
         "x": 250,
         "y": 785,
-        "rowIsPinRow": true
+        "onPinRow": true
       },
       {
         "net": "MCU-34",
         "x": 250,
         "y": 795,
-        "rowIsPinRow": true
+        "onPinRow": true
       }
-    ],
-    "flagsOnPinRowsCount": 12
+    ]
   },
   "arithmetic": {
     "horizontalPins": 53,
@@ -230,7 +387,27 @@
       910
     ],
     "rowsOnFiveUnitGrid": true,
-    "note": "the -0.91498 offset holds for all horizontal pins; the name-to-number delta is NOT a single value (-4 / -5 / 0 / +0.5 appear), so there is no one constant that covers every pin"
+    "note": "the -0.91498 offset holds for all horizontal pins; the name-to-number delta is NOT a single value (-4 / -5 / 0 / +0.5 appear), so there is no one constant that covers every pin",
+    "bands": {
+      "label": {
+        "y1": 790.3,
+        "y2": 794.06
+      },
+      "pressed": {
+        "y1": 790.3,
+        "y2": 794.67
+      },
+      "mcu33LabelFixed": {
+        "y1": 780.12,
+        "y2": 783.88
+      },
+      "pin32Moving": {
+        "y1": 779.64,
+        "y2": 784.48
+      },
+      "row805LabelTopFixed": 800.48,
+      "plus3v3RunFixed": 800
+    }
   },
   "evidence": {
     "pinNumberPlacement": {
@@ -309,10 +486,48 @@
       "checkedBefore": "MAIN b275cd23e45c4271bead56f66d4f98fe, 21 components, 8 part + 13 netflag, 55 wires, 55 name pairs, 2 pages",
       "checkedAfter": "identical (t53 exit 0 after the read-only run)",
       "documentWrites": 0
+    },
+    "pushState": {
+      "note": "r2t1 resolved the reported divergence: HEAD, origin/master and the ahead/behind count were read with raw output at the start of this task",
+      "head": "ee0fe70eabc7ab4022a1c32ed5e35d5156e9523e",
+      "origin": "ee0fe70eabc7ab4022a1c32ed5e35d5156e9523e",
+      "revListLeftRight": "0 0",
+      "reading": "j6 was right (ee0fe70 is pushed); j5's \"origin d7acac3, ahead 2\" was taken before that push completed and is stale, not a conflict in the repository"
     }
+  },
+  "corrections": {
+    "source": "r6t4-review-layout-feasibility.json (j5), commit ee0fe70, overall partial, no-go unchanged",
+    "items": [
+      {
+        "id": "netflag-denominator",
+        "was": "12 of the 14 flag-like Name attrs on pin rows",
+        "now": "12 of the 13 netflag components on pin rows",
+        "why": "the 14th Name attr belongs to the +3V3 bus component whose componentType is part, not netflag; t53 counts netflag by componentType, so 13 is the correct denominator",
+        "verified": "live probe: componentTypes {part:8, netflag:13}; +3V3 parent layout:flag:_3V3:bus:240 maps to a part"
+      },
+      {
+        "id": "minimum-safe-offset",
+        "was": "4.37 as the minimum safe offset",
+        "now": "min up 4.37, min down 3.76, global min 3.76 (downward), with side effects",
+        "why": "clearing the label downward needs only 794.06-790.30 = 3.76, which is smaller than the upward 4.37"
+      },
+      {
+        "id": "upper-bound-attribution",
+        "was": "5.82 as the bound, from the 780.12-784.48 band",
+        "now": "6.42 against the fixed MCU-33 label; 5.82 only if the moving pin 32 is treated as fixed",
+        "why": "780.12-784.48 is an envelope of fixed MCU-33 blue (bottom 783.88) and moving pin-number 32 (bottom 784.48); under the all-70-move premise pin 32 moves, so 6.42 is the true bound; PA11 is x-disjoint"
+      },
+      {
+        "id": "rollback",
+        "was": "one sentence saying a constant restore is not available",
+        "now": "a full answer: no constant, session-scoped id stability, symbol revert path, and the three snapshots required",
+        "why": "the original task asked for a rollback assessment and the sentence deferred it"
+      }
+    ]
   },
   "reproduce": [
     "node docs/evidence/review/r6t1-layout-layer.mjs  # reads the live page, rewrites this JSON",
+    "node docs/evidence/review/r2t1-netflag-count.mjs  # maps the 14 flag-like Names to componentType: +3V3 is a part",
     "node docs/evidence/review/t53-verify-main.mjs  # 21 components / 8 part + 13 netflag / 55 wires / 55 names / 2 pages",
     "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4, packages 5",
     "grep -n \"sch_PrimitiveAttribute\" packages/schematic-easyeda/src/build.ts  # 418 getAll, 427 modify fontSize only",
