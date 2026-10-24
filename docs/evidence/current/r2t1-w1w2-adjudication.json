@@ -19,8 +19,8 @@
     {
       "tag": "w1",
       "file": "docs/evidence/current/r2t1-w1-frame.png",
-      "sha256": "82228194d1bc82c35d7917f536f67e786981a3fecedea126555974f64c8d63ec",
-      "bytes": 173084,
+      "sha256": "380b6ebbc46e95a2a4e1bdeaab7414e8cd9703cbda0f7f3aafe3ed90e862e0c9",
+      "bytes": 224239,
       "pixels": {
         "w": 660,
         "h": 2030
@@ -45,8 +45,8 @@
     {
       "tag": "w2",
       "file": "docs/evidence/current/r2t1-w2-frame.png",
-      "sha256": "ce7d8ebdb33a9de2b675abb4fbc74a57371e0e27a28950131e6ad6f0a06933b1",
-      "bytes": 164635,
+      "sha256": "6e953fcee497e4b6a54a908c4112d36dee9b866027a38672cd25e0b0e86af0a9",
+      "bytes": 195559,
       "pixels": {
         "w": 660,
         "h": 2030
@@ -219,5 +219,31 @@
     "a 0.5-unit graze is below the resolution of any bbox rule; calling attr102 'wire graze' rather than 'wire through text' is a judgement about ink, stated as such",
     "this file records what the pixels show; it does not decide whether a graze should count as 导线穿字 - that stays 判不了"
   ],
-  "overall": "W1 = 压引脚编号 (31, not PA10); W2 = 压导线 (no text under it, a wire and a junction dot are); the pin-name impression comes from the adjacent net-flag name over PB10. Wire-through-text remains 判不了."
+  "overall": "W1 = 压引脚编号 (31, not PA10); W2 = 压导线 (no text under it, a wire and a junction dot are); the pin-name impression comes from the adjacent net-flag name over PB10. Wire-through-text remains 判不了.",
+  "reshoot": {
+    "at": "2026-10-24T05:20:00Z",
+    "why": "r3t2 found a Windows Start-menu overlay in the lower part of both official frames. The label rows sit at y~1014 and were unaffected, but an OS overlay has no place in evidence.",
+    "what": "both frames were re-captured with the same declared rects (200-280 and 355-435, y 672-918) after ESC + SetForegroundWindow; w2-centered was already clean and was not re-shot",
+    "replacedSha256": {
+      "w1": "82228194d1bc82c35d7917f536f67e786981a3fecedea126555974f64c8d63ec",
+      "w2": "ce7d8ebdb33a9de2b675abb4fbc74a57371e0e27a28950131e6ad6f0a06933b1"
+    },
+    "check": "bottom band y 1740-2030 dark-pixel count: superseded frames < 60 (flat Start panel), new frames 5936 and 3499 (schematic content)",
+    "contentUnchanged": "the label rows are identical to the superseded captures (MCU-34 interleaved with 31 and PA10 readable; flag name MCU-26 on PB10, 21, wire label over the wire), so the adjudication numbers still hold"
+  },
+  "nonDeliverables": [
+    {
+      "file": "docs/evidence/current/r2t1-w1-closeup.png",
+      "sha256WhenSeen": "f357be4e8d0b4c0cae02fdb04917e51e252f73316b33d432e3ad0a09e832b5d7",
+      "status": "never committed; deleted before ab910af; not a deliverable",
+      "why": "first attempt, frame x 170-250: the +19.4 render offset put the label ink at the right edge and clipped the pin name; the capture also carried the Start menu and had no manifest entry"
+    },
+    {
+      "file": "docs/evidence/current/r2t1-w2-closeup.png",
+      "sha256WhenSeen": "70a55b7d3f5b2f6e3a43cac262a5c9a728930bb10e8b90ea3afed8357779e53f",
+      "status": "never committed; deleted before ab910af; not a deliverable",
+      "why": "first attempt, frame x 350-430, same clipping and Start-menu problems, no manifest entry"
+    }
+  ],
+  "nonDeliverablesNote": "These two files existed for about ten minutes as untracked working-tree files on 2026-10-24 10:56. They are superseded by r2t1-w1-frame.png / r2t1-w2-frame.png, which are committed with declared rects, px/unit and sha256 in this file. `git ls-files --others --exclude-standard` is now empty."
 }
