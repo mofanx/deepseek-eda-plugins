@@ -2,9 +2,11 @@
   "task": "r2t4 - review t2 push and the r7t1 addendum grading: push honesty, coverageLimits, guide levels, and boundary protection",
   "mode": "read-only review; only this JSON is added",
   "generatedAt": "2026-10-24T20:05:00+08:00",
-  "head": "f78a041ef53c0f0fe7efc280cc7cca04ee58dd33",
-  "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
-  "aheadBehind": "4 0",
+  "head": "42caf8b36b352ddd5fd1953107d1507ea250c7ab",
+  "origin": "42caf8b36b352ddd5fd1953107d1507ea250c7ab",
+  "aheadBehind": "0 0",
+  "reviewedAtHead": "f78a041ef53c0f0fe7efc280cc7cca04ee58dd33",
+  "pushed": true,
   "t2": {
     "commit": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
     "parent": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
@@ -17,10 +19,26 @@
       "verdict": "TRUE at t2's commit: f2fe is on origin/master."
     },
     "currentState": {
-      "head": "f78a041ef53c0f0fe7efc280cc7cca04ee58dd33",
-      "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
-      "revListLeftRightCount": "4 0",
-      "explanation": "The 4 unpushed commits are 9fd (r7t4), 094 (r7t3), 04d (r2t2) and f78 (r7t5). t2's f2fe is already origin/master; current ahead is NOT a t2 false 0 0."
+      "atReviewTime": {
+        "head": "f78a041ef53c0f0fe7efc280cc7cca04ee58dd33",
+        "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+        "revListLeftRightCount": "4 0",
+        "note": "The 4 unpushed commits were 9fd (r7t4), 094 (r7t3), 04d (r2t2) and f78 (r7t5). t2's f2fe was already origin/master."
+      },
+      "afterPush": {
+        "head": "42caf8b36b352ddd5fd1953107d1507ea250c7ab",
+        "origin": "42caf8b36b352ddd5fd1953107d1507ea250c7ab",
+        "revListLeftRightCount": "0 0",
+        "note": "The push succeeded; 42caf8b is on origin/master. The later correction commit containing this JSON is pushed separately; final HEAD is reported in the final answer."
+      },
+      "conclusion": "t2's f2fe was already on origin; the review-time 4 0 was later work, not a t2 falsehood. After the r7t7 push, 42caf8b is origin and the count is 0 0."
+    },
+    "push": {
+      "headAtPush": "42caf8b36b352ddd5fd1953107d1507ea250c7ab",
+      "originAtPush": "42caf8b36b352ddd5fd1953107d1507ea250c7ab",
+      "countAtPush": "0 0",
+      "exitCode": 0,
+      "pushed": true
     },
     "reportHeadField": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
     "reportHeadFieldMeaning": "r7t2's JSON `head` records the review-time HEAD 045c, not the final commit f2fe. This is a stale/non-final field, not a push lie; the final commit f2fe is actually on origin.",
@@ -52,7 +70,8 @@
         "judgment": "成立 - t31/t53 baseline circularity is first and explicit"
       }
     ],
-    "pagesScopeCaveat": "The source also lists main-restore-verify.pages length 2; as an artifact that page table is directly countable, but it is the same restore event and not a live/deduped current page proof. The addendum's 'NOT PROVABLE offline' is therefore correct for a live/independent verification, which is the t53 question; it does not claim 18 is 2."
+    "pagesScopeCaveat": "The source also lists main-restore-verify.pages length 2; as an artifact that page table is directly countable, but it is the same restore event and not a live/deduped current page proof. The addendum's 'NOT PROVABLE offline' is therefore correct for a live/independent verification, which is the t53 question; it does not claim 18 is 2.",
+    "postReviewChange": "19f5fa1 added coverageLimits.fragilityWarning (2 insertions, 1 deletion) about regeneration dropping the block; the pages/part/netflag/circularity items above are unchanged."
   },
   "guide": {
     "path": "docs/evidence/current/r9t1-main-view-guide.md",
@@ -138,7 +157,7 @@
     {
       "id": "2-current-vs-t2",
       "verdict": "成立（区分）",
-      "evidence": "Current HEAD f78a041, origin f2fe, 4 0. This does not retroactively make t2's f2fe 0 0 false; t2 is literally origin. Current delivery remains blocked."
+      "evidence": "At review time HEAD f78a041, origin f2fe, 4 0; after the r7t7 push HEAD 42caf8b, origin 42caf8b, 0 0. This does not retroactively make t2's f2fe 0 0 false; t2 is literally origin. The later correction commit is pushed separately."
     },
     {
       "id": "3-t2-report-head",
@@ -172,8 +191,8 @@
     }
   ],
   "overall": "sound",
-  "delivery": "t2 pass at its commit; current local ahead4 remains unpushed due 443, not t2's falsehood",
-  "overallReason": "t2's f2fe is literally origin/master, so its 0 0 was true at its commit. The current 4 0 is later t3/t4/r2t2/r7t5 work, not a t2 lie. coverageLimits and the guide grade exactly as required: 21/55/55/0 provable, 8/13 reconstruction only, pages2 unprovable/historical, circularity first, no all-six claim. Guide and protected files show additions only / zero diff.",
+  "delivery": "t2 pass at its commit; r7t7 push succeeded at 42caf8b, 0 0; the later correction commit is pushed separately",
+  "overallReason": "t2's f2fe is literally origin/master, so its 0 0 was true at its commit. At review time later work was 4 0; after the r7t7 push 42caf8b is origin and 0 0. coverageLimits and the guide grade exactly as required: 21/55/55/0 provable, 8/13 reconstruction only, pages2 unprovable/historical, circularity first, no all-six claim. Guide and protected files show additions only / zero diff.",
   "verify": [
     {
       "task": "t2",
@@ -185,7 +204,8 @@
         "command": "git rev-parse f2fe; git rev-parse origin/master; git rev-list --left-right --count f2fe...origin/master; git merge-base --is-ancestor f2fe origin/master",
         "exitCode": 0,
         "t2Count": "0 0",
-        "currentCount": "4 0",
+        "currentCountAtReview": "4 0",
+        "currentCountAfterPush": "0 0",
         "t2AtOrigin": true,
         "t2ReportHead": "045c (stale review head, low caveat)"
       }
