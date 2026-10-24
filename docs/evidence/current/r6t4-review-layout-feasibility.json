@@ -1,0 +1,232 @@
+{
+  "task": "r6t4 - independent review of r6t1 layout-layer feasibility",
+  "mode": "read-only review. No document write, no canvas write, no save. This JSON is the only artifact.",
+  "reviewedAt": "2026-10-24",
+  "head": "363cabb",
+  "origin": "d7acac3",
+  "headVsOrigin": "1 0",
+  "headDrift": "d7acac3 -> 363cabb adds only the r6t3 review (artifact + two scripts); the t1 artifact/scripts and the guide are untouched. t1 remains at 8faf500 blob 7cec3f...; this review is still of the unchanged t1.",
+  "t1Commit": "8faf500",
+  "t1Head": "10ed08e",
+  "t1Blob": "7cec3f5635900e32f10b6945b9be402724f3b350",
+  "t1DiffSinceCommit": "none: git diff --name-status 8faf500..HEAD -- r6t1 artifact/scripts is empty; HEAD adds r5t7/r6t2/r6t3 after t1",
+  "overall": "partial",
+  "decision": "t1's no-go stands: there is no single in-repo offset constant, the pin-number y is vendor-symbol-owned, the flag route is 12 individual flag moves, and a symbol-level edit is high risk. But the safe-window evidence is not sound as written: 4.37 is only the minimum UPWARD lift (its own down.min=3.76 is smaller and clear of the measured inks), and 5.82 is a conservative/misattributed upper bound because the 780.12-784.48 'previous row ink' is an envelope of fixed MCU-33 blue (780.12-783.88) and moving pin-number 32 black (779.64-784.48). Under t1's own 'all 70 pin numbers move' premise, the fixed MCU-33 gives 6.42, and PA11 is x-disjoint. The chosen upward offset 4.37 is safe and no hidden collision at 4.37 or 5.82; the no-go conclusion is unchanged.",
+  "checks": [
+    {
+      "id": "1-head-and-blob",
+      "verdict": "成立",
+      "raw": {
+        "head": "363cabb",
+        "origin": "d7acac3",
+        "revListLeftRight": "1 0",
+        "blob": "7cec3f5635900e32f10b6945b9be402724f3b350",
+        "t1Commit": "8faf500",
+        "diff": "git diff --name-status 8faf500..HEAD -- t1 files -> empty"
+      }
+    },
+    {
+      "id": "2-code-localization",
+      "verdict": "成立（有保留）",
+      "raw": {
+        "buildTs393": "if (c.designator !== undefined) await eda.sch_PrimitiveComponent.modify(placed, { designator: c.designator });",
+        "buildTs398": "placed = await placeOnce(() => eda.sch_PrimitiveComponent.createNetFlag(identification, c.netName, c.x, c.y, c.rotation, c.mirror));",
+        "buildTs427": "try { await eda.sch_PrimitiveAttribute.modify(attr, { fontSize: labelFontSize / 100 }) } catch (e) {",
+        "libraryTs117": "pins.push({ number, ...name === undefined ? {} : { name }, x, y: -y })",
+        "layoutTs1858_1924": "flagPosition is computed per flag and pushed as the component position; the label offset is the device default",
+        "grep": "packages source has exactly one sch_PrimitiveAttribute.modify (build.ts:427, fontSize only); component create/modify sites are placement/designator, not pin x/y"
+      },
+      "finding": "The code localization is real: the repo never writes Pin Number/Pin Name x/y; parseSymbolPins reads PIN coordinates and drops the ATTR coordinates. The core inequality uses attr111 ink [790.30,794.06] and pin 31 ink [790.30,794.67], so there is no label-y/pin-number-y swap in the minimum. The reservation is in the upper-bound object, not the core pair."
+    },
+    {
+      "id": "3-impact",
+      "verdict": "成立（修正 12/13）",
+      "raw": {
+        "liveCounts": {
+          "attributes": 662,
+          "pinNumber": 70,
+          "pinNumberVisible": 45,
+          "pinName": 70,
+          "name": 76,
+          "flagNames": 14,
+          "wireNames": 55,
+          "components": 21,
+          "netflagComponents": 13
+        },
+        "t1": "70 pin-number attrs (45 visible); 12 of the 14 flag names on pin rows; symbol-level all 70; flag route 12 individual flags",
+        "netflagReality": "13 netflag components: 12 MCU netflags on pin rows + GND at (400,840) off-row; the 14th 'flag-like' Name is +3V3 at (200,720), a netport/wire label, not one of the 13 netflags. Thus 12 of 13 netflags are affected, not 13 of 13. t1's 12 is not an undercount and it does not say 'only one'; the '14' denominator mixes in the netport."
+      },
+      "finding": "No batch claim and no one-only undercount. The correct impact sentence is: symbol-level = all 70 pin numbers (45 visible); flag-level = 12 of 13 netflags (GND off-row), plus the +3V3 netport if flag-like names are counted; 14 is the Name-attr denominator, not the netflag count."
+    },
+    {
+      "id": "4-safe-offset-arithmetic",
+      "verdict": "部分成立",
+      "raw": {
+        "labelInk": [790.3, 794.06],
+        "pin31Ink": [790.3, 794.67],
+        "reportedUpMin": 4.37,
+        "reportedUpMax": 5.82,
+        "reportedMinimumSafe": 4.37,
+        "downMin": 3.76,
+        "pixelBands": {
+          "pinNumberColumnX232_244": ["769.94-774.30", "779.64-784.48", "790.30-794.67", "799.88-804.73"],
+          "pinNameColumnX252_268": ["773.45-778.42", "783.52-788.48", "793.70-794.79", "795.88-798.67", "803.88-804.97"],
+          "blueX229_249": ["770.06-773.82", "780.12-783.88", "790.30-794.06", "800.48-804.24"]
+        },
+        "observedObjects": {
+          "mcu33Blue": {"x": "229-249", "y": "780.12-783.88"},
+          "pin32Black": {"x": "232-244", "y": "779.64-784.48"},
+          "pa11Black": {"x": "252-268", "y": "783.52-788.48"},
+          "pin31": {"x": "232-244", "y": "790.30-794.67"}
+        },
+        "computation": {
+          "upMin": "794.67 - 790.30 = 4.37 (correct: pin31 bottom reaches label top)",
+          "reportedUpMax": "790.30 - 784.48 = 5.82 (uses pin32 bottom)",
+          "fixedMcu33Max": "790.30 - 783.88 = 6.42 (MCU-33 blue is fixed; PA11 is x-disjoint)",
+          "downMin": "794.06 - 790.30 = 3.76 (pin31 top reaches label bottom; clear of pin30 799.88 and +3V3 800.48)",
+          "globalMinimum": "3.76 downward, not 4.37; 4.37 is the minimum upward lift"
+        }
+      },
+      "finding": "The lower bound 4.37 is correct for upward motion and the chosen offset is safe: at h=4.37 pin31 is [785.93,790.30], tangent to the label; MCU-33 is 2.05 away and pin32 is 1.45 away. At h=5.82 pin31 is [784.48,788.85]; MCU-33 gap is 0.60; PA11 is x-disjoint; pin32 is tangent only if it stays fixed. But t1's own premise moves all 70 pin numbers, so pin32 moves; the fixed obstacle is MCU-33 at 783.88 -> 6.42. The 780.12-784.48 band is not one ink box: its top is MCU-33 blue, its bottom is pin-number 32 black. PA11 is at x252-268 and does NOT overlap pin31 at x232-244, so it cannot be the collision that sets 5.82. No unsafe collision at 4.37 or 5.82; the reported upper bound and minimum are not the true safe-window bounds. `minimumSafe=4.37` should be `minimumUpLift`, or the down option at 3.76 must be rejected with a reason."
+    },
+    {
+      "id": "5-go-no-go",
+      "verdict": "成立",
+      "raw": {
+        "verdict": "no-go",
+        "reasons": "no shared in-repo constant; pin number y vendor-owned; flag route 12 individual flags; symbol-level edit all 70 and other projects; font shrink already no-go",
+        "whatWouldWork": "hypothetical symbol-level lever only; 4.37-5.82"
+      },
+      "finding": "The no-go is honest and not a disguised one-constant fix. The corrected upper bound (6.42 if all numbers move) does not change no-go: there is still no in-repo lever and a symbol-level rebuild remains high risk. The 4.37 chosen upward offset is safe. No requirement to turn partial into fail on the decision."
+    },
+    {
+      "id": "6-rollback",
+      "verdict": "部分成立",
+      "raw": {
+        "t1AnswerFour": "There is no constant to restore. Rolling back a library-symbol edit means restoring the vendor symbol document, which this repo does not own; a project-local copy may be created and the original museum copy is not addressable from here. That is a symbol rebuild - high risk.",
+        "notAnswered": "flag-route rollback (12 inverse moves + save + cold read), document reopen, and whether netflag instance ids are re-minted are not measured or stated"
+      },
+      "finding": "The 'no constant / no in-repo symbol restore' part is supported. The specific netflag-instance-id rollback question is not answered, and no write experiment was possible in a read-only review. This is a coverage gap, not a reason to overturn no-go; a realistic rollback of the flag route still requires 12 inverse moves and a document reopen/save check, which t1 did not demonstrate."
+    },
+    {
+      "id": "7-gates",
+      "verdict": "成立",
+      "raw": {
+        "t53": "PASS 5/5 exit 0; 21 components, 8 part + 13 netflag, id set both ways, 55 wires/pairs, 2 pages, MAIN b275cd23e45c4271bead56f66d4f98fe",
+        "freshness": "FRESH baselineVersion 4, packages 5, exit 0",
+        "packagesNew": 0,
+        "wrote": 0,
+        "scripts": "r6t1-layout-layer.mjs and r6t1-probe-bridge.mjs are committed; no bridge save/modify/create/delete/clear; the layout script writes only the evidence JSON via writeFileSync",
+        "probe": "custom read-only bridge probe returned complete counts; process exited -1073740791 (libuv assertion after output, same class as t1's noted teardown), no document writes"
+      },
+      "finding": "Gates reproduce. The only file write is the evidence JSON (and the custom probe wrote nothing); no document save. The libuv exit after output is real and recorded, not hidden."
+    }
+  ],
+  "liveProbe": {
+    "command": "node --input-type=module -e <probe> (custom read-only HttpEasyEdaBridge getAll: attributes, components, Pin Number/Pin Name/Name rows 770-815)",
+    "exitCode": -1073740791,
+    "exitNote": "libuv assertion !(handle->flags & UV_HANDLE_CLOSING) after the complete JSON was printed; no document write",
+    "counts": {
+      "attributes": 662,
+      "components": 21,
+      "pinNumber": 70,
+      "pinNumberVisible": 45,
+      "pinName": 70,
+      "name": 76,
+      "flagNames": 14,
+      "wireNames": 55,
+      "netflagComponents": 13
+    },
+    "netflagBreakdown": {
+      "mcuNetflagsOnPinRows": 12,
+      "gnd": {"x": 400, "y": 840, "onPinRow": false},
+      "plus3v3": {"x": 200, "y": 720, "kind": "netport/wire-label-like Name, not netflag", "onPinRow": false},
+      "netflagsOnPinRows": 12
+    },
+    "keyRows": [
+      {"key": "Pin Number", "value": "31", "x": 224, "y": 794.08502, "parent": "u1-e44", "visible": true},
+      {"key": "Pin Name", "value": "PA10", "x": 233, "y": 790.08502, "parent": "u1-e44", "visible": true},
+      {"key": "Pin Number", "value": "32", "x": 224, "y": 784.08502, "parent": "u1-e48", "visible": true},
+      {"key": "Pin Name", "value": "PA11", "x": 233, "y": 780.08502, "parent": "u1-e48", "visible": true},
+      {"key": "Name", "value": "MCU-33", "x": 250, "y": 785, "parent": "layout:flag:MCU_33:0", "visible": true},
+      {"key": "Name", "value": "MCU-34", "x": 250, "y": 795, "parent": "layout:flag:MCU_34:0", "visible": true}
+    ]
+  },
+  "source": {
+    "build.ts": [340, 393, 398, 418, 427],
+    "library.ts": [107, 117],
+    "layout.ts": [1858, 1924],
+    "quoteCheck": "The five sourceQuotes in t1 match the file text at the stated lines; build.ts:427 is the only source sch_PrimitiveAttribute.modify and it passes fontSize only.",
+    "noPinXY": "No source writes Pin Number/Pin Name x/y; the vendor symbol owns them. The flag name follows the flag component position."
+  },
+  "arithmetic": {
+    "upMin": 4.37,
+    "upMaxReported": 5.82,
+    "upMaxFixedMcu33": 6.42,
+    "minimumUpLift": 4.37,
+    "minimumGlobal": 3.76,
+    "downMin": 3.76,
+    "downMaxReported": 5.81,
+    "bandComposition": {
+      "top": "MCU-33 blue 780.12",
+      "bottom": "pin-number 32 black 784.48",
+      "notSingleBox": true,
+      "pa11": "783.52-788.48 at x252-268; x-disjoint from pin31 x232-244",
+      "mcu33": "780.12-783.88 at x229-249; x-overlaps pin31; fixed under all-70"
+    },
+    "probes": {
+      "h437": "pin31 [785.93,790.30] tangent label top; MCU-33 gap 2.05; pin32 gap 1.45; safe",
+      "h582": "pin31 [784.48,788.85]; MCU-33 gap 0.60; pin32 tangent if fixed; PA11 x-disjoint; safe",
+      "h600": "pin31 [784.30,788.67]; MCU-33 gap 0.42; safe if pin32 moves with all 70; pin32 fixed would overlap 0.18",
+      "h642": "pin31 [783.88,788.25] tangent MCU-33; above 6.42 hits MCU-33"
+    }
+  },
+  "findings": [
+    {
+      "severity": "medium",
+      "finding": "The 780.12-784.48 previous-row band is an envelope, not a single ink box: 780.12 is MCU-33 blue top; 784.48 is pin-number 32 black bottom. PA11 is at 783.52-788.48 but x252-268, disjoint from pin31 x232-244. The 5.82 bound is set by a pin number that, under t1's own all-70 premise, moves with 31; the fixed MCU-33 gives 6.42. This is conservative, not unsafe, but the proof is misattributed."
+    },
+    {
+      "severity": "medium",
+      "finding": "minimumSafe=4.37 is the minimum upward lift, not the global minimum: t1's own down.min=3.76 is clear of the measured label, pin-number 30 (799.88) and +3V3 (800.48) inks. The field should be minimumUpLift, or the down route must be explicitly rejected. The chosen upward 4.37 remains safe."
+    },
+    {
+      "severity": "low",
+      "finding": "12 of 14 flag-like Names is not the 13-netflag metric: 12 MCU netflags on pin rows + GND off-row = 12 of 13 netflags; the 14th Name is +3V3 netport. No undercount and no 'only one' claim; the denominator should be corrected."
+    },
+    {
+      "severity": "medium",
+      "finding": "Rollback: no constant / no in-repo symbol restore is supported, but flag-route rollback (12 inverse moves, save, reopen, netflag id re-mint) is not answered. No write experiment was run; this is a coverage gap, not a no-go reversal."
+    }
+  ],
+  "gates": {
+    "t53": {"exitCode": 0, "result": "PASS 5/5", "components": 21, "part": 8, "netflag": 13, "wires": 55, "pairs": 55, "pages": 2, "main": "b275cd23e45c4271bead56f66d4f98fe"},
+    "freshness": {"exitCode": 0, "result": "FRESH", "baselineVersion": 4, "packages": 5},
+    "packagesNew": 0,
+    "wrote": 0,
+    "readOnly": "No document save/modify/create/delete/clear; the layout script writes only the evidence JSON. The custom probe crashed after printing (libuv) and wrote nothing."
+  },
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "The no-go and code localization hold; 70/45 pin numbers, 13 netflags (12 on pin rows), and 5 source quotes are independently confirmed. The 4.37 upward min is correct, but the 5.82 upper bound is conservative/misattributed (fixed MCU-33 gives 6.42; PA11 is x-disjoint), minimumSafe is not global (down 3.76), and netflag rollback/id-re-mint is unanswered. No unsafe collision at 4.37 or 5.82; no-go unchanged.",
+        "baseline": "8faf500 t1 artifact blob 7cec3f5635900e32f10b6945b9be402724f3b350; t1 base 10ed08e",
+        "diff": "8faf500..HEAD t1 files: no diff; HEAD d7acac3 adds only r5t7/r6t2",
+        "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs && node docs/evidence/review/shared/freshness.mjs --check"
+      }
+    }
+  ],
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master  # 363cabb, origin d7acac3, 1 0 at review",
+    "git rev-parse HEAD:docs/evidence/current/r6t1-layout-layer-feasibility.json  # 7cec3f...",
+    "read build.ts 340/393/398/418/427, library.ts 107-117, layout.ts 1858-1924",
+    "read-only bridge probe getAll: 662 attrs, 70 Pin Number (45 visible), 70 Pin Name, 14 flag-like Name, 13 netflag components, 12 netflag rows",
+    "pixel scan r2t1-w1-frame.png: pin-number x232-244 runs 779.64-784.48 / 790.30-794.67; blue MCU-33 x229-249 780.12-783.88; PA11 x252-268 783.52-788.48",
+    "compute upMin 4.37; upMax reported 5.82; fixed MCU-33 6.42; downMin 3.76; check h4.37/h5.82/h6.00",
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS 5/5 exit 0",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs"
+}
