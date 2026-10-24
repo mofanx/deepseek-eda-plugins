@@ -120,6 +120,13 @@
       "pageRect": { "x1": 5.5, "y1": -348.44, "x2": 904.5, "y2": 1518.44 },
       "pxPerUnit": 0.734,
       "renderSize": { "w": 660, "h": 1370 },
+      "derived": {
+        "pxPerUnitFromWidth": 0.734,
+        "pxPerUnitFromSheetHeight": 0.734,
+        "fileHeightPx": 2030,
+        "emptyCanvasBelowSheetPx": 660,
+        "notAPxPerUnit": "2030 / 1866.88 = 1.087 is the file height over the page height, not a scale"
+      },
       "note": "Corrected after r12t3: 0.734 comes from 660 px / 899 units, so the sheet renders 660x1370 px inside the 660x2030 crop; the remaining ~660 px is empty canvas below the sheet. The earlier entry read as if the 2030-tall crop were the page, which the arithmetic contradicts (2030/1866.88 = 1.087).",
       "role": "camera restore proof: zoomToAllPrimitives() fit the full page back into the canvas",
       "verdict": "n/a"
