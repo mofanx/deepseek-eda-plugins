@@ -1,0 +1,168 @@
+{
+  "task": "t4 - independent review of t2's D2/D3 along-wire rehearsal (r5t1)",
+  "reviewedAt": "2026-10-24T04:54:49Z",
+  "reviewedAtHead": "521b112b433bda0a00dc8470fb783f613278029b",
+  "headAtReview": "da09eaeb0b8c8a973e9197b687da9bf0e3f418a4",
+  "subject": {
+    "task": "t2 (r5t1)",
+    "path": "docs/evidence/current/r5t1-d2d3-rehearsal.json",
+    "blob": "2caec28b3bbf3e342c130edca220535c71b7a511",
+    "commit": "521b112b433bda0a00dc8470fb783f613278029b",
+    "parent": "03970dec324e82b904b23879c407aa1ab7014457",
+    "lineCount": 312,
+    "headFieldInJson": "720a7b6",
+    "note": "The JSON's head field is the live-read baseline; the committed subject is 521b112. da09eae (added during this review) only adds r5t2-review-l47.json and leaves the r5t1 blob unchanged."
+  },
+  "verdict": "partial",
+  "summary": "The two no-go conclusions are correct and honestly reported: both clean intervals are empty, no along-wire value is proposed, and c3 for obj2 is a real fail at the high end. But obj2's c3 evidence is numerically wrong about the onset: the GND press starts at s≈32.27, not s=15 (at s=15 d≈16.18, t=0). In addition, feasibleS [0,40] is the sweep domain, not a clean interval, and the rehearsal script is not committed, so its zero-write grep cannot be independently reproduced. Partial, not unsound: the no-go decision is not propped up by a fabricated movable value.",
+  "method": {
+    "commitCheck": "git rev-parse / log / show --stat; subject blob at 521b112 and at current HEAD da09eae",
+    "pixelScan": "System.Drawing on the committed frames r2t1-w1-frame.png and r2t1-w2-frame.png; band page-y 787.5-797.5; 8.25 px/unit; colour split blue/black/green; contiguous x clusters, gap<=2 px, width>=3 px",
+    "greenScan": "row-by-row green runs in the W2 frame, 0.5-unit y steps, page-x 355-435, run length>=40 px",
+    "intervalMath": "s = page-x displacement of the label anchor toward the pin; a black/blue box [a,b] blocks s in [a - label_x2, b - label_x1]; union over all boxes; clean interval = [0,40] minus the union",
+    "anchorSource": "attr111 anchor (210,795) and parent wire 210-250; flag name anchor (350,795) and parent wire 350-390; taken from the committed JSON's originalAttributes/ownWire and cross-checked against the frame row. Ink boxes were measured independently from the frames, not copied from the JSON.",
+    "gndMath": "distance from (350+s,795) to the finite segment (380.39,790)-(417.97,790); if the projection is outside the segment, d is the endpoint distance and t clamps to 0 or 1"
+  },
+  "items": [
+    {
+      "id": "1",
+      "claim": "The reviewed artifact is the committed version",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "HEAD at review start 521b112; subject blob 2caec28...; 521b112 adds exactly the 312-line r5t1 JSON over 03970de. HEAD moved to da09eae during the review, but da09eae adds only r5t2-review-l47.json; the r5t1 blob at da09eae is still 2caec28...",
+      "raw": "HEAD=521b112 -> da09eae; origin=da09eae; 0 0; subject_parent=03970de; subject_blob=2caec28b3bbf3e342c130edca220535c71b7a511"
+    },
+    {
+      "id": "2",
+      "claim": "Zero writes: no save/modify/create/delete/clear",
+      "verdict": "partial",
+      "conclusion": "部分成立",
+      "evidence": "The current MAIN counts independently pass 21/8/13/55/55/2 (t53 5/5, exit 0), and the committed JSON contains no executable write calls. But the actual rehearsal script is neither committed nor on disk; only the JSON and r5t1-review-t46-recheck.json exist. The JSON's readOnlyProof greps .tmp-r5t1-* files that are gone, so the script-level zero-write claim is self-report, not independently reproducible. The before-state is also only t2's dump.",
+      "raw": "git ls-tree: only r5t1-d2d3-rehearsal.json + r5t1-review-t46-recheck.json; Get-ChildItem: same two JSONs; t53 PASS 5/5 exit 0; freshness FRESH v4 exit 0; packages new 0"
+    },
+    {
+      "id": "3a",
+      "claim": "obj1 (attr111) interval",
+      "verdict": "partial",
+      "conclusion": "部分成立",
+      "evidence": "t2 reports movable.feasibleS [0,40] and cleanWindows []. The clean interval is indeed empty: my blocks are 31 [0,12.37], PA10 [4.49,39.40], flag name [20.97,40], union [0,40]. Boundaries differ by at most 0.10 from t2's 12.45/4.40/39.5/20.9. But feasibleS [0,40] is the sweep domain, not a clean interval; read alone it looks like a feasible move.",
+      "raw": "W1 blue 229.39-248.42 | 260.79-267.94 | 269.39-279.94; W1 black 235.70-241.76 | 252.91-268.79; union [0,40]; clean empty"
+    },
+    {
+      "id": "3b",
+      "claim": "obj2 (flag MCU_26:0 name) interval",
+      "verdict": "partial",
+      "conclusion": "部分成立",
+      "evidence": "t2 reports feasibleS [0,40] and cleanWindows []. The clean interval is empty: my blocks are PB10 [0,16.37], pin 21 [7.12,32.37], attr102 [21.55,40], union [0,40]. Boundaries differ by at most 0.10 from t2's 16.45/7.1/32.45/21.5. If the blue cluster's merged end 390.33 is used instead of t2's 388.3, pin 21 starts at 5.09 and attr102 at 19.52; the union is still [0,40]. feasibleS is again only the sweep domain.",
+      "raw": "W2 blue 369.24-390.33 | 409.85-428.88; W2 black 369.24-385.61 | 395.42-401.61; label end 388.3 (t2 readback) vs 390.33 (merged scan); union [0,40]; clean empty"
+    },
+    {
+      "id": "4a",
+      "claim": "c1 no overlap with the pressed object, obj1",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "Clearing 31 needs s>=12.37; PA10 starts at 4.49 and ends at 39.40; the flag name starts at 20.97. The three intervals chain end to end with no gap, so c1 is UNSATISFIABLE. t2's direction and conclusion are correct.",
+      "raw": "31 ends 241.76; label x1 229.39 => 12.37; PA10 252.91-268.79; flag 269.39-288.5 (inferred end); no clean window"
+    },
+    {
+      "id": "4b",
+      "claim": "c1 no overlap with the pressed object, obj2",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "Clearing PB10 needs s>=16.37; pin 21 covers [7.12,32.37]; attr102 covers [21.55,40]. [16.37,40] is fully covered, so c1 is UNSATISFIABLE. The conclusion holds even with the 390.33 label-end alternative (pin 21 from 5.09, attr102 from 19.52).",
+      "raw": "PB10 ends 385.61; label x1 369.24 => 16.37; pin 21 395.42-401.61; attr102 409.85-428.88; union [0,40]"
+    },
+    {
+      "id": "4c",
+      "claim": "c2 still on the own net, obj1",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "The anchor stays on the segment (210,795)-(250,795) for s in [0,40]; a wire label takes its net from that wire, so MCU-34 is kept. s=40 is the pin endpoint, a closed-segment boundary; the data-model net does not change.",
+      "raw": "own wire 210-250 at y=795; anchor 210+s; s in [0,40]"
+    },
+    {
+      "id": "4d",
+      "claim": "c2 still on the own net, obj2",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "The anchor stays on the flag-to-pin segment (350,795)-(390,795); the net comes from the flag component, whose parent is not moved, so MCU-26 is kept. Caveat: at s=40 the name visually sits at the pin end, not on the flag glyph; that is a visual/semantic concern, not a data-net change.",
+      "raw": "own wire 350-390 at y=795; anchor 350+s; s in [0,40]; parent layout:flag:MCU_26:0 unchanged"
+    },
+    {
+      "id": "4e",
+      "claim": "c3 d-bound and no new foreign press, obj1",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "t2's sweep has d<=12 throughout; the +3V3 hit at s=0 (d=5, t=0.75) is pre-existing and disappears by s>=30; at s=40 the nearest foreign wire is MCU-33 at d=10 with t=1.0, so it is not a new press. I did not remeasure every +3V3 point, but the direction is consistent with the frame and no new press is claimed.",
+      "raw": "t2: d=5 until s=30; 7.071 at s=35; 10.000 (MCU-33, t=1.0) at s=40; baseline +3V3 press at s=0"
+    },
+    {
+      "id": "4f",
+      "claim": "c3 d-bound and no new foreign press, obj2",
+      "verdict": "partial",
+      "conclusion": "部分成立",
+      "evidence": "The FAIL verdict is correct, but the stated onset is wrong. The GND horizontal segment is at y=790, x=380.39-417.97. At s=15 the anchor is x=365, outside the segment, so the nearest point is the endpoint (380.39,790), d=16.18 and t=0; d is not 5. The projection enters (0.05,0.95) at s≈32.27, where d=5 and t=0.05; at s=40 d=5 and t=0.256. A new GND press therefore exists for s≈32.27-40, not s=15-40. The c3 FAIL still stands because the upper part of the domain is a real new press.",
+      "raw": "green y=790.00: 380.39-417.97; y=795.00: 368.39-409.61; s=0 d=30.80 t=0; s=15 d=16.18 t=0; s=30.39 d=5 t=0; s=32.27 d=5 t=0.050; s=40 d=5 t=0.256"
+    },
+    {
+      "id": "4g",
+      "claim": "Adjacent nets (MCU-33/MCU-25 and similar) were not missed",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "No extra same-row net label creates a clean-window gap. In W1, an extra blue cluster at 260.79-267.94 sits at the band top and inside PA10's black block [252.91,268.79]; whether it is a previous-row descender or another label, PA10 already covers that s range. MCU-33 is on the next row (y≈805), outside the 787.5-797.5 band. In W2, MCU-25 is on the next row; the only same-row blue neighbor is attr102 (409.85-428.88), which t2 includes as a blocker. t2 does not document these exclusions, so the check is complete in substance but thin in presentation.",
+      "raw": "W1 extra blue 260.79-267.94 inside PA10 252.91-268.79; W1 next row MCU-33 y≈805; W2 next row MCU-25 y≈805; W2 attr102 409.85-428.88 included"
+    },
+    {
+      "id": "5",
+      "claim": "go/no-go is honest, not a forced movable value",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "Both objects are no-go; cleanWindows is empty; ifHostOverrules says there is no along-wire value to approve and lists only defect-moving alternatives (s=12.5/39.5 for obj1, s=32.5 for obj2). No fabricated feasible clean position is proposed. The only wording risk is the field name feasibleS [0,40], which is the sweep domain, not a clean interval; cleanWindows [] gives the true answer.",
+      "raw": "obj1 goNoGo=no-go; obj2 goNoGo=no-go; both cleanWindows=[]; ifHostOverrules: 'there is no along-wire value to approve'"
+    },
+    {
+      "id": "6",
+      "claim": "attr102/W2 is not moved or proposed for moving",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "attr102 is explicitly excluded and is used only as a blocker for the flag name (blocks [21.5,40]); no W2 move is proposed. The ifHostOverrules obj2 note says s=32.5 lands on attr102 and is not recommended; the conclusion calls for a change of class, not a W2 edit.",
+      "raw": "attr102Excluded: true; obj2 blackTextOnRow includes attr102 as blocker; ifHostOverrules.obj2: 'no value to approve'; conclusion: change of class"
+    },
+    {
+      "id": "7",
+      "claim": "Gates: freshness, packages, wrote",
+      "verdict": "pass",
+      "conclusion": "成立",
+      "evidence": "freshness --check = FRESH, baselineVersion 4, exit 0; packages new in 068ad8f..HEAD = 0; t53 PASS 5/5 exit 0. wrote=0 is t2's self-report (no script committed); my review itself performed only reads.",
+      "raw": "FRESH {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}; packages=0; t53 exit 0"
+    }
+  ],
+  "verdictReason": "Partial, not unsound: the decision (both no-go, no along-wire fix) is correct and honestly reported; the clean intervals are genuinely empty. The defects are evidentiary: obj2 c3's s=15 onset is wrong (actual ≈32.27), feasibleS [0,40] is a sweep domain misnamed as feasible, and the script-level zero-write proof is not reproducible because the rehearsal script was not committed. None of these creates a false movable value or changes the no-go conclusion, but the c3 number must not be cited as-is.",
+  "rawReturns": {
+    "head": "HEAD=da09eae; origin=da09eae; rev-list --left-right --count=0 0; subject=521b112; subject parent=03970de",
+    "subject": "521b112 adds 1 file, 312 lines: r5t1-d2d3-rehearsal.json; blob=2caec28b3bbf3e342c130edca220535c71b7a511; da09eae adds only r5t2-review-l47.json",
+    "t53": "PASS components 21/21; part=8 netflag=13; id set extra=0 missing=0; wires=55 pairs=55 extra=0 missing=0; pages=2 MAIN=present active=b275cd23e45c4271bead56f66d4f98fe; exit 0",
+    "freshness": "status FRESH, strictLib false, baselineVersion 4, packages 5, files 21, configs 8, tsconfigs 7; exit 0",
+    "packages": "git diff --name-only 068ad8f..HEAD -- packages => 0",
+    "pixelW1": "blue 229.39-248.42 | 260.79-267.94 | 269.39-279.94; black 235.70-241.76 | 252.91-268.79; green 218.36-270.00",
+    "pixelW2": "blue 369.24-390.33 | 409.85-428.88; black 369.24-385.61 | 395.42-401.61; green 368.27-417.97 | 419.06-419.91",
+    "greenW2": "y=790.00 380.39-417.97; y=790.50 380.39-409.61; y=795.00 368.39-409.61; y=795.50 368.39-409.73",
+    "gnd": "s=0 d=30.80 t=0.000; s=15 d=16.18 t=0.000; s=30.39 d=5.00 t=0.000; s=32.27 d=5.00 t=0.050; s=40 d=5.00 t=0.256",
+    "scriptSearch": "git ls-tree: only r5t1-d2d3-rehearsal.json + r5t1-review-t46-recheck.json; Get-ChildItem: same two JSONs; no .tmp-r5t1-* script"
+  },
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "Both no-go conclusions are correct: clean intervals are empty and no along-wire value is proposed. But obj2 c3's GND press onset is wrong (s≈32.27, not s=15), feasibleS [0,40] is the sweep domain rather than a clean interval, and the rehearsal script is not committed, so the script-level zero-write grep is not reproducible. The decision is sound; the c3 number is not.",
+        "baseline": "720a7b6: no r5t1-d2d3-rehearsal.json; attr111=(210,795) fs6 parent layout:wire:MCU_34:flags; flag name=(350,795) fs6 parent layout:flag:MCU_26:0; MAIN 21/8/13/55/55/2",
+        "diff": "521b112: adds only docs/evidence/current/r5t1-d2d3-rehearsal.json (312 lines); no code, package, PNG, or canvas change",
+        "reviewedAtHead": "521b112b433bda0a00dc8470fb783f613278029b",
+        "headAtReview": "da09eaeb0b8c8a973e9197b687da9bf0e3f418a4",
+        "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check",
+        "commandExitCode": 0
+      }
+    }
+  ]
+}
