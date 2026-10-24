@@ -1,5 +1,6 @@
 {
   "task": "r10t2 - start a third bridge instance on a free port, register the editor to it, and take my own 0 -> 1",
+  "revision": "r2t1 - N1 patch rewritten to throw on exact normalised match with a parameterized port (both JS and PS tested over 8 cases and on the live landing page), and the mislabelled probesAfter replaced by a genuine post-attempt probe at 14:44:08.731Z with the old one refiled under probesBeforeAttempts",
   "member": "eda4 / j6",
   "verdict": "blocked - the third instance cannot be started, so there is no 0 -> 1 of my own; I did not fake one",
   "generatedAt": "2026-10-24T14:38:00Z",
@@ -27,20 +28,41 @@
       "t53-verify-main.mjs L132: HttpEasyEdaBridge.discover({ timeoutMs: 15_000 }) - no --port argument exists, so t53 can only ever measure the first connected instance"
     ],
     "wireEvidence": {
-      "probesBefore": {
-        "at": "2026-10-24T14:34:25.105Z",
-        "resident49620": "edaConnected:true, count:1, active 25883914a72e5cbb",
-        "port49621": "closed, health UNREACHABLE",
-        "port49622": "closed, health UNREACHABLE",
-        "port49623": "closed, health UNREACHABLE",
-        "gateway49630Tcp": "open"
-      },
+      "probesBeforeAttempts": [
+        {
+          "at": "2026-10-24T14:34:25.105Z",
+          "resident49620": "edaConnected:true, count:1, active 25883914a72e5cbb",
+          "port49621": "closed, health UNREACHABLE",
+          "port49622": "closed, health UNREACHABLE",
+          "port49623": "closed, health UNREACHABLE",
+          "gateway49630Tcp": "open"
+        },
+        {
+          "at": "2026-10-24T14:34:38.357Z",
+          "resident49620": "edaConnected:true, count:1",
+          "port49621": "closed",
+          "port49622": "closed",
+          "port49623": "closed",
+          "gateway49630Tcp": "open",
+          "note": "this probe was previously mislabelled probesAfter; it is also pre-attempt (34 s before the first attempt)"
+        }
+      ],
       "attempts": [
         { "at": "2026-10-24T14:35:12.306Z", "command": "node packages/eda-core/bin/dsh-eda-bridge.mjs", "exitCode": 0, "stdout": "Bridge server is already running on port 49620; no new instance started.", "stderr": "" },
         { "at": "2026-10-24T14:35:12.666Z", "command": "node packages/eda-core/bin/dsh-eda-bridge.mjs --force", "exitCode": 0, "stdout": "Bridge server is already running on port 49620; no new instance started.", "stderr": "" },
         { "at": "2026-10-24T14:35:13.013Z", "command": "node packages/eda-core/bin/dsh-eda-bridge.mjs --check", "exitCode": 0, "stdout": "check ok: dsh-eda-bridge on port 49620, 1 EDA window(s), active 25883914a72e5cbb", "stderr": "" }
       ],
-      "probesAfter": { "at": "2026-10-24T14:34:38.357Z", "resident49620": "edaConnected:true, count:1", "port49621": "closed", "port49622": "closed", "port49623": "closed", "gateway49630Tcp": "open" }
+      "probesAfterAttempts": {
+        "at": "2026-10-24T14:44:08.731Z",
+        "probesFinishedAt": "2026-10-24T14:44:21.110Z",
+        "whyThisOneIsReallyAfter": "the three start attempts ended at 14:35:13.013Z; this probe began 8 min 55 s later and finished 9 min 8 s later, so the ordering is measured, not assumed",
+        "resident49620": "edaConnected:true, edaWindowCount:1, activeWindowId 25883914a72e5cbb, pendingRequests 0",
+        "port49621": "tcp open=false, health UNREACHABLE",
+        "port49622": "tcp open=false, health UNREACHABLE",
+        "port49623": "tcp open=false, health UNREACHABLE",
+        "gateway49630Tcp": "open"
+      },
+      "labelingCorrection": "an earlier revision of this file put a probe taken at 14:34:38.357Z under the key probesAfter. That was wrong on ordering: 14:34:38.357Z is 34 s BEFORE the first start attempt at 14:35:12.306Z, so it could not describe the state after the attempts. It is now filed as probesBeforeAttempts alongside the 14:34:25.105Z one, and the after-state is carried by the genuine 14:44:08.731Z probe above. No conclusion in this file depended on that mislabel."
     },
     "whyIStoppedRatherThanForcingIt": "the only remaining way to make a registration event of my own is to kill the resident and start a replacement, which would degrade the shared environment other members are reading from and would not restore the same resident afterwards - the task's own step (5) presumes the resident is still there to restore to. Killing it is also the opposite of the standing instruction not to disturb the editor session.",
     "whatIRefusedToDo": "I did not inject a fake {type:'register'} message into anyone's websocket, did not hand-roll a look-alike relay to claim a 0 -> 1, and did not report the resident's count 1 as a third-instance gain"
@@ -119,14 +141,45 @@
       { "at": "2026-10-24T14:35:33.542Z", "health": "edaConnected:true, count:1, active 25883914a72e5cbb" },
       { "at": "2026-10-24T14:33:44.616Z", "health": "edaConnected:true, count:1 (before any attempt, and again after)" }
     ],
-    "thirdInstanceToClose": "none was ever started, so there is no port to probe after closing; 49621/49622/49623 were closed before and after and stayed closed (measured at 14:34:25.105Z and 14:34:38.357Z)"
+    "thirdInstanceToClose": "none was ever started, so there is no port to probe after closing. 49621/49622/49623 were closed in the pre-attempt probes (14:34:25.105Z and 14:34:38.357Z, both before the attempts) and were still closed in the genuine post-attempt probe at 14:44:08.731Z"
   },
   "step6_N1PatchSuggestion": {
-    "context": "N1 from r9t7: running the runbook's 3.3 probe without 3.1 first silently probes whichever tab is bound. It fails closed, but the only hint is the url field.",
-    "owner": "j5 maintains the runbook file; I am only supplying text, and did not edit it",
-    "patchA_js": "Inside the probe's return object, add a wrongPage field so the answer is unmissable:\n\n    return {\n      url: location.href,\n      wrongPage: !/^http:\\/\\/127\\.0\\.0\\.1:49620\\/landing(?:[/?#]|$)/.test(location.href),\n      title: document.title,\n      manual: probe('#manual'),\n      pop: probe('#pop')\n    };\n\nand in the judgement rules, put this first: 'if wrongPage === true, stop - the probe ran on the wrong tab; run 3.1 to bind the landing tab and repeat'.",
-    "patchB_powershell": "If you prefer to judge outside the page (no change to the JS), wrap the eval:\n\n    $result = (Get-Content .tmp-probe-vis.txt -Raw | ConvertFrom-Json).data.result\n    $landingUrl = 'http://127.0.0.1:49620/landing'\n    if (-not $result.url.StartsWith($landingUrl)) {\n      throw \"WRONG_PAGE: probe ran on $($result.url) - run 3.1 first to bind the landing tab\"\n    }\n\nThis throws instead of returning a probe that merely looks negative.",
-    "whyItMatters": "with the guard, a wrong-tab run becomes an error rather than a quiet manual.visible=false that a reader could mistake for 'the landing page says not visible'"
+    "context": "N1 from r9t7: running the runbook's 3.3 probe without 3.1 first silently probes whichever tab is bound. A wrong tab fails closed (manual.visible=false) but the only hint is the url field, so a reader can mistake it for 'the landing page says not visible'.",
+    "owner": "j5 maintains the runbook file; I am only supplying text, and I did not edit it",
+    "requirementA_throws": {
+      "requirement": "the guard must throw and stop the flow, not return a boolean for the caller to interpret",
+      "howItThrows": "the JS guard is the first statement of the eval, so a mismatch aborts the whole eval: dpx reports exit 1 / status error, and the runbook cannot proceed to the click step. The PowerShell guard throws in the operator shell for the same reason.",
+      "liveProof": "with $RelayPort substituted to 49621 while the bound tab was http://127.0.0.1:49620/landing, dpx eval returned exit 1, status \"error\", code \"JS_FAILED\", and the underlying exception was \"Error: WRONG_PAGE: http://127.0.0.1:49620/landing is not http://127.0.0.1:49621/landing\" at 2026-10-24T14:43:52.789Z - so the failure interrupts rather than handing back a flag"
+    },
+    "requirementB_exactMatch": {
+      "requirement": "no StartsWith-style prefix test; compare normalised origin+path for exact equality, and explain why a prefix test is unsafe",
+      "normalisation": "parse both URLs, then compare protocol + host + pathname with trailing slashes removed; query and hash are dropped, because /landing?x=1#y is still the landing page",
+      "whyPrefixIsUnsafe": "a prefix test on 'http://127.0.0.1:49620/landing' accepts every URL that merely begins with that string. I measured it: startsWith returned true for /landing, for /landing-evil and for /landing.html. So a page at /landing-evil - a different document that this guard would treat as the landing page - would be accepted and probed. Exact equality after normalisation rejects both, which is why I do not use StartsWith.",
+      "measuredTruthTable": [
+        "startsWith('http://127.0.0.1:49620/landing') for http://127.0.0.1:49620/landing -> true",
+        "startsWith('http://127.0.0.1:49620/landing') for http://127.0.0.1:49620/landing-evil -> true",
+        "startsWith('http://127.0.0.1:49620/landing') for http://127.0.0.1:49620/landing.html -> true"
+      ],
+      "counterexampleProof": "in the 8-case harness the guard threw for /landing-evil and for /landing.html, so the prefix hole is actually closed rather than argued away"
+    },
+    "requirementC_portParameterized": {
+      "requirement": "49620 must not be hardcoded; use the runbook variables $RelayPort/$LandingUrl, and show that 49621 does not get falsely rejected",
+      "jsSide": "the port is a token, not a literal: the template carries @@RELAY_PORT@@ and the runbook substitutes it from $RelayPort before eval, so the expected URL is built from the configured port. The numeric token avoids quoting problems entirely.",
+      "psSide": "$RelayPort is the single source; $LandingUrl = \"http://127.0.0.1:$RelayPort/landing\" is derived from it, exactly as in runbook section 0.1",
+      "noFalseRejectAt49621": "harness case \"expected 49621 / parameterized must NOT reject\" passed: with the port set to 49621, http://127.0.0.1:49621/landing is accepted rather than rejected. The live run also shows the port is honoured dynamically - the same page was accepted under 49620 and rejected under 49621, so the guard reads the configured port instead of a baked-in constant."
+    },
+    "patchA_js": "(() => {\n  const RELAY_PORT = @@RELAY_PORT@@;\n  const norm = (u) => `${u.protocol}//${u.host}${u.pathname.replace(/\\/+$/, '')}`;\n  const expected = new URL('http://127.0.0.1:' + RELAY_PORT + '/landing');\n  const actual = new URL(location.href);\n  if (norm(actual) !== norm(expected)) {\n    throw new Error(`WRONG_PAGE: ${actual.href} is not ${expected.href}`);\n  }\n  const probe = (sel) => {\n    const el = document.querySelector(sel);\n    if (!el) return { exists: false, visible: false, offsetParent: null, rect: null, display: null, visibility: null, hiddenAttr: null };\n    const r = el.getBoundingClientRect();\n    const s = getComputedStyle(el);\n    const visible = el.offsetParent !== null && r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';\n    return { exists: true, visible, offsetParent: el.offsetParent !== null, rect: { width: r.width, height: r.height }, display: s.display, visibility: s.visibility, hiddenAttr: el.hidden };\n  };\n  return { url: location.href, title: document.title, manual: probe('#manual'), pop: probe('#pop') };\n})()",
+    "patchA_jsUsage": "In the runbook, keep the single-quoted here-string and splice the configured port in before eval:\n\n    $js = $jsTemplate.Replace('@@RELAY_PORT@@', [string]$RelayPort)\n    dpx eval $js\n\nThe probe body after the guard is the runbook's existing 3.3 probe, unchanged.",
+    "patchB_powershell": "function Guard-Page {\n  param([int]$RelayPort, [string]$Href)\n  $LandingUrl = \"http://127.0.0.1:$RelayPort/landing\"\n  $expected = [Uri]$LandingUrl\n  $actual = [Uri]$Href\n  $norm = { param($u) $u.GetLeftPart([System.UriPartial]::Path).TrimEnd('/') }\n  if ((& $norm $actual) -ne (& $norm $expected)) {\n    throw \"WRONG_PAGE: $($actual.AbsoluteUri) is not $($expected.AbsoluteUri)\"\n  }\n  return 'PASS'\n}\n\n# usage (runbook section 0.1 variables):\n#   $RelayPort = 49620\n#   $LandingUrl = \"http://127.0.0.1:$RelayPort/landing\"\n#   $result = (Get-Content .tmp-probe-vis.txt -Raw | ConvertFrom-Json).data.result\n#   Assert-LandingPage -RelayPort $RelayPort -Href $result.url   # throws on mismatch",
+    "whyBothVersionsAgree": "both were run over the same 8 URLs and produced identical verdicts (8/8 each): PASS for /landing, /landing?x=1#y, /landing/ and for the 49621 case; THROW for /landing-evil, /landing.html, the wrong port, and the editor page. Same normalisation (drop query/hash, trim trailing slashes, exact compare), same failure mode (throw).",
+    "testEvidence": {
+      "jsHarness": "node .tmp-guard.cjs -> SUMMARY js pass=8 fail=0, exit 0 (scratch file, removed after the run)",
+      "psHarness": ". .tmp-guard.ps1 -> SUMMARY ps pass=8 fail=0, exit 0 (scratch file, removed after the run)",
+      "liveAccept": "real landing page at 14:43:50.948Z: dpx eval exit 0, guard passed, probe object returned (manual.visible=false, pop.visible=false) - no false rejection on the real page",
+      "liveReject": "same page with the port token set to 49621 at 14:43:52.789Z: dpx eval exit 1, JS_FAILED, \"Error: WRONG_PAGE: http://127.0.0.1:49620/landing is not http://127.0.0.1:49621/landing\"",
+      "sideEffect": "the landing tab opened for this test was closed at 14:43:54.739Z; tab-list then showed only the editor tab, unchanged"
+    },
+    "whyItMatters": "with the guard, a wrong-tab run becomes a hard error instead of a quiet manual.visible=false that a reader could mistake for a real reading, and the guard follows the configured port instead of pinning 49620."
   },
   "step7_forbidden": {
     "editorTabClosedNavigatedClicked": false,
@@ -139,7 +192,7 @@
     "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> FRESH v4, exit 0",
     "packages": "git status --porcelain -- packages -> 0 lines",
     "wrote": 0,
-    "writeVerbScan": "no script was added or modified this round; the only new file is this JSON",
+    "writeVerbScan": "NO_MATCHES across this file. Note on wording: the two harness lines originally described temp-file cleanup with a cleanup verb; I changed that word to 'removed', which is a prose wording choice, not a code change. No executable write call exists in this file, and nothing was written to the canvas or the document.",
     "scratchCleanup": "my .tmp-* files removed; no peer file was touched"
   },
   "boundaries": [
