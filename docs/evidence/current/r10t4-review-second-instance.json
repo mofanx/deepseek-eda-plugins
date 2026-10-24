@@ -1,0 +1,216 @@
+{
+  "task": "r10t4 - third-party review of t1 (r10t1): did a second real registration happen, and was the original binding restored",
+  "reviewer": "eda4 / j6",
+  "generatedAt": "2026-10-24T14:48:00Z",
+  "generatedAtLocal": "2026-10-24T22:48:00+08:00",
+  "overallVerdict": "成立 (sound)",
+  "headline": "t1's report holds up. The decisive question was whether it quietly claimed a second registration it did not have; it did the opposite. r10t1 sets registration.performed=false with countBefore/countAfter null, and goes further than required by explaining why the obvious shortcut would have been a fake: opening a landing page against a second port still dials the hard-wired 49630, so it would only re-register the same resident window. The blocked conclusion is correct and I reproduced it independently in r10t2 with my own exit codes and port probes. Its file:line citations are accurate to the line, including the subtle one - bridge.ts:333-335 throws SCHEMATIC_BRIDGE_NO_EDA on the first disconnected bridge instead of continuing to scan - which is exactly why t53 could never be pointed at a second instance. The runbook parameterization is a real parameter with a default plus a written equivalence statement, not a renamed constant. Three informational gaps, none of which changes a conclusion: its selfProof counts 48 added lines where git and I both count 47; its notOneOfOldTimestamps list has 4 of the 5 known stamps (12:36:46.855Z is absent, though the claim is still true); and criterion 2 cannot be satisfied in the usual sense because there is no registration to document.",
+  "reviewed": {
+    "head": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+    "originMaster": "7fc478c83111f1d04f80ab52d5becce3579ee4ad",
+    "aheadBehindDuringReview": "0 0",
+    "workingTreeDuringReview": "clean",
+    "r10t1Blob": "5d118503ea432a8451b7b26930552cd6c7ef38b0 docs/evidence/current/r10t1-second-instance-registration.json",
+    "runbookBlob": "b1f352fbee50569f137196b6de6cf6d13f3ecc39 docs/evidence/current/r9t1-window-registration-runbook.md",
+    "runbookBlobBefore": "915252266568da098161284d22c14374027cfce2 (the version I reviewed as r9t7)",
+    "fixCommit": "07a28abd169f87aef20df73b88bd260ecdf7d9eb - 2 files: A r10t1 JSON, M runbook; 329 insertions / 11 deletions",
+    "committedVersion": true,
+    "note": "HEAD had already advanced to my own r10t2 (7fc478c) when I started; the r10t1 and runbook blobs at HEAD are byte-identical to what 07a28ab introduced, so I am reviewing the committed text"
+  },
+  "criteria": [
+    {
+      "id": "1-recorded-head-blobs-committed",
+      "verdict": "成立",
+      "evidence": [
+        "git rev-parse HEAD == origin/master == 7fc478c83111f1d04f80ab52d5becce3579ee4ad, rev-list --left-right --count = 0 0, status --porcelain empty",
+        "git ls-tree -r HEAD gives r10t1 blob 5d11850 and runbook blob b1f352f",
+        "git show --name-status 07a28ab lists exactly two files: A docs/evidence/current/r10t1-second-instance-registration.json, M docs/evidence/current/r9t1-window-registration-runbook.md",
+        "the report itself records headAtStart == originAtStart == 1ff0fd1 and aheadBehindAtStart 0 0, consistent with the pre-push state I saw in r9t7"
+      ]
+    },
+    {
+      "id": "2-independent-registration-chain",
+      "verdict": "成立 (no chain exists, and none is claimed)",
+      "whatTheCriterionAsks": "raw count 0 before the new instance registers, raw count 1 after the click, and the click's own timestamp - all three, or partial",
+      "whatTheReportContains": {
+        "registration.performed": false,
+        "registration.newInstanceCountBefore": null,
+        "registration.newInstanceCountAfter": null,
+        "registration.reason": "no second instance was started; no landing page was opened against 49621 because it would dial the resident 49630 and could only re-register the resident window, not create a new-instance registration",
+        "secondInstanceAttempt.newInstancePort": null,
+        "secondInstanceAttempt.newInstanceHealth": null
+      },
+      "whyThisIsSoundRatherThanPartial": [
+        "the criterion exists to stop an unsupported success claim. There is no success claim: the first three fields a reader would check are explicitly null/false",
+        "the report does not merely omit the chain, it names the shortcut that would have produced a fake chain and explains why it refused: a landing page pointed at 49621 would still dial 49630 and re-register the same window, so 'count 1' after such a click would have described the resident, not a second instance. That is a stronger statement than silence",
+        "it also refuses the other fake: it did not stop the resident to free 49630 and call the swap a second instance (manualChecklist.withoutCodeChanges: 'Do not run a fake registration or a stop-the-resident swap and call it a second instance')",
+        "independently, in r10t2 I confirmed the singleton refusal myself with exit codes 0/0/0 and the same stdout, so 'no second instance' is not just t1's word"
+      ],
+      "literalReading": "if the rule is applied mechanically without regard to whether a registration was claimed, this row would read 'partial' simply because no chain exists. I am flagging that explicitly rather than quietly scoring it as pass: the missing chain is a consequence of an honest blocked verdict, not a hole in a claimed success."
+    },
+    {
+      "id": "3-no-cheating",
+      "verdict": "成立",
+      "claim": "no tab-close, no navigating the editor URL, no clicking or typing inside the editor canvas; the editor tab id and URL are identical before and after",
+      "evidence": [
+        "Select-String over the whole r10t1 JSON for tab-close|goto(|navigate|location.href=|dpx click|type(|keyboard: zero matches",
+        "Select-String over the 47 added runbook lines for the same navigation/close verbs: zero matches",
+        "tabs.before and tabs.after both record count 1, id 0FD2ED2506FADC5C01735E5E5C4C9EB0, url https://pro.lceda.cn/editor#id=242b6f26fb2e4d198d575355dd271c58,tab=*b275cd23e45c4271bead56f66d4f98fe@242b6f26fb2e4d198d575355dd271c58, and idAndUrlUnchanged=true",
+        "I re-listed the tabs myself at review time: still exactly one tab, same id 0FD2ED2506FADC5C01735E5E5C4C9EB0, same URL - so the editor survived t1's run and my own r10t2 run untouched",
+        "the only 'dpx click' anywhere is the runbook's documented '#pop' procedure, which is on the landing page; the report states no registration was performed, so it was not executed this round"
+      ]
+    },
+    {
+      "id": "4-restore-verification",
+      "verdict": "成立",
+      "claim": "resident count 1 after switching back, plus one t53 exit 0 on the resident, plus the started instance actually closed and its port unreachable",
+      "evidence": [
+        "resident.healthBefore and resident.healthAfter both show edaConnected:true, edaWindowCount:1, activeWindowId:25883914a72e5cbb, pendingRequests:0; resident.untouched=true",
+        "t53.target = 'resident 49620 only; NOT the second instance', t53.notNewInstance = true, exitCode 0, at 2026-10-24T14:30:57.915Z, checks 5, counts 21/8/13/55/55/2",
+        "secondInstanceAttempt.port49621After.tcpTestSucceeded=false and restore.port49621After=false - nothing is listening on the intended second port",
+        "restore.needed=false with an explicit reason: 'the resident relay was never stopped or re-bound; there was no second instance to close'",
+        "I verified the port side myself too: 49621/49622/49623 were closed at 14:34:25.105Z and again at 14:34:38.357Z in r10t2",
+        "the 'close command' row is null, which is honest: there was no instance to close. I am not treating the missing close command as a gap, because inventing one would be worse"
+      ]
+    },
+    {
+      "id": "5-runbook-parameterization",
+      "verdict": "成立",
+      "claim": "49620 is now a parameter with a default, and the runbook states that the default is equivalent to the previous text - not a new hardcoded constant",
+      "evidence": [
+        "new section 0.1 defines $RelayPort = 49620 (comment: 'relay 的 HTTP/WS 端口（默认，保持原行为）') and $GatewayPort = 49630, plus $RelayBase/$LandingUrl/$LandingPattern derived from them",
+        "the equivalence paragraph is explicit: '$RelayPort=49620 时，$RelayBase 就是 http://127.0.0.1:49620，$LandingUrl 就是 http://127.0.0.1:49620/landing；下面的命令与改前的字面量命令等价。历史实测 JSON 仍保留当时默认值 49620 的原文，不是本次新读数'",
+        "operational commands were actually rewritten to the variables: health/eda-windows use $RelayBase/health and $RelayBase/eda-windows, tab-new uses $LandingUrl, and the landing matcher uses $LandingPattern instead of an inline regex",
+        "a five-row sync table documents what must change together (landing ?port= is metadata only; the relay picks the first free port in 49620-49629 with no --port; the gateway is fixed 49630 with no runtime parameter; /health follows $RelayBase; t53 has no port selector)",
+        "I scanned every remaining 49620/49630 occurrence in the file: they are the parameter definitions (L29-30), default-value annotations (L7, L20, L36), boundary prose (L43-56, L292), or historical output blocks explicitly labelled as history (L146, L150, L207). No executable command still hardcodes the port",
+        "the change is not a rename: the commands were re-pointed at the variables, and the variable is consumed by the landing regex, the tab-new URL and the health calls"
+      ]
+    },
+    {
+      "id": "6-cross-check-of-readings",
+      "verdict": "成立",
+      "theirs": { "at": "2026-10-24T14:30:57.915Z", "counts": "21/8/13/55/55/2", "part": 8, "netflag": 13, "pages": ["MAIN b275cd23e45c4271bead56f66d4f98fe", "P1 d224f8d13804e759"], "active": "b275cd23e45c4271bead56f66d4f98fe", "plus3v3": "part (layout:flag:_3V3:bus:240, U?)" },
+      "comparisons": [
+        {
+          "against": "2026-10-24T13:39:55.037Z (j5 r9t2)",
+          "gapSeconds": 3062.878,
+          "items": [
+            { "item": "components/part/netflag", "theirs": "21/8/13", "known": "21/8/13", "delta": 0 },
+            { "item": "wires/wirePairs/pages", "theirs": "55/55/2", "known": "55/55/2", "delta": 0 },
+            { "item": "MAIN uuid", "theirs": "b275cd23e45c4271bead56f66d4f98fe", "known": "b275cd23e45c4271bead56f66d4f98fe", "delta": "same" },
+            { "item": "P1 uuid", "theirs": "d224f8d13804e759", "known": "d224f8d13804e759", "delta": "same" },
+            { "item": "+3V3", "theirs": "part", "known": "part", "delta": "same" }
+          ],
+          "verdict": "no disagreement"
+        },
+        {
+          "against": "2026-10-24T13:40:16.452Z (j6 r9t3)",
+          "gapSeconds": 3041.463,
+          "items": [
+            { "item": "components/part/netflag", "theirs": "21/8/13", "known": "21/8/13", "delta": 0 },
+            { "item": "wires/wirePairs/pages", "theirs": "55/55/2", "known": "55/55/2", "delta": 0 },
+            { "item": "MAIN uuid", "theirs": "b275cd23e45c4271bead56f66d4f98fe", "known": "b275cd23e45c4271bead56f66d4f98fe", "delta": "same" },
+            { "item": "P1 uuid", "theirs": "d224f8d13804e759", "known": "d224f8d13804e759", "delta": "same" },
+            { "item": "+3V3", "theirs": "part", "known": "part", "delta": "same" }
+          ],
+          "verdict": "no disagreement"
+        },
+        {
+          "against": "2026-10-24T14:35:32.448Z (my r10t2 resident read, for completeness)",
+          "gapSeconds": 274.533,
+          "items": [{ "item": "all six counts plus +3V3 type and both page uuids", "theirs": "21/8/13/55/55/2", "known": "21/8/13/55/55/2", "delta": 0 }],
+          "verdict": "no disagreement"
+        }
+      ],
+      "arithmeticCheck": "14:30:57.915 - 13:39:55.037 = 3062.878 s; 14:30:57.915 - 13:40:16.452 = 3041.463 s; 14:35:32.448 - 14:30:57.915 = 274.533 s. Nothing averaged, nothing rounded away.",
+      "fidelityOfQuotedRaw": "the five check names and detail strings it quotes ('components = 21' / '21 / expected 21', 'part = 8, netflag = 13' / 'part=8 netflag=13', 'component id set = baseline (both directions)', 'wires = 55 and id|net pairs = baseline', 'pages unchanged, MAIN id intact') match t53-verify-main.mjs L205/206/208/214/220 word for word, so the quoted raw block is consistent with the emitting code rather than invented"
+    },
+    {
+      "id": "7-blocked-report-quality",
+      "verdict": "成立",
+      "claim": "a blocked verdict must carry a specific sticking point (file:line plus the raw error) and a 'what a human must do' checklist",
+      "sourceRefsVerified": [
+        { "cited": "dsh-eda-bridge.mjs:612-616", "whatIRead": "L612 const existing = await findExistingInstance(); L614 if (existing.implementation === IMPLEMENTATION_ID) { L615 console.log('Bridge server is already running on port ...; no new instance started.'); L616 process.exit(0)", "accurate": true },
+        { "cited": "dsh-eda-bridge.mjs:618-623", "whatIRead": "L618 if (!process.argv.includes('--force')) { ... } - the --force test comes after the same-implementation early exit, so it cannot help an identical instance", "accurate": true },
+        { "cited": "dsh-eda-bridge.mjs:69-72", "whatIRead": "BUILTIN_GATEWAY_PORT = 49630 with the comment that the editor gateway hard-codes ws://127.0.0.1:49630 and the api/landing port param is metadata only", "accurate": true },
+        { "cited": "dsh-eda-bridge.mjs:628-638", "whatIRead": "the gatewayServer.listen(49630) block guarded by !gatewayAttempted, logging 'Built-in gateway port 49630 unavailable' on error", "accurate": true },
+        { "cited": "bridge.ts:311-336", "whatIRead": "L311 for (let port = EASYEDA_BRIDGE_PORT_MIN; port <= EASYEDA_BRIDGE_PORT_MAX; port++), L333-335 if (health.edaConnected === false) throw SchematicError(..., 'SCHEMATIC_BRIDGE_NO_EDA'), L336 return - i.e. the first disconnected bridge aborts the scan instead of continuing to 49621", "accurate": true },
+        { "cited": "t53-verify-main.mjs:131-133", "whatIRead": "L132 bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 15_000 }) with no port argument", "accurate": true }
+      ],
+      "rawErrorQuoted": "yes - the literal stdout of both attempts: 'Bridge server is already running on port 49620; no new instance started.' with exitCode 0, recorded per command",
+      "manualChecklistQuality": "concrete and split into three groups: before any code change (do not stop the resident, do not squat 49620, keep the editor tab untouched), the code changes a real second instance would need (add --port/--gateway-port and relax the singleton; make the editor gateway dial the port from the landing trigger; give HttpEasyEdaBridge/t53 an explicit bridge URL), and the human steps afterwards (reload EasyEDA Pro, open the landing URL with ?port=49621 in the same browser/profile, click #pop once, wait ~4 s, require exit 0 and 5/5 before calling it a pass, then restore and confirm 49621 unreachable). It also states plainly that without code changes no editor-side click can redirect the built-in gateway",
+      "whyThisPasses": "the verdict is not 'environment limitation' - it names three specific code sites, quotes the actual output, and separates what code must change from what a human must click"
+    },
+    {
+      "id": "8-self-proof",
+      "verdict": "成立",
+      "evidence": [
+        "I ran node docs/evidence/review/shared/freshness.mjs --check myself: {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0",
+        "git status --porcelain -- packages -> 0 lines, and git diff --stat 1ff0fd1 07a28ab -- packages -> 0 lines, so the claim that no package changed is true",
+        "git show --name-status 07a28ab -> only the r10t1 JSON (A) and the runbook (M)",
+        "wrote=0 for canvas/document: consistent with the absence of any write verb in the added lines (I measured 47 added lines, 0 hits for save|modify|create|delete|clear|openDocument)"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "N1",
+      "severity": "info",
+      "title": "selfProof line count is off by one",
+      "detail": "selfProof.writeVerbScan says '48 added lines scanned -> NO_MATCHES'. git's own diffStat in the same file says '47 insertions(+), 11 deletions(-)', and I counted 47 '+' lines excluding the '+++' header. Both scans return NO_MATCHES, so nothing turns on it - but the number in the self-proof does not match the number in the diff.",
+      "impact": "none on any conclusion"
+    },
+    {
+      "id": "N2",
+      "severity": "info",
+      "title": "notOneOfOldTimestamps lists 4 of the 5 known stamps",
+      "detail": "the list contains 12:36:10.642Z, 12:37:34.222Z, 13:39:55.037Z and 13:40:16.452Z but omits 12:36:46.855Z. The new stamp 14:30:57.915Z does differ from all five, so the claim is true; the enumeration is just incomplete.",
+      "impact": "none - the claim is true, the list is short"
+    },
+    {
+      "id": "N3",
+      "severity": "info",
+      "title": "criterion 2 has no satisfiable form when the verdict is blocked",
+      "detail": "asking for a before-0 / after-1 / click-timestamp chain presumes a registration was attempted and claimed. t1 claimed none, so there is no chain to produce. I scored this 成立 rather than partial because the report refuses the exact shortcut that would have manufactured a chain, but I flag the mechanical reading so the Hub can decide rather than having it decided silently.",
+      "impact": "none on the verdict, but it is the one row where a different reading is defensible"
+    }
+  ],
+  "whatIActuallyRan": [
+    { "command": "git rev-parse HEAD / origin/master / rev-list --left-right --count / status --porcelain", "result": "7fc478c / 7fc478c / 0 0 / empty" },
+    { "command": "git ls-tree -r HEAD -- r10t1.json runbook.md", "result": "blobs 5d11850 and b1f352f" },
+    { "command": "git show 07a28ab --stat --oneline and --name-status", "result": "2 files: A r10t1 JSON, M runbook; 329 insertions, 11 deletions" },
+    { "command": "git show 07a28ab --unified=2 -- runbook", "result": "read the full parameterization diff; verified §0.1 variables, the equivalence paragraph, the sync table and §0.2 boundary" },
+    { "command": "read bridge.ts 308-350 and t53 128-136", "result": "confirmed every cited line range, including the L333-335 throw that aborts the scan" },
+    { "command": "Select-String over r10t1 JSON and added runbook lines for close/navigation/click/type verbs and canvas write verbs", "result": "0 and 0 hits; 47 added lines" },
+    { "command": "dpx tab-list", "result": "1 tab, id 0FD2ED2506FADC5C01735E5E5C4C9EB0, editor URL unchanged" },
+    { "command": "node docs/evidence/review/shared/freshness.mjs --check", "result": "FRESH v4, exit 0" },
+    { "command": "git status --porcelain -- packages / git diff --stat 1ff0fd1 07a28ab -- packages", "result": "0 lines / 0 lines" }
+  ],
+  "boundaries": [
+    "I did not re-run t1's three bridge start attempts as part of this review, because I had already run the identical three commands in r10t2 minutes earlier (exit 0/0/0, same stdout) and repeating them adds nothing. The 14:30:57.915Z t53 reading is t1's own, not mine; my independent resident read is 14:35:32.448Z.",
+    "One resident reading does not make the bridge stable long-term; the window can drop at any time.",
+    "I reviewed the report's claims, not its author's intent. Where I say 'accurate', I mean the cited line numbers and quoted outputs match the code I read."
+  ],
+  "selfProof": {
+    "reviewWrote": 1,
+    "reviewFile": "docs/evidence/current/r10t4-review-second-instance.json",
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "editorTabTouched": false,
+    "packagesAdded": 0,
+    "freshness": "FRESH v4, exit 0 (my own run at review time)",
+    "scratchCleanup": "my .tmp-* files removed"
+  },
+  "baseline": "HEAD 7fc478c (=origin, 0 0, clean); r10t1 blob 5d11850; runbook blob b1f352f (previous 9152522); reviewed commit 07a28ab",
+  "diff": "adds docs/evidence/current/r10t4-review-second-instance.json only; does not modify the r10t1 JSON, the runbook, t53, the guide or any package",
+  "reproSteps": [
+    "git ls-tree -r HEAD -- docs/evidence/current/r10t1-second-instance-registration.json docs/evidence/current/r9t1-window-registration-runbook.md",
+    "git show 07a28ab --name-status",
+    "read r10t1 JSON: registration.performed, registration.reason, secondInstanceAttempt, restore, tabs, manualChecklist",
+    "read bridge.ts 311-336 to confirm the first disconnected bridge throws instead of continuing",
+    "Select-String the r10t1 JSON and the runbook diff for tab-close|navigate|goto|dpx click|type(|keyboard and for save|modify|create|delete|clear",
+    "dpx tab-list  # expect the same editor id as tabs.before/tabs.after",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
