@@ -1,0 +1,181 @@
+{
+  "task": "r6t11 - independent review of t2's W1 nearest-foreign correction (5.94 -> 5.30): did it fix the number I disclosed, and did it soften any criterion on the way?",
+  "mode": "read-only review. No edit to the checked script, its report, any gate, the guide or any package. The only file written is this JSON; the throwaway scripts used for the arithmetic were deleted before commit.",
+  "reviewedAt": "2026-10-24",
+  "head": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+  "origin": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+  "aheadBehind": "0 0",
+  "headDrift": "none - reviewed at HEAD = origin = 6ccd41d, clean tree. The remediation commit is 6ccd41d itself ('docs(evidence): correct W1 nearest-foreign distance to 5.30'); its parent is f45a943, which is the 6.42 guide correction that landed while t2 was working (disclosed by t2 as headAdvancedDuringRemediation).",
+
+  "target": {
+    "commit": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+    "parent": "f45a943c8ba51529953fc5cd8a7084c7890e5d5c",
+    "files": [
+      {
+        "path": "docs/evidence/review/ink-nearest-check.mjs",
+        "blobBefore": "cefdc27563ac80ccdfd2eeaea3afd0008a84254c",
+        "blobAfter": "b3871a1fef9c32b2c5d0f1b276bd296fe6204d6a",
+        "sha256": "caeea0fec58c5568a60e38745f4e60130b1bed81e32f690842ff3df654834b6e"
+      },
+      {
+        "path": "docs/evidence/current/r6t7-ink-nearest-check.json",
+        "blobBefore": "b3c45860cbe40527c003ff736d2d6e63d2011022",
+        "blobAfter": "2fef9a78a2bdef97cd9a6cb971b1b025cfd7dcbe",
+        "sha256": "1a6aafe15c32231a9672b7cf8f5a8e5741cc4053fd007d2d96d24cffe592b213"
+      },
+      {
+        "path": "docs/evidence/current/r6t7-ink-boxes.json",
+        "blobBefore": "66cdd43fc57e90b9132416b2a6b394b2b73c3aeb",
+        "blobAfter": "66cdd43fc57e90b9132416b2a6b394b2b73c3aeb",
+        "note": "UNCHANGED - the boxes were not touched, so the correction cannot have moved the geometry to fit the new number"
+      }
+    ],
+    "committedVersionVerified": "working-tree sha256 equals the blob content and `git status --short` is clean, so what was reviewed is the committed version"
+  },
+
+  "items": [
+    {
+      "id": "1-submitted-version",
+      "question": "记录 HEAD 与 r6t7 blob，确认验的是提交版",
+      "verdict": "成立",
+      "evidence": {
+        "head": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+        "origin": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+        "aheadBehind": "0 0",
+        "status": "clean",
+        "blobs": "script cefdc275 -> b3871a1f; report b3c45860 -> 2fef9a78; boxes 66cdd43f -> 66cdd43f (unchanged)",
+        "commitScope": "`git show --stat 6ccd41d` = 2 files, +52/-2. No gate, no package, no guide, no r5t4."
+      }
+    },
+    {
+      "id": "2-arithmetic",
+      "question": "用 W1 的盒与两条候选外来线独立复算 5.30 与 5.94",
+      "verdict": "成立",
+      "evidence": {
+        "boxFromCommittedJson": "docs/evidence/current/r6t7-ink-boxes.json attr=attr111 (label MCU-34), boxQuality 'exact-8.25-w1', x1 229.33 x2 248.48 y1 790.30 y2 794.06",
+        "wiresFromDataset": "MCU-33 flags: Line [210,785,250,785] i.e. a horizontal segment at y=785 over x 210-250; +3V3 flags: contains [240,800,200,800] i.e. a horizontal segment at y=800 over x 200-240",
+        "myArithmetic": "own wire y=795 -> 795 - 794.06 = 0.94; MCU-33 y=785 -> 790.30 - 785 = 5.30; +3V3 y=800 -> 800 - 794.06 = 5.94",
+        "applicability": "both candidates x-overlap the box: MCU-33 overlap 19.15 (229.33-248.48 within 210-250), +3V3 overlap 10.67 (229.33-240). So both are applicable and the nearest is the smaller one, 5.30.",
+        "verdict": "the corrected statement 'nearest foreign = MCU-33 y=785 at 5.30' matches my independent computation exactly, and 5.94 is still recorded as the valid +3V3 distance - it is simply no longer called 'nearest'",
+        "reportRow": "the report's own 55-row table for attr111 reads inkOwn 0.94 / inkForeign 5.3 / inkMargin 4.36 / pass, i.e. the row and the prose now agree (before the fix, the row said 5.3 while the prose said 5.94)."
+      }
+    },
+    {
+      "id": "3-correction-is-logged",
+      "question": "是不是静默改数，corrections 里有没有原值/实值/归属/依据",
+      "verdict": "成立",
+      "evidence": {
+        "block": "the report has a top-level `corrections` array with one entry id 'w1-nearest-foreign-distance'",
+        "fields": {
+          "original": "原写 +3V3 y=800（5.94）为 nearest foreign。",
+          "actual": "实为 MCU-33 y=785 的 5.30；+3V3 y=800 的 5.94 仍是有效距离，只是不是 nearest。",
+          "preserved": "+3V3 y=800 remains a valid distance 800-794.06 = 5.94; only the \"nearest\" label was wrong.",
+          "discoveredBy": "j6 (r6t9)",
+          "basis": "W1 ink box y790.30-794.06; MCU-33 wire y=785; +3V3 wire y=800; 790.30-785=5.30; 800-794.06=5.94.",
+          "effect": "None on classification: W1 inkOwn 0.94, inkForeign 5.30, margin 4.36, pass either way; no gate or threshold change."
+        },
+        "assessment": "the original wrong value, the corrected value, the preserved-but-demoted value, the provenance, the arithmetic basis and the (nil) effect are all present. This is a logged correction, not a silent edit.",
+        "minorNote": "attribution reads 'j6 (r6t9)'; the r6t9 review is the one I wrote, so the pointer is correct even if the member label differs from mine."
+      }
+    },
+    {
+      "id": "4-no-softening",
+      "question": "MCU-25/27 是否仍为 warn、1.0 是否未调低、既有 gate 结论是否未变",
+      "verdict": "成立",
+      "evidence": {
+        "threshold": "MARGIN = 1.0 (L28), ANCHOR_LIMIT = 6.0 (L29); thresholdDecision.value = 1, critical = true; the only occurrences of 0.8/1.2 are the reject0_8 / reject1_2 / notLowered explanations, never an assignment",
+        "notLowered": "'未采纳任何调低（not adopted）：0.8 会把已知正常的 1.00 警告变成 hard fail，1.2 会把真实 1.1 反转软化成 warning；…1.0 保持不变。'",
+        "warnNotFail": "statusDisposition: MCU-25 'warn (margin -1.00; hard fail requires foreign >1.0 closer, so exactly -1.00 is the boundary)', MCU-27 'warn (margin -0.28; not fail)'. I recomputed both from the published probe values: 0.12 vs 1.12-1.0 = 0.12 -> 0.12 < 0.12 is false, so no hard fail; 0.48 vs 0.76-1.0 = -0.24 -> 0.48 < -0.24 false, so no hard fail. Both are warn, as stated.",
+        "countsUnchanged": "fresh run reproduces 51 pass / 4 warn / 0 fail, identical to the committed report (all 55 rows identical). The four warns are still GND, MCU-31, MCU-32, MCU-33 at -0.64 - the remediation did not move a single label.",
+        "existingGates": "r5t4-d2d3-alternatives.json is not in 6ccd41d and still hashes to ad93257383e3960e6a2603c5ab37d692cf370cc0c2d1129c8ac2a51cb8a69290; criterion2Literal still reads 'PASS for every h in [3.76, 6.0]: d = h <= 6' and overall is still 'BOTH plans are no-go for BOTH labels'.",
+        "passMentionsAudited": "all 7 string fields containing 'PASS' are either 'published PASS becomes WARN' (scoped to the r6t2 probe), the r5t4 freeze list 'before' value (a quote), or the verify summary explicitly scoped 'under the combined strict anchor+ink rule ... overall no-go unchanged'. None claims a gate passed.",
+        "noLogicChange": "diff cefdc275..b3871a1f removes exactly ONE line (the old finding text) and adds only metadata/prose; the classify(), rectSeg(), pointSeg() and the hard-fail/warn predicates are byte-identical."
+      }
+    },
+    {
+      "id": "5-readonly-and-gate",
+      "question": "脚本仍无写调用、仍非 gate、恒 exit 0；t53 若 exit 2 是否如实标注",
+      "verdict": "成立",
+      "evidence": {
+        "writes": "grep writeFileSync|appendFile|unlink|rmSync|mkdir|rename|createWriteStream|child_process|spawn|exec(|fetch( returns exactly one hit: L410 `fs.writeFileSync(path.resolve(ROOT, outPath), ...)`, which only runs with --out and only writes the requested report. No canvas/editor/document write.",
+        "notAGate": "`process.exit` appears exactly once (L36, `process.exit(2)` for an unreadable input); there is no exit 1 path. Re-running without --out gives exit 0 and stderr 'advisory only, not a gate'. Re-grepping docs/evidence/review/*.mjs, *.ps1 and package.json still finds the script referenced only by itself.",
+        "bridge": "grep HttpEasyEdaBridge|sch_Primitive|sch_|dmt_ = NO_MATCHES; readOnlyProof.bridgeCalls = [], editorWrites 0, canvasWrites 0, documentWrites 0",
+        "t53": "I ran `node docs/evidence/review/t53-verify-main.mjs` myself: '[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE) ... [t53] no invariant was evaluated; this is exit 2, not a pass' -> exit 2. The report records the same at gates.t53Before and gates.t53After (both exit 2, with the raw text), t53Available = false, and readOnlyProof.t53UnavailableIsNotAPass = true. Not written as PASS, and not omitted."
+      }
+    },
+    {
+      "id": "6-self-checks",
+      "question": "freshness 实跑、packages 0、wrote 0",
+      "verdict": "成立",
+      "evidence": {
+        "freshness": "ran `node docs/evidence/review/shared/freshness.mjs --check` -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7} -> exit 0",
+        "packages": "6ccd41d touches only the two docs files (+52/-2); no packages/ path in the commit or the working tree, so packages added = 0",
+        "wrote": "no bridge connection was established and no editor call exists in the script, so canvas writes = 0; the only write in this review round is this JSON"
+      }
+    }
+  ],
+
+  "defects": [
+    {
+      "id": "head-field-still-the-old-baseline",
+      "severity": "low",
+      "where": "r6t7-ink-nearest-check.json `head` / `origin` / `aheadBehind`",
+      "what": "`head` is still the literal c847319..., i.e. the baseline the check was first written against, not the head at run time. The remediation added headAtRemediation (e7e94a2), headAtCommit (f45a943) and headAdvancedDuringRemediation, which disambiguates it in the artifact, but a reader who quotes only `head` will still see a stale hash.",
+      "impact": "none on any number or classification; it is a labelling weakness carried over from r6t7. Renaming `head` to `headAtWrite` would close it."
+    },
+    {
+      "id": "warn-is-prose-not-a-computed-field",
+      "severity": "info",
+      "where": "fourSampleComparison.statusDisposition",
+      "what": "'MCU-25: warn', 'MCU-27: warn' are text assertions; the four probes carry margins (-1.00, -0.28) but no computed `status` field.",
+      "impact": "none - the classification follows deterministically from the published margins and the hard-fail definition, and I recomputed it. Recording it as a computed field would make it machine-checkable."
+    }
+  ],
+
+  "overall": {
+    "verdict": "成立",
+    "reason": "The number I disclosed is now correct and independently reproducible (nearest foreign 5.30 from MCU-33 y=785; 5.94 retained as the valid +3V3 distance but no longer called nearest), the correction is logged with original/actual/preserved/basis/attribution rather than silently rewritten, and nothing was softened: MARGIN stays 1.0, 0.8/1.2 are rejected with reasons, MCU-25/27 remain warn (I recomputed both), the 55-row surface is still 51/4/0 with the same four warns, r5t4 is byte-identical and still PASS on criterion2Literal with overall no-go. The script is still advisory (one exit code, exit 2 only for unreadable input), and t53 is honestly recorded as exit 2 rather than PASS.",
+    "failsToVerify": "the live MAIN invariant set 21/8/13/55/55/2 - the bridge is unreachable (t53 exit 2 in my own run too), so it remains unverified, not verified and not contradicted."
+  },
+
+  "rawOutput": {
+    "git": [
+      "git rev-parse HEAD -> 6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+      "git rev-parse origin/master -> 6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+      "git rev-list --left-right --count HEAD...origin/master -> 0\t0",
+      "git rev-parse 6ccd41d^ -> f45a943c8ba51529953fc5cd8a7084c7890e5d5c",
+      "git show --stat 6ccd41d -> 2 files changed, 52 insertions(+), 2 deletions(-)"
+    ],
+    "arithmetic": "own y=795 -> 0.94; MCU-33 y=785 -> 5.30 (x-overlap 19.15); +3V3 y=800 -> 5.94 (x-overlap 10.67); nearest = 5.30",
+    "rerun": "node docs/evidence/review/ink-nearest-check.mjs -> exit 0; stderr 'advisory only, not a gate'; counts {\"labels\":55,\"pass\":51,\"warn\":4,\"fail\":0,\"anchorPass55\":55}; rows identical to the committed report = true",
+    "w1Row": "{\"label\":\"MCU-34\",\"inkOwn\":0.94,\"inkForeign\":5.3,\"inkMargin\":4.36,\"status\":\"pass\"}",
+    "diffRemovedLines": "exactly one: the old finding text ('...the nearest foreign +3V3 y=800 gives 5.94, not 0.30/0.80...')",
+    "t53": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE) ... [t53] no invariant was evaluated; this is exit 2, not a pass -> exit 2",
+    "freshness": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7} -> exit 0",
+    "grepWrites": "L410: fs.writeFileSync(path.resolve(ROOT, outPath), ...)  (only hit)",
+    "grepExit": "L36: process.exit(2)  (only hit)",
+    "grepBridge": "NO_MATCHES"
+  },
+
+  "reproSteps": [
+    "git -c safe.directory='D:/projects/nodejs/deepseek-eda-plugins' -C 'D:/projects/nodejs/deepseek-eda-plugins' ls-tree -r HEAD -- docs/evidence/review/ink-nearest-check.mjs  # blob b3871a1f",
+    "node -e \"const b=require('./docs/evidence/current/r6t7-ink-boxes.json').labels.find(l=>l.attr==='attr111'); console.log(b.y1-785, 800-b.y2)\"  # 5.30 5.94",
+    "node docs/evidence/review/ink-nearest-check.mjs   # exit 0, 51/4/0",
+    "git diff cefdc275 b3871a1f -- docs/evidence/review/ink-nearest-check.mjs   # one removed line, metadata only",
+    "node docs/evidence/review/t53-verify-main.mjs   # exit 2 BRIDGE_UNREACHABLE",
+    "node docs/evidence/review/shared/freshness.mjs --check   # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/ink-nearest-check.mjs",
+
+  "verify": [
+    {
+      "task": "t2-r6t7-w1-foreign-correction",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "5.30/5.94 independently reproduced from the committed boxes and wires; the correction is logged (original/actual/preserved/basis/discoveredBy/effect); no softening - MARGIN 1.0 unchanged, 0.8/1.2 rejected, MCU-25/27 still warn, 55-row surface still 51/4/0, r5t4 untouched and still PASS on criterion2Literal; script still advisory with a single exit-2 path; t53 recorded as exit 2 not PASS.",
+        "baseline": "HEAD e7e94a2; script blob cefdc275; report blob b3c45860; W1 prose said nearest foreign 5.94",
+        "diff": "6ccd41d (parent f45a943): 2 files, +52/-2 - one prose line replaced, metadata added; no logic, threshold, box or gate change"
+      }
+    }
+  ]
+}
