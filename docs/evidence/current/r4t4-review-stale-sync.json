@@ -1,0 +1,102 @@
+{
+  "task": "r2t2",
+  "reviewedTask": "t1",
+  "reviewedCommits": ["b536763", "444c7aa"],
+  "reviewedCommit": "444c7aa",
+  "head": "444c7aa",
+  "origin": "7af7518",
+  "ahead": 2,
+  "behind": 0,
+  "guideBlob": "fda49251f217b6ecfc2767f2c146aa52f01d1fe4",
+  "reviewedAt": "2026-10-24T04:23:15Z",
+  "reviewedAtHead": "444c7aa",
+  "verdict": "partial",
+  "headNote": "HEAD moved during this review from f4051ed to 444c7aa (t1's sync commit). The review targets 444c7aa; the earlier guide at b536763 (blob 07701342) is the pre-sync baseline. f4051ed is the t4 r4t3 D1 review, also unpushed.",
+  "items": [
+    {
+      "id": "P1_head_guide_blob",
+      "verdict": "成立",
+      "raw": "HEAD 444c7aa; origin/master 7af7518; ahead 2 / behind 0. Guide blob at 444c7aa fda49251f217b6ecfc2767f2c146aa52f01d1fe4; at b536763 07701342e16eb77a59554190100c0ab7b73c5531; at 430f3be 1c77c475d3ccd1e623b973fa49b0380bfa7c2e66. t1 commits: b536763 (L136/L138 + L75, 3+/1-), 444c7aa (L75 rewrite + 7 stale lines, 1 file 8+/8-)."
+    },
+    {
+      "id": "P2_l75_three_layers",
+      "verdict": "partial",
+      "raw": "L75 now reads: 'r9t3 L41 的『逐字实现』指控针对 430f3be 那一版，在该版成立——该版 L56 确写『规则（代码逐字实现下面这一条）』，而规则缺 ValueVisible 条件（git grep ValueVisible 430f3be 零命中），该版指南 blob 为 1c77c475，与 r9t3-review-view-guide-v2.json 自己记录的 head: 430f3be / blob 1c77c475 一致。该版已在 dd5e835 改为五条件表、把 ValueVisible 列为条件 4 并全表列出 13 条被排除项；故该指控不适用于现版，不应再被重开。（本段是登记，不是判词：r9t3 原文与 430f3be/dd5e835 均未被改动，只作引用。）' Three layers are all present, and the old '该说法为假' judgment is gone. Verified: 430f3be guide L56 = '规则（代码逐字实现下面这一条）'; guide-only git grep ValueVisible 430f3be -- <guide> = 0 hits (exit 1); dd5e835 guide L63/66/73 adds ValueVisible condition 4 and the 13-item list; 430f3be guide blob 1c77c475 matches r9t3's recorded blob. BUT the inline command 'git grep ValueVisible 430f3be' (no path) is NOT zero across the tree: it hits 10 files, including docs/evidence/review/r9t1-main-view-guide.mjs (2 hits, the generator the rule is supposed to describe) and docs/evidence/current/t31-dataset.json. The claim is true only with '-- docs/evidence/current/r9t1-main-view-guide.md'; as written it is false."
+    },
+    {
+      "id": "P3_stale_numbers",
+      "verdict": "partial",
+      "raw": "The 8 listed lines are now historical/marked: L9 '红框 A 记录的是 D1 修复前 ... 该溢出已由 D1 ... 14pt，实测墨迹右界 579.63、距格线 583.68 内缩 4.05'; L35 'D1 改前的 16pt ... 现为 14pt，墨迹右界 579.63，不再越格'; L39 '拍这张图时是 16pt ... 该帧是 D1 改前的留证；现为 14pt ... 579.63 ... 4.05'; L45 '① D1 改前 text31 (16pt ...) ... 已由 D1 收到 14pt 修复 ...'; L174 'FontSize=16（2026-10-22 排查时的值；现为 14，D1 已改）... 29 字符——旧稿写 28 是漏数'; L179 '29 字符 ... 16pt（D1 改前）... 404.9–613.3 ... 改前越界 23.3 ... D1 已把 text31 收到 14pt：579.63 ... 583.68 内缩 4.05 ... 10.97 ... 格内无外来墨迹；改前的 613.3/208.4/23.3 全部转为历史值'; L183 '该溢出已由 D1 修复（16pt→14pt，579.63，583.68 内缩 4.05）'. L177 is NOT a text31 stale line: it lists text30 14pt / text32 14pt / text33 16pt; text31 is not on it and text33 is still 16pt, so the t2 staleAfterThisFix claim 'lists text31 among the 16pt neighbours' was inaccurate and t1 correctly left L177 alone. The new numbers 579.63 / 4.05 / 583.68 / 10.97 / 29 chars all match my r4t3-review-d1.json and r4t3-d1-measure.json exactly. REMAINING STALE: L52 '第三类总判定 ... 文字-文字 = 已证实（text31 压 text32；...）' still states the D1-fixed A box as a current confirmed instance; it has no 'D1 改前/已修复' qualifier and contradicts L9/L45/L183. Needs a one-line historical mark."
+    },
+    {
+      "id": "P4_history_preserved",
+      "verdict": "成立",
+      "raw": "t1's 444c7aa touches only the guide: 1 file, 8+/8-, no r9t3, no PNG (git diff 444c7aa^..444c7aa -- r9t3 '*.png' = 0). r9t3 blob 8c1d293 at 444c7aa and 444c7aa^ identical; its L41 'whyItFails' still quotes the 430f3be verbatim claim and calls it false; L75 quotes it as history. Caveat: the r9t3 file did not exist at 430f3be; it was added by 35240da ('re-review the committed r9t1 guide against HEAD'), with reviewed.head=430f3be. So the literal '430f3be..HEAD zero diff' is an add (A), not a zero diff; the t1 commit itself has zero diff on it, and the old conclusion is preserved, not rewritten."
+    },
+    {
+      "id": "P5_no_overreach",
+      "verdict": "成立",
+      "raw": "Host's original quote remains at L158 ('MCU-28 压的是引脚名 PB9 ...'), with the ※ editorial annotation at L160 (r2t1 correction: 引脚号 31 / flag name 压 PB10). TEXT_RADIUS=6 and d≤12 and stride 4 remain (L145/L147/L162/L190; the generator still stride 2 is pre-existing and explicitly flagged). t1's 444c7aa changes no PNG; the existing r8t1/r9t1 PNGs are unchanged. No D1 evidence JSON touched."
+    },
+    {
+      "id": "P6_push_state",
+      "verdict": "not-met",
+      "raw": "HEAD 444c7aa, origin/master 7af7518, ahead 2 / behind 0. Unpushed: f4051ed (t4 r4t3 D1 review) and 444c7aa (t1 sync). The last push attempts failed with exit code 128: 'Recv failure: Connection was reset' then 'Failed to connect to github.com port 443 ... Could not connect to server'. Not 1 0 as the task anticipated; it is 2 0 before this review commit."
+    },
+    {
+      "id": "P7_gates",
+      "verdict": "成立",
+      "raw": "freshness --check at 444c7aa: {\"status\":\"FRESH\",\"baselineVersion\":4,\"packages\":5,...} exit 0. packages new 068ad8f..444c7aa = 0. t1's 444c7aa is doc-only (1 file, 8+/8-), no bridge calls, wrote=0; this review ran git/grep/read only, no bridge, wrote=0."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "must-fix",
+      "title": "L52 still asserts the D1-fixed A box as current",
+      "detail": "L52: '文字-文字 = 已证实（text31 压 text32；...）'. After the 14pt fix the text31 right edge is 579.63, inside the 583.68 border, no longer crossing onto text32. L9/L45/L183 now mark the A box as D1 改前/已修复; L52 contradicts them. One-line fix: mark the text31/text32 instance as 'D1 改前，已由 14pt 修复', leaving the W1/W2 pin-number/name group as the current text-text instance."
+    },
+    {
+      "severity": "must-fix",
+      "title": "L75's inline grep is false as written",
+      "detail": "L75 says '规则缺 ValueVisible 条件（git grep ValueVisible 430f3be 零命中）'. The whole-tree grep at 430f3be hits 10 files, including the generator r9t1-main-view-guide.mjs (2 hits) and t31-dataset.json; only the guide-scoped grep is zero (exit 1). Fix: write 'git grep ValueVisible 430f3be -- docs/evidence/current/r9t1-main-view-guide.md 零命中'. The three-layer content itself is correct."
+    },
+    {
+      "severity": "info",
+      "title": "t2's staleAfterThisFix L177 claim was inaccurate",
+      "detail": "L177 lists text30 14pt / text32 14pt / text33 16pt; text31 is absent, and text33 is still 16pt. t1 correctly made no change. The real stale set was L9/35/39/45/174/179/183, not L177."
+    },
+    {
+      "severity": "info",
+      "title": "r9t3 file is new since 430f3be",
+      "detail": "r9t3-review-view-guide-v2.json did not exist at 430f3be; it was added by 35240da with reviewed.head=430f3be. The literal 430f3be..HEAD zero-diff claim is therefore an add; t1's commit does not touch it and the old conclusion is preserved and quoted."
+    }
+  ],
+  "gates": {
+    "freshness": "FRESH, baselineVersion 4, exit 0 at 444c7aa",
+    "packagesNew": 0,
+    "wrote": 0,
+    "t1CommitScope": "docs/evidence/current/r9t1-main-view-guide.md only; 8 insertions / 8 deletions; no PNG/r9t3/JSON"
+  },
+  "push": {
+    "headAtReview": "444c7aa",
+    "origin": "7af7518",
+    "ahead": 2,
+    "behind": 0,
+    "unpushed": ["f4051ed", "444c7aa"],
+    "lastErrorCode": 128,
+    "lastError": "Recv failure: Connection was reset / Failed to connect to github.com port 443 after 21s: Could not connect to server",
+    "note": "this review commit will add one more unpushed commit if the push still fails; no force-push"
+  },
+  "overall": "partial",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "The L75 rewrite now states all three layers (valid at 430f3be, fixed by dd5e835, not applicable now), and the '该说法为假' judgment is gone; the 430f3be L56 sentence, the guide-only ValueVisible zero, the dd5e835 condition 4/13-item list and the 1c77c475 blob all check out. The 8 listed stale lines are historical/marked and the new numbers match my r4t3 measurement (579.63 / 4.05 / 583.68 / 10.97 / 29 chars); L177 correctly needed no change (16pt is text33). Two defects remain: L75's inline 'git grep ValueVisible 430f3be 零命中' is false across the tree (10 files hit; only the guide-scoped grep is zero), and L52 still states '文字-文字 = 已证实（text31 压 text32）' as current. Host quote/※, criteria, no PNG and r9t3 preservation hold; gates green; push blocked at 2 0 (443, exit 128).",
+        "baseline": "b536763 guide blob 07701342 (L75 short note; 8 stale lines); 430f3be guide blob 1c77c475 with L56 verbatim claim and no ValueVisible",
+        "diff": "444c7aa: 1 file, 8+/8-: L75 three-layer history + L9/35/39/45/174/179/183 historical sync; L52 untouched; no PNG/r9t3/JSON; no criteria change"
+      }
+    }
+  ]
+}
