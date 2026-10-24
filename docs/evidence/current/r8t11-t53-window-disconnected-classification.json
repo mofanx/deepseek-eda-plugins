@@ -1,0 +1,127 @@
+{
+  "task": "t2 - make t53 recognise 'disconnected', correct the guide's expiry mechanism, add the third timestamp",
+  "member": "eda4",
+  "generatedAt": "2026-10-24T13:01:00Z",
+  "generatedAtLocal": "2026-10-24T21:01:00+08:00",
+  "headline": "t53 now reports a dedicated BRIDGE_WINDOW_DISCONNECTED instead of the generic BRIDGE_CALL_FAILED when the editor says the window is disconnected (message or code). The guide's boundary 2 now states the real mechanism: /health can still say edaConnected:true while /execute returns 'EDA window ... disconnected', so availability must be probed with t53 or execute, not /health. The section carries three timestamps, the third copied verbatim from r7t5. The before/after here is a CLASSIFICATION-LEVEL verification, not a live reproduction: by the time I started, the window was fully gone (/health edaConnected:false, edaWindowCount:0), so the 'registered but disconnected' state could not be re-created.",
+  "verificationKind": {
+    "label": "classification-level, NOT live reproduction",
+    "why": "The 'registered but disconnected' state does not exist any more. I checked before touching anything: GET /health returned {\"edaConnected\":false,\"edaWindowCount\":0,\"activeWindowId\":null,\"pendingRequests\":0}, and a plain t53 run at 2026-10-24T12:58:01.022Z exited 2 with reason BRIDGE_NO_EDA_WINDOW (the no-window branch, which is a different branch from the one under test). So the measured error string was fed into the real catch via an env-gated hook, and the gate's own exit code and reason were read back.",
+    "liveAttemptOnRecord": {
+      "at": "2026-10-24T12:58:01.022Z",
+      "exit": 2,
+      "reason": "BRIDGE_NO_EDA_WINDOW",
+      "interpretation": "confirms the window is gone entirely, not 'registered but disconnected'"
+    }
+  },
+  "baseline": {
+    "t53BlobBefore": "eead9c2 (docs/evidence/review/t53-verify-main.mjs at HEAD 672121a)",
+    "guideBlobBefore": "d382726 (docs/evidence/current/r9t1-main-view-guide.md at HEAD 672121a)",
+    "headAtStart": "672121a5a093d3a36af6502539a6990bd1abf83f",
+    "observedLiveFailureBeforeAnyEdit": "POST /execute -> HTTP 500 {\"success\":false,\"error\":\"EDA window \\\"25883914a72e5cbb\\\" disconnected\"} while GET /health still said edaConnected:true, edaWindowCount:1, pendingRequests:1 (measured in the r2t3 round at 12:39:01.011Z)"
+  },
+  "change1_t53Classification": {
+    "rule": "if the error code is SCHEMATIC_BRIDGE_WINDOW_LOST or SCHEMATIC_BRIDGE_DISCONNECTED, or the message matches /disconnected|window lost|no such window/i, fail with BRIDGE_WINDOW_DISCONNECTED",
+    "placedBefore": "the pre-existing /NO_EDA|not connected|edaConnected/ test, because the real wording contains none of those phrases",
+    "untouched": [
+      "gate logic and thresholds",
+      "slice(0, 200)",
+      "exit 2",
+      "the existing BRIDGE_CALL_FAILED fallback and the EDA_NOT_CONNECTED branch"
+    ],
+    "harness": {
+      "env": "T53_FORCE_CALL_ERROR=<msg> (optional T53_FORCE_CALL_CODE=<code>)",
+      "whatItDoes": "throws from the execute path so the same catch classifies it; skips discover() so a dead bridge cannot shadow the classification; bridge.execute is never called and the editor is never contacted",
+      "whyItIsNecessary": "execute is unreachable while discover() fails, and discover() fails whenever no window is registered - precisely the situation that made a live reproduction impossible",
+      "disclosure": "this is instrumentation, not behaviour: with the env var unset the gate runs exactly as before (verified by a plain run after the change: exit 2, reason BRIDGE_NO_EDA_WINDOW)"
+    },
+    "beforeAfter": [
+      {
+        "case": "measured live error string",
+        "input": "EDA window \"25883914a72e5cbb\" disconnected",
+        "before": { "reason": "BRIDGE_CALL_FAILED", "exit": 2 },
+        "after": { "reason": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2, "detail": "EDA window \"25883914a72e5cbb\" disconnected" },
+        "note": "the before value is exactly what the 12:39:01.011Z live run produced, so this reproduces a recorded observation rather than inventing one"
+      },
+      { "case": "message 'window lost during execution'", "after": { "reason": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2 } },
+      { "case": "message 'requested no such window'", "after": { "reason": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2 } },
+      { "case": "generic message + code SCHEMATIC_BRIDGE_WINDOW_LOST", "after": { "reason": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2 } },
+      { "case": "generic message + code SCHEMATIC_BRIDGE_DISCONNECTED", "after": { "reason": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2 } },
+      { "case": "control: 'some unrelated page error'", "after": { "reason": "BRIDGE_CALL_FAILED", "exit": 2 }, "note": "must stay generic - it does" },
+      { "case": "control: 'not connected to any EDA window'", "after": { "reason": "EDA_NOT_CONNECTED", "exit": 2 }, "note": "must keep the old branch - it does" }
+    ],
+    "diffBlobAfter": "a45b725"
+  },
+  "change2_httpApiSecondInstance": {
+    "location": "packages/eda-core/bin/http-api.mjs L118",
+    "currentCode": "const unavailable = /no eda window connected|not connected|no longer connected/i.test(message)",
+    "sameDisease": "the editor's real wording is 'disconnected', which none of the three alternatives matches, so a dead window is answered with 500 (body failed) instead of 503 (unavailable)",
+    "worseThanThat": "the comment directly above (L110-116) enumerates the phrasings it believes it covers, including `EDA window \"…\" is no longer connected. …`. The runtime message is `EDA window \"…\" disconnected`, so the comment is stale about the very string it exists to catch.",
+    "decision": "NOT fixed in this task",
+    "reasons": [
+      "scope: the assignment says only t53 and the guide; http-api.mjs is relay source under packages/",
+      "a source edit would not change the running relay (long-lived process) without a restart, and a restart would tear down whatever registration state exists and disturb other members working in this workspace",
+      "the right fix is structural, not a second copy of the same regex: the error object already carries a machine code from bridge.ts (SCHEMATIC_BRIDGE_WINDOW_LOST / SCHEMATIC_BRIDGE_DISCONNECTED). Status should be derived from the code and the message regex should only remain as a fallback. Patching a third phrasing in leaves the next wording change with the same bug."
+    ],
+    "proposedDiffNotApplied": "- const unavailable = /no eda window connected|not connected|no longer connected/i.test(message)\n+ const unavailable = /no eda window connected|not connected|no longer connected|disconnected|window lost|no such window/i.test(message)",
+    "recommendedFollowUp": "route on err.code first (WINDOW_LOST / DISCONNECTED / NO_EDA -> 503), keep the regex only as a fallback, and fix the stale L110-116 comment in the same change"
+  },
+  "change3_guideMechanism": {
+    "file": "docs/evidence/current/r9t1-main-view-guide.md",
+    "boundary2Before": "**不承诺长期可用**：注册窗口会掉线（中继的心跳清扫正是为此而设）；掉线后本节结论即失效，要重新主张必须再跑一次 `t53`。",
+    "boundary2After": "**窗口失效时 `/health` 不可信**：窗口失效时 `/health` 仍可能报 `edaConnected:true`（实测 `12:39:01.011Z` 即如此，`count 1`、`pendingRequests 1`），只有 `/execute` 会返回 `EDA window ... disconnected`；因此判断桥是否仍可用**不能看 `/health`**，必须实跑 `t53` 或 `execute`。窗口失效后本节结论即失效，要重新主张必须重跑 `t53`。",
+    "retained": "the expiry sentence is kept, so the boundary still says the conclusions die with the window - it now also says how to notice in time"
+  },
+  "change4_thirdTimestamp": {
+    "utc": "2026-10-24T12:37:34.222Z",
+    "local": "2026-10-24T20:37:34.218+08:00",
+    "source": "r7t5-pages-provenance.json L182-183 (liveObservation.recheck), recorded by j5; I copied both strings verbatim as instructed and did not run that pass myself",
+    "whereItWent": [
+      "the UTC time row (third entry, with '距第二次 47 秒'; 12:37:34.222 - 12:36:46.855 = 47.367 s)",
+      "the local time row",
+      "'exit 0, 三次均为 exit 0'",
+      "the six-value row ('三次相同')",
+      "boundary 1's scope sentence ('这三个时刻')",
+      "the 18-vs-2 closing sentence, reworded to '另一组时点 (12:36:10-12:37:34)' so it no longer counts the live reads as one point"
+    ],
+    "coherenceEdits": [
+      "intro line: '本节记录一次实跑' -> '本节记录实跑结果（三次采样）' so the section does not say 'one run' above a three-row time cell while still keeping '把上限顶到了一次'"
+    ],
+    "observation": "the UTC and local strings differ by 4 ms (34.222 vs 34.218). That is how the source artifact records the pair; I reproduced it verbatim rather than silently normalising it. If it is a transcription slip it belongs to r7t5's owner to settle.",
+    "crossArtifactRisk": "r7t5's judgment.liveProvable still reads 'true only at 2026-10-24T12:36:10.642Z and 2026-10-24T12:36:46.855Z' (two timestamps) while its own recheck block and now the guide carry a third. That is j5's file and I did not touch it; it is flagged here so the two artifacts can be aligned deliberately."
+  },
+  "protectedContentCheck": {
+    "method": "counted the nine protected tokens in the working copy and compared with the previously established baseline",
+    "counts": { "TEXT_RADIUS=6": 3, "d≤12": 3, "步长 4": 10, "6.42": 1, "r9t3": 5, "h=2.18": 4, "4.70": 4, "1.54": 4, "※": 5 },
+    "expected": { "TEXT_RADIUS=6": 3, "d≤12": 3, "步长 4": 10, "6.42": 1, "r9t3": 5, "h=2.18": 4, "4.70": 4, "1.54": 4, "※": 5 },
+    "verdict": "all identical",
+    "gradingTable": "L261 part 8 '离线可重建，不计为证明'; L262 netflag 13 '离线可重建，不计为证明'; L263 页数 2 '离线不可证（仅历史断言）' - all three unchanged",
+    "overclaimScan": "'已稳定' and '稳定验证' appear once each, both inside boundary 1's negation ('不把「一次通过」升级成「已稳定验证」'); '已全部离线可证' = 0; '长期可用' = 0 because the bullet was replaced by the mechanism version, whose expiry sentence carries the same non-guarantee",
+    "sections": "10 '##' headings before and after; §D2/D3, the 31 section, and the arithmetic sentences are outside every hunk"
+  },
+  "selfProof": {
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "packagesChanged": 0,
+    "nodeCheck": "node --check docs/evidence/review/t53-verify-main.mjs -> exit 0",
+    "normalRunAfterChange": "exit 2, reason BRIDGE_NO_EDA_WINDOW (no env var set, so the harness is inert)",
+    "freshness": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0",
+    "filesChanged": [
+      "docs/evidence/review/t53-verify-main.mjs",
+      "docs/evidence/current/r9t1-main-view-guide.md",
+      "docs/evidence/current/r8t11-t53-window-disconnected-classification.json"
+    ],
+    "notTouched": "docs/evidence/current/r7t5-pages-provenance.json is modified in the shared working tree by another member; I neither committed nor reverted it"
+  },
+  "diff": "t53: +37/-9 (classification branch + env-gated harness + header comments); guide: 6 lines changed (time rows, counts, boundary 2, 18/2 sentence); new evidence JSON",
+  "reproSteps": [
+    "node docs/evidence/review/t53-verify-main.mjs --json                                  # live: exit 2 BRIDGE_NO_EDA_WINDOW while no window is registered",
+    "$env:T53_FORCE_CALL_ERROR = 'EDA window \"25883914a72e5cbb\" disconnected'; node docs/evidence/review/t53-verify-main.mjs --json   # -> BRIDGE_WINDOW_DISCONNECTED",
+    "$env:T53_FORCE_CALL_ERROR = 'not connected to any EDA window'; node docs/evidence/review/t53-verify-main.mjs --json          # -> EDA_NOT_CONNECTED (control)",
+    "$env:T53_FORCE_CALL_ERROR = 'boom'; $env:T53_FORCE_CALL_CODE = 'SCHEMATIC_BRIDGE_WINDOW_LOST'; node docs/evidence/review/t53-verify-main.mjs --json  # -> BRIDGE_WINDOW_DISCONNECTED",
+    "node --check docs/evidence/review/t53-verify-main.mjs",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}

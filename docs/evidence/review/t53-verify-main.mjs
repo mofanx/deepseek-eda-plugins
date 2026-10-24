@@ -8,10 +8,11 @@
 //   0  all five invariants hold
 //   1  at least one invariant broke - the diff id lists are printed
 //   2  the gate could not run: bridge unreachable, or the relay is up but no
-//      editor window is registered, or the editor is not connected
-//      (2 is NOT a pass: no evidence was collected). The three cases carry
-//      different reasons so they can be told apart: BRIDGE_UNREACHABLE,
-//      BRIDGE_NO_EDA_WINDOW, EDA_NOT_CONNECTED.
+//      editor window is registered, or the editor is not connected, or the
+//      registered window died mid-call
+//      (2 is NOT a pass: no evidence was collected). The cases carry different
+//      reasons so they can be told apart: BRIDGE_UNREACHABLE,
+//      BRIDGE_NO_EDA_WINDOW, EDA_NOT_CONNECTED, BRIDGE_WINDOW_DISCONNECTED.
 //
 // What it asserts (all against docs/evidence/current/t31-dataset.json, the
 // pre-incident snapshot of the same MAIN page):
@@ -38,6 +39,9 @@
 //   T53_DROP_WIRE='layout:wire:_3V3:flags' pretend one wire pair vanished -> 1
 //   T53_FORCE_UNREACHABLE=1                exercise the BRIDGE_UNREACHABLE path -> 2
 //   T53_FORCE_NO_EDA=1                     exercise the EDA_NOT_CONNECTED path -> 2
+//   T53_FORCE_CALL_ERROR='<msg>'           make the execute call throw <msg> so the
+//                                          real catch classifies it (skips discover);
+//                                          optional T53_FORCE_CALL_CODE=<code> sets .code
 
 import { pathToFileURL } from 'node:url'
 import { readFileSync } from 'node:fs'
@@ -106,7 +110,13 @@ async function main() {
 
   let bridge
   try {
-    bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 15_000 })
+    if (process.env.T53_FORCE_CALL_ERROR) {
+      // Classification harness: the execute path below throws the caller's message,
+      // so a failing discover() must not shadow it. bridge.execute is never called.
+      bridge = { execute: async () => {} }
+    } else {
+      bridge = await HttpEasyEdaBridge.discover({ timeoutMs: 15_000 })
+    }
   } catch (e) {
     const msg = String((e && e.message) || e).slice(0, 200)
     // Error classification only; no gate logic and no threshold lives here.
@@ -137,9 +147,26 @@ async function main() {
 
   let live
   try {
+    // Test hook: throw the given message from the execute path so the SAME catch
+    // below classifies it. Exists because the live bridge is not always in the
+    // state under test (e.g. "registered but disconnected"). Never reaches the editor.
+    if (process.env.T53_FORCE_CALL_ERROR) {
+      const injected = new Error(process.env.T53_FORCE_CALL_ERROR)
+      if (process.env.T53_FORCE_CALL_CODE) injected.code = process.env.T53_FORCE_CALL_CODE
+      throw injected
+    }
     live = await bridge.execute(READ, { timeoutMs: 120_000 })
   } catch (e) {
     const msg = String((e && e.message) || e).slice(0, 200)
+    const errCode = String((e && e.code) || '')
+    // Classification only. The editor reports a dead window as
+    // `EDA window "<id>" disconnected`, which neither this regex nor
+    // http-api.mjs's matcher used to recognise, so a window loss was filed as a
+    // generic call failure. Kept ahead of the NO_EDA test because the wording
+    // contains no "not connected" phrase.
+    if (errCode === 'SCHEMATIC_BRIDGE_WINDOW_LOST' || errCode === 'SCHEMATIC_BRIDGE_DISCONNECTED' || /disconnected|window lost|no such window/i.test(msg)) {
+      fail('BRIDGE_WINDOW_DISCONNECTED', msg)
+    }
     if (/NO_EDA|not connected|edaConnected/i.test(msg)) fail('EDA_NOT_CONNECTED', msg)
     fail('BRIDGE_CALL_FAILED', msg)
   }
