@@ -7,6 +7,16 @@
   "aheadBehind": "0 0",
   "reviewedAtHead": "8540282ef84043f70428551f894747e985f5aa2e",
   "correctionTask": "r3t1 - replace the 'duplicate records / different objects / dedupe' explanation with the page-count growth over time, without changing the pages=2 conclusion",
+  "supplementTask": "r2t2 - add a timestamped liveObservation without overturning the artifact-scoped pages=2 verdict",
+  "headAtUpdate": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+  "headAtLiveObservation": "faefa21465c4016206f6d077521d02fd0a321fc1",
+  "guideCommit": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+  "headAtCommit": "0e492264ef883a9ed402112ebee56e2db02cd772",
+  "headDrift": {
+    "event": "r8t9 committed 0e492264 during r2t2, after the guide commit cdfee6d",
+    "scope": "r8t9 added only docs/evidence/current/r8t9-review-live-read-record.json; it did not edit r9t1, r7t5 or t53",
+    "impact": "none; the guide timestamps/window id/values and this liveObservation remain unchanged"
+  },
   "t31Source": {
     "path": "docs/evidence/current/t31-dataset.json",
     "bytes": 131060,
@@ -47,6 +57,7 @@
     "directCountExplanation": "The committed JSON has a root-level `pages` array of exactly 2 objects; length 2 is direct, with no filter, dedupe, subtraction or bridge.",
     "isIndependent": false,
     "liveProvable": false,
+    "liveProvableScope": "This false describes the offline main-restore-verify artifact only. The separate timestamped live observation is in liveObservation and in judgment.liveProvable.",
     "independenceReason": "This page table is written by the same restore-verification event that produced removedOriginal=42 and components=21; it is the post-state of that restore, not a second capture. See sameRestoreEvent.",
     "scopeStatement": "The literal count 2 is 'provable inside this artifact' only. It is not an independent proof of pages=2 and not a live proof."
   },
@@ -115,17 +126,85 @@
   },
   "judgment": {
     "choice": "a",
-    "label": "provable only inside the committed restore artifact; not independent; not live",
-    "whyA": "A committed source contains a directly countable field: main-restore-verify.json.pages is an array of exactly 2 page-list entries (MAIN, P1). No rewriting, rounding or averaging is used.",
+    "label": "provable only inside the committed restore artifact; not independent; offline not live-provable; a separate timestamped live observation is recorded",
+    "whyA": "A committed source contains a directly countable field: main-restore-verify.json.pages is an array of exactly 2 page-list entries (MAIN, P1). No rewriting, rounding or averaging is used. This remains artifact-scoped and non-independent; the separate live observation does not make it independent.",
     "why18IsLater": "18 and 2 are the SAME metric measured at two moments: 2 in main-restore-verify.pages at 06:06:59, 18 in t31-dataset.pages at 13:51. The 18 has 18 distinct uuids but 3 names (MAIN/P1/P2); the extra 16 are probe pages, not duplicate records. It is not a dedupe.",
-    "notB": "b would be false as stated because a committed source does directly contain a pages array of length 2; however it is not independent and not live.",
+    "notB": "b would be false as stated because a committed source does directly contain a pages array of length 2; however it is not independent and is not live from this artifact. The live fact is the separate 12:36 observation, not a property of this source.",
     "notCOnly": "The earlier object-mismatch/dedupe claim is wrong: both are page-list lengths of the same API and shape; the difference is time and the 16 probe pages. The direct field still supports a, scoped to the committed artifact.",
-    "liveProvable": false,
-    "liveStatement": "For the current live canvas, pages=2 is currently only a historical assertion; there is no offline live proof. The artifact proves the restore-time page table had 2 entries, not that t53's live getAllSchematicPagesInfo() call would return 2 now.",
+    "liveProvable": "true only at 2026-10-24T12:36:10.642Z and 2026-10-24T12:36:46.855Z (local 2026-10-24T20:36:10.642+08:00 and 20:36:46.855+08:00): the live getAllSchematicPagesInfo() returned 2 pages (MAIN b275cd23e45c4271bead56f66d4f98fe, P1 d224f8d13804e759), active MAIN, window 25883914a72e5cbb. It is not true for 06:06:59 or 13:51, is not an offline proof, and is not a permanent claim.",
+    "liveProvableBefore": false,
+    "liveStatement": "At those two timestamps the live page table was observed as 2 entries, active MAIN, with window 25883914a72e5cbb. That changes only the current-canvas observation at those moments. The offline sources still cannot prove the current canvas: main-restore-verify is 06:06:59 and t31 is 13:51, and neither is retroactively replaced.",
     "noRewrite": "18 remains 18; 2 remains 2; no average, no dedupe, no conversion of 18 into 2.",
     "sourceEventCaveat": "The field is direct but its source is the same restore event as 21=63-42; it cannot serve as an independent second proof of the restore result.",
-    "volatility": "Both 18 and 2 are volatile because they include probe pages at their capture times; neither represents the current canvas page count. Do not use one snapshot to negate the other as 'the current truth'.",
-    "conclusion": "pages=2 is DIRECTLY COUNTABLE from the committed restore page table at 06:06:59, but ONLY as that same restore event's post-state. It is not an independent cross-check and not a live proof. The 18 at 13:51 is the same API's page-list length at a later moment, 16 probe pages larger; it is neither a duplicate-record array nor a dedupe target."
+    "volatility": "Both 18 and 2 are volatile. The 2 in this artifact is the 06:06:59 restore page table; the live observation separately returned 2 at 12:36. The 18 is 13:51. None is a permanent current truth; do not use one snapshot to negate another.",
+    "conclusion": "pages=2 is DIRECTLY COUNTABLE from the committed restore page table at 06:06:59, but ONLY as that same restore event's post-state. It is not an independent cross-check. The separate 12:36 live observation shows 2 at those two moments; it does not retroactively prove 06:06:59 or 13:51, and the 18 at 13:51 remains 18 with 18 uuids and 3 names, +16 probe pages."
+  },
+  "liveObservation": {
+    "task": "r2t2",
+    "atUtc": "2026-10-24T12:36:10.642Z",
+    "atLocal": "2026-10-24T20:36:10.642+08:00",
+    "atSecondUtc": "2026-10-24T12:36:46.855Z",
+    "atSecondLocal": "2026-10-24T20:36:46.855+08:00",
+    "headAtObservation": "faefa21465c4016206f6d077521d02fd0a321fc1",
+    "guide": {
+      "path": "docs/evidence/current/r9t1-main-view-guide.md",
+      "commit": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+      "lines": "270-297",
+      "alignment": "same first/second timestamps, same window id, same t53 values, same page table and active page"
+    },
+    "windowId": "25883914a72e5cbb",
+    "t53": {
+      "exitCode": 0,
+      "checks": "5/5",
+      "source": "guide cdfee6d L278-282: both listed timestamps exit 0 and 5/5",
+      "values": {
+        "components": 21,
+        "parts": 8,
+        "netflags": 13,
+        "wires": 55,
+        "pairs": 55,
+        "pages": 2
+      }
+    },
+    "plus3v3": {
+      "id": "layout:flag:_3V3:bus:240",
+      "type": "part",
+      "designator": "U?"
+    },
+    "pageTable": [
+      {"uuid": "b275cd23e45c4271bead56f66d4f98fe", "name": "MAIN"},
+      {"uuid": "d224f8d13804e759", "name": "P1"}
+    ],
+    "pageCount": 2,
+    "activePage": {"uuid": "b275cd23e45c4271bead56f66d4f98fe", "name": "MAIN"},
+    "trigger": "The editor tab was already loaded (URL contains tab=*b275cd23...); in the same browser, the relay /landing page was opened and a real human click on #pop triggered window.open. The external landing page's BroadcastChannel woke the editor's built-in run-api-gateway, which dialed ws://127.0.0.1:49630 and sent {type:'register'}. This was not an automatic popup success: the auto pop() was blocked (#manual visible), the count stayed 0 before the click, and became 1 only after it.",
+    "recheck": {
+      "atUtc": "2026-10-24T12:37:34.222Z",
+      "atLocal": "2026-10-24T20:37:34.218+08:00",
+      "t53ExitCode": 0,
+      "t53Checks": "5/5",
+      "pageCount": 2,
+      "note": "Post-guide read-only recheck; same values. It is not substituted for the aligned 12:36 timestamps and is not a retroactive claim."
+    },
+    "changes": [
+      "The current-canvas page count is now proved to be 2 at 2026-10-24T12:36:10.642Z and 12:36:46.855Z, with active MAIN.",
+      "judgment.liveProvable changes from false to a string that is true only at those two timestamps."
+    ],
+    "doesNotChange": [
+      "Offline sources still cannot prove the current canvas; main-restore-verify is 06:06:59 and t31 is 13:51.",
+      "The 2 at 06:06:59 remains an artifact-scoped value from the same restore event, not an independent proof.",
+      "18 remains 18, with 18 distinct uuids and 3 names; d224f8d1 remains absent from t31; the +16 probe pages remain.",
+      "No retroactive claim is made for 06:06:59 or 13:51; the earlier object-mismatch/dedupe explanation remains withdrawn."
+    ],
+    "preservedFacts": {
+      "t31Pages": 18,
+      "t31UniqueUuids": 18,
+      "t31UniqueNames": 3,
+      "d224InT31": false,
+      "extraProbePages": 16,
+      "retraction": "The earlier object-mismatch/dedupe claim remains withdrawn; this addendum does not revive it.",
+      "offlinePageRow": "离线不可证（仅历史断言）"
+    }
   },
   "checks": [
     {
@@ -166,7 +245,12 @@
     {
       "id": "8-both-volatile",
       "verdict": "成立",
-      "evidence": "18 and 2 both include probe pages at their capture times. Neither is the current page count. The correction therefore does not replace 2 with 18 or 18 with 2; it records a 2 -> 18 growth and keeps pages=2 as an artifact-scoped, non-live value."
+      "evidence": "18 and 2 both include probe pages at their capture times. Neither artifact value is the current page count. The correction does not replace 2 with 18 or 18 with 2; it records a 2 -> 18 growth and keeps pages=2 as an artifact-scoped value. The separate 12:36 live observation is a third timestamp, not a rewrite of either value."
+    },
+    {
+      "id": "9-timestamped-live-observation",
+      "verdict": "成立（仅该时刻）",
+      "evidence": "Guide cdfee6d L270-297: 2026-10-24T12:36:10.642Z and 12:36:46.855Z, t53 exit 0 5/5, values 21/8/13/55/55/2, page table MAIN b275cd23... + P1 d224f8d..., active MAIN, window 25883914a72e5cbb. This proves the current canvas at those moments only; it does not make the offline source live or retroactive."
     }
   ],
   "grep": {
@@ -188,10 +272,34 @@
       "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
     },
     "packagesDiff": "git diff --name-only 045cfecc HEAD -- packages -> empty",
-    "note": "The concurrent r7t6 correction in r7t1 is retained; this task additionally clarifies r7t1's page-ID/page-list wording so it no longer calls the page-count values different objects. No bridge, canvas or package write."
+    "note": "The concurrent r7t6 correction in r7t1 is retained; this task additionally clarifies r7t1's page-ID/page-list wording so it no longer calls the page-count values different objects. No bridge, canvas or package write.",
+    "r2t2": {
+      "canvasWrites": 0,
+      "documentWrites": 0,
+      "bridgeWrites": 0,
+      "wrote": 0,
+      "fileWrites": 1,
+      "files": ["docs/evidence/current/r7t5-pages-provenance.json"],
+      "packagesAdded": 0,
+      "packagesDiff": "git diff --name-only cdfee6d HEAD -- packages -> empty",
+      "freshness": {
+        "command": "node docs/evidence/review/shared/freshness.mjs --check",
+        "exitCode": 0,
+        "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+      },
+      "grep": {
+        "command": "$lines = Get-Content docs/evidence/review/t53-verify-main.mjs | Where-Object { -not $_.TrimStart().StartsWith('//') }; $m = $lines | Select-String -Pattern 'saveOwnDocument','.save(','.modify(','.create(','.delete(','.clear(','openDocument' -SimpleMatch; if($m){$m}else{'NO_MATCHES'}",
+        "scope": "t53 executable lines only; comment lines and the report's own command text are excluded",
+        "output": "NO_MATCHES",
+        "conclusion": "No save/modify/create/delete/clear/openDocument API call in the executable lines of t53; the report itself is not a script."
+      },
+      "note": "Only the JSON evidence file was edited. The t53 and page-table reads were read-only bridge calls; no canvas/document write, no package change."
+    }
   },
   "overall": "a-artifact-provable-live-unproven",
-  "overallReason": "The committed restore page table contains exactly 2 page-list entries, so pages=2 is directly countable from a committed source. But 18 and 2 are the same getAllSchematicPagesInfo() metric at two moments (2 at 06:06:59, 18 at 13:51, +16 probe pages), not different objects and not a dedupe. The page table is the post-state of the same restore event as 21=63-42, not an independent or live proof. For the live t53 --pages, pages=2 remains a historical assertion with no offline live proof, and neither 18 nor 2 is the current canvas count.",
+  "overallReason": "The committed restore page table contains exactly 2 page-list entries, so pages=2 is directly countable from a committed source. But 18 and 2 are the same getAllSchematicPagesInfo() metric at two moments (2 at 06:06:59, 18 at 13:51, +16 probe pages), not different objects and not a dedupe. The page table is the post-state of the same restore event as 21=63-42, not an independent or live proof. For t53 --pages, pages=2 was only a historical assertion before the separate 12:36 live read; at 12:36:10.642Z and 12:36:46.855Z it was observed as 2, but that does not make the offline source live, and neither 18 nor the artifact 2 is a permanent current count.",
+  "overallAtLiveObservation": "a-artifact-provable; live-proven only at 2026-10-24T12:36:10.642Z and 12:36:46.855Z; offline still unproven",
+  "overallScope": "The overall string above is the historical artifact/offline verdict and is intentionally unchanged. The separate timestamped live fact is liveObservation and judgment.liveProvable; it does not turn the offline sources into live proof.",
   "verify": [
     {
       "task": "t3",
@@ -209,6 +317,8 @@
   ],
   "baseline": "HEAD 8540282; prior r7t5 body used an incorrect duplicate-record/object-distinction explanation. Sources: main-restore-verify.json sha 012b015f, main-snapshot-r3t2.json sha 21c0b282, t31-dataset.json sha ad35b61c.",
   "diff": "Corrected docs/evidence/current/r7t5-pages-provenance.json: time-growth explanation, 18 distinct uuids/3 names, same API as t53, P1 d224 absent, both counts volatile; preserved a's artifact-only scope and pages=2 unprovable live. Also corrected the page row in docs/evidence/current/r9t1-main-view-guide.md and clarified the page-ID/page-list wording in r7t1's coverageLimits/note.",
+  "r2t2Baseline": "HEAD cdfee6d (t1 guide commit); live observation head faefa21; guide L270-297 is the alignment source. Before this addendum, judgment.liveProvable was false and the live canvas was only a historical assertion.",
+  "r2t2Diff": "Added liveObservation at 2026-10-24T12:36:10.642Z / 12:36:46.855Z with window 25883914a72e5cbb, t53 exit 0 5/5, 21/8/13/55/55/2, page table MAIN b275cd23... + P1 d224f8d..., active MAIN; changed judgment.liveProvable from false to a timestamp-qualified string; kept sourceOfTwo.liveProvable false (artifact-only) and preserved 18/3/d224/+16/retraction. No canvas, document, package or code write.",
   "reproSteps": [
     "node -e \"const d=require('./docs/evidence/current/t31-dataset.json'); const u=new Set(d.pages.map(p=>p.uuid)); const n=new Set(d.pages.map(p=>p.name)); console.log(d.pages.length,u.size,n.size,[...n],d.pages.some(p=>p.uuid==='d224f8d13804e759'))\"  # 18 18 3 MAIN,P1,P2 false",
     "node -e \"const d=require('./docs/evidence/current/main-restore-verify.json'); console.log(d.at,d.pages.length,d.pages)\"  # 06:06:59, 2, MAIN/P1",
@@ -216,17 +326,24 @@
     "Select-String -Path docs/evidence/review/t53-verify-main.mjs -Pattern 'getAllSchematicPagesInfo|live.pages.length'  # L114 same API/semantic",
     "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit0"
   ],
+  "r2t2ReproSteps": [
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS exit 0, 5/5, pages=2",
+    "read-only getAllSchematicPagesInfo + getCurrentSchematicPageInfo  # MAIN b275cd23..., P1 d224f8d..., active MAIN",
+    "Select-String -Path docs/evidence/current/r9t1-main-view-guide.md -Pattern '12:36:10.642|12:36:46.855|25883914a72e5cbb|b275cd23|d224f8d'",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit0"
+  ],
   "verifyCommand": "node -e \"const d=require('./docs/evidence/current/t31-dataset.json'); const u=new Set(d.pages.map(p=>p.uuid)); const n=new Set(d.pages.map(p=>p.name)); if(d.pages.length!==18||u.size!==18||n.size!==3||d.pages.some(p=>p.uuid==='d224f8d13804e759')) process.exit(1); console.log('PASS 18 pages, 18 uuids, 3 names, d224 absent')\"",
+  "r2t2VerifyCommand": "node docs/evidence/review/t53-verify-main.mjs",
   "artifacts": [
     {
       "type": "file",
       "path": "docs/evidence/current/r7t5-pages-provenance.json",
-      "summary": "pages=2 来源与判定：main-restore-verify.pages 在 06:06 直接长度2；同一还原事件、非独立、非 live；t31 在 13:51 是同一 API 的18条页表（18 uuid、3名字、+16探针页），不是 duplicate records、不是去重；18/2 都易变，均非当前画布。"
+      "summary": "pages=2 来源与判定：main-restore-verify.pages 在 06:06 直接长度2；同一还原事件、非独立、非 offline-live；t31 在 13:51 是同一 API 的18条页表（18 uuid、3名字、+16探针页），不是 duplicate records、不是去重；r2t2 另加 12:36 活读，不改 18/2 的历史值。"
     },
     {
       "type": "file",
       "path": "docs/evidence/current/r9t1-main-view-guide.md",
-      "summary": "页数行改为「不同时刻增长 2→18（+16探针页），同API同语义」；保留「pages 2 离线不可证（仅历史断言）」，删除「不是同一个对象」。"
+      "summary": "页数行保留「离线不可证（仅历史断言）」；指南新增 12:36 活读收口段（2 页、MAIN/P1、窗口 id），离线分级不变。"
     },
     {
       "type": "command",
@@ -234,7 +351,12 @@
     },
     {
       "type": "test",
-      "summary": "verifyCommand exit0：18 pages / 18 uuids / 3 names / d224 absent；未改 18→2，未用去重/平均；r7t5 仍保留 liveProvable:false、not independent、sameRestoreEvent。"
+      "summary": "verifyCommand exit0：18 pages / 18 uuids / 3 names / d224 absent；未改 18→2，未用去重/平均；r3t1 时保留了 liveProvable:false，r2t2 另加带时刻字符串，sourceOfTwo.liveProvable 仍 false。"
+    },
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r7t5-pages-provenance.json",
+      "summary": "r2t2 追加 liveObservation：12:36:10.642Z/12:36:46.855Z、窗口 25883914a72e5cbb、t53 exit0 5/5、21/8/13/55/55/2、MAIN/P1、active MAIN；judgment.liveProvable 改为仅该时刻 true；18/3/d224/+16/撤回全部保留。"
     }
   ]
 }
