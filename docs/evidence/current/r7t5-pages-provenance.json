@@ -1,0 +1,196 @@
+{
+  "task": "r2t1 - trace r7t2's pages=2: which field/file/capture, is it independent, and what does t53 --pages actually count",
+  "mode": "pure read-only provenance review; no bridge, no canvas, no write calls",
+  "generatedAt": "2026-10-24T19:42:00+08:00",
+  "head": "094a1143e457e73c4ff29533f7b1ae0d745f9780",
+  "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+  "aheadBehind": "2 0",
+  "t31Source": {
+    "path": "docs/evidence/current/t31-dataset.json",
+    "bytes": 131060,
+    "sha256": "ad35b61c891cd3a261c55e5cac4158ca53e3f17ef2541c9add6bd06177a222c9",
+    "pagesField": "pages",
+    "pagesLength": 18,
+    "pageNames": ["MAIN", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P2"],
+    "meaning": "18 page records: MAIN + 16 duplicate P1 records + P2. This is the historical export's page-record array, not a deduplicated page-list length."
+  },
+  "sourceOfTwo": {
+    "path": "docs/evidence/current/main-restore-verify.json",
+    "bytes": 3509,
+    "sha256": "012b015fc05a99dcab2b10d0728e5741906676d667da78c658f02dfa671477bd",
+    "field": "pages",
+    "fieldType": "array",
+    "length": 2,
+    "value": [
+      {"u": "b275cd23e45c4271bead56f66d4f98fe", "n": "MAIN"},
+      {"u": "d224f8d13804e759", "n": "P1"}
+    ],
+    "at": "2026-10-21T06:06:59.935Z",
+    "active": "b275cd23e45c4271bead56f66d4f98fe",
+    "captureType": "committed restore-verification artifact's page table; NOT a live dmt_Schematic.getAllSchematicPagesInfo() call and NOT a t53 run",
+    "r7t2Code": {
+      "path": "docs/evidence/review/r7t2-indep-main-verify.mjs",
+      "line66": "const pageTable = restore.pages.map((p) => ({ id: p.u, name: p.n }));",
+      "line74": "pages: pageTable.length,"
+    },
+    "directlyCountable": true,
+    "directCountExplanation": "The committed JSON has a root-level `pages` array of exactly 2 objects; length 2 is direct, with no filter, dedupe, subtraction or bridge.",
+    "isIndependent": false,
+    "independenceReason": "This page table is written by the same restore-verification event that produced removedOriginal=42 and components=21; it is the post-state of that restore, not a second capture. See sameRestoreEvent."
+  },
+  "sameRestoreEvent": {
+    "verdict": "YES - same restore operation, pre/post state",
+    "snapshot": {
+      "path": "docs/evidence/current/main-snapshot-r3t2.json",
+      "bytes": 38922,
+      "sha256": "21c0b28272f9c6a1f647adac2c73d7f1ea96ae4226fbad4d3fec57e52c012f69",
+      "at": "2026-10-21T05:54:46.324Z",
+      "task": "r3t2",
+      "page": {"uuid": "b275cd23e45c4271bead56f66d4f98fe", "name": "MAIN"},
+      "components": 63,
+      "wires": 55,
+      "role": "contaminated pre-restore snapshot; its own howToUse says it is not the 21/55 baseline"
+    },
+    "restore": {
+      "path": "docs/evidence/current/main-restore-verify.json",
+      "at": "2026-10-21T06:06:59.935Z",
+      "components": 21,
+      "parts": 8,
+      "netflag": 13,
+      "removedOriginal": 42,
+      "keepPresent": 21,
+      "keepMissing": [],
+      "newIds": [],
+      "pages": 2
+    },
+    "commitChain": {
+      "snapshot": "31eaab38a7635d7f9c1e5113283459a1ac1e8dbd 2026-10-21 13:57:23 +0800 docs(evidence): independently review the restore whitelist, snapshot MAIN, and add a read-only delete plan",
+      "restore": "639364ef299a177dbe3011472f04d90d0b96b7b5 2026-10-21 14:07:27 +0800 fix(evidence): restore MAIN to its 21-primitive baseline, deleting only reviewed ids"
+    },
+    "whySame": "63 snapshot components - 42 removedOriginal = 21, and the restore artifact independently records components=21, keepPresent=21, keepMissing=[], newIds=[]. The 12-minute gap is snapshot-before / restore-after, not two independent captures.",
+    "conclusion": "t3's finding is correct: 21=63-42 is the same restore event's before/after pair. The two implementations did NOT truly cross-verify each other."
+  },
+  "t53Semantics": {
+    "source": "docs/evidence/review/t53-verify-main.mjs",
+    "readExpression": "const pages = ((await eda.dmt_Schematic.getAllSchematicPagesInfo()) || []).map(p => ({ uuid: String(p.uuid), name: String(p.name) }));",
+    "checkExpression": "live.pages.length === expectedPages",
+    "expectedDefault": 2,
+    "meaning": "t53 --pages compares the length of the live getAllSchematicPagesInfo() page list. It is a live page-list length, not a count of all page records in the old t31 export.",
+    "comment": "t53 says t31 recorded 18 pages (MAIN + 17 orphan probe pages), but pins the reviewed current value 2 because page ids die when the editor window re-registers; a fixed 18 would fail forever.",
+    "whichCountIsT53": "the 2-entry page-list count is t53's --pages semantics; the 18 t31 page records are NOT.",
+    "mainRestoreShape": "main-restore-verify.pages has the same {u,n} page-list shape (MAIN, P1), length 2; this makes it semantically comparable to t53's live page list, but it is still a prior restore capture, not the live call."
+  },
+  "judgment": {
+    "choice": "a",
+    "label": "provable only inside the committed restore artifact; not independent; not live",
+    "whyA": "A committed source contains a directly countable field: main-restore-verify.json.pages is an array of exactly 2 page-list entries (MAIN, P1). No rewriting, rounding or averaging is used.",
+    "why18IsDifferent": "18 is t31-dataset.pages.length: 18 historical page records, including 16 duplicate P1 records and P2. 2 is main-restore-verify.pages.length after the restore: two deduplicated page-list entries MAIN/P1. They are different objects with different provenance and time.",
+    "notB": "b would be false as stated because a committed source does directly contain a pages array of length 2; however it is not independent and not live.",
+    "notCOnly": "c's object mismatch is real and is included; it does not erase the direct field. The primary judgment remains a, scoped to the committed artifact.",
+    "liveProvable": false,
+    "liveStatement": "For the current live canvas, pages=2 is currently only a historical assertion; there is no offline live proof. The artifact proves the restore-time page table had 2 entries, not that t53's live getAllSchematicPagesInfo() call would return 2 now.",
+    "noRewrite": "18 remains 18; 2 remains 2; no average and no conversion of 18 into 2.",
+    "sourceEventCaveat": "The field is direct but its source is the same restore event as 21=63-42; it cannot serve as an independent second proof of the restore result.",
+    "conclusion": "pages=2 is DIRECTLY COUNTABLE from the committed restore page table, but ONLY as the same restore event's post-state. It is not an independent cross-check and not a live proof."
+  },
+  "checks": [
+    {
+      "id": "1-field-and-value",
+      "verdict": "成立",
+      "evidence": "main-restore-verify.json root `pages` is an array length 2: [{u:b275...,n:MAIN},{u:d224f8...,n:P1}]. File 3509 B, sha256 012b015f..., at 2026-10-21T06:06:59.935Z."
+    },
+    {
+      "id": "2-not-live-pages",
+      "verdict": "成立",
+      "evidence": "r7t2 does `restore.pages.map(...)` and `pageTable.length`; it never calls the bridge or dmt_Schematic.getAllSchematicPagesInfo(). The 2 is an artifact page table, not a live --pages return."
+    },
+    {
+      "id": "3-same-restore-event",
+      "verdict": "成立",
+      "evidence": "snapshot 63 at 05:54:46 (task r3t2, contaminated pre-snapshot); restore 21 at 06:06:59 with removedOriginal 42, keepMissing [], newIds []. 63-42=21; same operation, pre/post."
+    },
+    {
+      "id": "4-t3-finding",
+      "verdict": "成立",
+      "evidence": "t3 said 21=63-42 is same-event; confirmed. `两套实现并未真正互相印证` is the correct conclusion, not a soft caveat."
+    },
+    {
+      "id": "5-t31-18-object",
+      "verdict": "成立",
+      "evidence": "t31 pages length 18: MAIN + 16 duplicate P1 + P2, page records. It is not the deduplicated live page-list length and not the restore page table."
+    },
+    {
+      "id": "6-t53-semantics",
+      "verdict": "成立",
+      "evidence": "t53 reads live getAllSchematicPagesInfo(), checks live.pages.length === expectedPages (default 2). The 2-entry page list is the t53 semantic; 18 page records are not."
+    },
+    {
+      "id": "7-self-proof",
+      "verdict": "成立",
+      "evidence": "r7t2 has no executable file/bridge write calls (only the L13 comment match); freshness FRESH v4 exit0; packages new 0; wrote0."
+    }
+  ],
+  "grep": {
+    "command": "Select-String -Path docs/evidence/review/r7t2-indep-main-verify.mjs -Pattern 'writeFile|appendFile|createWriteStream|writeFileSync|\\.save\\(|\\.create\\(|\\.delete\\(|\\.modify\\(|\\.clear\\(|spawn|exec\\(|fetch\\(' -AllMatches",
+    "output": "13:* It does not import, spawn or read t1's r7t1 implementation. It only",
+    "conclusion": "NO_FILE_OR_BRIDGE_WRITE_CALLS; the only match is a comment saying it does not spawn. process.stdout is not a file/canvas write."
+  },
+  "selfProof": {
+    "script": "docs/evidence/review/r7t2-indep-main-verify.mjs",
+    "scriptWrites": 0,
+    "fileWrites": 0,
+    "canvasWrites": 0,
+    "bridgeWrites": 0,
+    "wrote": 0,
+    "packagesAdded": 0,
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesDiff": "git diff --name-only 045cfecc HEAD -- packages -> empty",
+    "note": "The workspace contains an unrelated modified r7t1 JSON from another member; it is not staged or modified by this task."
+  },
+  "overall": "a-artifact-provable-live-unproven",
+  "overallReason": "The committed restore page table contains exactly 2 page-list entries, so pages=2 is directly countable from a committed source and 18 is a different object. But the page table is the post-state of the same restore event as 21=63-42, not an independent or live proof. For the live t53 --pages, pages=2 remains a historical assertion with no offline live proof.",
+  "verify": [
+    {
+      "task": "t3",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "t3's 21=63-42 same-restore-event finding is confirmed: snapshot 63 at 05:54:46, restore 21 at 06:06:59 with removedOriginal 42, keepMissing [], newIds []. The two implementations did not independently corroborate.",
+        "baseline": "main-snapshot-r3t2.json (63 components, 55 wires, task r3t2, pre-restore); main-restore-verify.json (21 components, removed 42, pages2, post-restore).",
+        "diff": "No source change by this review; the provenance is read from the committed files.",
+        "command": "node -e provenance summary; git log source commits; no bridge",
+        "exitCode": 0,
+        "pageTable": "main-restore.pages length 2, MAIN/P1",
+        "independence": "none; same restore event"
+      }
+    }
+  ],
+  "baseline": "HEAD 094a1143; no r7t5 provenance artifact. Sources: main-restore-verify.json sha 012b015f, main-snapshot-r3t2.json sha 21c0b282, t31-dataset.json sha ad35b61c.",
+  "diff": "New file only: docs/evidence/current/r7t5-pages-provenance.json. No source, t1, t53, gate or package modification.",
+  "reproSteps": [
+    "node -e \"const d=require('./docs/evidence/current/main-restore-verify.json'); console.log(d.at,d.pages.length,d.pages,d.components,d.removedOriginal.length)\"  # 2, MAIN/P1, 21, 42",
+    "node -e \"const d=require('./docs/evidence/current/main-snapshot-r3t2.json'); console.log(d.at,d.components,d.task,d.page)\"  # 05:54:46,63,r3t2,MAIN",
+    "node -e \"const d=require('./docs/evidence/current/t31-dataset.json'); console.log(d.pages.length,d.pages.map(p=>p.name))\"  # 18 with duplicate P1 + P2",
+    "Select-String -Path docs/evidence/review/t53-verify-main.mjs -Pattern 'getAllSchematicPagesInfo|live.pages.length'  # page-list length semantics",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit0"
+  ],
+  "verifyCommand": "node -e \"const d=require('./docs/evidence/current/main-restore-verify.json'); if(d.pages.length!==2) process.exit(1); console.log('pages',d.pages.length,d.pages)\"",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r7t5-pages-provenance.json",
+      "summary": "pages=2 来源与判定：main-restore-verify.pages 直接长度2；同一次还原事件；18 是 t31 page records；t53 按 live page-list 长度；工件可证、独立/live 不可证。"
+    },
+    {
+      "type": "command",
+      "summary": "读取 main-restore/main-snapshot/t31；t53 源码确认 getAllSchematicPagesInfo 的 live.pages.length；freshness FRESH v4 exit0；packages 0。"
+    },
+    {
+      "type": "test",
+      "summary": "独立确认 63−42=21 同事件；main-restore.pages=2；t31.pages=18；r7t2 无文件/桥写调用；wrote=0。"
+    }
+  ]
+}
