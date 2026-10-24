@@ -1,0 +1,214 @@
+{
+  "task": "r2t3 - independent verification of t1: BRIDGE_NO_EDA_WINDOW hard assertion and interception",
+  "reviewer": "eda4 / t3",
+  "generatedAt": "2026-10-24T14:19:00.000Z",
+  "generatedAtLocal": "2026-10-24T22:19:00.000+08:00",
+  "headAtReview": "6c1832843030fa16733bc80e1a750175517337b5",
+  "originAtReview": "6c1832843030fa16733bc80e1a750175517337b5",
+  "aheadBehindAtReview": "0 0",
+  "reviewed": {
+    "task": "t1",
+    "commit": "6c1832843030fa16733bc80e1a750175517337b5",
+    "parent": "18f5e0bd89847f1854fc1d8ef59a6e318669cb35",
+    "testBlob": "9ec634b91a6f1d663e378060d6b3bef3b86e72eb",
+    "t53Blob": "2d489ec46d85c2c5c212b6b84d810b20b2776487",
+    "t1EvidenceBlob": "565ecf40e3ace2877be9eaa4992f9f34d345e886",
+    "t1Files": [
+      "docs/evidence/current/r9t6-noeda-hard-assertion.json",
+      "docs/evidence/review/t53-classification-regression.mjs",
+      "docs/evidence/review/t53-verify-main.mjs"
+    ]
+  },
+  "verdict": "pass",
+  "overallReason": "All eight requirements pass. Case e is a hard assertion of reason=BRIDGE_NO_EDA_WINDOW and exit=2 via T53_FORCE_DISCOVER_CODE, with no live-window conditional. A temporary gate copy with the SCHEMATIC_BRIDGE_NO_EDA code match removed turns case e red with actual BRIDGE_UNREACHABLE while the other eight stay green; restoring the committed gate returns 9/9 green. With no T53_* hook set, the parent and current gate produce identical JSON after deleting only the at timestamp, both exit 0 on a real 5/5 read. The headline says 9/9 hard assertions, matching the nine cases. The t53 diff is additive hook code only; classification regex, thresholds, slice(0,200), exit 2 and the guide constants are unchanged. Current git state is HEAD=origin=6c18328, 0 0; t1 did not claim 0 0. Self-proof passes.",
+  "findings": [
+    {
+      "id": "1",
+      "requirement": "record HEAD, test blob, t53 blob; confirm the committed version was reviewed",
+      "status": "pass",
+      "evidence": {
+        "head": "6c1832843030fa16733bc80e1a750175517337b5",
+        "origin": "6c1832843030fa16733bc80e1a750175517337b5",
+        "testBlob": "9ec634b91a6f1d663e378060d6b3bef3b86e72eb",
+        "t53Blob": "2d489ec46d85c2c5c212b6b84d810b20b2776487",
+        "t1Commit": "6c1832843030fa16733bc80e1a750175517337b5",
+        "t1Parent": "18f5e0bd89847f1854fc1d8ef59a6e318669cb35",
+        "worktreeHashes": {
+          "test": "9ec634b91a6f1d663e378060d6b3bef3b86e72eb",
+          "t53": "2d489ec46d85c2c5c212b6b84d810b20b2776487"
+        },
+        "note": "Both working-tree hashes equal HEAD blobs; the review is against the committed t1 files."
+      }
+    },
+    {
+      "id": "2",
+      "requirement": "case e must be unconditional: reason === BRIDGE_NO_EDA_WINDOW and exit === 2",
+      "status": "pass",
+      "evidence": {
+        "case": "test line 87-95",
+        "env": {"T53_FORCE_DISCOVER_CODE": "SCHEMATIC_BRIDGE_NO_EDA"},
+        "expectReason": "BRIDGE_NO_EDA_WINDOW",
+        "conditionalRemoved": "test header line 14: 'Every case is a hard assertion: none of them depends on the live relay's window state.'",
+        "runOutput": "PASS e ... expected reason=BRIDGE_NO_EDA_WINDOW exit=2; actual reason=BRIDGE_NO_EDA_WINDOW exit=2 (process status 2)",
+        "assertionShape": "reasonOk = got === expectReason; exitOk = gotExit === 2; ok = reasonOk && exitOk && processStatus === 2 (test lines 137-139)",
+        "liveStateDependency": "none; case e sets a discover-level code and never reads /health or relayWindowCount"
+      }
+    },
+    {
+      "id": "3",
+      "requirement": "temporarily break the NO_EDA predicate in a temp t53 copy; case e must turn red; restore green",
+      "status": "pass",
+      "evidence": {
+        "tempFile": "docs/evidence/review/.tmp-r2t3-broken.mjs (deleted after the test)",
+        "mutation": "removed the EXACT code-match literal \"errCode === 'SCHEMATIC_BRIDGE_NO_EDA' || \" from the catch; no committed file changed",
+        "redCommand": "node docs/evidence/review/t53-classification-regression.mjs docs/evidence/review/.tmp-r2t3-broken.mjs",
+        "redExitCode": 1,
+        "redCase": "FAIL e: expected reason=BRIDGE_NO_EDA_WINDOW exit=2; actual reason=BRIDGE_UNREACHABLE exit=2 (process status 2)",
+        "redOtherCases": "all other eight PASS",
+        "redSummary": "### FAILURES: 1 - 8/9 hard assertions passed (every case asserts an exact reason AND exit=2; none is conditional)",
+        "restoreCommand": "delete temp; node docs/evidence/review/t53-classification-regression.mjs",
+        "greenExitCode": 0,
+        "greenSummary": "### ALL GREEN - 9/9 hard assertions passed (every case asserts an exact reason AND exit=2; none is conditional)",
+        "committedT53BlobBefore": "2d489ec46d85c2c5c212b6b84d810b20b2776487",
+        "committedT53BlobAfter": "2d489ec46d85c2c5c212b6b84d810b20b2776487"
+      }
+    },
+    {
+      "id": "4",
+      "requirement": "hook safety: with the new hook unset, behavior must be unchanged",
+      "status": "pass",
+      "evidence": {
+        "method": "extracted the parent t53 from commit 18f5e0b into docs/evidence/review-old/t53-verify-main.mjs; ran both old and current with no T53_* hooks while /health had 1 window",
+        "old": {"exitCode": 0, "ok": true, "checks": 5, "reason": null, "counts": {"components":21,"part":8,"netflag":13,"wires":55,"wirePairs":55,"pages":2}, "at": "2026-10-24T14:18:24.639Z"},
+        "new": {"exitCode": 0, "ok": true, "checks": 5, "reason": null, "counts": {"components":21,"part":8,"netflag":13,"wires":55,"wirePairs":55,"pages":2}, "at": "2026-10-24T14:18:25.302Z"},
+        "comparison": "after deleting only the at field, JSON.stringify(old) === JSON.stringify(new) -> true; old/new both exit 0 on a real 5/5 read",
+        "meaning": "the hook is guarded by if (process.env.T53_FORCE_DISCOVER_CODE); unset means discover() runs as before, producing a real live verdict, not a stub"
+      }
+    },
+    {
+      "id": "5",
+      "requirement": "headline must match the number of cases and no longer overclaim 9/9 exact reasons",
+      "status": "pass",
+      "evidence": {
+        "caseCount": 9,
+        "headline": "### ALL GREEN - 9/9 hard assertions passed (every case asserts an exact reason AND exit=2; none is conditional)",
+        "testCode": "total = cases.length; (total - failures) + '/' + total + ' hard assertions passed'",
+        "t1Artifact": "r9t6-noeda-hard-assertion.json lines 42-44 record before/after and why the new headline is true",
+        "conditionalText": "the old relayWindowCount/three-way conditional is gone; no line can downgrade case e"
+      }
+    },
+    {
+      "id": "6",
+      "requirement": "classification regex, thresholds, slice(0,200), exit 2, and d<=6/TEXT_RADIUS=6/d<=12/stride4 must be unchanged",
+      "status": "pass",
+      "evidence": {
+        "t53Diff": "git diff 18f5e0b 6c18328 -- docs/evidence/review/t53-verify-main.mjs shows only the T53_FORCE_DISCOVER_CODE hook and comment (+14 lines); no existing classification line modified",
+        "classification": "NO_EDA code/regex still at t53 line 143; window-disconnected regex at line 181; EDA_NOT_CONNECTED at line 184",
+        "slice": "slice(0, 200) still appears at lines 135 and 174; token count 2",
+        "exit2": "result.exit = 2 still at line 81",
+        "thresholds": "no threshold changes in t53 diff",
+        "guideConstants": "guide diff 18f5e0b..6c18328 is empty; line 304 has TEXT_RADIUS=6 / d<=12, lines 150/172 have d<=6, line 211 has stride 4",
+        "t1Files": "t1 changed only t53-verify-main.mjs, t53-classification-regression.mjs, and the new r9t6-noeda-hard-assertion.json"
+      }
+    },
+    {
+      "id": "7",
+      "requirement": "run the four raw git commands yourself and compare with t1's claim",
+      "status": "pass",
+      "evidence": {
+        "commands": [
+          "git rev-parse HEAD -> 6c1832843030fa16733bc80e1a750175517337b5",
+          "git rev-parse origin/master -> 6c1832843030fa16733bc80e1a750175517337b5",
+          "git rev-list --left-right --count HEAD...origin/master -> 0\\t0",
+          "git status --porcelain -> only untracked .tmp-* review/peer files; no tracked modifications"
+        ],
+        "t1Claim": "r9t6-noeda-hard-assertion.json lines 8-10: baseline head 58f84a2, origin c34bb90, aheadBehindBefore '4 0'; lines 99-103 report push attempts all exit 128 and explicitly: 'no 0 0 claim; the four raw readings are reported in the message instead'",
+        "comparison": "t1 did not write 0 0, so there is no t1 0-0-vs-ahead>0 contradiction. At review time HEAD=origin=6c18328, 0 0, after the remote advanced; t1's baseline 4 0 was truthful at its start.",
+        "verdict": "pass"
+      }
+    },
+    {
+      "id": "8",
+      "requirement": "self-proof: freshness, packages 0, wrote 0",
+      "status": "pass",
+      "evidence": {
+        "freshness": {
+          "command": "node docs/evidence/review/shared/freshness.mjs --check",
+          "exitCode": 0,
+          "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+        },
+        "packagesDiff": "git diff --name-only 18f5e0b HEAD -- packages -> empty",
+        "packagesAdded": 0,
+        "wrote": 0,
+        "canvasWrites": 0,
+        "documentWrites": 0,
+        "nodeCheck": "node --check docs/evidence/review/t53-verify-main.mjs and t53-classification-regression.mjs -> both exit 0",
+        "writeVerbScan": "t53-classification-regression.mjs -> NO_MATCHES; t53-verify-main.mjs -> only the pre-existing comment 'No save, no delete, no create, no modify, no openDocument'",
+        "fileWritesThisReview": 1
+      }
+    }
+  ],
+  "interceptionProof": {
+    "normal": {"exitCode": 0, "summary": "### ALL GREEN - 9/9 hard assertions passed", "caseE": "actual BRIDGE_NO_EDA_WINDOW exit=2"},
+    "broken": {"exitCode": 1, "summary": "### FAILURES: 1 - 8/9 hard assertions passed", "caseE": "expected BRIDGE_NO_EDA_WINDOW; actual BRIDGE_UNREACHABLE exit=2"},
+    "restored": {"exitCode": 0, "summary": "### ALL GREEN - 9/9 hard assertions passed"},
+    "committedT53HashUnchanged": "2d489ec46d85c2c5c212b6b84d810b20b2776487"
+  },
+  "hookSafetyProof": {
+    "condition": "no T53_* environment variables set",
+    "oldAt": "2026-10-24T14:18:24.639Z",
+    "newAt": "2026-10-24T14:18:25.302Z",
+    "oldExit": 0,
+    "newExit": 0,
+    "equalIgnoringAt": true,
+    "checks": 5,
+    "counts": {"components":21,"part":8,"netflag":13,"wires":55,"wirePairs":55,"pages":2},
+    "reason": null
+  },
+  "gitCheck": {
+    "head": "6c1832843030fa16733bc80e1a750175517337b5",
+    "origin": "6c1832843030fa16733bc80e1a750175517337b5",
+    "aheadBehind": "0 0",
+    "trackedChanges": "none",
+    "untracked": "only .tmp-* review/peer files; not staged or committed",
+    "t1DidNotClaim00": true
+  },
+  "selfProof": {
+    "freshness": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7} exit 0",
+    "packagesAdded": 0,
+    "wrote": 0,
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "nodeCheck": "t53-verify-main.mjs exit 0; t53-classification-regression.mjs exit 0",
+    "writeVerbScan": "NO_MATCHES",
+    "fileWritesThisReview": 1
+  },
+  "baseline": "HEAD 18f5e0b (parent), t53 blob a45b725, regression blob fe1429; t1 changed t53 (+14 hook), regression test, and added r9t6-noeda-hard-assertion.json.",
+  "diff": "Added docs/evidence/current/r9t6-review-noeda-assertion.json only; no t1 file, t53, guide, package or canvas change.",
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse HEAD:docs/evidence/review/t53-classification-regression.mjs; git rev-parse HEAD:docs/evidence/review/t53-verify-main.mjs",
+    "node docs/evidence/review/t53-classification-regression.mjs  # expect exit0, 9/9 hard assertions",
+    "copy t53 to a temp path; remove only the EXACT SCHEMATIC_BRIDGE_NO_EDA code-match literal; node regression <tempPath>  # expect exit1, case e FAIL actual BRIDGE_UNREACHABLE",
+    "delete temp; node regression  # expect exit0, 9/9",
+    "extract 18f5e0b:t53 to docs/evidence/review-old/ and run old + current with no T53_* hooks; compare JSON after deleting at  # expect identical, both exit0/5 checks"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-classification-regression.mjs",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "Case e is a hard BRIDGE_NO_EDA_WINDOW/exit2 assertion; removing the SCHEMATIC_BRIDGE_NO_EDA code match from a temp gate makes only case e red with BRIDGE_UNREACHABLE, restore gives 9/9 green. No-hook old/new JSON is identical after removing at. Headline 9/9 hard is true; t53 classification/thresholds/slice/exit2 and guide constants unchanged; current HEAD=origin=6c18328, 0 0; t1 did not claim 0 0. freshness FRESH v4, packages0, wrote0.",
+        "baseline": "HEAD 18f5e0b; t53 blob a45b725; regression blob fe1429; will see t1 commit 6c18328.",
+        "diff": "t1: t53 +14 hook/comment, regression test hard-case e, new r9t6-noeda-hard-assertion.json; review adds r9t6-review-noeda-assertion.json only."
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r9t6-review-noeda-assertion.json",
+      "summary": "Independent t3 review of t1: committed blobs, hard case e, red/green interception, no-hook old/new equality, headline, untouched logic, git 0 0 and self-proof."
+    }
+  ]
+}
