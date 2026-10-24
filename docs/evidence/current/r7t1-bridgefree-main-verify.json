@@ -1,5 +1,31 @@
 {
   "task": "r7t1 - bridge-free MAIN invariant verifier",
+  "coverageLimits": {
+    "readThisFirst": "This artifact is NOT 'all six invariants verified offline'. Of the six MAIN invariants, 21 / 55 / 55 / 0 (component hex ids) are provable here; part=8 and netflag=13 are only RECONSTRUCTED (Designator-based, not componentType); pages=2 is NOT provable at all. And the source is also t53's own baseline, so using it to verify t53 is self-reference.",
+    "headlineRisk": "CIRCULARITY, stated first because it limits every number below: docs/evidence/current/t31-dataset.json is exactly the baseline that t53-verify-main.mjs compares the live document against. Reading it offline re-states the pinned expectation. It can prove 'the baseline file still contains these numbers and has these bytes'; it CANNOT prove 'the live canvas still equals the baseline'. Calling that an offline verification of MAIN would be self-reference, not verification.",
+    "items": [
+      {
+        "invariant": "pages = 2",
+        "status": "NOT PROVABLE offline",
+        "why": "the source records 18 page records, not 2. The two numbers are different objects: 18 is the page-record list inside t31-dataset.json, while 2 is both the t53 --pages default and the length of main-restore-verify.pages. No offline arithmetic turns 18 into 2.",
+        "historicAssertionOnly": true,
+        "note": "further: page ids re-register. t31 records P1 as 03feee84..., main-restore-verify records P1 as d224f8d1..., so even the two historical values are not the same object."
+      },
+      {
+        "invariant": "part = 8, netflag = 13",
+        "status": "OFFLINE RECONSTRUCTION ONLY - not a proof",
+        "why": "t31-dataset.json stores no componentType, so the split cannot be measured from this source. 8 is reconstructed as 'components with a non-empty Designator' (u1..u7 plus layout:flag:_3V3:bus:240 with Designator 'U?'); 13 is reconstructed as the remainder. Both happen to equal the latest reported split, but a proxy that agrees is not a measurement.",
+        "whatIsMissing": "a component export that stores componentType (the live sch_PrimitiveComponent.getAll returns it; the committed export never stored it)",
+        "negativeControl": {
+          "rule": "counting by name/id (matches /MCU|GND|3V3/)",
+          "value": 14,
+          "why": "+3V3 is a PART whose id is layout:flag:_3V3:bus:240 and whose name is '+3V3'; a name-based rule counts it as a netflag and over-reports by 1. This is the exact trap that makes 'count the flags by name' wrong."
+        }
+      }
+    ],
+    "ceiling": "t53 requires the bridge. While the bridge is unavailable, THIS GRADING IS THE ACHIEVABLE CEILING: 21 / 55 / 55 / 0 provable offline; 8 / 13 reconstructible offline but unproven; 2 unprovable offline.",
+    "whatWouldCloseIt": "one successful t53 run (exit 0) against the live document, which measures componentType and the live page list together."
+  },
   "advisory": "offline, read-only, not a gate",
   "generatedAt": "2026-10-24T10:28:45.475Z",
   "mode": "offline snapshot; no bridge, no fetch, no write",
