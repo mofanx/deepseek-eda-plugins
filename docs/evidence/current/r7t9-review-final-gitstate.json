@@ -1,0 +1,236 @@
+{
+  "task": "r3t4 - independent final git-state review of t2, componentTypeSubstitution, four coverage claims, boundary protection and self-proof",
+  "mode": "read-only review; only this JSON is added",
+  "generatedAt": "2026-10-24T21:20:00+08:00",
+  "head": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+  "origin": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+  "aheadBehind": "0 0",
+  "gitState": {
+    "current": {
+      "commandHead": "git rev-parse HEAD",
+      "head": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+      "commandOrigin": "git rev-parse origin/master",
+      "origin": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+      "commandCount": "git rev-list --left-right --count HEAD...origin/master",
+      "count": "0 0",
+      "commandStatus": "git status --porcelain",
+      "porcelain": [
+        "?? .tmp-r7t8-recalc.mjs",
+        "?? .tmp-r7t8.err",
+        "?? .tmp-r7t8.out",
+        "?? docs/evidence/current/r7t8-review-pages-growth.json"
+      ],
+      "clean": false,
+      "note": "The four untracked entries are another member's r7t8 scratch/review files; no tracked change is pending. HEAD=origin and 0 0."
+    },
+    "t2AtItsCommit": {
+      "commit": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+      "reported": {
+        "head": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+        "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+        "count": "0 0",
+        "clean": true
+      },
+      "rawNow": {
+        "revParseT2": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+        "revParseOrigin": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+        "revListLeftRightCountT2ToOrigin": "0 11",
+        "mergeBaseIsAncestorExit": 0
+      },
+      "historicalTruth": "At t2's final commit f2fe, f2fe was origin/master and the count was 0 0; the merge-base check still confirms f2fe is an ancestor. The current 0 11 is 11 later commits, not an ahead>0 failure by t2.",
+      "currentMismatch": {
+        "headMatchesCurrent": false,
+        "originMatchesCurrent": false,
+        "countMatchesCurrent": true,
+        "cleanMatchesCurrent": false,
+        "explanation": "HEAD advanced from f2fe to 020ee2d after t2. Current HEAD=origin=020ee2d, 0 0; t2's reported HEAD value is historical, not a current claim. Current porcelain has untracked r7t8 files from another member, so 'clean' is no longer true now, but it was true at t2 and no t2 file is among them."
+      },
+      "reportHeadField": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+      "reportHeadFieldMeaning": "r7t2 JSON head is the review-time HEAD, not final f2fe; stale field, low risk, not a push lie.",
+      "verdict": "pass at t2's commit; current mismatch is explained by later commits/untracked other files, not a false 0 0"
+    }
+  },
+  "componentTypeSubstitution": {
+    "path": "docs/evidence/current/r7t1-bridgefree-main-verify.json",
+    "section": "coverageLimits.componentTypeSubstitution",
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "not-executable-here",
+        "found": "executableInThisVerifier: false; whyNot: 't31-dataset.json has NO componentType field. r7t1 therefore cannot execute a componentType count at all; the 8 / 13 it prints are Designator reconstructions ... not runnable in this artifact.'",
+        "judgment": "成立 - explicitly says the basis is NOT directly executable in r7t1"
+      },
+      {
+        "id": "evidence-from-r7t2",
+        "found": "whereTheBasisIsActuallyExecuted.verifier = docs/evidence/review/r7t2-indep-main-verify.mjs; source = main-snapshot-r3t2.json; how = drop 42 removedOriginal ids -> 21; group by type -> 8/13.",
+        "judgment": "成立 - the supporting path is named as r7t2"
+      },
+      {
+        "id": "weakness-W1",
+        "found": "W1-basis-not-local: 'The componentType basis cannot be executed here ... borrowing r7t2's number would be substituting another artifact's result for a measurement, not performing one.'",
+        "judgment": "成立 - local-basis weakness present"
+      },
+      {
+        "id": "weakness-W2",
+        "found": "W2-evidence-not-independent: main-snapshot-r3t2 (63, pre) and main-restore-verify (42, post) are the SAME restore event; componentType count and 21 are one event's before/after, not two captures.",
+        "judgment": "成立 - non-independent evidence weakness present"
+      },
+      {
+        "id": "no-upgrade",
+        "found": "status: 'SUBSTITUTED BASIS - not a proof, in either artifact'; combinedEffect says naming r7t2 does NOT make 8/13 proven.",
+        "judgment": "成立 - no promotion to proof"
+      }
+    ],
+    "bothWeaknessesPresent": true,
+    "summary": "The section explicitly states: r7t1 cannot run the componentType basis; the only execution path is r7t2's source; that source is the same 63/42 restore pair, hence not independent. W1 and W2 are both written, and the status is not a proof."
+  },
+  "fourClaims": {
+    "reconstruction": {
+      "path": "docs/evidence/current/r7t1-bridgefree-main-verify.json",
+      "found": "status: 'OFFLINE RECONSTRUCTION ONLY - not a proof'; 8 reconstructed by non-empty Designator; 13 as remainder; 'a proxy that agrees is not a measurement'.",
+      "judgment": "成立"
+    },
+    "plus3v3NegativeControl": {
+      "found": "negativeControl { rule: 'counting by name/id (matches /MCU|GND|3V3/)', value: 14, why: '+3V3 is a PART ... a name-based rule counts it as a netflag and over-reports by 1' }",
+      "judgment": "成立 - 14 counterexample present"
+    },
+    "pagesUnprovable": {
+      "found": "items[0] invariant 'pages = 2', status 'NOT PROVABLE offline', historicAssertionOnly true; why says 18 and 2 are the same metric at two moments (06:06 vs 13:51), not a dedupe; neither is live now.",
+      "judgment": "成立 - pages=2 remains unprovable; no 18->2 rewrite"
+    },
+    "t31Circularity": {
+      "found": "headlineRisk: 'CIRCULARITY, stated first ... t31-dataset.json is exactly the baseline that t53-verify-main.mjs compares ... Reading it offline re-states the pinned expectation ... would be self-reference, not verification.'",
+      "judgment": "成立 - baseline circularity explicitly first"
+    },
+    "allFourPresent": true
+  },
+  "notProof": {
+    "reconstructionStatus": "OFFLINE RECONSTRUCTION ONLY - not a proof",
+    "readThisFirst": "NOT 'all six invariants verified offline'; 21/55/55/0 provable; 8/13 only reconstructed; pages=2 not provable",
+    "ceiling": "21 / 55 / 55 / 0 provable offline; 8 / 13 reconstructible offline but unproven; 2 unprovable offline",
+    "judgment": "成立 - 8/13 are still labelled reconstruction and unproven; no upgrade to 'verified'"
+  },
+  "boundaries": {
+    "base": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+    "target": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+    "diffNames": [
+      "M docs/evidence/current/r7t1-bridgefree-main-verify.json",
+      "A docs/evidence/current/r7t3-review-indep-verify.json",
+      "A docs/evidence/current/r7t4-review-bridgefree-verify.json",
+      "A docs/evidence/current/r7t5-pages-provenance.json",
+      "A docs/evidence/current/r7t6-review-pages-provenance.json",
+      "A docs/evidence/current/r7t7-review-r7t1-addendum.json",
+      "A docs/evidence/current/r7t8-review-pages-growth.json",
+      "M docs/evidence/current/r9t1-main-view-guide.md"
+    ],
+    "protectedZeroDiff": true,
+    "protectedCommand": "git diff --name-only f2fe9a0 HEAD -- r9t3/PNG/D1/r5t4/r5t6/r6t1 -> empty",
+    "protectedFiles": [
+      "docs/evidence/current/r9t3-review-view-guide-v2.json",
+      "docs/evidence/current/r9t1-main-overview.png",
+      "docs/evidence/current/r4t1-d1-text31-shrink.json",
+      "docs/evidence/current/r5t4-d2d3-alternatives.json",
+      "docs/evidence/current/r5t6-review-alternatives.json",
+      "docs/evidence/current/r6t1-layout-layer-feasibility.json"
+    ],
+    "guideMarkers": {
+      "command": "git diff --unified=0 f2fe9a0 HEAD -- docs/evidence/current/r9t1-main-view-guide.md | Select-String 'D2|D3|2.18|4.70|1.54|主持人|※|TEXT_RADIUS=6|d≤12|步长|03feee84|b275cd23|d224f8d1'",
+      "output": "empty",
+      "note": "The guide did gain the r2t2 grading section and one pages-row replacement, but none of the protected D2/D3, h=2.18/4.70/1.54, host-quote/※, TEXT_RADIUS=6/d≤12/stride-4 or three-hash lines were changed."
+    },
+    "verdict": "pass - protected files zero diff; protected guide lines unchanged"
+  },
+  "selfProof": {
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "packagesDiff": "git diff --name-only 045cfecc HEAD -- packages -> empty",
+    "wrote": 0,
+    "canvasWrites": 0,
+    "bridgeWrites": 0,
+    "note": "Only docs/evidence/current/r7t9-review-final-gitstate.json is added; no source, t53, gate or package change."
+  },
+  "checks": [
+    {
+      "id": "1-git-state",
+      "verdict": "成立（t2 当时）",
+      "evidence": "Current HEAD=origin=020ee2d, 0 0; t2's f2fe is an ancestor and f2fe...origin=0 11 (later commits), not ahead>0. t2's f2fe 0 0 was true at its commit. Current porcelain has 4 untracked r7t8 files from another member, not a t2 change."
+    },
+    {
+      "id": "2-componentTypeSubstitution",
+      "verdict": "成立",
+      "evidence": "r7t1 says not executable here, names r7t2 path, W1 local-basis and W2 same-restore-event non-independent; status substituted basis not a proof."
+    },
+    {
+      "id": "3-four-claims",
+      "verdict": "成立",
+      "evidence": "OFFLINE RECONSTRUCTION ONLY; +3V3 value14; pages=2 NOT PROVABLE; t31/t53 CIRCULARITY all present."
+    },
+    {
+      "id": "4-not-proof",
+      "verdict": "成立",
+      "evidence": "8/13 remain reconstruction/unproven; readThisFirst and ceiling both say so; no 'verified' upgrade."
+    },
+    {
+      "id": "5-boundaries",
+      "verdict": "成立",
+      "evidence": "Protected files zero diff from f2fe; guide protected markers no changed lines; §D2/D3 and h=2.18/4.70/1.54 unchanged."
+    },
+    {
+      "id": "6-self-proof",
+      "verdict": "成立",
+      "evidence": "freshness FRESH v4 exit0; packages new0; wrote0; no bridge/canvas writes."
+    }
+  ],
+  "overall": "sound",
+  "delivery": "t2 pass at its commit; current HEAD=origin=020ee2d 0 0; current untracked files belong to another member",
+  "overallReason": "The only potential hard failure is a t2 0 0 while actually ahead>0. That does not hold: current HEAD=origin and 0 0; t2's f2fe is 11 commits behind current origin, not ahead, and f2fe was origin at t2's final commit. componentTypeSubstitution contains both required weaknesses (local basis not executable; r7t2 evidence is the same restore event, not independent). The four coverage claims are present, 8/13 remain reconstruction only, protected files are unchanged, and self-proof is green.",
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "t2's f2fe was origin/master at its final commit, f2fe...origin=0 0 then. Current origin has advanced 11 commits to 020ee2d; current HEAD=origin, 0 0, so there is no current ahead>0 falsehood. Current porcelain has untracked r7t8 files from another member, not t2.",
+        "baseline": "t2 parent 045cfecc; t2 final f2fe9a0; current 020ee2d.",
+        "diff": "t2 added only r7t2 script/JSON; no source, t53, gate or package change.",
+        "command": "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master; git rev-list --left-right --count f2fe9a0...origin/master; git status --porcelain",
+        "exitCode": 0,
+        "currentHead": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+        "currentOrigin": "020ee2daa01af9114d256219ad7c9c906fe04dc6",
+        "currentCount": "0 0",
+        "t2ToCurrentOrigin": "0 11",
+        "t2Ancestor": true,
+        "t2ReportHead": "045c (stale review-time field, low risk)"
+      }
+    }
+  ],
+  "baseline": "t2 parent 045cfecc; t2 final f2fe9a0; current 020ee2d after r7t2/r7t3/r7t4/r2t2/r2t1/r7t5/r7t6/r3t2/r3t1.",
+  "diff": "New report docs/evidence/current/r7t9-review-final-gitstate.json only. No source/guide/protected/package change by this review.",
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master; git status --porcelain",
+    "git rev-parse f2fe9a0; git rev-list --left-right --count f2fe9a0...origin/master; git merge-base --is-ancestor f2fe9a0 origin/master",
+    "node -e \"const d=require('./docs/evidence/current/r7t1-bridgefree-main-verify.json'); console.log(d.coverageLimits.componentTypeSubstitution)\"",
+    "node -e \"const d=require('./docs/evidence/current/r7t1-bridgefree-main-verify.json'); console.log(d.coverageLimits.items)\"",
+    "git diff --name-only f2fe9a0 HEAD -- docs/evidence/current/r9t3-review-view-guide-v2.json docs/evidence/current/r9t1-main-overview.png docs/evidence/current/r4t1-d1-text31-shrink.json docs/evidence/current/r5t4-d2d3-alternatives.json docs/evidence/current/r5t6-review-alternatives.json docs/evidence/current/r6t1-layout-layer-feasibility.json",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r7t9-review-final-gitstate.json",
+      "summary": "t2 git 状态当时/当前分列；componentTypeSubstitution 两弱点；四项声明；8/13 未升格；保护文件零 diff；自证。"
+    },
+    {
+      "type": "command",
+      "summary": "当前 HEAD=origin=020ee2d，0 0；t2 f2fe 是祖先，f2fe...origin=0 11；当前 porcelain 4 个他人未跟踪 r7t8 文件；protected zero diff；freshness FRESH v4 exit0；packages0。"
+    },
+    {
+      "type": "test",
+      "summary": "四项 grep 均命中；W1/W2 均存在；8/13 仍 OFFLINE RECONSTRUCTION ONLY；pages=2 NOT PROVABLE；t31 CIRCULARITY；未越界。"
+    }
+  ]
+}
