@@ -1,0 +1,170 @@
+{
+  "task": "r8t9 - review of the guide's live-read record (the r2t1 deliverable): is a single successful run being sold as a long-term guarantee?",
+  "reviewer": "eda4 member (self-directed)",
+  "generatedAt": "2026-10-24T12:41:00Z",
+  "generatedAtLocal": "2026-10-24T20:41:00+08:00",
+  "reviewedAtHead": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+  "reviewScope": {
+    "labelMismatch": "The hand-off block labels the input as [t1] and pastes the r8t5 t53-error-classification report (commit 701e312). That report contains no live-read section and no guide blob, so it cannot be what items (3)-(7) describe. The artifact that actually contains a '活读收口记录' section is docs/evidence/current/r9t1-main-view-guide.md. I reviewed that guide at HEAD, plus the git state, and I say so here rather than pretending the pasted report contains content it does not.",
+    "reviewed": {
+      "path": "docs/evidence/current/r9t1-main-view-guide.md",
+      "blob": "d382726750000b65d38a6ace4533ed16f76deb46",
+      "bytes": 47399,
+      "lines": 308,
+      "containingCommit": "cdfee6d (= HEAD at review time)",
+      "previousBlob": "24774e0a1ac5658550b9c9e7dadd357ef6f18874 (pre-change, at faefa21)",
+      "committedVersionVerified": true
+    },
+    "headDrift": "none during the review: HEAD stayed cdfee6d, and the guide blob stayed d3827267 from the first reading to the last"
+  },
+  "headline": "The failure mode the task warned about is absent. The guide does not upgrade one pass into a guarantee, does not say the six items are now offline-provable, and does not claim the bridge is stable: it pins two timestamps, states three explicit limits, and explicitly refuses to upgrade 'one pass' to 'stably verified'. Its grading table still says pages=2 is offline-unprovable and 8/13 are reconstruction-only. I re-verified all nine protected token counts against the pre-change blob: identical. The one substantive new finding is external to the guide: at review time /health still reports edaConnected:true while /execute returns 500 'EDA window ... disconnected', so the record's expiry clause was not hypothetical - it fired within three minutes of the recorded runs.",
+  "items": [
+    {
+      "id": 1,
+      "question": "record HEAD and the guide blob, confirm the committed version was reviewed",
+      "verdict": "成立",
+      "evidence": {
+        "head": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+        "guideBlob": "d382726750000b65d38a6ace4533ed16f76deb46, 47399 bytes, 308 lines",
+        "containingCommit": "cdfee6d; `git show --numstat cdfee6d` reports exactly one file, 28 insertions / 1 deletion",
+        "notDrifted": "HEAD and blob identical at the start and at the end of this review",
+        "infoDefect": "the hand-off report carried no guide blob at all (it is the r8t5 report), so the blob above is one I measured myself rather than one I could cross-check against the author's claim"
+      }
+    },
+    {
+      "id": 2,
+      "question": "run the four raw git commands myself and compare with what was reported; a '0 0' claim while ahead>0 must fail outright",
+      "verdict": "成立",
+      "evidence": {
+        "myFourCommands": {
+          "git rev-parse HEAD": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+          "git rev-parse origin/master": "cdfee6d6ebaffa7f4bb5aaa7463d9f47d1c71d7f",
+          "git rev-list --left-right --count HEAD...origin/master": "0\t0",
+          "git status --porcelain": "(empty)"
+        },
+        "reported": "the hand-off says '推送 701e312，HEAD=origin=701e312，0 0'",
+        "comparison": "no contradiction: at review time HEAD = origin = cdfee6d with 0 0, and 701e312 is two commits below it (git log: cdfee6d -> faefa21 -> dc7beb1 -> 701e312), i.e. the reported commit was pushed and the claim '0 0' was true then and is true now. Nothing is ahead, so the 'ahead>0 while claiming 0 0' trap does not apply.",
+        "whatWouldHaveFailed": "if the working state had been 'ahead 1' while the report said 0 0, this item would be 不成立; it is not that case"
+      }
+    },
+    {
+      "id": 3,
+      "question": "are all six elements of the live-read record present (timestamps local+UTC, exit 0 and 5/5, the six values, part/netflag split and +3V3=part, the two page entries, the active page and window id)?",
+      "verdict": "成立",
+      "evidence": {
+        "timestampsUTC": "`2026-10-24T12:36:10.642Z`（第一次）与 `2026-10-24T12:36:46.855Z`（第二次，间隔 36 秒） - guide L278",
+        "timestampsLocal": "`2026-10-24T20:36:10.642+08:00` 与 `2026-10-24T20:36:46.855+08:00` - guide L279",
+        "exitAndChecks": "L280 '`exit 0`，两次均为 `exit 0`'; L281 '`5/5` PASS（五个 check 全 `pass: true`，四个差异数组全空）'",
+        "sixValues": "L282 '`21 / 8 / 13 / 55 / 55 / 2`（组件 / `part` / `netflag` / 导线 / 网名对 / 页数）'",
+        "splitAndPlus3v3": "L283 '按 `componentType` 实测，**不是**按 `Designator` 重建'; L284 '`componentType = part`；id `layout:flag:_3V3:bus:240`，designator `U?`'",
+        "pageTable": "L285 '两条：`MAIN` / `b275cd23e45c4271bead56f66d4f98fe`、`P1` / `d224f8d13804e759`'",
+        "activePageAndWindow": "L286 '`MAIN`（`b275cd23…`）'; L287 '`25883914a72e5cbb`'",
+        "registrationMethod": "L289 spells out that the count stayed 0 after opening /landing and only flipped to 1 after the real #pop click - i.e. it does not hide that this needed a gesture",
+        "countCheck": "each token appears at least once (b275cd23 = 1, d224f8d1 = 1, 25883914a72e5cbb = 1, '21 / 8 / 13 / 55 / 55 / 2' = 1)"
+      }
+    },
+    {
+      "id": 4,
+      "question": "are the three effectiveness limits written, and did it avoid turning 'the ceiling was reached once' into 'all six are now offline-provable' or 'the bridge is stable'?",
+      "verdict": "成立",
+      "evidence": {
+        "limit1": "L293 '**只证明该时刻**：...**不回溯**证明更早（如 `06:06:59` 或 `13:51`）的画布状态。因此「MAIN 有 21 个组件」这句话只在上述时刻有实测支撑，**须带时刻限定**；也**不**把「一次通过」升级成「已稳定验证」。'",
+        "limit2": "L294 '**不承诺长期可用**：注册窗口会掉线（中继的心跳清扫正是为此而设）；掉线后本节结论即失效，要重新主张必须再跑一次 `t53`。'",
+        "limit3": "L295 '3. **离线命题不变**：`pages 2` 仍**离线不可证（仅历史断言）**，`8`／`13` 仍**离线仅重建**（源里没有 `componentType`）。本节只是「上限已被顶到一次」，**没有**把这两项变成「已离线可证」，上表那两行**一个字未改**。'",
+        "overclaimPhraseScan": "I grepped for 已稳定 / 稳定验证 / 已全部离线可证 / 已离线可证 / 长期可用 / 已彻底 / 永久. Every hit sits inside a negation: L293 is '不把…升级成「已稳定验证」', L295 is '没有把这两项变成「已离线可证」', L294 is '不承诺长期可用'. Counts of the bare assertions '已全部离线可证' and '已彻底' and '永久' are 0.",
+        "ruleCheck": "the '六项已全部离线可证' wording the task said would fail the item is absent; the file says the opposite at L270 ('不是「六项已全部离线验证」')"
+      }
+    },
+    {
+      "id": 5,
+      "question": "is the grading table untouched - pages 2 still offline-unprovable and 8/13 still reconstruction-only?",
+      "verdict": "成立",
+      "evidence": {
+        "partRow": "`| part | 8 | **离线可重建，不计为证明** | ...` - unchanged",
+        "netflagRow": "`| netflag | 13 | **离线可重建，不计为证明** | 同上；13 是 21 减 8 的余数，不是按 `componentType` 数出来的 |` - unchanged",
+        "pagesRow": "`| 页数 | 2 | **离线不可证（仅历史断言）** | ...` - unchanged, and it still carries the 18-vs-2 explanation",
+        "proofOfNonEdit": "`git show --numstat cdfee6d` = 28/1 on one file, and the single hunk starts at old line 268 (`@@ -268,5 +268,32 @@`). The table lives at old lines 255-263, outside the hunk, so it provably was not rewritten.",
+        "wouldHaveFailedIf": "a row had been changed to '已证' / '已离线可证'; no such edit exists"
+      }
+    },
+    {
+      "id": 6,
+      "question": "no boundary crossing: §D2/D3, the 31 section, h=2.18/4.70/1.54, the single 6.42 hit, criteria and stride, ※, r9t3 counts all unchanged; and the 18/2 time gap not flattened",
+      "verdict": "成立",
+      "evidence": {
+        "machineComparison": "I extracted the pre-change blob (24774e0, 44616 bytes) and the HEAD blob (d382726, 47399 bytes) and counted nine protected tokens in each: TEXT_RADIUS=6 3/3, d≤12 3/3, 步长 4 10/10, 6.42 1/1, r9t3 5/5, h=2.18 4/4, 4.70 4/4, 1.54 4/4, ※ 5/5 -> 'ALL PROTECTED TOKEN COUNTS IDENTICAL'",
+        "diffFootprint": "one hunk only, at old line 268; §D2/D3 (around L126-143) and the 31 section are far above it and outside the hunk",
+        "timeGapPreserved": "L297 '关于 `18` 与 `2`：两者仍是**不同时刻**的页表读数（`13:51` 的 `t31` 是 18 条、`06:06:59` 的还原工件是 2 条），这个时间差**没有**被抹平；本节的 `2` 是**第三个**时点（`12:36`）的活读，与前两者并列，不取代任何一个。'",
+        "headingStructure": "10 '##' headings, with the new one at L272 between the grading section (L251) and 自证 (L299); no section was removed or renamed"
+      }
+    },
+    {
+      "id": 7,
+      "question": "if a second t53 run was given, is its timestamp and result real and consistent with the first; a bare 'bridge is still alive' with no raw output would be partial",
+      "verdict": "成立",
+      "evidence": {
+        "secondRunPresent": "yes - L278 gives a second timestamp 2026-10-24T12:36:46.855Z and L280 says both runs exited 0, L282 gives the same six values for both",
+        "arithmeticConsistency": "12:36:46.855 - 12:36:10.642 = 36.213 s, which matches the stated '间隔 36 秒'; I computed this from the two strings in the file, so the pair is internally consistent rather than a single timestamp reused",
+        "noBareLivenessClaim": "the guide never asserts 'the bridge is still alive' as a standing fact; it pins two moments and states the expiry rule. So the 'partial' condition (claiming liveness with no raw output) is not triggered",
+        "honestLimit": "the raw stdout of those two runs is not committed as an artifact - the guide carries the table, not the transcript. As the author of those runs I know they happened, but a third party cannot re-derive them from the repo, only re-run. I therefore verified what is verifiable: internal consistency, the same six values, and that a re-run today behaves as the boundary clause predicts.",
+        "reRunAtReviewTime": "node docs/evidence/review/t53-verify-main.mjs --json at 2026-10-24T12:39:01.011Z -> exit 2, reason BRIDGE_CALL_FAILED, detail 'easyeda bridge execute returned HTTP 500'. So the exit-0 result is NOT reproducible at review time, and the guide's boundary 2 is what says so."
+      }
+    },
+    {
+      "id": 8,
+      "question": "self-proof: freshness run, packages 0, wrote 0",
+      "verdict": "成立",
+      "evidence": {
+        "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0 (run by me at the reviewed HEAD)",
+        "packages": "the commit touches one markdown file only; no packages path in the diff",
+        "wrote": "0 - markdown only, no canvas or document write; my own review added no canvas write either"
+      }
+    }
+  ],
+  "observationBeyondTheReviewedArtifact": {
+    "what": "at review time the relay still reports edaConnected:true, edaWindowCount:1, activeWindowId 25883914a72e5cbb, while POST /execute returns HTTP 500 with body {\"success\":false,\"error\":\"EDA window \\\"25883914a72e5cbb\\\" disconnected\"} and pendingRequests:1",
+    "whyItMatters": [
+      "it shows the expiry clause was not theoretical: the window's socket died within about three minutes of the recorded runs, so the record stopped being valid almost immediately",
+      "the expiry path is subtler than the guide's wording: the guide says '掉线' (window drops), and /health did NOT show a drop - it kept advertising the window. Only /execute knew. Anyone routing on /health alone would wrongly conclude the bridge was usable.",
+      "it exercises t53's branch (c) from the r8t5 taxonomy for the first time in the wild: window count >= 1, execute fails, reason BRIDGE_CALL_FAILED",
+      "it exposes a classification gap worth a follow-up: the message says 'disconnected', but t53's regex (/NO_EDA|not connected|edaConnected/) does not match 'disconnected', so a window-lost case is filed as a generic call failure. http-api.mjs's own matcher (L118: /no eda window connected|not connected|no longer connected/) misses it too. This is NOT a defect of the reviewed guide; it belongs to the error-classification owner."
+    ],
+    "notClaimed": "I am not treating this as evidence that the two exit-0 runs were false. They were real; what died afterwards is the registration, which is exactly what boundary 2 covers."
+  },
+  "overall": {
+    "verdict": "sound",
+    "why": "All eight items pass. The specific risk - one pass inflated into a long-term guarantee - did not materialise: the file pins two timestamps, states three limits, and literally writes that one pass must not be upgraded to 'stably verified'. The grading table rows for pages 2 and 8/13 still say offline-unprovable and reconstruction-only, and a machine comparison of the pre-change and post-change blobs shows all nine protected token counts identical, with a single one-hunk diff at line 268 that cannot have touched the table at 255-263 or §D2/D3 above it. The git claims hold: HEAD = origin = cdfee6d, 0 0, clean.",
+    "theOneThingIWouldStillImprove": "the guide records a table, not a transcript. Committing the raw stdout of the two exit-0 runs (or pointing at an artifact that holds it) would let a third party check the timestamps without having to re-run a bridge that has since become unusable. That is an evidence-hygiene suggestion, not a correctness defect."
+  },
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "The r2t1 guide change (the live-read record) is honest and bounded. Six elements present with both time zones, exit 0 and 5/5, 21/8/13/55/55/2, the componentType split with +3V3=part, the MAIN+P1 page table, the active page and the window id. Three limits present and phrased as limits; every overclaim phrase I grepped appears only inside a negation. The grading table's pages-2 and 8/13 rows are unchanged, proven by the single-hunk diff and by machine comparison of nine protected token counts between blobs 24774e0 and d382726 (all identical). Git state is 0 0 with HEAD = origin = cdfee6d, clean. A second t53 timestamp exists 36.213 s after the first with identical values, so the pair is internally consistent; no bare liveness claim is made.",
+        "baseline": "guide blob 24774e0 at faefa21 (offline grading table intact, L270 demanding 'must have one exit-0 run')",
+        "diff": "guide blob d382726 at cdfee6d: 28 insertions, 1 deletion, one hunk at old line 268 (L270 sentence rewritten + new 活读收口记录 section)",
+        "howVerified": "four raw git commands; ls-tree for the blob; read the committed section line by line; grep for overclaim phrases with context; tree-wide token count comparison between the two blobs via git cat-file; numstat/hunk inspection; arithmetic check of the two timestamps; t53 re-run at review time (exit 2 due to a dead registration, which matches the guide's own expiry clause)"
+      }
+    }
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "packagesNew": 0,
+    "filesChanged": ["docs/evidence/current/r8t9-review-live-read-record.json"],
+    "freshness": "FRESH, baselineVersion 4, packages 5, files 21, configs 8, tsconfigs 7, exit 0 (run by me)",
+    "note": "my only bridge interaction was read-only: /health, /eda-windows, and POST /execute with the constant expression 'return 1' to capture the raw 500 body. No save/modify/create/delete/clear/openDocument, no canvas click or typing."
+  },
+  "baseline": "HEAD cdfee6d (= origin); guide blob d3827267; pre-change guide blob 24774e0a at faefa21",
+  "diff": "new file docs/evidence/current/r8t9-review-live-read-record.json only; the guide was read, never written",
+  "reproSteps": [
+    "git -C D:/projects/nodejs/deepseek-eda-plugins rev-parse HEAD; rev-parse origin/master; rev-list --left-right --count HEAD...origin/master; status --porcelain",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins ls-tree -r HEAD -- docs/evidence/current/r9t1-main-view-guide.md   # blob d3827267",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins show --numstat cdfee6d   # 28 1 one file",
+    "git -C D:/projects/nodejs/deepseek-eda-plugins cat-file blob 24774e0   # pre-change text, for the token comparison",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
