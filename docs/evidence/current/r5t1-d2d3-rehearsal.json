@@ -67,12 +67,13 @@
         "source": "measured, blue channel, w1 frame"
       },
       "movable": {
-        "feasibleS": [
+        "outwardRoom": 0,
+        "why": "the anchor sits exactly on the outer end of its own wire (210), so s<0 leaves the wire at once; the whole sweep domain is inward, toward the pin, s in [0,40]",
+        "scanRange": [
           0,
           40
         ],
-        "outwardRoom": 0,
-        "why": "the anchor sits exactly on the outer end of its own wire (210), so s<0 leaves the wire at once; the only room is inward, toward the pin (+x, s in [0,40])"
+        "scanRangeMeaning": "this is the DOMAIN I swept for the anchor (s such that the anchor stays on its own wire). It is NOT a clearance: the net clearance inside it is empty, see cleanWindows."
       },
       "blackTextOnRow": [
         {
@@ -187,12 +188,13 @@
         "source": "start measured in the w2 frame; end 388.3 taken from the r2t1 readback because the blue cluster at 377.42-390.39 merges with the flag edge"
       },
       "movable": {
-        "feasibleS": [
+        "outwardRoom": 0,
+        "why": "the anchor sits on the flag end (350) of a 40-unit wire, so s<0 leaves the wire; the whole sweep domain is toward the pin, s in [0,40]",
+        "scanRange": [
           0,
           40
         ],
-        "outwardRoom": 0,
-        "why": "anchor on the flag end (350) of a 40-unit wire; s<0 leaves the wire, so the only room is toward the pin"
+        "scanRangeMeaning": "this is the DOMAIN I swept for the anchor (s such that the anchor stays on its own wire). It is NOT a clearance: the net clearance inside it is empty, see cleanWindows."
       },
       "blackTextOnRow": [
         {
@@ -238,9 +240,9 @@
           "t": 1,
           "pressing": false
         },
-        "alongSweep": "d falls to 5.000 against the GND wire from s=15 onward, with t entering (0.05,0.95) at s=15 and staying there through s=40",
-        "bound": "d stays <=12, but the move CREATES a new foreign-wire press (GND)",
-        "crossCheck": "the baseline d=10.0 with t=1.0 explains why this label is not currently in the pressing list: t sits exactly on a segment end"
+        "alongSweep": "the nearest foreign segment is the GND horizontal (360,800)-(400,800), so d is 5.000 for every s in [10,50]: the anchor is 5 units above that run and the foot slides along it. t = (s-10)/40, so t > 0.05 from s > 12.0. First GND rule hit measured at s=12.01 (sweep step 0.01). At s=15 the measurement is d=5.000, t=0.125 - inside the band already.",
+        "bound": "d stays <=12 across the whole scan range, but the move CREATES a new foreign-wire press: it starts at s~12.0 and holds to s=40, with t reaching 0.750 at the far end",
+        "crossCheck": "the baseline d=10.0 with t=1.0 explains why this label is not currently in the pressing list: t sits exactly on a segment end. The 12.0 onset is arithmetic from the segment itself (t=(s-10)/40), not a fitted number."
       },
       "criteria": {
         "c1_noOverlapWithPressed": {
@@ -253,11 +255,11 @@
         },
         "c3_dBoundAndNoNewForeignPress": {
           "verdict": "FAIL",
-          "evidence": "from s=15 the moved name sits 5.0 units above the GND wire with t in (0.05,0.95) - a NEW text-on-foreign-wire instance that does not exist at s=0"
+          "evidence": "from s~12.0 (measured 12.01 at 0.01 resolution) the moved name sits 5.0 units above the GND run (360,800)-(400,800) with t inside (0.05,0.95) - a NEW text-on-foreign-wire instance that does not exist at s=0. The violation lives in the high band s~12.0-40; it does not depend on the criterion-1 result, so criterion 1 failing as well makes the case stronger, not weaker."
         }
       },
       "goNoGo": "no-go",
-      "why": "criterion 1 has no solution and criterion 3 is actively violated: moving this name buys nothing and adds a GND press of its own"
+      "why": "criterion 1 has no solution anywhere in [0,40], and on top of that criterion 3 is actively violated from s~12.0: moving this name buys nothing and adds a GND press of its own. Net clearance inside the scan range is empty."
     }
   ],
   "notEvaluated": [
@@ -299,9 +301,31 @@
     "result": "PASS 5/5 (components 21, part 8 + netflag 13, component id set, wires 55 + pairs 55, pages 2 / MAIN id intact)",
     "readOnly": "the script was grepped for .save/.modify/.create/.delete/.clear before running: 0 hits"
   },
+  "scripts": {
+    "why": "the rehearsal used to be provable only by my own report. These four files let a third party re-derive the numbers and grep the zero-write claim instead of trusting it.",
+    "files": [
+      "docs/evidence/review/r5t1-d2d3-dump.mjs - read-only geometry dump (read APIs only)",
+      "docs/evidence/review/r5t1-d2d3-scan.ps1 - pixel scan of the two 8.25 px/unit frames",
+      "docs/evidence/review/r5t1-d2d3-verdict.mjs - interval + criterion computation, compares against the committed numbers",
+      "docs/evidence/review/r5t1-d2d3-verify-readonly.ps1 - the zero-write gate"
+    ],
+    "runOrder": [
+      "node docs/evidence/review/r5t1-d2d3-dump.mjs",
+      "pwsh -File docs/evidence/review/r5t1-d2d3-scan.ps1",
+      "node docs/evidence/review/r5t1-d2d3-verdict.mjs",
+      "pwsh -File docs/evidence/review/r5t1-d2d3-verify-readonly.ps1"
+    ],
+    "reproducedOn": "2026-10-24 at HEAD da09eae, from the geometry dump already produced for this task. The bridge was NOT re-queried, so no new number was generated.",
+    "verdictScriptResult": "REPRODUCED - 18 of 18 committed numbers matched within TOL=0.3 unit, cleanWindows [] for both objects, overall no-go. The tolerance is not slack: the pixel scan lands within 1-2 px of the committed ink spans because the y-band edge admits one extra glyph column.",
+    "gateResult": "PASS on the three step files (0 mutating calls, exit 0). Negative control with a planted .save()/.modify()/.create() file returns FAIL, names all three lines, exits 1 - so the gate is not vacuous.",
+    "gateBugFoundByThatControl": "the first gate built its alternation with -join and passed vacuously; the second used @('sa'+'ve', ...) which PowerShell parses as 'sa' + ('ve','mod') + 'ify' because the comma binds tighter than +, so the pattern contained spaces and matched nothing. Both failures are why the negative control is now a mandatory part of the evidence rather than a nicety."
+  },
   "corrections": [
     "first pass reported a baseline d=0.000 for obj1; that was an artefact of parsing wire.line as a polyline. With four-numbers-per-segment the baseline is d=5.000 at t=0.750, which matches the guide",
-    "pin number 31 ink is 235.64-241.82, not the 243-250 that calibrating from pin number 21 (offset +19.36) would suggest: the two pins sit on opposite sides of the symbol and use different alignment, so each was measured rather than inferred"
+    "pin number 31 ink is 235.64-241.82, not the 243-250 that calibrating from pin number 21 (offset +19.36) would suggest: the two pins sit on opposite sides of the symbol and use different alignment, so each was measured rather than inferred",
+    "r2t2 fix 1 (terminology): the field was named feasibleS, which reads as \"40 units of room\". It is only the scan domain. Renamed to scanRange, and every object now states that the net clearance inside it is empty (cleanWindows: []).",
+    "r2t2 fix 2 (obj2 c3 onset): the earlier text said the GND press starts \"from s>=15\". That was true but mis-stated the onset. Recomputed from the geometry: GND runs (360,800)-(400,800), the anchor is always 5 above it, t=(s-10)/40, so t>0.05 from s>12.0 - first hit measured at s=12.01, and s=15 measures d=5.000 t=0.125. The committed dProfile row for s=15 (d=5.000, t=0.125) already agreed with this; only the prose was wrong.",
+    "r2t2 disagreement, recorded rather than absorbed: a peer review proposed s~32.27 with d~16.18 at s=15. I cannot reproduce either number from this geometry - at s=15 the anchor is (365,795), the foot on the GND run is (365,800), so d=5.000 and t=(365-360)/40=0.125. I did not adopt 32.27. If the peer used a different definition (e.g. ink-box to ink-box rather than anchor to segment), that is a different measurement and should be labelled as such."
   ],
   "gates": {
     "freshness": "node docs/evidence/review/shared/freshness.mjs --check -> status FRESH, strictLib false, baselineVersion 4, packages 5, files 21, configs 8, tsconfigs 7; exit 0",
