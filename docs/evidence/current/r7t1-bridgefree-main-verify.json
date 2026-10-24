@@ -24,7 +24,8 @@
       }
     ],
     "ceiling": "t53 requires the bridge. While the bridge is unavailable, THIS GRADING IS THE ACHIEVABLE CEILING: 21 / 55 / 55 / 0 provable offline; 8 / 13 reconstructible offline but unproven; 2 unprovable offline.",
-    "whatWouldCloseIt": "one successful t53 run (exit 0) against the live document, which measures componentType and the live page list together."
+    "whatWouldCloseIt": "one successful t53 run (exit 0) against the live document, which measures componentType and the live page list together.",
+    "fragilityWarning": "This block (and t53ThisRound / selfProof) was appended by hand after generation. docs/evidence/review/r7t1-offline-main-verify.mjs prints to stdout only; re-running it with `--json > this file` would SILENTLY DROP all three blocks and restore a report that claims nothing about its own limits. Any regeneration must re-apply them, or the generator must be changed to emit them (that change has not been made)."
   },
   "advisory": "offline, read-only, not a gate",
   "generatedAt": "2026-10-24T10:28:45.475Z",
