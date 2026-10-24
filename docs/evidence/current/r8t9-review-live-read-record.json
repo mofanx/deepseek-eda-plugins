@@ -15,7 +15,14 @@
       "previousBlob": "24774e0a1ac5658550b9c9e7dadd357ef6f18874 (pre-change, at faefa21)",
       "committedVersionVerified": true
     },
-    "headDrift": "none during the review: HEAD stayed cdfee6d, and the guide blob stayed d3827267 from the first reading to the last"
+    "headDrift": {
+      "duringReview": "none - HEAD stayed cdfee6d and the guide blob stayed d3827267 from the first reading to the last",
+      "afterWritingThisFile": [
+        { "head": "0e49226", "event": "this review file was committed" },
+        { "head": "52f7740", "event": "another member committed 'r2t2 add timestamped live pages observation' during the push; it changed only docs/evidence/current/r7t5-pages-provenance.json" }
+      ],
+      "anchorStillValid": "the guide blob is d382726750000b65d38a6ace4533ed16f76deb46 at both cdfee6d (reviewed) and 52f7740 (pushed HEAD), so every finding about the guide applies unchanged; the drift touches a different file"
+    }
   },
   "headline": "The failure mode the task warned about is absent. The guide does not upgrade one pass into a guarantee, does not say the six items are now offline-provable, and does not claim the bridge is stable: it pins two timestamps, states three explicit limits, and explicitly refuses to upgrade 'one pass' to 'stably verified'. Its grading table still says pages=2 is offline-unprovable and 8/13 are reconstruction-only. I re-verified all nine protected token counts against the pre-change blob: identical. The one substantive new finding is external to the guide: at review time /health still reports edaConnected:true while /execute returns 500 'EDA window ... disconnected', so the record's expiry clause was not hypothetical - it fired within three minutes of the recorded runs.",
   "items": [
