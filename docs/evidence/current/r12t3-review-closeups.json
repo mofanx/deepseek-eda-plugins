@@ -1,0 +1,127 @@
+{
+  "task": "r12t3",
+  "at": "2026-10-24T03:10:00Z",
+  "role": "independent read-only review of r12t1 (t3 closeups)",
+  "head": "8537afb",
+  "reviewed": {
+    "task": "r12t1",
+    "commits": ["895c424", "8537afb"],
+    "json": { "file": "docs/evidence/current/r12t1-wire-overlap-closeups.json", "blob": "d5a3c12c5e839e2fdaf6011d0a92c5f657d84932", "note": "tracked, unmodified during this review" },
+    "images": "9 PNGs, sha256 verified below"
+  },
+  "method": "read-only: file hashes, PNG dimensions, arithmetic on the declared pageRects, pixel scans of the PNGs with System.Drawing, grep of the capture scripts, t53 and freshness. No EDA call of any kind was made by this review.",
+  "items": [
+    {
+      "id": 1,
+      "claim": "HEAD and blob provenance of the reviewed artifacts",
+      "verdict": "pass",
+      "raw": {
+        "head": "8537afb",
+        "log": ["8537afb test(evidence): add the title-block boundary shot (A-box not reproduced)", "895c424 test(evidence): 8 px/unit closeups of wire/label overlaps (read-only)", "316a551 docs(t38): close the L113/L114 wording and the count bookkeeping"],
+        "files": 9,
+        "sha256Match": 9,
+        "bytesMatch": 9,
+        "pixelsMatch": 9
+      },
+      "note": "all 9 PNGs exist, and their sha256, byte sizes and pixel dimensions equal what the JSON declares"
+    },
+    {
+      "id": 2,
+      "claim": "zero writes; MAIN 21/8/13/55/55/2 unchanged; camera restored",
+      "verdict": "pass-with-caveats",
+      "raw": {
+        "scripts": [".tmp-temp/r12-shot.mjs", ".tmp-temp/r12-img.mjs", ".tmp-temp/r12-img3.mjs"],
+        "mutatingCallHits": 0,
+        "callsFound": ["eda.dmt_EditorControl.zoomToRegion", "eda.dmt_EditorControl.getCurrentRenderedAreaImage", "eda.dmt_EditorControl.zoom", "eda.dmt_EditorControl.zoomTo"],
+        "t53Now": "PASS 5/5, components 21, part 8, netflag 13, wires 55, pairs 55, pages 2, MAIN b275cd23e45c4271bead56f66d4f98fe",
+        "t53BeforeAndAfterInJson": "PASS / PASS (self-reported)",
+        "cameraRestoredProof": "r12t1-restored.png shows the full sheet"
+      },
+      "caveats": [
+        "the 'before' snapshot is t3's own record; no independent pre-run capture exists, so 'unchanged' is verified only against the current t53 run",
+        "the rest of t3's tooling was PowerShell (CopyFromScreen) and is not in the repo, so the grep covers the three .mjs probes, not every command that ran"
+      ],
+      "note": "no save/delete/create/modify/clear appears in any script; the only EDA calls are camera and read calls"
+    },
+    {
+      "id": 3,
+      "claim": "each image really reaches the declared magnification; the five regions are covered",
+      "verdict": "partial",
+      "raw": {
+        "scaleCheck": [
+          { "tag": "mcu", "w": 660, "h": 2030, "dx": 80, "dy": 246, "wOverDx": 8.25, "hOverDy": 8.252, "declared": 8.25, "consistent": true },
+          { "tag": "mcuR", "w": 660, "h": 2030, "dx": 80, "dy": 246, "wOverDx": 8.25, "hOverDy": 8.252, "declared": 8.25, "consistent": true },
+          { "tag": "power", "w": 660, "h": 2030, "dx": 80, "dy": 246, "wOverDx": 8.25, "hOverDy": 8.252, "declared": 8.25, "consistent": true },
+          { "tag": "io", "w": 660, "h": 2030, "dx": 80, "dy": 246, "wOverDx": 8.25, "hOverDy": 8.252, "declared": 8.25, "consistent": true },
+          { "tag": "clk", "w": 660, "h": 2030, "dx": 80, "dy": 246, "wOverDx": 8.25, "hOverDy": 8.252, "declared": 8.25, "consistent": true },
+          { "tag": "title", "w": 660, "h": 2030, "dx": 80, "dy": 246, "wOverDx": 8.25, "hOverDy": 8.252, "declared": 8.25, "consistent": true },
+          { "tag": "titleV", "w": 660, "h": 2030, "dx": 80, "dy": 246, "wOverDx": 8.25, "hOverDy": 8.252, "declared": 8.25, "consistent": true },
+          { "tag": "titleA", "w": 660, "h": 2030, "dx": 80, "dy": 246, "wOverDx": 8.25, "hOverDy": 8.252, "declared": 8.25, "consistent": true },
+          { "tag": "restored", "w": 660, "h": 2030, "dx": 899, "dy": 1866.88, "wOverDx": 0.7341, "hOverDy": 1.0874, "declared": 0.734, "consistent": false }
+        ],
+        "coverage": {
+          "declaredRegions": "MCU left, MCU right, POWER, IO, CLK, title",
+          "declaredRegionsCovered": true,
+          "failedTargets": [
+            { "target": "A box (560,104)-(700,130)", "fullyCoveredBy": ["restored (0.734 px/unit only)"], "closeupCoverage": "none - title 340-420, titleV 400-480, titleA 380-460 all stop below x=480" },
+            { "target": "W2 attr102 MCU-26 (376,783)-(404,807)", "fullyCoveredBy": ["restored (0.734 px/unit only)"], "closeupCoverage": "none - mcu 173.5-253.5, mcuR 210-290, io 260-340 all stop below x=376" }
+          ],
+          "partialTargets": [
+            { "target": "W1 attr111 MCU-34 (196,783)-(224,807)", "coveredBy": "mcu fully; mcuR covers only x 210-224 of it" }
+          ]
+        }
+      },
+      "edgeSharpness": { "file": "r12t1-title.png", "row": 1200, "borderRun": "x 644-652 solid black (9 px), one anti-aliased pixel at x=644 (75,74,73), zero intermediate gray values", "conclusion": "the capture is 1:1 with no upscaling or interpolation, and a 1-unit border occupying ~8.25 px independently confirms the 8.25 px/unit scale" },
+      "note": "8 of the 9 frames are exactly 8.25 px/unit by arithmetic; the 9th (restored) is internally inconsistent: a 660x2030 crop cannot be a 1:1 fit of an 899x1866.88 rect (that would be 660x1370). The full-page fit is visually true in the PNG, but the numbers cannot be recomputed from the file, so the camera-restore proof is qualitative"
+    },
+    {
+      "id": 4,
+      "claim": "every verdict is one of the allowed statements; nothing unseen is written up as no-candidate",
+      "verdict": "fail",
+      "raw": {
+        "aBox": {
+          "jsonSays": "result: not reproduced at 8.25 px/unit; 'this is a negative result for the A-box claim'",
+          "frame": "titleA pageRect x 380-460, role says it straddles the x~404 border (图样名称/MAIN)",
+          "aBoxBand": "x 560-700, y 104-130 (图号/图幅 area)",
+          "intersection": "0 units - the frame ends at 460, the band starts at 560",
+          "selfAdmission": "the JSON's own note says 'if the host's red box is at another x (e.g. 图号/图幅 at x 590-700), that area was not in this frame'"
+        },
+        "pinNameClaim": "the mcu note says the blue labels are 'drawn on top of black pin names'; a native-resolution crop of r12t1-mcu.png and r12t1-mcuR.png shows the overlapped black glyphs are the pin numbers (18/19/20/...) at the stub, while PA0..PA15 are clean and legible"
+      },
+      "note": "the A-box negative is a framing gap reported as a negative result; a frame that cannot contain the band cannot refute it. This is the exact failure mode the review was asked to look for (没拍到 written up as 未复现), even though the JSON hedges in a note"
+    },
+    {
+      "id": 5,
+      "claim": "the W1/W2 pixel verdict agrees with the host's (net name over pin name)",
+      "verdict": "partial",
+      "raw": {
+        "hostVerdict": "net name over pin name: MCU-28 -> PB9, MCU-29 -> PB8, MCU-34 -> PA10, MCU-33 -> PA11",
+        "t3Verdict": "presses the pin name (left pins) / the pin stub (right pins), not the green wire",
+        "agreement": "class agrees - text-text, not wire-over-glyph",
+        "objectDisagreement": "in the frames that actually show the collision, the black ink under the blue label is the pin NUMBER at the stub; the pin NAMES (PA0..PA15) are clean. The host's pin-name claim concerns PB9/PB8 on the right side, which no frame covers",
+        "w2Coverage": "W2 (MCU-26 at 390,795) is not in any closeup; only the 0.734 px/unit full-page shot contains it"
+      },
+      "note": "the reclassification to text-text survives; the specific target ('pin name') is not what these frames show, and W2 itself was never photographed at 8.25 px/unit"
+    },
+    {
+      "id": 6,
+      "claim": "t53 PASS, freshness FRESH, packages zero new hits",
+      "verdict": "pass",
+      "raw": {
+        "t53": { "exit": 0, "result": "5/5 PASS (21/8/13/55/55/2, MAIN present)" },
+        "freshness": { "exit": 0, "result": "FRESH, baselineVersion 4" },
+        "packages": { "sourceHits": 2, "sourceHitsWhere": ["packages/schematic-easyeda/src/build.ts:464", "packages/schematic-easyeda/tests/build.spec.ts:2230"], "allHitsIncludingNodeModulesAndLib": 16, "newHits": 0 }
+      },
+      "note": "t3's '2 pre-existing' is right for source files; a naive repo-wide grep returns 16 because node_modules and generated lib/ carry copies of the same file"
+    }
+  ],
+  "corroboration": {
+    "aBox": "independent of t3: this review's earlier measurement (r3t1) put text31's ink at x 404.9-613.3 against a cell border at 590, i.e. 23.3 units of overflow. A high-zoom shot that another member has in the working tree at review time (untracked r12t2-abox-tail.png) shows the name's tail fused with the 图幅 glyph. Neither file is part of t3; the verdict above rests on the frame geometry, not on them"
+  },
+  "workingTree": {
+    "untrackedNotMine": ["docs/evidence/current/r12t2-abox-tail.png", "docs/evidence/current/r12t2-w1-tile.png", "docs/evidence/current/r12t2-w2-tile.png"],
+    "note": "another member's in-progress r12t2 artifacts; this review neither used nor committed them"
+  },
+  "totals": { "pass": 3, "passWithCaveats": 1, "partial": 2, "fail": 1, "items": 6 },
+  "overall": "partial - the artifacts are authentic (9/9 hashes), the magnification is real (8.25 px/unit recomputed), and zero-write holds; but the A-box negative is taken from a frame that cannot contain the A band, the 'pin name' attribution does not match its own pixels (pin numbers, not names), and neither the A box nor W2 was ever photographed at closeup scale"
+}
