@@ -1,0 +1,168 @@
+{
+  "task": "r12t2",
+  "at": "2026-10-24T03:10:00Z",
+  "head": "8537afb",
+  "origin": "8537afb",
+  "reviewed": {
+    "t1": { "commit": "187eba1", "title": "W1/W2 are net name over pin name, and A is overflow not duplication" },
+    "t2": { "commit": "316a551", "title": "close the L113/L114 wording and the count bookkeeping" }
+  },
+  "blobs": {
+    "docs/evidence/current/r9t1-main-view-guide.md": "6610397c3d9cd9cb3ad4046ebb72afd194eb79df",
+    "docs/evidence/current/r9t1-main-third-class.json": "096b05ac5bb3397c71cd08abed109bd151a3c5d9",
+    "docs/2026-10-17-schematic-pagination-hardening.md": "9500e71e1d9d7412ae2a17aaee5529e9bfe466b9",
+    "docs/evidence/current/r3t1-disconnected-nets.json": "14369abfcad8b66c84f16dfd883ce5cea4f7a057",
+    "docs/evidence/current/r2t1-line-stride-audit-v2.json": "2c4704bd7fda626e433d79e14e981d2b0d19ca64",
+    "docs/evidence/review/t38-cross-review-t2.mjs": "76e7522a89ecae35f04a5d33909a2f1accb2a301",
+    "docs/evidence/current/r8t1-main-tile-r4c0.png": "4486f6769f10c1243bb5f8d4065a30f5b641b70bcc15409401c75c75657778f2"
+  },
+  "items": [
+    {
+      "id": "T1-1",
+      "claim": "the guide/JSON now call W1/W2 text-text (net name over pin name), and the 'wire-through-text = 2 candidates' is removed",
+      "verdict": "true",
+      "evidence": {
+        "guide": "L9 and L45-L52 call W1/W2 text-text; L47 says 导线穿字=判不了 and '原「有候选 2 处」作废'; L52 repeats it.",
+        "json": "conclusion and foreignLabelCandidates set classifiedAs=text-text; hostAdjudication.verdicts[2] = wire-through-text cannot judge.",
+        "git": "these lines are in 187eba1 (ancestor of HEAD 8537afb)"
+      }
+    },
+    {
+      "id": "T1-2",
+      "claim": "the W1/W2 reclassification holds: the blue net name overlaps the pin-name glyphs, not the wire",
+      "verdict": "false",
+      "evidence": {
+        "image": "r8t1-main-tile-r4c0.png (2.323 px/unit) viewed in full and cropped at the W1/W2 boxes. Left-side blue labels sit on the green wires, left of the black pin names PA0-PA12; the pin names are fully readable. Right-side blue labels sit after the black pin numbers (18,19,20,39,...) and to the right of PB0-PB7; the pin names are fully readable. No glyph-over-glyph overlap is visible.",
+        "w1_crop": "r12t2-w1-tile.png: blue MCU-34 on the green wire; black PA10 to its right, readable; the label's right edge is adjacent to PA10, not over it.",
+        "w2_crop": "r12t2-w2-tile.png: blue MCU-26 after black pin number 21; the nearest text is the pin number, not a pin name; there is no pin name under the label. The JSON's overlappedText='same-row pin name' is not supported.",
+        "coords": "attr111 (MCU-34) at (210,795) is a wire label on the left; attr102 (MCU-26) at (390,795) is at the far wire end. The nearest black text to 390 is the pin number around x=350-370 (tile mapping at 2.323 px/unit), not a pin name.",
+        "d_argument": "d=5.0 is the anchor-to-wire distance. A 14pt glyph is about 14 units tall (half-height about 7 > 5), so the wire lies inside the text's vertical extent; this supports 'label on the wire', not 'only grazing the edge'.",
+        "high_zoom": "r12t1-mcu.png / r12t1-mcuR.png at 8.25 px/unit show the same: PA10/PA11 readable, the blue MCU-34/33 at the pin end over the red pin stub, and the left labels on the green wires.",
+        "conclusion": "the labels are over the wire / pin stub; the pin names are adjacent and readable. The text-text classification and the PA10/pin-name pairings are not supported by the cited tile. Recommend restoring 'net name over wire/pin stub' (or marking it 待定) and re-opening the wire-under-label candidate instead of calling it 判不了."
+      }
+    },
+    {
+      "id": "T1-3",
+      "claim": "the A-box root cause is text31 overflow, not content duplication; the 'same string twice' is the overview mosaic seam",
+      "verdict": "true",
+      "confidence": "已查实",
+      "evidence": {
+        "one_text": "scan of t31-dataset.json texts (39): exactly one contains dsh-t19-real-ic-1792425596633 - PrimitiveId text31, X=404, Y=116, FontSize=16, 28 chars.",
+        "zero_attrs": "scan of all 662 attrs for the string or for '项目': 0 hits.",
+        "titleBlockData": "live query eda.dmt_Schematic.getCurrentSchematicPageInfo() returns titleBlockData={}.",
+        "overflow": "28 chars x 7.54 units/char = 211.1 units > 186-unit cell (404-590) => about 25 units overflow; t1's measured 208.4 / 23.3 is consistent. r12t2-abox-tail.png (frame 540-620) shows the project-name tail reaching the 图幅 column boundary; the exact 613.3 endpoint was not re-measured to 0.1 unit.",
+        "mosaic": "r9t1-main-view-guide.mjs L379-386 draws each tile at pad + col*tileW with no crop of the shared band. Tile rects: r0c0 x -2..509.8, r0c1 x 400.2..912.0 => 400.2..509.8 (109.6 units) is drawn twice in the composite.",
+        "conclusion": "the primitive data cannot produce the duplicate (only one text, no attribute, empty titleBlockData); the composite tiling does. t1's 'verified, not speculated' is correct. This is a negative result for the old 'two texts/attribute duplicate' hypotheses and a positive result for the mosaic-seam explanation."
+      }
+    },
+    {
+      "id": "T2-1",
+      "claim": "the doc says only L114 changes to i += 4; L113 keeps i += 2",
+      "verdict": "true",
+      "evidence": {
+        "doc_L2298": "'L113 的顶点登记必须保持 i += 2 ... 只有 L114 应改成 i += 4'",
+        "script": "t38-cross-review-t2.mjs L113 i += 2, L114 i += 2 (blob 76e7522a); git diff 187eba1..HEAD for the script is empty"
+      }
+    },
+    {
+      "id": "T2-2",
+      "claim": "the mutation matrix matches the measured behaviour",
+      "verdict": "true",
+      "evidence": {
+        "method": "independent probe over t31-dataset.json (fields Net/Line, uppercase), per-wire union-find, registration stride reg and union stride uni; nets with components>1 reported",
+        "raw": "reg2/union2 bad=[] (+3V3:1 GND:1); reg2/union4 bad=[+3V3:4, GND:3]; reg4/union2 bad=[] (1/1); reg4/union4 bad=[] (1/1)",
+        "doc_rows": "doc L2298: reg2/union2 -> [] ; reg2/union4 -> 4/3 ; reg4/union4 -> all connected (1). Matches."
+      }
+    },
+    {
+      "id": "T2-3",
+      "claim": "one count口径 (2 affected + 5 named unaffected) and the table has 7 rows",
+      "verdict": "true",
+      "evidence": {
+        "json": "r3t1 derivedNumbersAudit.count = '2 stride-affected items, 5 unaffected groups - each named...'; affected has 2, unaffected has 5 named groups.",
+        "table": "doc L2276-L2282 has exactly 7 rows; L2302 says '上表 7 行全部在内'."
+      }
+    },
+    {
+      "id": "T2-4",
+      "claim": "the two nits are fixed: '原 L2284 (更正后自 L2286 起)' and the shapes/stride-derived wording",
+      "verdict": "true",
+      "evidence": {
+        "r2t1": "id 11 source = '原 L2284（更正后自 L2286 起，§14.33.3 t38 复算行）'; now includes '5xpoly/4xpoly' and '步长/形态派生，非连通性派生'.",
+        "doc": "L2304 '形态派生，不是连通性派生'.",
+        "r3t1": "affected shapes item says 'stride-derived (segment parse), NOT connectivity-derived'; stride4 shapes 5xpoly 1 / 4xpoly 1 / 1xH 53."
+      }
+    },
+    {
+      "id": "T2-5",
+      "claim": "no overreach: geometry 4/3 and 1/1 unchanged, t38 logic unchanged",
+      "verdict": "true",
+      "evidence": {
+        "geometry": "doc L2290-L2291: +3V3 endpoint 4 / geometric 1; GND 3 / 1; other 53 = 1/1.",
+        "script": "git diff 187eba1..HEAD -- docs/evidence/review/t38-cross-review-t2.mjs is empty; L113/L114 both i += 2.",
+        "code": "t1/t2 changed no packages code. The 2 getState_Line hits are pre-existing (911c05b, 2026-10-13): packages/schematic-easyeda/src/build.ts:464 (converter reads the wire line) and tests/build.spec.ts:2230 (mock)."
+      }
+    },
+    {
+      "id": "G-1",
+      "claim": "site gates: t53 (exit 2 only if the environment is unavailable), --check FRESH, packages zero",
+      "verdict": "partial",
+      "evidence": {
+        "t53": "PASS 5/5, exit 0 (components 21, part 8/netflag 13, id set both ways, 55 wires/pairs, pages 2, MAIN b275cd23e45c4271bead56f66d4f98fe)",
+        "freshness": "FRESH, baselineVersion 4, exit 0",
+        "packages": "raw getState_Line hits = 2 (build.ts:464, build.spec.ts:2230), both from 911c05b, not t1/t2. So 'packages 0' as an absolute raw count is not reproducible; '0 introduced by t1/t2' is true. The gate definition should be pinned.",
+        "wrote": 0
+      }
+    }
+  ],
+  "findings": {
+    "w1w2": "the mechanical change is present, but the pixels contradict it: the labels are on the wires/pin stubs and the pin names/numbers are adjacent and readable. At W2 the nearest text is the pin number, not a pin name; the JSON's 'same-row pin name' is wrong. The reclassification should be re-adjudicated; the wire-under-label candidate is real, not 判不了.",
+    "aBox": "verified: one text31, zero attrs, empty titleBlockData, 28x7.54 > 186 overflow, and the mosaic seam is in the generator code and tile rects. The duplicate is an evidence-chain artifact, not a schematic duplicate.",
+    "residual": "guide L114 still says 导线穿符号 记为无候选, while L48/L52/L115 say 判不了. One sentence is stale (minor wording inconsistency).",
+    "selfCorrection": "my earlier r12t1 titleV frame (400-480) did not cover the A-box tail (560-613); the earlier 'A-box not reproduced' was out of frame and is withdrawn. r12t2-abox-tail.png (540-620) covers the tail and is consistent with the overflow."
+  },
+  "overall": "partial: t2 is sound (L113/L114, matrix, counts, nits, no overreach all pass). t1's A-box root cause is verified, but the W1/W2 text-text reclassification is not supported by the cited tile - the labels sit on the wires/pin stubs and the pin names are adjacent/readable. The 'wire-through-text = 2 candidates' removal should be revisited.",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "A-box root cause pass (one text31, 0 attrs, titleBlockData {}, overflow, mosaic seam). W1/W2 text-text classification fail: r4c0 plus crops show labels on wires/pin stubs, pin names/numbers readable and adjacent; W2's nearest text is the pin number, not a pin name.",
+        "baseline": "HEAD 187eba1 guide L45 '导线穿字=有候选 2 处', W1/W2 distance 0 / t 0.25, JSON conclusion '有候选，需人工确认'",
+        "diff": "guide 22 insertions/6 deletions, JSON 4 new blocks and 5.0/0.75; no code or threshold changes. The mechanical diff is real; the semantic call is not supported by the evidence."
+      }
+    },
+    {
+      "task": "t2",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "Doc L2298 says only L114; L113 stays i+=2. Independent matrix: [] / 4+3 / [] / []. One count口径 (2+5), table 7 rows, both nits fixed, geometry 4/3 and 1/1 unchanged, t38 script zero diff.",
+        "baseline": "HEAD 187eba1; doc L2298 absent, count prose not per-group, entry 11 lacking the L2286 note",
+        "diff": "3 files 4 insertions/4 deletions (doc sentence, r3t1 count/shapes, r2t1 entry 11); no code."
+      }
+    }
+  ],
+  "limits": [
+    "The r4c0 tile is 2.323 px/unit; the exact overlap at the sub-unit level is at the edge of its resolution. The conclusion rests on the full tile plus the two crops and the 8.25 px/unit r12t1 images, not on a sub-pixel measurement.",
+    "The page coordinates of individual pin names are not in the dataset (sch_PrimitivePin returns 0; pin names are symbol-internal), so the pin-name positions are read from pixels at 2.323 px/unit and are approximate.",
+    "The exact text31 ink endpoint 613.3 was not re-measured; the overflow is confirmed by arithmetic (28 x 7.54 > 186) and the tail image, not to 0.1 unit.",
+    "The host's visual call is the group's authority; this is an independent read that disagrees on W1/W2 and recommends re-adjudication, not a unilateral revert."
+  ],
+  "artifacts": [
+    { "type": "file", "path": "docs/evidence/current/r12t2-review-classification.json", "summary": "this review" },
+    { "type": "file", "path": "docs/evidence/current/r12t2-abox-tail.png", "sha256": "db53f5ffbb15e9aaf40c1c25235e4818184ff5fd6a1832189fea17ee5debd1a8", "summary": "A-box tail frame 540-620: project-name tail reaches the 图幅 column" },
+    { "type": "file", "path": "docs/evidence/current/r12t2-w1-tile.png", "sha256": "3466cb647ca42febeee9ee6b2ccbaeece26c00304714eb7f38ec1479c0914be5", "summary": "W1 crop from r4c0: MCU-34 on the green wire, PA10 readable to the right" },
+    { "type": "file", "path": "docs/evidence/current/r12t2-w2-tile.png", "sha256": "6020c5c0a28d77cbfa37a2ca845e13d8fcfe969325bfef89c92aea328fa8d991", "summary": "W2 crop: MCU-26 after pin number 21, no pin name under it" }
+  ],
+  "baseline": "HEAD 8537afb; t1 187eba1, t2 316a551; reviewed blobs pinned above",
+  "diff": "this review adds only r12t2-review-classification.json and 3 PNGs; no source or t1/t2 file was modified",
+  "reproSteps": [
+    "git hash-object on the 6 reviewed files (expected blobs in this JSON)",
+    "view docs/evidence/current/r8t1-main-tile-r4c0.png and the two r12t2-w*-tile.png crops",
+    "node -e scan t31-dataset.json: 1 text31 with the project name, 0 attrs",
+    "query eda.dmt_Schematic.getCurrentSchematicPageInfo().titleBlockData -> {}",
+    "independent union-find over t31-dataset.json (Net/Line) for reg/union in {2,4}: expected [] / 4+3 / [] / []",
+    "node docs/evidence/review/t53-verify-main.mjs; node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-verify-main.mjs && node docs/evidence/review/shared/freshness.mjs --check"
+}
