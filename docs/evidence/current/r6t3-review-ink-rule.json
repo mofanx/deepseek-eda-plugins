@@ -1,0 +1,196 @@
+{
+  "task": "r6t3 - independent review of t2's two artifacts: r5t7 (D2/D3 section review) and r6t2 (ink-nearest rule proposal)",
+  "mode": "read-only review. No guide, code, PNG, D1, r5t4 or r5t7/r6t2 edit. The only files written are this JSON and two read-only helpers (r6t3-ink-check.ps1, r6t3-pin-visibility.mjs), which open PNGs / call getAll only.",
+  "reviewedAt": "2026-10-24",
+  "head": "d7acac3874a7b04862feb34b416b4c711aa55a94",
+  "origin": "d7acac3874a7b04862feb34b416b4c711aa55a94",
+  "headVsOrigin": "0 0",
+  "headDrift": "none - the review target is HEAD itself. r5t7 records head 10ed08e (its review target) and headAtWrite 8faf500 (the HEAD it was written against before its own commit); both are accurate at their stated times and neither claims to be d7acac3. The reviewed surface did not move: r9t1-main-view-guide.md is blob 8796ab6258faf7d071a5ec3746ba1aa2ab3924cc at 10ed08e, 8faf500 and d7acac3 alike, and r5t6 is blob 1abf93af2ac2013502ee593ec94604d600b65c0b at all three.",
+  "reviewed": [
+    {
+      "file": "docs/evidence/current/r5t7-review-d2d3-section.json",
+      "blob": "dcd8107540b00fb5e10228ec1b2dd2400a6ddab5",
+      "addedAt": "d7acac3",
+      "overall": "sound"
+    },
+    {
+      "file": "docs/evidence/current/r6t2-ink-nearest-rule.json",
+      "blob": "90d71ed6502c24e771ab59ac7965eb9fb1920d5c",
+      "addedAt": "d7acac3",
+      "status": "pending-approval"
+    }
+  ],
+  "overall": "成立",
+  "overallReason": "r5t7 stands: every number it reports reproduces in my own pixel scan, it checked 1.94 explicitly instead of inheriting it, and it rejected my root-cause arithmetic on its own measurement rather than accepting my correction on trust. r6t2 is executable and does not mass-false-positive - the anchor test is clean on all 55 wire labels, not just the four sampled - but its 'which conclusions flip' list is incomplete in two places and its 1.0 margin sits exactly on one observed value. Those are corrections to supply, not reasons to reject.",
+  "measurement": {
+    "method": "docs/evidence/review/r6t3-ink-check.ps1 - System.Drawing, same y-profile clustering and colour rules as r5t4-d2d3-alt-scan.ps1, so the numbers are comparable to r5t7's.",
+    "frames": "r2t1-w1-frame.png (x0 200) and r2t1-w2-frame.png (x0 355), both y0 672, 8.25 px/unit",
+    "w1BlueLabel": "y 790.30-794.06 h=3.76, x 229.33-248.48",
+    "w1BlackPressed": "y 790.30-794.67 h=4.36, x 230.18-248.00",
+    "w1BlackRows": "779.64-784.48 h=4.85 and 799.88-804.73 h=4.85",
+    "w2BlackGaps": "788.48 to 790.55 = 2.07 above; 798.67 to 800.61 = 1.94 below; 794.79 to 795.88 = 1.09 immediate below",
+    "w2BlueLabels": "780.12-783.88, 790.30-794.06, 800.48-804.24, 810.67-814.42 (rows 785/795/805/815)",
+    "note": "the blue label boxes and the black glyph boxes were measured with separate colour filters, so no margin below mixes the two"
+  },
+  "checks": [
+    {
+      "id": "head-and-blobs",
+      "verdict": "成立",
+      "quote": "{\"file\": \"docs/evidence/current/r5t7-review-d2d3-section.json\", \"blob\": \"dcd8107540b00fb5e10228ec1b2dd2400a6ddab5\"} and {\"blob\": \"90d71ed6502c24e771ab59ac7965eb9fb1920d5c\"}",
+      "finding": "HEAD d7acac3 equals origin/master (0 0) and d7acac3 adds exactly these two files, 402 insertions, 0 deletions. Both blobs match the tree.",
+      "whyItMatters": "the recurring failure in this session has been a review that outlives its target; here the target has not moved at all"
+    },
+    {
+      "id": "r5t7-arithmetic-2.18",
+      "verdict": "成立",
+      "quote": "\"0.94 = 795 - 794.06; 5.30 = 790.30 - 785; 0.94+h = 5.30-h => 2h = 4.36 => h = 2.18 exactly.\"",
+      "recomputed": "at h=2.18 both distances are 3.12; at h=2.20 own 3.14 vs MCU-33 3.10, so the neighbour already wins - 2.18 is the exact crossover, not a rounded one",
+      "finding": "identical to r5t4 and to the guide; not a restatement, the two branches diverge as expected immediately either side of 2.18"
+    },
+    {
+      "id": "r5t7-h376-4.70-1.54",
+      "verdict": "成立",
+      "quote": "\"At h=3.76: ink 786.54-790.30; to own +3V3 y=795: 795-790.30=4.70; to MCU-33 y=785: 786.54-785=1.54. Both match r5t6 and the guide.\"",
+      "recomputed": "790.30-3.76=786.54; 795-790.30=4.70; 786.54-785=1.54",
+      "finding": "exact. It also states the tangent explicitly ('No overlap starts at h=3.76 because ... equals the black glyph's top'), which is the correct reading of my guide's '相切/间隙0'"
+    },
+    {
+      "id": "r5t7-did-it-check-1.94",
+      "verdict": "成立",
+      "quote": "\"1.94\": \"independent W2 black-cluster scan 798.67-800.61; also at 778.42-780.36. r5t4 lists a third at 808.85-810.79, but that one was not needed and my scan split it into 1.21/0.73. r5t6 only reproduced 2.07, so this review checked 1.94 explicitly; it is real, not assumed.\"",
+      "independentScan": "w2 black clusters give 798.67 to 800.61 = 1.94, and 794.79 to 795.88 = 1.09 as the immediate below gap",
+      "finding": "it chased the item, gave a source, and disclosed a divergence from r5t4 (the 808.85-810.79 interval) instead of repeating my number. Under the task's stated criterion - traced with a source or explicitly marked not reproduced - this is 成立, not partial.",
+      "significance": "1.94 is the number r5t6 had not reproduced; r5t7 closed exactly that gap"
+    },
+    {
+      "id": "r5t7-root-cause-not-a-courtesy-pass",
+      "verdict": "成立",
+      "quote": "\"3.76+4.85=8.61<10; 3.76+4.36=8.12<10; 3.76+4.61=8.37<10. The row has enough total height, so 'cannot share a 10-unit row' is not the reason.\"",
+      "independentScan": "x 232-244 pin-number column reproduces 779.64-784.48 h=4.85, 790.30-794.67 h=4.36, 799.88-804.73 h=4.85 - the same three clusters, in the same window r5t7 names",
+      "finding": "it did not take my correction on trust: it re-measured the column, got the identical clusters, and confirmed 4.85 belongs to the rows above and below rather than to the pressed row. It also records the residual that my r5t4 artifact still carries the old sentence.",
+      "significance": "this is the specific 'give the member a step' failure mode the task asked about, and it did not happen"
+    },
+    {
+      "id": "r5t7-planB-numbers",
+      "verdict": "成立",
+      "quote": "\"3.81/2.85/1.62/2.10\": \"recomputed from the r5t4 boxes with the same 0.005 k step: obj1 k=.635/.27/.35 -> 3.81/1.62/2.10; obj2 k=.475/.15 -> 2.85/0.90; center is inside the pressed glyph and has no solution.\"",
+      "finding": "consistent with the r5t4 artifact (obj1 feasible 3.81; obj2 2.85) and with the guide; the values are below the floor of 4, so the no-go holds either way"
+    },
+    {
+      "id": "r5t7-c3-onset",
+      "verdict": "成立",
+      "quote": "\"t=(s-10)/40; s=12.00 gives t=.05 exactly (not >.05); the first 0.01-grid sample is 12.01 with t=.05025 and d=5; s=15 gives d=5,t=.125.\"",
+      "recomputed": "(12.01-10)/40 = 0.05025; (12.00-10)/40 = 0.05 exactly, which does not satisfy t>0.05",
+      "finding": "exact, and it explains why the onset is stated as s>12.0 rather than s>=12.0"
+    },
+    {
+      "id": "rule-executable",
+      "verdict": "成立",
+      "quote": "\"The generator currently has no ink bbox: it has attributes/geometry and TEXT_RADIUS only. Therefore add an inkRect input from the existing pixel scan (r5t1-d2d3-scan.ps1/r5t4-d2d3-alt-scan.ps1 output) or a new read-only bbox source; do not infer width from fontSize.\"",
+      "finding": "the proposal is specified down to function names, inputs, N/A conditions and severity, and it says plainly that the bbox has to come from outside the generator instead of inventing one. It also refuses to overload t53 and explains why. That is executable, with the dependency stated rather than hidden.",
+      "gap": "it cannot be implemented as a pure generator change; it needs a pixel artifact committed alongside, which the proposal does not list as a deliverable"
+    },
+    {
+      "id": "rule-false-positives-anchor",
+      "verdict": "成立",
+      "quote": "\"Three ink-overlapping normal labels (MCU-25, MCU-27, MCU-28) pass cleanly with margins 10.0 / 4.72 / 5.09.\"",
+      "exhaustiveTest": "I ran the anchor-nearest test over ALL 55 wire labels against all 55 wires (point-to-segment, own net excluded as foreign): 55 own-nearest, 0 foreign-nearest, 0 ties",
+      "finding": "the anchor half of the proposed rule has zero false positives on the whole population, not merely on the four sampled labels - which is stronger than the proposal claims for itself.",
+      "whyItMatters": "a rule that fails 55/55 would be unusable; this one does not"
+    },
+    {
+      "id": "rule-false-positives-ink",
+      "verdict": "成立",
+      "quote": "\"MCU-25\": {\"inkOwn\": 1.12, \"inkForeignMin\": 11.12, \"margin\": 10.0} / \"MCU-27\": {\"inkOwn\": 0.76, \"inkForeignMin\": 5.48, \"margin\": 4.72} / \"MCU-28\": {\"inkOwn\": 0.58, \"inkForeignMin\": 5.67, \"margin\": 5.09} / \"MCU-33\": {\"inkOwn\": 1.12, \"inkForeignMin\": 0.12, \"margin\": 1.0}",
+      "independentScan": "blue boxes 780.12-783.88 (row 785), 800.48-804.24 (row 805), 810.67-814.42 (row 815); own wires 785/805/815; +3V3 at 780",
+      "finding": "all four margins reproduce exactly (1.12/0.76/0.58 and 1.12 vs 0.12). Two things I checked and must report honestly: (a) I suspected the boxes were black glyph bands, because 780.12-783.88 is also a black cluster edge - the blue-filtered scan shows the net-name ink really is 780.12-783.88, so the suspicion was wrong; (b) MCU-33 is not a false positive at all, its ink genuinely sits 0.12 from +3V3 and 1.12 from its own wire, so a warning is the correct outcome."
+    },
+    {
+      "id": "rule-flip-list-completeness",
+      "verdict": "不成立（不完整，我补两处）",
+      "quote": "\"The current r5t4 code uses inkOwn <= inkOther (line 107), so it would pass a tie; that is the specific line to change.\"",
+      "missing1": "docs/evidence/review/r5t4-d2d3-alt-verdict.mjs:104 also uses an inclusive comparison for the ANCHOR test: `if (!(own.d <= ds[0].d)) { bump('2p_anchor_not_nearest'); continue }`. Under the proposal's own strictness clause ('strict < for both anchor and ink') this line must change too. It is currently masked - at h=5.00, where the anchor distances tie at 5 vs 5, the ink test already rejects the position - but leaving it inclusive contradicts the rule text and will bite on any future dataset where the anchor ties while the ink does not.",
+      "missing2": "the guide's own 18-row and 13-netflag conclusions come from r9t1-main-view-guide.mjs's anchor-only `foreignHits` (d<=6). The proposal adds inkNearestFails/inkNearestWarnings to that generator but never enumerates which rows or flags would move to warning. That is precisely the surface the standing rules protect ('existing 18-row scan conclusions' must not change), so the flip list must either name them or state explicitly that they are unaffected and why.",
+      "missing3Minor": "r5t1-d2d3-verdict.mjs:44 has its own `nearest()` helper; the proposal asserts r5t1 c2 stays PASS but does not say whether that helper also needs the strict/margin treatment. It should be named even if the answer is 'no change needed'.",
+      "finding": "the list is directionally right (it names the real tie defect and correctly keeps t53 out), but a rule adoption that changes two comparisons and one generator cannot ship a change list that names one comparison."
+    },
+    {
+      "id": "threshold-not-relaxed",
+      "verdict": "成立",
+      "quote": "\"the existing anchor bound d(anchor,W)<=6 is retained\" / \"strict < for both anchor and ink; equality is NOT nearest\"",
+      "verified": "r5t4-d2d3-alt-verdict.mjs:29 `const D_TEXT = 6`, :30 `const D_WIRE = 12`, :102 `if (own.d > D_TEXT)`. The guide states TEXT_RADIUS=6 and d<=12 unchanged at L188 and L216.",
+      "finding": "d<=6 was not widened to 7 or anything else, and no 'strictly less' was rewritten as 'less or equal' to let a case through. The pass condition is tightened, not loosened."
+    },
+    {
+      "id": "severity-band-is-a-softening",
+      "verdict": "成立 but must be labelled",
+      "quote": "\"HARD FAIL if (anchorForeignMin < anchorOwn - 1.0) OR (inkForeignMin < inkOwn - 1.0). WARN/REVIEW otherwise (ties and margins <=1.0).\"",
+      "finding": "this is not a threshold change, but it does change severity: today r5t4 bumps on ANY inversion (inkOwn > inkOther by 0.01 fails); under the proposal an inversion of up to 1.0 becomes a warning. The proposal is honest about it ('a warning is not a pass ... blocks automatic approval'), and the margin exists to keep MCU-33 out of hard fail. It should still be recorded as a severity softening, not presented as a pure tightening.",
+      "calibrationRisk": "MCU-33's margin is exactly 1.00 (1.12 vs 0.12) and the fail test is `foreign < own - 1.0`, i.e. `0.12 < 0.12` = false. The threshold therefore sits exactly on one observation: a 0.02-unit shift in either box turns MCU-33 into a hard failure. The proposal does say to re-derive if boxes move by about 0.5, but it should state that this one label defines the boundary rather than merely touching it."
+    },
+    {
+      "id": "no-overreach",
+      "verdict": "成立",
+      "quote": "\"status\": \"pending-approval\", \"applied\": false, \"guideEdited\": false, \"codeChanged\": false",
+      "verified": "git diff --name-status 8faf500 d7acac3 = A r5t7, A r6t2 only; protected paths (r9t3*, *.png, r4t1*, r5t4-d2d3-alternatives.json, packages/*) have zero diff; the guide text still reads TEXT_RADIUS=6 / d<=12 / stride 2-vs-4 at L188/L216 with no ink-rule prose added",
+      "finding": "the rule is a proposal, not an applied gate: it changed no code, no guide sentence, no threshold and no protected artifact. The 'do not rewrite the existing d<=6 sentence until approved' instruction is respected."
+    }
+  ],
+  "residual": [
+    {
+      "id": "glyph-identity-of-the-pressed-band",
+      "status": "open - affects r5t4 and the guide equally, not a defect I can pin on t2",
+      "observation": "Inside the label corridor (x>=229.33) the black band at y 790.30-794.67 spans x 230.18-248.00, which is about 17.8 units or six glyphs - the width of the six-character label text, not of a two-digit number. Pin Number '31' anchors at x=224, i.e. left of that corridor, and my strict-threshold scan of x 218-229.5 found only two stray single pixels there (a loose threshold is useless because it also catches the green wire, which sits at y 785/795). So these crops alone cannot establish that the 4.36-tall band is '31' rather than the label's own black text.",
+      "whyItMatters": "both r5t7 and my r5t4 describe that band as the pin number 31; if it is not, the numbers still stand (a 4.36-tall black band does occupy the label's y-range) but the sentence 'the flag name presses pin 31' would need re-attribution.",
+      "action": "before anyone cites 'presses 31' as established, take one higher-resolution tile of x 214-252 / y 787-797 and settle the glyph. I did not treat this as a t2 failure because r5t7 measured exactly what my own artifact measured, in the window my artifact defined."
+    }
+  ],
+  "gates": {
+    "t53": "PASS 5/5 exit 0 (21 components, 8 part + 13 netflag, 55 wires, 55 id|net pairs, 2 pages, MAIN b275cd23e45c4271bead56f66d4f98fe)",
+    "freshness": "FRESH, baselineVersion 4, packages 5, exit 0",
+    "packagesNew": 0,
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "readOnlyHelpers": [
+      "docs/evidence/review/r6t3-ink-check.ps1 (opens PNGs only)",
+      "docs/evidence/review/r6t3-pin-visibility.mjs (sch_PrimitiveAttribute.getAll only)"
+    ]
+  },
+  "verdicts": {
+    "r5t7": "成立 - sound. Every number reproduces; 1.94 was chased with a source and a disclosed divergence; the root-cause correction was verified independently rather than accepted; protected paths clean.",
+    "r6t2": "成立（附三处补正）- the rule is executable and does not mass-false-positive (55/55 anchor-clean), but the change list must add r5t4:104 and the guide's 18-row surface, and the 1.0 margin must be labelled as sitting exactly on MCU-33.",
+    "overall": "成立"
+  },
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master  # d7acac3, 0 0",
+    "git diff --name-status 8faf500 d7acac3  # A r5t7, A r6t2 only",
+    "git ls-tree -r HEAD docs/evidence/current  # blobs dcd8107 / 90d71ed",
+    "pwsh -File docs/evidence/review/r6t3-ink-check.ps1  # clusters: 2.07, 1.94, 1.09, 4.85 x2, 4.36, blue boxes",
+    "node -e \"...point-to-segment over 55 labels...\"  # 55 own-nearest, 0 foreign, 0 ties",
+    "Select-String r5t4-d2d3-alt-verdict.mjs -Pattern 'D_TEXT|<= ds'  # L29=6, L104 and L107 both inclusive",
+    "node docs/evidence/review/t53-verify-main.mjs  # PASS 5/5 exit 0",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verify": [
+    {
+      "task": "r5t7-review-d2d3-section",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "All seven numbers reproduce in an independent pixel scan (2.18 exact, 4.70/1.54 at h=3.76, 2.07 and 1.94 gaps, 4.85 clusters at 779.64-784.48 and 799.88-804.73, 12.01 onset). It checked 1.94 with a stated source and disclosed a divergence, and it confirmed my root-cause error by re-measuring the pin-number column rather than trusting my correction.",
+        "baseline": "guide blob 8796ab62 at 10ed08e; r5t7 blob dcd8107 at d7acac3",
+        "diff": "review artifact only; no guide, code, PNG, D1 or r5t4 change in 8faf500..d7acac3"
+      }
+    },
+    {
+      "task": "r6t2-ink-nearest-rule",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "Executable and false-positive-safe on the anchor half (55/55 exhaustive), with four sampled ink margins reproduced exactly; d<=6 not widened and strictness preserved. Incomplete in two places: r5t4-d2d3-alt-verdict.mjs:104 has the same inclusive anchor comparison and is not named, and the guide's 18-row/13-netflag surface is not enumerated. The 1.0 margin sits exactly on MCU-33's 1.00 and converts up-to-1.0 inversions into warnings, which needs an explicit label.",
+        "baseline": "r5t4-d2d3-alt-verdict.mjs:29 D_TEXT=6, :104 inclusive anchor, :107 inclusive ink; proposal blob 90d71ed at d7acac3",
+        "diff": "none - proposal is pending-approval, codeChanged false, no file outside the two JSONs changed"
+      }
+    }
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
