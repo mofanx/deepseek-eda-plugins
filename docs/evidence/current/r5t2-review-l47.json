@@ -1,0 +1,219 @@
+{
+  "task": "t3 (r5t2) - independent review of t1: is L47 correct, and is the 18-row audit list trustworthy",
+  "reviewer": "eda4 member (t3)",
+  "reviewedCommit": "03970de",
+  "reviewedAtHead": "521b112",
+  "reviewedAt": "2026-10-24",
+  "mode": "read-only review. No bridge call, no canvas write, no edit to the reviewed files.",
+  "versionLock": {
+    "head": "521b112",
+    "originMaster": "521b112",
+    "aheadBehind": "0 0",
+    "workingTree": "clean",
+    "guideBlobReviewed": "2385ef329f7271c6774172d3f8d622fb486357f0",
+    "guideBlobAtHead": "2385ef329f7271c6774172d3f8d622fb486357f0",
+    "guideBlobBaseline720a7b6": "ba4560deedc896bb12bc43eb7a5958262da127cf",
+    "conclusion": "成立 - the blob I read is byte-identical at the reviewed commit and at HEAD, so this review is of the committed text, not of a working-tree draft",
+    "correctionToT1": "t1 reported '1 0, 未推送 03970de'. That is stale: 03970de is an ancestor of origin/master now, because the r5t1 push (720a7b6..521b112) carried it up. git merge-base --is-ancestor 03970de origin/master returns 0."
+  },
+  "checks": [
+    {
+      "id": "1-version",
+      "question": "记录 HEAD 与指南 blob，确认验的是提交版",
+      "verdict": "成立",
+      "evidence": "HEAD = origin/master = 521b112, 0 0, tree clean. Guide blob 2385ef3 at both 03970de and HEAD; baseline 720a7b6 blob ba4560d. Line count 191."
+    },
+    {
+      "id": "2a-object",
+      "question": "L47 的交叠对象是否已是引脚编号 31",
+      "verdict": "成立",
+      "quote": "| 导线穿字 | **判不了**（原「有候选 2 处」作废）。原先的 W1/W2 两处经主持人识图改判为**文字-文字**：像素上 W1 的 `MCU-34` 压的是 U1 引脚**编号 31**（`PA10` 的 Pin Number；`PA10` 字形 252–268 完整可读）；W2 的 `attr102` 本身只擦过导线，压 `PB10` 的是同排**网络标志名**。几何上标签到导线的 `d=5.0` 只有半个 14pt 字高、`t=0.75` 贴着引脚端——不是穿中",
+      "evidence": "L47 now reads: \"像素上 W1 的 `MCU-34` 压的是 U1 引脚**编号 31**（`PA10` 的 Pin Number；`PA10` 字形 252–268 完整可读）\". This matches my own pixel measurement in r5t1: pin number 31 ink x 235.64-241.82, PA10 ink x 252.85-268.85, i.e. the digits are under the label and the pin NAME is clear. The baseline line said \"像素上是网名与**引脚名**字形交叠\", which was wrong."
+    },
+    {
+      "id": "2b-t025",
+      "question": "t=0.25 是否不再被当作现状",
+      "verdict": "成立",
+      "quote": "旧的 `t=0.25` 是步长 2 伪斜线读数，**已作废**，仅作历史记录。",
+      "evidence": "L47 keeps t=0.75 as the current figure and marks t=0.25 as void with a reason (stride-2 pseudo-diagonal). The baseline had \"`t=0.25`/`0.75` 处\" with no distinction. L138 and L190 carry the same void marking, so the three mentions are consistent."
+    },
+    {
+      "id": "2c-consistency",
+      "question": "与 L52/L133/L138 是否产生新矛盾",
+      "verdict": "成立",
+      "evidence": "L52: \"当前仍然成立的文字-文字实例是 W1/W2 那一组（W1 压引脚编号 `31`，网络标志名压 `PB10`）\". L133 header: 网名 × 引脚编号／引脚名. L135: W1 pressed object = U1 引脚编号 31, PA10 252–268 readable. L136: attr102 has no black glyph under it, the flag name is what presses PB10. L47 now says the same three things. I found no pair that contradicts."
+    },
+    {
+      "id": "2d-new-claim",
+      "question": "t1 新写的「t=0.75 贴着引脚端」是否有测量支撑",
+      "verdict": "不成立",
+      "baseline": "基线 720a7b6 的 L47 写的是「且落在段内比例 `t=0.25`/`0.75` 处——贴着导线边缘，不是穿中段」",
+      "current": "L47 现在写「`t=0.75` 贴着引脚端——不是穿中段」",
+      "why": [
+        "t=0.75 是在**【外来】**段上量的，不是在自己的导线上：attr111 的最近外来段是 layout:wire:_3V3:flags 的 (240,800)-(200,800)，垂足在 x=210，即 t 从存储起点 240 量起走了 30 单位、距另一端 200 只有 10 单位。",
+        "而那两端的身份都不是\"引脚端\"：x=240 是 +3V3 标志所在端，x=200 是该线拐向下方的转角。",
+        "attr111 **自己的**导线是 (210,795)-(250,795)，锚点正好在 x=210 这个外端上，距引脚端 x=250 有 40 单位——说\"贴着引脚端\"正好相反。",
+        "L138 的括号「W1 的 x=210 距引脚端 10 单位、距外端 30 单位」把两端的名字对调了：10 单位那头是 x=200 的转角，30 单位那头才是 +3V3 标志端。"
+      ],
+      "impact": "结论「不是穿中段」仍然成立（t=0.75 距段端只有 25%，确实不在中段），所以分类不受影响；但\"贴着引脚端\"这句本身与实测相反，而且它是 t1 从基线的中性表述「贴着导线边缘」**改**出来的，不是继承。",
+      "suggestedFix": "把该子句改回中性或改准，例如「`t=0.75` 靠近该外来段的端点（不在中段），垂足距 x=200 转角 10 单位」，并同步修 L138 括号里的两端命名。"
+    },
+    {
+      "id": "3-scan-list",
+      "question": "18 行扫查清单是否可信（抽查 ≥5 行 + 自己 grep 六个串）",
+      "verdict": "成立",
+      "method": "independent grep of 引脚名 / t=0.25 / 16pt / 404.9 / 613.3 / 28 字符 on the committed file, then set-union of the hit lines compared with the 18 rows of t1-l47-scan.json",
+      "hitLines": {
+        "引脚名": [
+          9,
+          45,
+          131,
+          136,
+          138,
+          148,
+          158,
+          160,
+          164
+        ],
+        "t=0.25 (含 t = 0.25)": [
+          47,
+          138,
+          190
+        ],
+        "16pt": [
+          9,
+          35,
+          36,
+          39,
+          45,
+          52,
+          177,
+          179,
+          183
+        ],
+        "404.9": [
+          179
+        ],
+        "613.3": [
+          179
+        ],
+        "28 字符": [
+          179
+        ]
+      },
+      "union": [
+        9,
+        35,
+        36,
+        39,
+        45,
+        47,
+        52,
+        131,
+        136,
+        138,
+        148,
+        158,
+        160,
+        164,
+        177,
+        179,
+        183,
+        190
+      ],
+      "completeness": "成立 - the union is exactly 18 distinct lines and matches the 18 rows one-for-one. I found **no hit outside the list**.",
+      "spotChecks": [
+        {
+          "line": 9,
+          "t1Said": "历史（D1 修复前），且 W1 已写压编号 31",
+          "myVerdict": "成立 - \"text31 当时 16pt\" + \"该溢出已由 D1 收到 14pt\" + \"W1 压引脚编号 31\" all present in the same line"
+        },
+        {
+          "line": 36,
+          "t1Said": "历史（拍图时 16pt，现 14pt），但原句未标，已补",
+          "myVerdict": "成立 - the only row t1 actually edited besides L47/L190; now reads \"16pt（D1 改前；现 14pt）\""
+        },
+        {
+          "line": 45,
+          "t1Said": "① 历史已标；② 是正确现状",
+          "myVerdict": "成立 - ① carries \"D1 改前…已由 D1 收到 14pt 修复\"; ② correctly says W1 presses pin number 31 and the flag name presses PB10"
+        },
+        {
+          "line": 138,
+          "t1Said": "t=0.75 现状；t=0.25 已标旧表/步长 2/已作废",
+          "myVerdict": "成立 for the void marking; the parenthetical 10/30 end-naming is wrong (see 2d) and is inherited, not t1-made"
+        },
+        {
+          "line": 158,
+          "t1Said": "主持人原话（原文表格），禁改",
+          "myVerdict": "成立 - L150 \"## 主持人识图判定（2026-10-22）\" and L152 \"以下结论来自主持人本人的直接读图…原文未改语义\" establish this table as host text; L160 carries the ※ correction and L164 is the explicit correction block. Keeping \"MCU-34 压 PA10\" here is the sanctioned behaviour, not an oversight."
+        },
+        {
+          "line": 179,
+          "t1Said": "16pt/613.3/208.4/23.3/28 字符均已标历史；404.9 是左界",
+          "myVerdict": "成立 - 404.9 is the ink start and is still used as the origin for the new width (579.63 − 404.9 ≈ 174.7), not a stale right edge"
+        },
+        {
+          "line": 190,
+          "t1Said": "生成器旧读数警告，但未标 t=0.25 作废 -> 已改",
+          "myVerdict": "成立 on the content added; but this line also carries inherited character damage t1 did not notice (see F1)"
+        }
+      ],
+      "noHistoricalAsCurrent": "成立 - every remaining 16pt/613.3/208.4/404.9/28-字符 occurrence sits in a sentence that labels it D1-pre or historical, or belongs to a genuinely 16pt object (text33 at L177, \"MAIN\" and \"910×1170\" at L35/L36)."
+    },
+    {
+      "id": "4-bounds",
+      "question": "未越界",
+      "verdict": "成立",
+      "evidence": {
+        "r9t3": "git diff 720a7b6 03970de -- …/r9t3-review-view-guide-v2.json -> empty (zero diff)",
+        "threeHashes": "L75 still contains 430f3be, 1c77c475 and dd5e835 (each grep hits L75)",
+        "hostQuoteAndMarker": "L150-L164 host table intact; ※ occurs 3 times",
+        "criteria": "TEXT_RADIUS=6 -> 1 occurrence, d≤12 -> 1 occurrence, 步长 4 -> 7 occurrences, all still present",
+        "filesTouched": "only docs/evidence/current/r9t1-main-view-guide.md and docs/evidence/current/t1-l47-scan.json; no PNG, no package, no source"
+      }
+    },
+    {
+      "id": "5-gates",
+      "question": "自证",
+      "verdict": "成立",
+      "evidence": "node docs/evidence/review/shared/freshness.mjs --check -> status FRESH, baselineVersion 4, packages 5, exit 0; packages added 0; wrote 0 (this review is read-only and produced only this JSON); HEAD...origin/master = 0 0"
+    }
+  ],
+  "extraFindings": [
+    {
+      "id": "F1",
+      "severity": "low but real",
+      "what": "L189/L190 carry three escape-eaten characters: \"只改本文件与 \" + line break + \"9t1-main-third-class.json\" (the r is gone), \"（d、\" + TAB + \"、TEXT_RADIUS=6\" (t turned into a tab), \"与 \" + TAB + \"ext31 墨迹宽度\" (t turned into a tab)",
+      "proof": "byte scan of the committed file: 2 x TAB(0x09) at those two spots; the 191 CR are ordinary CRLF line endings, not damage",
+      "attribution": "NOT introduced by 03970de: git grep -P \"\\t\" shows the same damage at 720a7b6 and at ab910af, and at ab910af~1 the CR is still inline inside line 185 (\"与 \\9t1-main-third-class.json\"). So it dates from when these change-note lines were first written, and t1 merely inherited it.",
+      "noteForT1": "t1 did edit this exact line (appending the 作废 marker) and did not notice the damage. That is a miss, not a regression.",
+      "suggestedFix": "one-line repair: restore \"r9t1-main-third-class.json\", \"（d、t、TEXT_RADIUS=6\", \"与 text31 墨迹宽度\". Worth doing because this is the paragraph that asserts 未改任何判据 — the damage makes it look like the criteria list itself is corrupted."
+    },
+    {
+      "id": "F2",
+      "severity": "low",
+      "what": "L36 quotes the project-name string as \"dsh-t19-real-ic-179242\", but the live content is dsh-t19-real-ic-1792425596633 (29 chars). The quote is truncated with no ellipsis.",
+      "attribution": "inherited; t1 edited this cell (adding the D1 note) and left the truncation. Not a stale-number issue, so outside its stated scope."
+    },
+    {
+      "id": "F3",
+      "severity": "info",
+      "what": "The host table cell at L158 still says \"MCU-34 压 PA10\" and carries no inline ※. The correction lives on the next row (L160, 导线穿字) and in the block at L164.",
+      "assessment": "Not a defect: host text is frozen and L152 sanctions ※ as the only edit channel. But a reader who stops at L158 can take the wrong object as current. If the host agrees, adding a ※ to that cell in a future pass would close it; the wording itself must not change."
+    }
+  ],
+  "overall": "partial",
+  "overallReason": "All four assigned checks pass: the version is pinned, the object is now pin number 31, t=0.25 is voided, the 18-row list is complete and I found no hit outside it, and nothing forbidden was touched. It is not a clean pass because t1 replaced the baseline's correct neutral phrase 贴着导线边缘 with 贴着引脚端, which my measurement contradicts (the t=0.75 foot is 10 units from a corner and 30 from the +3V3 flag; the label's own pin end is 40 units away). The classification is unaffected, so this is a wording regression rather than a wrong verdict.",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "L47 object correction is right and the audit list is complete, but one new clause (\"t=0.75 贴着引脚端\") is contradicted by the measured geometry, and the line t1 edited still carries inherited escape damage it did not notice.",
+        "baseline": "720a7b6 guide blob ba4560d: L47 \"像素上是网名与引脚名字形交叠 … 落在段内比例 t=0.25/0.75 处——贴着导线边缘\"; L36 unmarked 16pt; L190 unmarked d=0/t=0.25; L189/L190 already escape-damaged",
+        "diff": "03970de: guide +3/-3 (L36 mark, L47 rewrite, L190 void mark) + new t1-l47-scan.json; verified by git diff --unified=0 720a7b6 03970de"
+      }
+    }
+  ]
+}
