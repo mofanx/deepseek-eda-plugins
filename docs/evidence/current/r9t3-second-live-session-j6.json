@@ -1,0 +1,148 @@
+{
+  "task": "r9t3 - add a regression test for t53's error classification, and take a second live reading (j6's own)",
+  "member": "eda4 / j6",
+  "generatedAt": "2026-10-24T13:54:00Z",
+  "generatedAtLocal": "2026-10-24T21:54:00+08:00",
+  "headline": "Two deliverables, one of them only partly achieved, and I am labelling which is which. The regression test exists and is green: 9/9 cases assert exact reason strings and the exit-2 contract, including the measured 'disconnected' string, the two wording variants, both machine codes, two negative controls, and the EDA_NOT_CONNECTED branch. The second live reading is genuinely mine - 2026-10-24T13:40:16.452Z, exit 0, 5/5, 21/8/13/55/55/2, MAIN active - and it differs from the 12:36, 12:37, 12:39 and j5's 13:39:55.037Z timestamps. What I did NOT do is perform the registration: when I first probed at 13:39:51.485Z the relay already reported edaConnected:true / count 1 / window 25883914a72e5cbb. j5's own artifact shows they registered it at 13:39:33.364Z (click) -> 13:39:37.358Z (count 1). I opened the landing page at 13:40:54.370Z to replay the handshake, but it short-circuited: it saw the relay already connected, hid #manual, and the #pop click was rejected as hidden. So this is a second independent READING on j5's registration, not a second registration. I did not tear the existing registration down to manufacture one, because that means closing the user's editor tab.",
+  "windowId": "25883914a72e5cbb",
+  "myTimestampUtc": "2026-10-24T13:40:16.452Z",
+  "myTimestampLocal": "2026-10-24T21:40:16.452+08:00",
+  "myTimestampDistinctFrom": [
+    "2026-10-24T12:36:10.642Z",
+    "2026-10-24T12:36:46.855Z",
+    "2026-10-24T12:37:34.222Z",
+    "2026-10-24T12:39:01.011Z",
+    "2026-10-24T13:39:55.037Z (j5's second reading)"
+  ],
+  "part1_regressionTest": {
+    "file": "docs/evidence/review/t53-classification-regression.mjs",
+    "whatItDoes": "runs the real gate once per case with T53_FORCE_CALL_ERROR / T53_FORCE_CALL_CODE and asserts the EXACT reason string and the exit code; no canvas or document access",
+    "whyItWasNeeded": "the four exit-2 reasons and the BRIDGE_CALL_FAILED fallback could only be checked by hand, one env var at a time, so a regex edit could change what a caller sees without any test turning red",
+    "designNotes": [
+      "child output is captured through file descriptors rather than pipes, so the script also runs where pipe creation is restricted",
+      "each case asserts reason === expected AND exit === 2, never merely 'non-zero'",
+      "case (e) is conditional: the no-window branch is only reachable while no window is registered, so the script asserts it strictly when /health reports 0 windows and otherwise asserts that the gate still runs cleanly (exit 0, ok true) and says in the output that BRIDGE_NO_EDA_WINDOW was not asserted in that run"
+    ],
+    "runOutput": {
+      "command": "node docs/evidence/review/t53-classification-regression.mjs",
+      "exitCode": 0,
+      "summaryLine": "### ALL GREEN - 9/9 passed, exit-code contract: every branch must be 2",
+      "cases": [
+        { "id": "a", "input": "EDA window \"25883914a72e5cbb\" disconnected", "expected": "BRIDGE_WINDOW_DISCONNECTED", "actual": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2, "pass": true },
+        { "id": "b1", "input": "window lost during execution", "expected": "BRIDGE_WINDOW_DISCONNECTED", "actual": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2, "pass": true },
+        { "id": "b2", "input": "requested no such window", "expected": "BRIDGE_WINDOW_DISCONNECTED", "actual": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2, "pass": true },
+        { "id": "b3", "input": "code=SCHEMATIC_BRIDGE_WINDOW_LOST", "expected": "BRIDGE_WINDOW_DISCONNECTED", "actual": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2, "pass": true },
+        { "id": "b4", "input": "code=SCHEMATIC_BRIDGE_DISCONNECTED", "expected": "BRIDGE_WINDOW_DISCONNECTED", "actual": "BRIDGE_WINDOW_DISCONNECTED", "exit": 2, "pass": true },
+        { "id": "c1", "input": "some unrelated page error", "expected": "BRIDGE_CALL_FAILED", "actual": "BRIDGE_CALL_FAILED", "exit": 2, "pass": true },
+        { "id": "c2", "input": "code=SCHEMATIC_BRIDGE_EXECUTION", "expected": "BRIDGE_CALL_FAILED", "actual": "BRIDGE_CALL_FAILED", "exit": 2, "pass": true },
+        { "id": "d", "input": "not connected to any EDA window", "expected": "EDA_NOT_CONNECTED", "actual": "EDA_NOT_CONNECTED", "exit": 2, "pass": true },
+        { "id": "e", "input": "no env at all, with 1 window registered", "expected": "exit 0 ok true (no-window branch unreachable)", "actual": "exit 0 ok true", "pass": true, "notAsserted": "BRIDGE_NO_EDA_WINDOW" }
+      ],
+      "caseEHonesty": "case (e) did NOT assert BRIDGE_NO_EDA_WINDOW in this run, because a window was registered. The branch itself was observed live at 2026-10-24T12:58:01.022Z with the same, unmodified code: exit 2, reason BRIDGE_NO_EDA_WINDOW. The script will assert it strictly the next time it is run with 0 windows registered."
+    },
+    "noLogicChanges": {
+      "claim": "only a test file was added; t53's classification regex, thresholds, slice(0,200) and exit 2 are untouched in this task",
+      "proof": "git diff shows the only change under docs/evidence/review is the new file; t53's blob is a45b725, identical to the commit this task started from"
+    }
+  },
+  "part2_secondLiveReading": {
+    "t53": {
+      "command": "node docs/evidence/review/t53-verify-main.mjs --json",
+      "startUtc": "2026-10-24T13:40:16.165Z",
+      "at": "2026-10-24T13:40:16.452Z",
+      "endUtc": "2026-10-24T13:40:16.862Z",
+      "exitCode": 0,
+      "ok": true,
+      "checks": "5/5 pass:true, all four diff arrays empty",
+      "values": { "components": 21, "part": 8, "netflag": 13, "wires": 55, "wirePairs": 55, "pages": 2 },
+      "checksDetail": [
+        "components = 21: 21 / expected 21",
+        "part = 8, netflag = 13: part=8 netflag=13",
+        "component id set = baseline (both directions): extra=0 missing=0",
+        "wires = 55 and id|net pairs = baseline: wires=55 pairs=55 extra=0 missing=0",
+        "pages unchanged, MAIN id intact: pages=2 MAIN=present active=b275cd23e45c4271bead56f66d4f98fe"
+      ]
+    },
+    "liveProbe": {
+      "command": "node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs",
+      "startUtc": "2026-10-24T13:40:22.019Z",
+      "endUtc": "2026-10-24T13:40:22.517Z",
+      "exitCode": 0,
+      "total": 21,
+      "byType": { "part": 8, "netflag": 13 },
+      "plus3v3": [{ "id": "layout:flag:_3V3:bus:240", "type": "part", "designator": "U?", "name": "+3V3" }],
+      "pageCount": 2,
+      "pages": [
+        { "uuid": "b275cd23e45c4271bead56f66d4f98fe", "name": "MAIN" },
+        { "uuid": "d224f8d13804e759", "name": "P1" }
+      ],
+      "activeUuid": "b275cd23e45c4271bead56f66d4f98fe"
+    },
+    "readOnly": "t53 declares readOnly:true and the crosscheck only reads; no save/modify/create/delete/clear and no click or keystroke inside the canvas"
+  },
+  "part3_registrationReplay": {
+    "result": "attempted, NOT achieved by me",
+    "timeline": [
+      { "atUtc": "2026-10-24T13:39:51.485Z", "event": "my first probe, BEFORE any action of mine", "health": { "edaConnected": true, "edaWindowCount": 1, "activeWindowId": "25883914a72e5cbb", "pendingRequests": 0 } },
+      { "atUtc": "2026-10-24T13:39:51.769Z", "event": "dpx tab-new attempted; command returned a usage error, no tab was created, no side effect" },
+      { "atUtc": "2026-10-24T13:40:16.452Z", "event": "my t53 reading (this task's second reading)" },
+      { "atUtc": "2026-10-24T13:40:54.370Z", "event": "dpx tab-new http://127.0.0.1:49620/landing --background -> ok, landing tab created and bound" },
+      { "atUtc": "2026-10-24T13:40:59.313Z", "event": "health still edaConnected:true / count 1; the landing page's 800 ms poll found the relay already connected, so it hid #manual, set the status text and tried window.close()" },
+      { "atUtc": "2026-10-24T13:41:01.131Z", "event": "dpx click pw:css=#pop -> CLICK_FAILED: element not interactable (hidden), because #manual is hidden when a popup opened / when already connected" },
+      { "atUtc": "2026-10-24T13:41:16.723Z", "event": "health after the attempt: still edaConnected:true / count 1 -> the handshake changed nothing" },
+      { "atUtc": "2026-10-24T13:41:17.210Z", "event": "tab-list: editor tab + landing tab only; no pro.lceda.cn/api/landing popup was left open" },
+      { "atUtc": "2026-10-24T13:41:35Z (approx)", "event": "landing tabs closed with dpx tab-select + tab-close; tab-list then showed only the editor tab" },
+      { "atUtc": "2026-10-24T13:52:36.298Z", "event": "health still edaConnected:true / count 1, window 25883914a72e5cbb" }
+    ],
+    "whyTheWindowWasAlreadyUp": "j5's r9t2 artifact records their own registration: health before 13:38:56.830Z count 0 -> click at 13:39:33.364Z -> after-click at 13:39:37.358Z count 1, window 25883914a72e5cbb. My first probe at 13:39:51.485Z is 14.1 s after their after-click sample, so the registration I found was theirs.",
+    "whyIDidNotTearItDown": "producing a registration of my own would require the window to drop first; forcing that means closing the user's editor tab, which is destructive and outside a read-only task",
+    "whatThisCostsTheTask": "requirement (3)'s 'independently re-play the registration' is only partly met: I re-played the landing handshake and documented that it short-circuited, but I did not cause the registration. I am recording this as a partial, not as a success."
+  },
+  "part4_crossCheckWithJ5": {
+    "j5Source": "docs/evidence/current/r9t2-second-live-session.json (commit fe6e7e8), read at HEAD",
+    "j5TimestampUtc": "2026-10-24T13:39:55.037Z",
+    "myTimestampUtc": "2026-10-24T13:40:16.452Z",
+    "gapSeconds": 21.415,
+    "items": [
+      { "item": "components", "j5": 21, "mine": 21, "same": true },
+      { "item": "part", "j5": 8, "mine": 8, "same": true },
+      { "item": "netflag", "j5": 13, "mine": 13, "same": true },
+      { "item": "wires", "j5": 55, "mine": 55, "same": true },
+      { "item": "wirePairs", "j5": 55, "mine": 55, "same": true },
+      { "item": "pages", "j5": 2, "mine": 2, "same": true },
+      { "item": "activePage", "j5": "MAIN b275cd23e45c4271bead56f66d4f98fe", "mine": "MAIN b275cd23e45c4271bead56f66d4f98fe", "same": true },
+      { "item": "+3V3 componentType", "j5": "part (layout:flag:_3V3:bus:240, U?)", "mine": "part (layout:flag:_3V3:bus:240, U?)", "same": true },
+      { "item": "t53 exit", "j5": 0, "mine": 0, "same": true },
+      { "item": "t53 checks", "j5": "5/5", "mine": "5/5", "same": true },
+      { "item": "windowId", "j5": "25883914a72e5cbb", "mine": "25883914a72e5cbb", "same": true }
+    ],
+    "disagreements": "none in any value. The only difference is provenance: j5's reading follows j5's own registration (13:39:33 click), mine follows nothing of mine - it is a read-only sample taken 21.4 s later on the same registration. No averaging, and neither number is treated as the other's correction.",
+    "incidentalObservation": "while I worked, a peer left .tmp-r9t2-t53.txt (mtime 13:39:55.412Z) and .tmp-r9t2-probe.txt (mtime 13:40:03.550Z) in the working tree; they match j5's recorded runs and confirm two agents were reading the same window within seconds of each other"
+  },
+  "boundaries": [
+    "This is one reading at one moment. It does not show the bridge is stable, and it does not show the current canvas is approved; the same window can drop at any time, as it already did once at 12:39:01.011Z.",
+    "The three earlier moments (12:36:10.642Z, 12:36:46.855Z, 12:37:34.222Z) and my 13:40:16.452Z are separate samples. None of them retroactively proves the offline sources, and the offline grading table is untouched by this task.",
+    "/health is still not a liveness probe: at 12:39:01.011Z it advertised a window that /execute reported as disconnected. Consistency between /health and my reading here does not upgrade /health."
+  ],
+  "selfProof": {
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "packagesAdded": 0,
+    "writeVerbScan": "Select-String over docs/evidence/review/t53-classification-regression.mjs for .save(|.modify(|.create(|.delete(|.clear(|openDocument|writeFile|appendFile|createWriteStream -> 0 hits (NO_MATCHES); the single hit in t53 is its pre-existing comment 'No save, no delete, no create, no modify, no openDocument'",
+    "freshness": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0",
+    "nodeCheck": "node --check docs/evidence/review/t53-classification-regression.mjs -> exit 0",
+    "browserSideEffects": "one landing tab was created and then closed; the editor tab was never navigated, clicked, typed into or closed",
+    "privilegeNote": "driving the browser required dpx to write its own session file under C:\\Users\\yanwuning\\.dp_cli, which the workspace sandbox denies; those exact commands were run with escalated file access, and no file inside the repo was modified by them"
+  },
+  "baseline": "HEAD c34bb90 at session start (origin c34bb90); t53 blob a45b725; r7t5 blob fd18e43; guide blob 3835fde",
+  "diff": "new files only: docs/evidence/review/t53-classification-regression.mjs and docs/evidence/current/r9t3-second-live-session-j6.json; no code or document modified",
+  "headDriftDuringSession": "j5 committed fe6e7e8 (r9t2 second live window registration) while I was reading; HEAD moved c34bb90 -> fe6e7e8 and was 1 ahead of origin at that moment. This review anchors on the blobs above, which are unchanged by that commit.",
+  "reproSteps": [
+    "node docs/evidence/review/t53-classification-regression.mjs",
+    "node docs/evidence/review/t53-verify-main.mjs --json",
+    "node docs/evidence/review/r8t8-live-plus3v3-crosscheck.mjs",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/t53-classification-regression.mjs"
+}
