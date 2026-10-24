@@ -84,39 +84,123 @@ dpx tab-list
 
 - `TAB_FAILED` 只说明 dpx 写 session 文件失败，**不等于标签页没创建**；
 - 先 `dpx tab-list` 验证；
-- 若 landing tab 已存在，继续 `tab-select`；
+- 若 landing tab 已存在，按 §3.1 的 URL/title 匹配后 `tab-select`；匹配不到就报错，不盲选；
 - 若不存在，给 dpx 对 `~/.dp_cli/sessions` 的写权限后重试；
 - **不要**因为该错误改用临时浏览器，否则会破坏“同一浏览器/profile”。
 
-## 3. 绑定 landing 并确认 `#manual` / `#pop`
+## 3. 绑定 landing，并判定 `#manual` / `#pop` 是否**可见**
+
+### 3.1 按 URL/title 匹配 landing，禁止盲选索引
+
+`tab-new` 之后标签顺序可能变化，**不要写死标签索引**。用 `tab-list` 的 URL 与 title 同时匹配，匹配不到或匹配不唯一就报错退出：
 
 ```powershell
-dpx tab-select 1
+$tabsJson = dpx tab-list
+$tabs = $tabsJson | ConvertFrom-Json
+$matches = @($tabs.data.tabs | Where-Object {
+  $_.url -match '^http://127\.0\.0\.1:49620/landing(?:[/?#]|$)' -and
+  $_.title -eq 'dsh-eda-bridge: register EasyEDA'
+})
+if ($matches.Count -ne 1) {
+  throw "LANDING_TAB_NOT_FOUND_OR_AMBIGUOUS: $($matches.Count) match(es); refuse to blind-select"
+}
+$landing = $matches[0]
+$landing | ConvertTo-Json -Compress
+dpx tab-select $landing.id
+```
+
+本次实跑匹配到的正是 landing，而不是编辑器：
+
+```json
+{"index":0,"id":"EC7339BE9D8DD701CB41CF28B92C3B49",
+ "url":"http://127.0.0.1:49620/landing",
+ "title":"dsh-eda-bridge: register EasyEDA","pinned":true}
+```
+
+```text
+已绑定，dpx 命令将在此标签页执行
+```
+
+如果 `$matches.Count` 不是 1，命令直接 `throw`，不会盲选到编辑器或别的标签。
+
+### 3.2 DOM 存在性只作辅助，不能当可见性
+
+```powershell
 dpx snapshot --mode brief
 ```
 
-预期快照包含：
+预期快照能显示节点存在：
 
 ```text
 [2] paragraph "If no popup opened, open the landing page..."  # #manual
   [3] button "open the landing page"                          # #pop
 ```
 
-精确确认 DOM：
+但这只是 **存在性**。已连接时 `#manual` 可以 `exists:true` 而 `display:none`，快照仍会列出它；**不得**据此判“可见、可点”。
+
+### 3.3 用可见性探针给出结论
 
 ```powershell
-dpx eval "return {url:location.href,title:document.title,manual:!!document.querySelector('#manual'),pop:!!document.querySelector('#pop'),popTag:document.querySelector('#pop')?.tagName||''}"
+$js = @'
+(() => {
+  const probe = (sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return { exists: false, visible: false, offsetParent: null, rect: null, display: null, visibility: null, hiddenAttr: null };
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    const visible = el.offsetParent !== null && r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+    return {
+      exists: true,
+      visible,
+      offsetParent: el.offsetParent !== null,
+      rect: { width: r.width, height: r.height },
+      display: s.display,
+      visibility: s.visibility,
+      hiddenAttr: el.hidden,
+      text: (el.innerText || el.textContent || '').trim().slice(0, 80)
+    };
+  };
+  return { url: location.href, title: document.title, manual: probe('#manual'), pop: probe('#pop') };
+})()
+'@
+dpx eval $js
 ```
 
-本次实测：
+**已连接状态下的本次实跑输出**（`2026-10-24T14:15:17.589Z`；证明旧探针只看存在性的读法是错的）：
 
 ```json
-{"url":"http://127.0.0.1:49620/landing",
- "title":"dsh-eda-bridge: register EasyEDA",
- "manual":true,"pop":true,"popTag":"BUTTON"}
+{
+  "url": "http://127.0.0.1:49620/landing",
+  "title": "dsh-eda-bridge: register EasyEDA",
+  "manual": {
+    "exists": true,
+    "visible": false,
+    "offsetParent": false,
+    "rect": { "width": 0, "height": 0 },
+    "display": "none",
+    "visibility": "visible",
+    "hiddenAttr": true
+  },
+  "pop": {
+    "exists": true,
+    "visible": false,
+    "offsetParent": false,
+    "rect": { "width": 0, "height": 0 },
+    "display": "inline-block",
+    "visibility": "visible",
+    "hiddenAttr": false
+  }
+}
 ```
 
-判定：`#manual` 可见、`#pop` 存在且是 `BUTTON`。自动 popup 被拦时，`#manual` 就是人工入口；**不能**用 JS 直接 `window.open` 替代真实点击。
+判定规则，必须由可见性字段给出：
+
+- `manual.visible === true` 且 `pop.visible === true`：才允许继续执行真人点击；
+- 上面实测是 `manual.visible:false`、`offsetParent:false`、`rect 0×0`、`display:none`：明确判 **`#manual` 不可见**，**不要点击**；这通常说明 relay 已连接（或弹窗已打开），进入 §4 只读检查 `/health` 即可；
+- `exists:true` 只说明节点在 DOM 里，**不能**作为“可见、可点”的结论；
+- `pop.display:inline-block` 也不代表可点：父级 `#manual` 隐藏时，`pop.offsetParent` 仍为 `null`、rect 仍为 0，结论是 `pop.visible:false`。
+
+自动 popup 被拦时，`#manual` 才是人工入口；**不能**用 JS 直接 `window.open` 替代真实点击。
 
 ### 已实测的失败与修正
 
@@ -128,20 +212,22 @@ pinned: CEB3AD7543E8B2BEB1F3A9FE26F0BE6A
 available tabs: ['0FD2...', 'DFB4...']
 ```
 
-原因：旧 pinned tab id 已失效，不是 landing 页面不存在。修正：先 `dpx tab-list`，再 `dpx tab-select 1` 绑定新 landing，再 `snapshot`。不要复用旧 pinned id。
+原因：旧 pinned tab id 已失效，不是 landing 页面不存在。修正：先 `dpx tab-list`，按上面的 URL/title 匹配得到 landing id，再 `dpx tab-select <landing-id>`，最后 `snapshot`。**不要复用旧 pinned id，也不要盲选索引。**
 
 ## 4. 真人点击 `#pop`
 
-确认 `#manual` 可见后执行：
+仅当 §3.3 的 `manual.visible === true` 且 `pop.visible === true` 时才执行：
 
 ```powershell
 dpx click '#pop'
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 4
 Invoke-RestMethod -Uri 'http://127.0.0.1:49620/health' -TimeoutSec 5 |
   ConvertTo-Json -Depth 8 -Compress
 Invoke-RestMethod -Uri 'http://127.0.0.1:49620/eda-windows' -TimeoutSec 5 |
   ConvertTo-Json -Depth 8 -Compress
 ```
+
+等待时间用 **约 4 秒**，不要写未经实测的等待时间：本 runbook 记录的那次点击是 `13:39:33.364Z`，首次读到 `edaWindowCount:1` 是 `13:39:37.358Z`，差 **3.994 秒**。这只是一次观察值，不保证每次恒定；4 秒是保留余量的操作值，不是 SLA。
 
 预期（本次实测）：
 
@@ -160,7 +246,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:49620/eda-windows' -TimeoutSec 5 |
 - `/eda-windows.windows` 至少一条，且 `connected=true`、`active=true`；
 - 计数在点击后从 0 翻到 1，才算注册成功。
 
-若 2 秒后仍为 0：
+若约 4 秒后仍为 0：
 
 1. 重新 `dpx tab-list`，确认 landing tab 仍在；
 2. `dpx snapshot --mode brief`，确认 `#pop` 仍存在；
@@ -241,8 +327,8 @@ Get-Content .tmp-r9t2-probe.txt -Raw
 | `13:39:09.940Z` | 记录起点 | `0` | `/eda-windows` count 0 |
 | `13:39:10.161Z` | `tab-new /landing` | `0` | `TAB_FAILED` 权限错误，但 tab 已创建 |
 | `13:39:12.358Z` | `tab-list` | `0` | 2 tabs，landing 存在 |
-| `13:39:23.081Z` | `tab-select 1` | `0` | 绑定 landing |
-| `13:39:24.834Z` | `snapshot` | `0` | `#manual` / `#pop` 存在 |
+| `13:39:23.081Z` | `tab-select <landing-id>`（本次历史实际用索引 1） | `0` | 绑定 landing；可执行命令已改为 URL/title 匹配 |
+| `13:39:24.834Z` | `snapshot` | `0` | `#manual` / `#pop` 存在（仅存在性，非可见性结论） |
 | `13:39:33.364Z` | `click '#pop'` | `0 -> 1` | 点击成功 |
 | `13:39:37.358Z` | 注册后 `/health` | `1` | `activeWindowId=25883914a72e5cbb` |
 | `13:39:55.037Z`–`13:39:55.696Z` | `t53` | `1` | exit 0，5/5，21/8/13/55/55/2 |
@@ -266,7 +352,7 @@ Get-Content .tmp-r9t2-probe.txt -Raw
 
 ## 10. 本次成功摘要
 
-- 注册触发：同一浏览器 landing 页，自动 popup 被拦，`#manual` 可见；真人点击 `#pop` 后约 2 秒计数 `0 -> 1`。
+- 注册触发：同一浏览器 landing 页，自动 popup 被拦，`#manual` 可见；真人点击 `#pop` 后 **3.994 秒**（一次实测）计数 `0 -> 1`，不保证恒定。
 - 窗口：`25883914a72e5cbb`，`/eda-windows` `connected:true`、`active:true`。
 - 新活读：`t53` exit 0、5/5，`21/8/13/55/55/2`；`+3V3=part`；活页表 2 条 MAIN/P1。
 - 证据：`docs/evidence/current/r9t2-second-live-session.json`。
