@@ -1,0 +1,321 @@
+{
+  "task": "r6t1 - layout-layer feasibility: can one offset constant separate the pin number from the net label?",
+  "mode": "read-only. No document write, no canvas write, no save. The only file written is this JSON.",
+  "date": "2026-10-24",
+  "liveRead": {
+    "page": {
+      "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+      "name": "MAIN"
+    },
+    "pages": 2,
+    "attributes": 662,
+    "components": 21
+  },
+  "verdict": {
+    "decision": "no-go",
+    "reasons": [
+      "no single offset constant exists in the repo, so premise (1) of the task fails on the facts",
+      "the pin number y is owned by the vendor symbol (hardcoded, orientation-dependent: deltas -4/-5/0/+0.5), so changing it is a symbol rebuild",
+      "the only in-repo lever for the flag name is the flag component position, which is the \"thirteen edits\" case the standing rules already reject",
+      "a symbol-level edit would change all 70 pin-number attributes on this page (45 visible) and any other project bound to the same library symbol"
+    ],
+    "whatWouldWork": "if the host ever gains a symbol-level lever, the safe window is a uniform lift of 4.37-5.82 units (measured: below 4.37 the number stays inside the label, above 5.82 it reaches the previous row ink that ends at 784.48)",
+    "doNot": "do not edit the library symbol in place, do not rebuild the symbol, do not move 12+ flags one by one, do not shrink the font (already no-go at 3.81/2.85)"
+  },
+  "answers": {
+    "one": "No such shared constant exists. The pin number y comes from the vendor symbol document; the flag name y comes from the flag component position computed in layout.ts. They are not the same lever, so changing one cannot fix both.",
+    "two": "Not configurable. There is no y-offset parameter: the only in-repo knobs are the flag component position and netLabelFontSize (font size only). The pin number offset is hardcoded in the library symbol.",
+    "twoOffset": {
+      "premiseCorrection": "the task states \"any non-zero offset separates them\" - that is false: the two ink boxes share their top edge (790.30), so a small shift leaves them overlapping",
+      "up": {
+        "min": 4.37,
+        "max": 5.82,
+        "meaning": "lift \"31\" until its bottom clears the label top, before it reaches the row above"
+      },
+      "down": {
+        "min": 3.76,
+        "max": 5.81,
+        "meaning": "push \"31\" below the label bottom, before it reaches the next row"
+      },
+      "minimumSafe": 4.37,
+      "windowWidth": 1.45
+    },
+    "three": "A symbol-level change would move all 70 pin-number attributes at once (45 of them visible; one edit, but in the library, and for every project using C23922). The flag route instead moves 12 of the 14 flag names individually (the \"thirteen edits\" case), and each move drags its stub and wire with it.",
+    "four": "There is no constant to restore. Rolling back a library-symbol edit means restoring the vendor symbol document, which this repo does not own; a project-local copy may be created and the original museum copy is not addressable from here. That is a symbol rebuild - high risk.",
+    "five": "no-go"
+  },
+  "counts": {
+    "attributesTotal": 662,
+    "byKey": {
+      "Pin Name": 70,
+      "Pin Number": 70,
+      "Pin Type": 70,
+      "Add into BOM": 8,
+      "Convert to PCB": 8,
+      "Device": 21,
+      "Footprint": 8,
+      "PCB Layer": 8,
+      "Symbol": 21,
+      "Relevance": 69,
+      "Designator": 8,
+      "Name": 76,
+      "Unique ID": 8,
+      "LCSC Part Name": 8,
+      "Supplier Part": 8,
+      "Manufacturer": 8,
+      "Manufacturer Part": 8,
+      "Supplier Footprint": 8,
+      "JLCPCB Part Class": 8,
+      "Datasheet": 8,
+      "Supplier": 8,
+      "3D Model": 21,
+      "3D Model Title": 21,
+      "3D Model Transform": 21,
+      "CPU Core": 1,
+      "CPU Maximum Speed": 1,
+      "Core Size": 1,
+      "Program Storage Size": 1,
+      "Program Memory Type": 1,
+      "RAM Size": 1,
+      "EEPROM": 1,
+      "Number of I/O": 1,
+      "ADC (Bit)": 1,
+      "Oscillator Type": 1,
+      "Voltage - Supply": 1,
+      "Operating Temperature": 7,
+      "Description": 21,
+      "Type": 6,
+      "Value": 6,
+      "Tolerance": 6,
+      "Power(Watts)": 6,
+      "Voltage-Supply(Max)": 6,
+      "Temperature Coefficient": 6,
+      "Global Net Name": 14,
+      "Multi-Part Group": 1
+    },
+    "pinNumberClass": 70,
+    "pinNumberVisible": 45,
+    "pinNumberHidden": 25,
+    "pinNumberVisibilityUnknown": 0,
+    "pinNumberParents": 70,
+    "pinNameClass": 70,
+    "pinTypeClass": 70,
+    "pinTypeVisible": 0,
+    "flagNameAttrs": 14,
+    "wireLabelNameAttrs": 55,
+    "flagsOnPinRows": [
+      {
+        "net": "+3V3",
+        "x": 200,
+        "y": 720,
+        "rowIsPinRow": false
+      },
+      {
+        "net": "GND",
+        "x": 400,
+        "y": 840,
+        "rowIsPinRow": false
+      },
+      {
+        "net": "MCU-17",
+        "x": 250,
+        "y": 725,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-22",
+        "x": 350,
+        "y": 775,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-25",
+        "x": 350,
+        "y": 785,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-26",
+        "x": 350,
+        "y": 795,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-27",
+        "x": 350,
+        "y": 805,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-28",
+        "x": 350,
+        "y": 815,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-29",
+        "x": 250,
+        "y": 745,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-30",
+        "x": 250,
+        "y": 755,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-31",
+        "x": 250,
+        "y": 765,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-32",
+        "x": 250,
+        "y": 775,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-33",
+        "x": 250,
+        "y": 785,
+        "rowIsPinRow": true
+      },
+      {
+        "net": "MCU-34",
+        "x": 250,
+        "y": 795,
+        "rowIsPinRow": true
+      }
+    ],
+    "flagsOnPinRowsCount": 12
+  },
+  "arithmetic": {
+    "horizontalPins": 53,
+    "nameMinusNumberDelta": {
+      "0": 1,
+      "-4": 53,
+      "-5": 4,
+      "0.5": 12
+    },
+    "offsetFromPinRow": -0.91498,
+    "horizontalRows": [
+      290,
+      390,
+      655,
+      665,
+      675,
+      685,
+      705,
+      715,
+      725,
+      745,
+      755,
+      765,
+      775,
+      785,
+      795,
+      805,
+      810,
+      815,
+      835,
+      845,
+      855,
+      865,
+      875,
+      885,
+      895,
+      905,
+      910
+    ],
+    "rowsOnFiveUnitGrid": true,
+    "note": "the -0.91498 offset holds for all horizontal pins; the name-to-number delta is NOT a single value (-4 / -5 / 0 / +0.5 appear), so there is no one constant that covers every pin"
+  },
+  "evidence": {
+    "pinNumberPlacement": {
+      "inRepo": false,
+      "why": [
+        "packages/schematic-easyeda/src/build.ts:393 - a placed part is adjusted with designator only: modify(placed, { designator })",
+        "packages/schematic-easyeda/src/build.ts:427 - the ONLY attribute mutation in the tree: modify(attr, { fontSize: labelFontSize / 100 }), font size only, never x/y",
+        "packages/eda-core/src/library.ts:107-117 - parseSymbolPins reads PIN x/y and negates y for API space; the Pin Number/Pin Name ATTR coordinates are read for key/value only and never used for placement",
+        "grep for sch_PrimitiveAttribute.(create|modify|delete|getAll) over packages: 6 hits, all listed above or in tests"
+      ],
+      "conclusion": "the pin number y is a property of the vendor symbol document (C23922), rendered by the client relative to the pin; this repo never writes it"
+    },
+    "flagNamePlacement": {
+      "inRepo": "partly - the flag component position, not the label offset",
+      "why": [
+        "packages/schematic-easyeda/src/build.ts:398 - createNetFlag(identification, netName, c.x, c.y, rotation, mirror): we supply the component position",
+        "packages/schematic-easyeda/src/build.ts:340 - comment: \"The flag/port device draws its `Name` attr\"",
+        "packages/schematic/src/layout.ts:1858-1924 - flagPosition is computed per flag and passed as the component position"
+      ],
+      "conclusion": "the flag name shares the flag component position; moving it means moving the flag (and its stub/wire), one flag at a time"
+    },
+    "sourceQuotes": [
+      {
+        "file": "packages/schematic-easyeda/src/build.ts",
+        "line": 340,
+        "text": "// The flag/port device draws its \\`Name\\` attr; \\`Global Net Name\\` is hidden",
+        "meaning": "the flag name is drawn by the device, not positioned by us"
+      },
+      {
+        "file": "packages/schematic-easyeda/src/build.ts",
+        "line": 393,
+        "text": "if (c.designator !== undefined) await eda.sch_PrimitiveComponent.modify(placed, { designator: c.designator });",
+        "meaning": "a placed part is only adjusted by designator; pin number/name are never touched"
+      },
+      {
+        "file": "packages/schematic-easyeda/src/build.ts",
+        "line": 398,
+        "text": "placed = await placeOnce(() => eda.sch_PrimitiveComponent.createNetFlag(identification, c.netName, c.x, c.y, c.rotation, c.mirror));",
+        "meaning": "we supply the flag position (c.x, c.y); the label offset is the device default"
+      },
+      {
+        "file": "packages/schematic-easyeda/src/build.ts",
+        "line": 427,
+        "text": "try { await eda.sch_PrimitiveAttribute.modify(attr, { fontSize: labelFontSize / 100 }) } catch (e) {",
+        "meaning": "the only attribute mutation in the tree: font size, never x/y"
+      },
+      {
+        "file": "packages/eda-core/src/library.ts",
+        "line": 117,
+        "text": "pins.push({ number, ...name === undefined ? {} : { name }, x, y: -y })",
+        "meaning": "only the PIN coordinates are carried (y negated for API space); the Pin Number/Pin Name ATTR coordinates are dropped"
+      }
+    ]
+  },
+  "gates": {
+    "mainInvariants": {
+      "command": "node docs/evidence/review/t53-verify-main.mjs",
+      "exitCode": 0,
+      "components": 21,
+      "parts": 8,
+      "netflags": 13,
+      "wires": 55,
+      "netNamePairs": 55,
+      "pages": 2,
+      "mainUuid": "b275cd23e45c4271bead56f66d4f98fe",
+      "note": "t53 reports no hex counter; the \"0 hex\" item in the task has no corresponding field in this gate"
+    },
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "status": "FRESH",
+      "baselineVersion": 4,
+      "packages": 5
+    },
+    "reproducibility": {
+      "checkedBefore": "MAIN b275cd23e45c4271bead56f66d4f98fe, 21 components, 8 part + 13 netflag, 55 wires, 55 name pairs, 2 pages",
+      "checkedAfter": "identical (t53 exit 0 after the read-only run)",
+      "documentWrites": 0
+    }
+  },
+  "reproduce": [
+    "node docs/evidence/review/r6t1-layout-layer.mjs  # reads the live page, rewrites this JSON",
+    "node docs/evidence/review/t53-verify-main.mjs  # 21 components / 8 part + 13 netflag / 55 wires / 55 names / 2 pages",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4, packages 5",
+    "grep -n \"sch_PrimitiveAttribute\" packages/schematic-easyeda/src/build.ts  # 418 getAll, 427 modify fontSize only",
+    "grep -n \"createNetFlag\" packages/schematic-easyeda/src/build.ts  # 398, position supplied by the IR"
+  ]
+}
