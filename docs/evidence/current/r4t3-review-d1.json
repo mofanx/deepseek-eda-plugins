@@ -1,0 +1,195 @@
+{
+  "task": "t4",
+  "reviewedTask": "t2",
+  "reviewedCommit": "72b3fbc",
+  "head": "7af7518",
+  "origin": "7af7518",
+  "ahead": 0,
+  "reviewedAt": "2026-10-24T04:12:17Z",
+  "reviewedAtHead": "7af7518",
+  "headNote": "HEAD advanced 72b3fbc -> 7af7518 by an evidence-only L136 review (docs/evidence/current/r4t2-review-l136.json, 128 lines). The t2 D1 evidence blob c1176d6176ae439e8ee35e41cc41dcbf393224a3 and write blob e32d78cd1295c54e19e3bcf619b8b5b82e34b37f are identical at 7af7518, and git diff 72b3fbc..7af7518 has no guide/canvas change. The review therefore keeps 72b3fbc as the reviewed D1 commit and records 7af7518 as HEAD at review time.",
+  "d1": {
+    "rightEdge": 579.63,
+    "le590": true,
+    "insideDrawnBorder": true,
+    "borderPage": 583.68,
+    "insideByUnits": 4.05,
+    "gapToTuFuUnits": 10.97,
+    "foreignInTuFuCell": "none",
+    "t2Reported": 579.6,
+    "delta": 0.03,
+    "verdict": "pass"
+  },
+  "before": {
+    "historical": "404.9-613.3",
+    "historicalFrame": "r8t1 tile r0c1, 2.323 px/unit",
+    "t2BeforeZoom": "603.9 lower bound (last digits merge with the 幅 glyph)",
+    "myBeforeZoom": "merged: overflow run 157-203 crosses the cell border; run 332-375 is 幅+tail; exact tail not separable; >590",
+    "note": "the before frame can only prove >590; the historical 613.3 remains the before number"
+  },
+  "scale": {
+    "myRight": 8.3846,
+    "myPitchPx": 218,
+    "t2Before": 7.0769,
+    "t2After": 7.0769,
+    "t2PitchPx": 184,
+    "t2Reported": 7.115,
+    "sameBeforeAfter": true,
+    "mineAtLeastT2": true,
+    "note": "the editor ignored the declared 80x246 rect again; I self-calibrated from the 26-unit row pitch. Both t2 frames use pitch 184 (=7.0769), so there is no before/after zoom trick; my measured frame is 8.3846, higher than 7.0769."
+  },
+  "evidence": {
+    "t2": {
+      "commit": "72b3fbc",
+      "commitStat": "6 files, 203 insertions (4 PNG + 2 JSON); no guide/code",
+      "evidenceBlob": "c1176d6176ae439e8ee35e41cc41dcbf393224a3",
+      "writeBlob": "e32d78cd1295c54e19e3bcf619b8b5b82e34b37f",
+      "afterZoom": {
+        "file": "docs/evidence/current/r4t1-d1-after-zoom.png",
+        "sha256": "41e6a1d91b3a868b71151f66c6ba6316e96363a352a30365b1152167d0a8b34a",
+        "bytes": 111365
+      },
+      "afterWide": {
+        "file": "docs/evidence/current/r4t1-d1-after-wide.png",
+        "sha256": "3a8091a6ea91fb2312652c556e39b0bbbefdd58e33acb4bc2b882774ca48f2c5",
+        "bytes": 109937
+      },
+      "beforeZoom": {
+        "file": "docs/evidence/current/r4t1-d1-before-zoom.png",
+        "sha256": "6210a9aeec8ef4492a9163eb1d946ab53b881752055b45ccf7e6c6ea5bb1c038",
+        "bytes": 112683
+      },
+      "beforeWide": {
+        "file": "docs/evidence/current/r4t1-d1-before-wide.png",
+        "sha256": "7d16ff142a008a5433754c9a75f117717f2064db37c32e1d05143684816c86b0",
+        "bytes": 110759
+      }
+    },
+    "mine": {
+      "frames": [
+        {
+          "tag": "right",
+          "file": "docs/evidence/current/r4t3-d1-after-right.png",
+          "sha256": "2dabe18578777bdaeff354219c8c627db2339e558b2cfd38a6cea638a72396a8",
+          "bytes": 87728,
+          "declaredRect": "x 540-620, y 0-246",
+          "measuredScale": 8.3846,
+          "pitchPx": 218,
+          "tailRun": "441-489",
+          "tuFuRun": "581-659",
+          "tailPage": 579.63,
+          "borderPage": 583.68,
+          "insideByUnits": 4.05,
+          "gapToTuFuUnits": 10.97,
+          "foreign": "none"
+        },
+        {
+          "tag": "mid",
+          "file": "docs/evidence/current/r4t3-d1-after-mid.png",
+          "sha256": "d5645ce9ef6ea2d38059be76430780a3eccdd12831b050fbf9146f363bcac5bc",
+          "bytes": 78830,
+          "declaredRect": "x 460-540, y 0-246",
+          "role": "navigation context"
+        },
+        {
+          "tag": "left",
+          "file": "docs/evidence/current/r4t3-d1-after-left.png",
+          "sha256": "07cea046e77125b731047b946c819e4d72ccca8a0a4c3ae27e8564b7092b1a27",
+          "bytes": 96269,
+          "declaredRect": "x 380-460, y 0-246",
+          "measuredScale": 3.6923,
+          "role": "context only; the left start 404.9 is the text anchor 404 + bearing and is unchanged. This frame's 3.69 zoom is not used for the right-edge measurement; the acceptance frame is the 8.38 right frame."
+        }
+      ],
+      "coldread": {
+        "file": "docs/evidence/current/r4t3-d1-coldread.json",
+        "sha256": "7f3bee334eb71671b583e6153f83fe4b8308b4a017c3c6edf6617635cac98156",
+        "bytes": 1205
+      },
+      "measure": {
+        "file": "docs/evidence/current/r4t3-d1-measure.json",
+        "sha256": "a23682ba948e619cca590b5b9a5bc76edcc2229d515f99dead2f9755391df584",
+        "bytes": 3590
+      },
+      "analyzer": {
+        "file": "docs/evidence/review/r4t3-analyze.ps1",
+        "role": "row-pitch self-calibration; ink-run scanner; border/图幅 anchor mapping; merge detection"
+      }
+    }
+  },
+  "items": [
+    {
+      "id": "P1_head_blob_sha",
+      "verdict": "成立",
+      "raw": "HEAD 7af7518 at review time; reviewed D1 72b3fbc; origin 7af7518; ahead 0. evidenceBlob c1176d6176ae439e8ee35e41cc41dcbf393224a3; writeBlob e32d78cd1295c54e19e3bcf619b8b5b82e34b37f; after PNG 41e6a1d91b3a868b71151f66c6ba6316e96363a352a30365b1152167d0a8b34a (111365 B); before PNG 6210a9aeec8ef4492a9163eb1d946ab53b881752055b45ccf7e6c6ea5bb1c038 (112683 B). 7af7518 adds only docs/evidence/current/r4t2-review-l136.json (128 lines); no guide/canvas diff."
+    },
+    {
+      "id": "P2_independent_remeasure",
+      "verdict": "成立",
+      "raw": "My right frame: pitch 218 px / 26 units = 8.3846 px/unit; project-name tail run 441-489 -> right edge 579.63; text32 first stroke run 581-659 -> anchor 590.6; cell border 583.68; gap 10.97; 4.05 inside the drawn border; no foreign ink in the 图幅 cell. t2 after-zoom: pitch 184 = 7.0769; tail 95-135 -> 579.58; t2 reported 579.6 (delta 0.03). t2 before: historical 404.9-613.3 (r0c1, 2.323); t2 before-zoom lower bound 603.9 because the last digits merge with 幅; my before-zoom also merged (overflow 157-203, 332-375 = 幅+tail). 579.63 <= 590 -> pass."
+    },
+    {
+      "id": "P3_invariants",
+      "verdict": "成立",
+      "raw": "t53 at 7af7518: PASS 5/5, exit 0: components 21 (part 8, netflag 13); 55 wires and 55 id|net pairs; pages 2; MAIN b275cd23e45c4271bead56f66d4f98fe. Cold read: texts 39, attrs 662, comps 21, wires 55; text31 x404 y116 fs14 content dsh-t19-real-ic-1792425596633 (29 chars); text32 x590 y116 fs14 图幅; attr111 MCU-34 (210,795) fs6; attr43 MCU-26 (350,795) fs6; attr102 MCU-26 (390,795) fs6; attr75 MCU-34 (250,795) fs6; hex 0."
+    },
+    {
+      "id": "P4_change_surface",
+      "verdict": "成立",
+      "raw": "Only text31.fontSize changed 16 -> 14. Content is 29 chars, unchanged (the task brief's 28 is wrong; guide L174 also says 28; t2's contentLengthNote records 29). x/y 404/116 unchanged. Write log: 3 modify calls, 1 save; aborted object-as-id attempt (wrote 2, saved 0, fs stayed 16) and 0.14 unit probe (wrote 2, saved 0, restored 16); final 14; cold read confirms 14, no residual intermediate state. Repo commit 72b3fbc: 6 files (4 PNG + 2 JSON), no code/guide. No batch."
+    },
+    {
+      "id": "P5_rollback",
+      "verdict": "成立",
+      "raw": "Original fs16 recorded twice (readOnlyRehearsal.text31.fontSize=16; write-log before.fs=16). Snapshot: snapshotBefore counts (21/8/13/55/55/2, texts 39, attrs 662) + before PNG 6210a9... + before primitive x/y/content. Restore path: modify text31 {fontSize:16} -> save -> cold read fs16 -> re-capture/re-measure 613.3; the same modify API round-tripped 16->14 and is executable. The rollback section itself is descriptive (no explicit step list) and no real rollback was run, but the ingredients and inverse call are present."
+    },
+    {
+      "id": "P6_criteria_unchanged",
+      "verdict": "成立",
+      "raw": "TEXT_RADIUS=6, d<=12, stride=4 unchanged; 72b3fbc touches no guide/code. Both t2 frames have pitch 184 px = 7.0769 (t2 reported 7.115 from 185 px), so before/after use the same scale; my acceptance frame is 8.3846, higher, not a lower zoom. No threshold or measurement rule was loosened to shorten the ink."
+    },
+    {
+      "id": "P7_gates",
+      "verdict": "成立",
+      "raw": "t53 PASS exit 0 at 7af7518 (21/8/13/55/55/2); freshness FRESH, baselineVersion 4, exit 0; packages new 0 in 7af7518 and 72b3fbc; this review wrote 0 document changes (reads, camera zoom, screenshots only); tree holds only the review evidence, canvas at fs14."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "follow-up",
+      "title": "guide A-box section still describes the pre-fix 16pt defect",
+      "lines": [9, 35, 39, 45, 174, 177, 179, 183],
+      "note": "t2 disclosed this line-by-line in staleAfterThisFix and scoped it out. After the 14pt fix the same ruler gives 579.6 and no foreign ink, so those lines (16pt, 404.9-613.3, 208.4/23.3 overflow) are now historical. 7af7518 does not touch the guide. A separate documentation sync is required. Line 174 also carries the pre-existing 28-vs-29 character error."
+    },
+    {
+      "severity": "info",
+      "title": "before-zoom 603.9 is a lower bound; the 16pt tail merges with 幅",
+      "note": "the 16pt project name crosses the cell border and its last stroke overlaps the 幅 glyph (run 332-375). The exact before tail is not separable at 7.08; the historical 613.3 (r0c1 2.323) remains the before number. My before frame shows the same merge (overflow run 157-203), so the before is >590."
+    },
+    {
+      "severity": "info",
+      "title": "stored content is 29 chars, not 28",
+      "note": "cold read contentLength 29; t2's evidence notes the brief/guide say 28; the content is unchanged by the fix. This is a pre-existing documentation error, not introduced by t2."
+    }
+  ],
+  "gates": {
+    "t53": "PASS 5/5 exit 0 at 7af7518 (21 devices: 8 part + 13 netflag; 55 wires; 55 pairs; 2 pages; MAIN intact)",
+    "freshness": "FRESH, baselineVersion 4, exit 0",
+    "packagesNew": 0,
+    "wrote": 0,
+    "tree": "review evidence untracked then committed; canvas at fs14; no document write by this review"
+  },
+  "overall": "sound",
+  "verify": [
+    {
+      "task": "t2",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "D1 canvas pass: independent remeasure 579.63 <= 590, inside the drawn border 583.68 by 4.05, gap 10.97, no foreign ink; t2 reported 579.6 (delta 0.03). Invariants: t53 21/8/13/55/55/2; cold read 39 texts / 662 attrs / 21 comps / 55 wires; text31 14/404/116/29; attr111 210/795/6; attr43 350/795/6; attr102 390/795/6; attr75 250/795/6. Change: one property; 3 modify/1 save; two aborted attempts restored 16 with saves=0; no residual. Rollback: original 16 + snapshotBefore + before PNG; restore path executable. Criteria: TEXT_RADIUS=6 / d<=12 / stride 4 unchanged; before/after same 7.0769. Gates: t53 PASS, FRESH v4, packages new 0, wrote 0.",
+        "baseline": "text31 fs16 at (404,116), 29 chars; before ink 404.9-613.3 (r0c1 2.323); t2 before-zoom 603.9 lower bound (merge); after 579.6",
+        "diff": "text31 fontSize 14; x/y 404/116 and content unchanged; single property; 3 modify calls/1 save; aborted no-op and 0.14 probe both restored 16, saves=0",
+        "followUp": "guide A-box lines 9/35/39/45/174/177/179/183 stale; separate doc sync required"
+      }
+    }
+  ]
+}

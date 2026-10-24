@@ -1,0 +1,162 @@
+{
+  "right": {
+    "label": "my-right",
+    "file": "D:\\projects\\nodejs\\deepseek-eda-plugins\\docs\\evidence\\current\\r4t3-d1-after-right.png",
+    "width": 660,
+    "height": 2030,
+    "stripX": 504,
+    "border": {
+      "center": 523,
+      "max": 527.0,
+      "min": 519.0,
+      "maxRun": 1098
+    },
+    "pitchPx": 218,
+    "scalePxPerUnit": 8.3846,
+    "band": {
+      "bottom": 1260,
+      "innerBot": 1250,
+      "innerTop": 1052,
+      "top": 1042
+    },
+    "runs": [
+      "0-34",
+      "40-89",
+      "100-148",
+      "157-205",
+      "212-260",
+      "270-319",
+      "327-376",
+      "384-432",
+      "441-489",
+      "519-527",
+      "581-659"
+    ],
+    "tailRun": "441-489",
+    "tuFuRun": "581-659",
+    "foreignRuns": [],
+    "tailPage": 579.63,
+    "borderPage": 583.68,
+    "gapToTuFuUnits": 10.97,
+    "insideDrawnBorderUnits": 4.05,
+    "passes590": true,
+    "insideDrawnBorder": true,
+    "foreignInTuFuCell": true
+  },
+  "before": {
+    "label": "t2-before",
+    "file": "D:\\projects\\nodejs\\deepseek-eda-plugins\\docs\\evidence\\current\\r4t1-d1-before-zoom.png",
+    "width": 660,
+    "height": 2030,
+    "stripX": 500,
+    "border": {
+      "center": 160,
+      "max": 620.0,
+      "min": 160.0,
+      "maxRun": 928
+    },
+    "pitchPx": 184,
+    "scalePxPerUnit": 7.0769,
+    "band": {
+      "bottom": 1174,
+      "innerBot": 1164,
+      "innerTop": 999,
+      "top": 989
+    },
+    "runs": [
+      "0-38",
+      "45-91",
+      "102-148",
+      "157-203",
+      "212-328",
+      "332-375",
+      "614-620"
+    ],
+    "tailRun": null,
+    "tuFuRun": "212-328",
+    "foreignRuns": [],
+    "mergedWithTuFu": true,
+    "overflowRun": "157-203",
+    "tailPage": null,
+    "foreignInTuFuCell": false
+  },
+  "after": {
+    "label": "t2-after",
+    "file": "D:\\projects\\nodejs\\deepseek-eda-plugins\\docs\\evidence\\current\\r4t1-d1-after-zoom.png",
+    "width": 660,
+    "height": 2030,
+    "stripX": 500,
+    "border": {
+      "center": 160,
+      "max": 620.0,
+      "min": 160.0,
+      "maxRun": 928
+    },
+    "pitchPx": 184,
+    "scalePxPerUnit": 7.0769,
+    "band": {
+      "bottom": 1174,
+      "innerBot": 1164,
+      "innerTop": 999,
+      "top": 989
+    },
+    "runs": [
+      "0-39",
+      "46-86",
+      "95-135",
+      "160-167",
+      "213-286",
+      "298-328",
+      "332-375",
+      "614-620"
+    ],
+    "tailRun": "95-135",
+    "tuFuRun": "213-286",
+    "foreignRuns": [],
+    "tailPage": 579.58,
+    "borderPage": 583.11,
+    "gapToTuFuUnits": 11.02,
+    "insideDrawnBorderUnits": 3.53,
+    "passes590": true,
+    "insideDrawnBorder": true,
+    "foreignInTuFuCell": true
+  },
+  "left": {
+    "label": "my-left",
+    "file": "D:\\projects\\nodejs\\deepseek-eda-plugins\\docs\\evidence\\current\\r4t3-d1-after-left.png",
+    "width": 660,
+    "height": 2030,
+    "stripX": 390,
+    "border": null,
+    "pitchPx": 96,
+    "scalePxPerUnit": 3.6923,
+    "band": {
+      "bottom": 914,
+      "innerBot": 904,
+      "innerTop": 834,
+      "top": 824
+    },
+    "runs": [
+      "0-19",
+      "31-112",
+      "133-227",
+      "301-309",
+      "364-394",
+      "414-444",
+      "478-512",
+      "547-562",
+      "580-608",
+      "631-645"
+    ],
+    "firstRun": "0-19",
+    "firstRunStartPx": 0,
+    "startPageAssumed": 404.9
+  },
+  "scaleCheck": {
+    "sameScale": true,
+    "t2AfterScale": 7.0769,
+    "t2BeforeScale": 7.0769,
+    "myScale": 8.3846,
+    "myScaleAtLeastT2": true
+  }
+}

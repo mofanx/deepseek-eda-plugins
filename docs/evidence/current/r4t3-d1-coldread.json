@@ -1,0 +1,66 @@
+{
+  "page": {
+    "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+    "name": "MAIN"
+  },
+  "counts": {
+    "texts": 39,
+    "attrs": 662,
+    "comps": 21,
+    "wires": 55
+  },
+  "text31": {
+    "id": "text31",
+    "x": 404,
+    "y": 116,
+    "fs": 14,
+    "content": "dsh-t19-real-ic-1792425596633"
+  },
+  "text32": {
+    "id": "text32",
+    "x": 590,
+    "y": 116,
+    "fs": 14,
+    "content": "图幅"
+  },
+  "attr111": {
+    "id": "attr111",
+    "key": "Name",
+    "value": "MCU-34",
+    "x": 210,
+    "y": 795,
+    "fs": 6,
+    "visible": true,
+    "parent": "layout:wire:MCU_34:flags"
+  },
+  "attr43": {
+    "id": "attr43",
+    "key": "Name",
+    "value": "MCU-26",
+    "x": 350,
+    "y": 795,
+    "fs": 6,
+    "visible": true,
+    "parent": "layout:flag:MCU_26:0"
+  },
+  "attr102": {
+    "id": "attr102",
+    "key": "Name",
+    "value": "MCU-26",
+    "x": 390,
+    "y": 795,
+    "fs": 6,
+    "visible": true,
+    "parent": "layout:wire:MCU_26:flags"
+  },
+  "attr75": {
+    "id": "attr75",
+    "key": "Name",
+    "value": "MCU-34",
+    "x": 250,
+    "y": 795,
+    "fs": 6,
+    "visible": true,
+    "parent": "layout:flag:MCU_34:0"
+  }
+}
