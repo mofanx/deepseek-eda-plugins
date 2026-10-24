@@ -1,0 +1,258 @@
+{
+  "task": "t4 - independent review of t1's bridge-free MAIN verifier: is it really MAIN, are its provability labels honest, and did it keep t53 at exit 2?",
+  "mode": "read-only review. The only file written is this JSON; t1's script, t1's JSON, t31-dataset, packages and gates are untouched.",
+  "reviewedAt": "2026-10-24",
+  "reviewedAtHead": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+  "t1Head": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+  "t1Parent": "9c9ae0697462bc7dad067a2be7824fb3972b44a9",
+  "head": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+  "origin": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+  "aheadBehind": "0 0",
+  "t1Files": [
+    {
+      "path": "docs/evidence/review/r7t1-offline-main-verify.mjs",
+      "blob": "bfff7bff2db213996fef306a3fe9319c48ecd046",
+      "lines": 304
+    },
+    {
+      "path": "docs/evidence/current/r7t1-bridgefree-main-verify.json",
+      "blob": "e0fa3945215343efed136be8c895df6408ee16b3",
+      "lines": 194
+    }
+  ],
+  "commitVersionVerified": "both blobs at 045cfecc equal the current working-tree blobs; t1 is an ancestor of current HEAD f2fe9a0 and its files are unchanged by the later r7t2 commit. The review is against the committed version.",
+  "source": {
+    "path": "docs/evidence/current/t31-dataset.json",
+    "bytes": 131060,
+    "sha256": "ad35b61c891cd3a261c55e5cac4158ca53e3f17ef2541c9add6bd06177a222c9",
+    "main": {
+      "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+      "name": "MAIN"
+    },
+    "pages": 18,
+    "mainPageFoundInPages": true,
+    "mainPageIndex": 0,
+    "lastCommit": "e7644e8737132f796c6e6e55fa751d47a66c9ba0 2026-10-21 13:51:29 +0800",
+    "lastCommitSubject": "test(evidence): refuse to write until the canvas is proven to be our probe page",
+    "staleVsReference": "YES - last commit e7644e8 is before reference 9c9ae06; t1 explicitly says it cannot represent the canvas as of that commit."
+  },
+  "numbers": {
+    "expected": {
+      "components": 21,
+      "part": 8,
+      "netflag": 13,
+      "wires": 55,
+      "pairs": 55,
+      "pages": 2,
+      "hexComponents": 0
+    },
+    "computed": {
+      "components": 21,
+      "part": null,
+      "partReconstructed": 8,
+      "netflag": null,
+      "netflagReconstructed": 13,
+      "naiveNameCount": 14,
+      "wires": 55,
+      "pairs": 55,
+      "pagesInExport": 18,
+      "segmentsStride4": 62,
+      "segmentsStride2Wrong": 69,
+      "hexComponents": 0,
+      "hexWires": 0,
+      "hexTexts": 0,
+      "hexRects": 0,
+      "hexAttrs": 530,
+      "attrsTotal": 662
+    },
+    "independentReproduction": "I parsed t31-dataset.json directly, without importing t1: sha256/bytes/main/pages/comps/wires/Designator/id-convention/name-control/Line segments/pairs/hex all match t1's numbers. t1's script run also exits 0 with the same values.",
+    "status": "21/55/55/0 PASS; part/netflag only reconstruction 8/13; pages 18 != 2 and not proven; segments 62 at stride 4, 69 at the known-wrong stride 2."
+  },
+  "checks": [
+    {
+      "id": "1-head-and-blob",
+      "verdict": "成立",
+      "quote": "HEAD f2fe9a0; t1 045cfecc; r7t1 script blob bfff7bff, JSON blob e0fa3945; both equal working tree and are unchanged at current HEAD.",
+      "evidence": {
+        "t1Commit": "045cfecc4098d93317db959d58c1fc2aa7d5f62b",
+        "t1Parent": "9c9ae0697462bc7dad067a2be7824fb3972b44a9",
+        "currentHead": "f2fe9a071a6b4925a0fe05034445aa95721748ca",
+        "r7t1BlobAtT1": "bfff7bff2db213996fef306a3fe9319c48ecd046",
+        "r7t1JsonBlobAtT1": "e0fa3945215343efed136be8c895df6408ee16b3",
+        "r7t1BlobCurrent": "bfff7bff2db213996fef306a3fe9319c48ecd046",
+        "r7t1JsonBlobCurrent": "e0fa3945215343efed136be8c895df6408ee16b3"
+      }
+    },
+    {
+      "id": "2-source-is-main",
+      "verdict": "成立",
+      "quote": "t1 provenance: `source: docs/evidence/current/t31-dataset.json`, `bytes: 131060`, `sha256: ad35b61c891cd3a261c55e5cac4158ca53e3f17ef2541c9add6bd06177a222c9`, `main: {uuid: b275cd23e45c4271bead56f66d4f98fe, name: MAIN}`, `mainPageFoundInPages: true`, `mainPageIndex: 0`.",
+      "evidence": {
+        "independentHash": "ad35b61c891cd3a261c55e5cac4158ca53e3f17ef2541c9add6bd06177a222c9",
+        "independentMain": "b275cd23e45c4271bead56f66d4f98fe / MAIN",
+        "pageListHasMain": true,
+        "pageListFirstFive": ["MAIN", "P1", "P1", "P1", "P1"],
+        "pageRecordCount": 18,
+        "whyItIsMain": "The source's own `main.uuid` and `main.name` are literally the MAIN identity, and the same uuid is found at page-list index 0. This is a direct identity check, not an assumption from the filename.",
+        "sourceIsT53Baseline": "t1 itself labels t31-dataset as the t53 baseline and calls the offline read circular for live claims; that is correct."
+      }
+    },
+    {
+      "id": "3-provability-honesty",
+      "verdict": "成立",
+      "quote": "part row: `computed: null`, `status: RECONSTRUCTED-AGREES`, `provable: NOT PROVABLE - the export carries no componentType; the value shown is a reconstruction from Designator`. netflag row: `computed: null`, `status: RECONSTRUCTED-AGREES`, `provable: NOT PROVABLE ...`. pages row: `computed: 18`, `status: NOT-PROVABLE-DIFFERS`, `provable: NOT PROVABLE - t53 pins pages via --pages=N ...`.",
+      "evidence": {
+        "hasComponentType": false,
+        "componentTypeFieldFound": "no `componentType` or `ComponentType` field in the 21 comps",
+        "part": "null; reconstruction Designator non-empty = 8",
+        "netflag": "null; reconstruction comps minus Designator-bearing = 13",
+        "negativeControl": "naive name/id rule = 14; +3V3 is a part that matches /MCU|GND|3V3/, so name-based counting overcounts by 1",
+        "pages": "18 page records in the export, not 2; t1 does not write this as PASS",
+        "provableItems": "components, wires, pairs, segments (stride 4), component hex-id residue, MAIN uuid/name identity, page record count/names",
+        "notProvableItems": "part, netflag, pages=2, and anything live (instance ids, selection, page order)"
+      }
+    },
+    {
+      "id": "4-numeric-scope",
+      "verdict": "成立（coverage partial）",
+      "quote": "t1 output: `PASS components 21`, `RECONSTRUCTED-AGREES part recon 8`, `RECONSTRUCTED-AGREES netflag recon 13`, `PASS wires 55`, `PASS pairs 55`, `NOT-PROVABLE-DIFFERS pages expected 2, computed 18`, `PASS hex-id residue (components) 0`; `segments 62 at stride 4 (stride 2 would say 69)`.",
+      "evidence": {
+        "components": "21 = direct comps.length; PASS",
+        "wires": "55 = direct wires.length; PASS",
+        "pairs": "55 = unique PrimitiveId|Net; PASS",
+        "segments": "62 at stride 4; 69 at stride 2; both independently reproduced from the Line arrays",
+        "partNetflag": "8/13 only reconstructed; not componentType, and t1 does not claim PASS for them",
+        "pages": "18 page records, expected 2; t1 marks NOT-PROVABLE-DIFFERS, not PASS",
+        "hex": "components 0; attrs 530 of 662 are hex by design and correctly scoped out",
+        "scopeCaveat": "The full pinned six-item set is not proven by this source: only 21/55/55/0 are provable; 8/13 are reconstruction; pages=2 is not proven. The values that t1 calls PASS are all directly supported."
+      }
+    },
+    {
+      "id": "5-source-freshness",
+      "verdict": "成立",
+      "quote": "`lastCommit: e7644e8 2026-10-21 13:51:29 +0800`; `referenceCommit: 9c9ae06 2026-10-24 18:08:00 +0800`; `stale: YES - the source was last committed before 9c9ae06, so it cannot represent the canvas as of that commit`.",
+      "evidence": {
+        "actualLastCommit": "e7644e8737132f796c6e6e55fa751d47a66c9ba0",
+        "actualSubject": "test(evidence): refuse to write until the canvas is proven to be our probe page",
+        "actualDate": "2026-10-21 13:51:29 +0800",
+        "referenceCommit": "9c9ae06",
+        "noLiveClaim": "t1 calls the source stale and says the live canvas is unverified; the offline read is explicitly circular because t31 is also the t53 baseline."
+      }
+    },
+    {
+      "id": "6-t53-not-pass",
+      "verdict": "成立（历史措辞 caveat）",
+      "quote": "t1 `t53ThisRound`: `command: node docs/evidence/review/t53-verify-main.mjs`, `exit: 2`, `verdict: NOT A PASS - no invariant was evaluated. The live MAIN numbers remain unverified in this session; this report does not change that.`",
+      "evidence": {
+        "actualCommand": "node docs/evidence/review/t53-verify-main.mjs",
+        "actualExitCode": 2,
+        "actualStdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass",
+        "isPass": false,
+        "wordingCaveat": "`comparison.pinned` says the six values were 'last reported by a successful t53'. That is a historical statement, not this session's result; t1 separately records this round's exit 2 and does not turn it into PASS."
+      }
+    },
+    {
+      "id": "7-self-proof",
+      "verdict": "成立",
+      "quote": "t1 selfProof: `scriptWrites: 0`, `wrote: 0`, `packagesAdded: 0`, `bridgeCalls: 0`, `sourceUntouched` with sha256 ad35b61c...; actual `freshness` FRESH v4 exit 0.",
+      "evidence": {
+        "scriptRun": "node docs/evidence/review/r7t1-offline-main-verify.mjs -> exit 0, same numbers",
+        "sourceHash": "ad35b61c891cd3a261c55e5cac4158ca53e3f17ef2541c9add6bd06177a222c9",
+        "freshness": {
+          "command": "node docs/evidence/review/shared/freshness.mjs --check",
+          "exitCode": 0,
+          "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+        },
+        "packagesNew": 0,
+        "wrote": 0,
+        "documentWrites": 0,
+        "canvasWrites": 0,
+        "bridgeWrites": 0,
+        "scriptWrites": "no writeFile/appendFile/createWriteStream/spawn/fetch; stdout only. The t1 comment at L10 is not a call."
+      }
+    }
+  ],
+  "caveats": [
+    {
+      "level": "low",
+      "what": "Top-level `ok: true` and `exit: 0` can be read as 'all six verified'.",
+      "whyNotFail": "t1's rows and comparison explicitly put part/netflag in reconstructed and pages in notProvable; exit 0 means no provable invariant failed, not full coverage. The advisory line says it cannot replace t53."
+    },
+    {
+      "level": "low",
+      "what": "`comparison.pinned` says the values were last reported by a successful t53.",
+      "whyNotFail": "This is historical provenance, and t1's `t53ThisRound` records this session's exit 2. It does not claim this round passed."
+    },
+    {
+      "level": "coverage",
+      "what": "Only 21/55/55/0 are provable from this source; 8/13 are reconstruction; pages=2 is unproven.",
+      "whyNotFail": "These limitations are exactly what t1 labels; the review question is whether any unprovable item was written as provable, and none was."
+    }
+  ],
+  "t53": {
+    "command": "node docs/evidence/review/t53-verify-main.mjs",
+    "exitCode": 2,
+    "isPass": false,
+    "stdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass",
+    "t1Record": "NOT A PASS - no invariant was evaluated",
+    "status": "honest; no PASS"
+  },
+  "gates": {
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "bridgeWrites": 0
+  },
+  "overall": "sound",
+  "coverage": "partial",
+  "overallReason": "No unprovable item is presented as provable. The source is genuinely MAIN by literal uuid/name, all numeric claims reproduce, and t53 remains exit 2 / NOT A PASS. Coverage is partial because this source cannot prove part/netflag (no componentType) or pages=2; t1 says so explicitly. Top-level ok/exit0 and the historical 'successful t53' phrase are low-risk wording caveats, not mislabelled proofs.",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "Source identity, sha, stale commit and all numbers verified independently; part/netflag are explicitly reconstruction-only, pages is explicitly NOT PROVABLE at 18 vs expected 2, and t53 is exit 2 / NOT A PASS. No unprovable item was labelled provable.",
+        "baseline": "9c9ae06 before t1; t1 045cfecc adds r7t1 script (304 lines) and JSON (194 lines); no t53/t31/package/guide changes.",
+        "diff": "new r7t1 script + JSON only; current HEAD f2fe9a0 leaves both blobs bfff7bff/e0fa3945 unchanged.",
+        "command": "node docs/evidence/review/r7t1-offline-main-verify.mjs -> exit 0; node docs/evidence/review/t53-verify-main.mjs -> exit 2; node docs/evidence/review/shared/freshness.mjs --check -> exit 0",
+        "t1ExitCode": 0,
+        "t53ExitCode": 2,
+        "freshnessExitCode": 0,
+        "packagesNew": 0,
+        "wrote": 0,
+        "coverage": "partial: 21/55/55/0 provable; 8/13 reconstruction; pages=2 unproven"
+      }
+    }
+  ],
+  "baseline": "9c9ae06 (t1 parent); no r7t1 verifier. t1 045cfecc adds docs/evidence/review/r7t1-offline-main-verify.mjs and docs/evidence/current/r7t1-bridgefree-main-verify.json.",
+  "diff": "045cfecc: 2 files, +498 lines; current f2fe9a0: both t1 blobs unchanged. No source, gate, package or guide changes.",
+  "reproSteps": [
+    "git rev-parse 045cfecc:docs/evidence/review/r7t1-offline-main-verify.mjs; git hash-object docs/evidence/review/r7t1-offline-main-verify.mjs  # bfff7bff both",
+    "node -e \"const d=require('./docs/evidence/current/t31-dataset.json'); console.log(d.main, d.pages.length, d.comps.length, d.wires.length)\"  # MAIN, 18, 21, 55",
+    "node docs/evidence/review/r7t1-offline-main-verify.mjs  # exit 0; 21/8-recon/13-recon/55/55/18/0; segments 62 vs 69",
+    "node docs/evidence/review/t53-verify-main.mjs  # exit 2 BRIDGE_UNREACHABLE, not PASS",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/r7t1-offline-main-verify.mjs",
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "docs/evidence/current/r7t4-review-bridgefree-verify.json",
+      "summary": "独立复核：HEAD/blob、MAIN 源身份、逐项可证性、21/55/55/62/69/0/8/13/18、源时效、t53 exit2、自证；总判 sound/coverage partial。"
+    },
+    {
+      "type": "command",
+      "summary": "t1 script exit0；t53 exit2 BRIDGE_UNREACHABLE；freshness FRESH v4 exit0；t31 sha ad35b61c；packages 0。"
+    },
+    {
+      "type": "test",
+      "summary": "独立解析 t31 得 main b275/MAIN、18 pages、21 comps、55 wires、no componentType、8/13 reconstruction、62/69 segments、0/530 hex；t1 输出一致。"
+    }
+  ]
+}
