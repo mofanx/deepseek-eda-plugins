@@ -1,0 +1,119 @@
+{
+  "task": "r6t8 - independent review of t1's guide remediation (D2/D3 three layers + 31 closed + r6t2 status)",
+  "mode": "read-only review. No guide, code, PNG, D1, r5t4, r5t6, r9t3 or r6t3 edit. Only this JSON is written.",
+  "reviewedAt": "2026-10-24",
+  "reviewedAtHead": "8451ead49fea5ad6de7bdc6e8e066633d4e847e5",
+  "originAtReview": "8451ead49fea5ad6de7bdc6e8e066633d4e847e5",
+  "headVsOrigin": "0 0",
+  "t1Head": "c84731967e478cec66c34686ea6d8255c71b2601",
+  "t1Parent": "d3b86e660bdba43f04a422ef07dbe51932cb08f8",
+  "guide": {
+    "path": "docs/evidence/current/r9t1-main-view-guide.md",
+    "blobAtReview": "ffdfc718fad393a9396b8dc89c788bcc017755e3",
+    "blobAtT1": "ffdfc718fad393a9396b8dc89c788bcc017755e3",
+    "blobBeforeT1": "8796ab6258faf7d071a5ec3746ba1aa2ab3924cc",
+    "sameAsT1": true
+  },
+  "r6t3": {
+    "path": "docs/evidence/current/r6t3-review-ink-rule.json",
+    "blobAtReview": "a835a14bc0c5665b75fba94558c84c8aa8f2863f",
+    "blobAtT1": "a835a14bc0c5665b75fba94558c84c8aa8f2863f",
+    "blobBeforeT1": "329d31462c38718033de16a91dec78725bd153f5"
+  },
+  "baseline": "d3b86e6: guide blob 8796ab6 (old sentence recommended 改引脚号放置规则/加大行距), r6t3 blob 329d314 (residual open)",
+  "diff": "c847319: guide blob ffdfc71 (+44/-1: one sentence rewritten, three-layer section, 31 closed section, r6t2 status section, self-proof lines) and r6t3 blob a835a14 (+4/-1: residual status closed plus four fields); no other files",
+  "changedFiles": [
+    "docs/evidence/current/r9t1-main-view-guide.md",
+    "docs/evidence/current/r6t3-review-ink-rule.json"
+  ],
+  "checks": [
+    {
+      "id": "head-and-blob",
+      "verdict": "成立",
+      "quote": "reviewedAtHead 8451ead; t1Head c847319; guide blob ffdfc718... at both c847319 and the worktree; r6t3 blob a835a14... at both; git diff --name-status d3b86e6 c847319 -> M guide, M r6t3 only.",
+      "finding": "The review is against the committed t1 tree, not the worktree alone. HEAD 8451ead is two commits after t1 (our r6t7 commit is the only intervening commit) but the guide and r6t3 blobs have not moved; origin is 8451ead and the ahead/behind count is 0 0."
+    },
+    {
+      "id": "three-layers-and-code-evidence",
+      "verdict": "成立",
+      "quote": "L160 `(a) 引脚号 y 在本仓不可达。三条实测：`; L162 `packages/eda-core/src/library.ts:117 ... ATTR 自己的坐标在解析时即被丢弃`; L163 `全仓唯一的属性写操作是 packages/schematic-easyeda/src/build.ts:427 ... 只改字号`; L164 `-4: 53 / -5: 4 / 0: 1 / +0.5: 12 ... offsetFromPinRow = -0.91498`; L168 `(c) 两条都不在本仓能力范围内，属 host 决策。`",
+      "finding": "All three code anchors check out against the actual source: library.ts:96-102 builds an ATTR key/value map only and :117 pushes the PIN x/y (ATTR coordinates are dropped); build.ts:427 is the only production attribute mutation (`modify(attr, { fontSize: labelFontSize / 100 })`); the attribute grep yields one comment (build.ts:55), the one production call (:427), and one test assertion (tests/build.spec.ts:151), exactly as the guide says. r6t1's arithmetic block has horizontalPins 53, nameMinusNumberDelta {-4:53,-5:4,0:1,+0.5:12} and offsetFromPinRow -0.91498, so no single in-repo constant exists.",
+      "phraseCaveat": "The literal string 改引脚号放置规则 still appears at L152, L158 and L170, but every occurrence is an explicit negation or a quotation of the rejected initial draft: L152 says it does not exist in this repo, L158 says the draft would send readers to a rule that does not exist and explains the replacement, L170 says it is not a repo TODO but a missing interface. It is not a recommendation and does not tell the reader to implement it here. If the brief requires zero literal occurrences, this remains a wording nit; semantically the three layers are unambiguous."
+    },
+    {
+      "id": "31-two-framing-and-closure",
+      "verdict": "成立",
+      "quote": "L188 `r6t5 ... 25.9 px/单位 ... 3: 235.51-238.71 ... 1: 240.49-241.65 ... 字符数 2 ... 6.14`; L189 `r6t6 ... 40.83 px/单位 ... 235.64-238.79 ... 240.73-241.70 ... 6.06`; L191 `四条边界差 0.13 / 0.08 / 0.24 / 0.05`; L195 `关闭依据：字符数 2 + 无字符越框 + 两套独立倍率同结论`; L197 `自纠保留，不隐藏 ... 6 字符 ... 单像素反锯齿碎片 ... 原句撤回`; r6t3 residual `status=closed (2026-10-24 by ...)`, closedAt/closedBy/closureBasis/retraction/observation present.",
+      "finding": "The table matches r6t5 exactly: 25.9 px/unit, 3 at 235.51-238.71, 1 at 240.49-241.65, union 6.14, glyph count 2. The r6t6 boundaries give differences 0.13 / 0.08 / 0.24 / 0.05 (max 0.24, i.e. <=0.24), union 6.06; both frames say 2 glyphs and no character crosses the frame. The r6t3 residual is closed with a basis and preserves the original 17.8/6-glyph observation and its retraction; j6's 6-character -> antialias-fragment self-correction is retained, not deleted."
+    },
+    {
+      "id": "r6t2-status-and-threshold",
+      "verdict": "成立",
+      "quote": "L201 `status = pending-approval, applied = false, codeChanged = false, guideEdited = false; 未改任何代码、未改任何阈值`; L202 `1.0 是临界值，不是余量 ... 恰等于 MCU-33 ... 1.00 (inkOwn 1.12 / inkForeign 0.12) ... 0.02 单位的墨迹位移 ... 变成 hard fail`. r6t2 JSON: status pending-approval, applied false, codeChanged false, guideEdited false; MCU-33 margin 1.0 with strict not nearest.",
+      "finding": "The proposal is still a proposal: no code, guide sentence, gate or threshold changed. 1.0 is explicitly labelled CRITICAL/boundary, not safety margin, and the 0.02-shift failure mode is stated. The r6t2 four-sample values (1.12/11.12, 0.76/5.48, 0.58/5.67, 1.12/0.12) agree with the guide's 1.00 boundary statement; no threshold relaxation was introduced."
+    },
+    {
+      "id": "no-overreach",
+      "verdict": "部分成立",
+      "subchecks": [
+        {
+          "item": "only two files changed; r9t3, three historical hashes, host quotes/※, PNG, D1/r5t4/r5t6 JSON, packages",
+          "verdict": "成立",
+          "quote": "git diff --name-status d3b86e6 c847319 -> M r6t3, M guide only; git diff --name-only d3b86e6 c847319 -- r9t3* *.png r4t1* r5t4-d2d3-alternatives.json r5t6-review-alternatives.json packages/** -> empty.",
+          "finding": "Zero diff on every protected path. TEXT_RADIUS=6 and d<=12 still read unchanged at L256; the stride 2/4 table is unchanged at L210-211 (stride 4 is the supported reading); the host quote and ※ block at L216-230 is untouched; h=2.18 at L150 and 4.70/1.54 at L147 are unchanged. The three historical hashes are on the untouched protected surface; because the only changed files are guide and r6t3, they have zero diff."
+        },
+        {
+          "item": "h=2.18 / 4.70 / 1.54 / 6.42 arithmetic sentences original",
+          "verdict": "不成立（仅 6.42 这一项）",
+          "quote": "L257 `已定稿的 h=2.18／4.70／1.54／6.42 算术句原样保留`; Select-String on the current guide finds 6.42 only at L257 (the self-proof itself). The guide has 2.18 at L150 and 4.70/1.54 at L147, but no arithmetic sentence containing 6.42. The 6.42 value lives in docs/evidence/current/r6t1-layout-layer-feasibility.json (`up.max`, `whatWouldWork`), which t1 did not modify.",
+          "finding": "The h=2.18 / 4.70 / 1.54 sentences are unchanged and correct. The 6.42 number is preserved in the untouched r6t1 JSON, but the guide has no 6.42 arithmetic sentence to preserve. The new self-proof therefore makes a false claim about its own guide. This is a documentation defect, not an out-of-bounds edit and not a changed numeric conclusion; fix by saying 6.42 is the r6t1 bound, or by removing it from the guide self-proof."
+        }
+      ],
+      "finding": "Protected paths are clean and the h=2.18/4.70/1.54 sentences are intact. The only failure is the newly added self-proof's 6.42 clause, which asserts a guide sentence that does not exist; 6.42 exists only in r6t1 JSON."
+    },
+    {
+      "id": "self-proof-gates",
+      "verdict": "成立",
+      "quote": "freshness --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0; git diff --name-only d3b86e6 c847319 -- packages -> empty; this review made no bridge/document/canvas call.",
+      "finding": "Freshness is green, packages added 0, and wrote=0 for the document/canvas. This JSON is the only file this review adds; no editor or save action was made."
+    }
+  ],
+  "overall": "partial",
+  "overallReason": "The substantive remediation is right: the guide now says the pin-number y is unreachable in this repo with the three required code anchors, names the two host-level paths, closes the 31 residual with two independent framings and a basis, preserves the self-correction, and logs r6t2 as pending-approval with 1.0 marked CRITICAL. Protected paths are clean. The defect is narrow but real: the t1 self-proof claims a guide arithmetic sentence containing 6.42 was preserved, while 6.42 is only in r6t1-layout-layer-feasibility.json and appears in the guide only inside that self-proof. This is a false self-description, not a changed number or an out-of-bounds edit, so the verdict is partial; correcting that one clause would make it sound.",
+  "severity": "documentation-wording; no numeric conclusion, threshold, gate or protected artifact changed",
+  "gates": {
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "bridgeCalls": 0
+  },
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master  # 8451ead, 8451ead, 0 0",
+    "git diff --name-status d3b86e6 c847319  # M r6t3, M guide only",
+    "git rev-parse c847319:docs/evidence/current/r9t1-main-view-guide.md; git hash-object docs/evidence/current/r9t1-main-view-guide.md  # ffdfc71 both",
+    "git rev-parse c847319:docs/evidence/current/r6t3-review-ink-rule.json; git hash-object docs/evidence/current/r6t3-review-ink-rule.json  # a835a14 both",
+    "git diff --name-only d3b86e6 c847319 -- 'docs/evidence/current/r9t3*' '*.png' 'docs/evidence/current/r4t1*' 'docs/evidence/current/r5t4-d2d3-alternatives.json' 'docs/evidence/current/r5t6-review-alternatives.json' 'packages/**'  # empty",
+    "Select-String docs/evidence/current/r9t1-main-view-guide.md -Pattern '6\\.42'  # only L257 self-proof",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "Three-layer conclusion and the three code anchors are correct; 31 is closed with two independent framings and preserved self-correction; r6t2 is still pending-approval and 1.0 is marked CRITICAL; protected paths have zero diff. The only defect is the new self-proof's claim that a 6.42 arithmetic sentence was preserved in the guide: 6.42 exists only in r6t1-layout-layer-feasibility.json, not as a guide sentence. No gate or number changed.",
+        "baseline": "d3b86e6: guide blob 8796ab6258faf7d071a5ec3746ba1aa2ab3924cc; r6t3 blob 329d31462c38718033de16a91dec78725bd153f5",
+        "diff": "c847319: guide blob ffdfc718fad393a9396b8dc89c788bcc017755e3 (+44/-1); r6t3 blob a835a14bc0c5665b75fba94558c84c8aa8f2863f (+4/-1); only these two files",
+        "command": "git diff --name-status d3b86e6 c847319; git rev-parse c847319:<guide>; git hash-object <guide>; node docs/evidence/review/shared/freshness.mjs --check",
+        "exitCode": 0
+      }
+    }
+  ]
+}
