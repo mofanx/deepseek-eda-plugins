@@ -1,0 +1,168 @@
+{
+  "task": "r12t1",
+  "at": "2026-10-24T02:30:00Z",
+  "page": {
+    "name": "MAIN",
+    "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+    "project": "dsh-t19-real-ic-1792425596633",
+    "editor": "EasyEDA Pro V4.1.78 in Edge, maximized on a 1280x2568 portrait display"
+  },
+  "method": {
+    "capture": "screen capture of the maximized Edge editor window (PowerShell CopyFromScreen), cropped 1:1 to the schematic canvas at (265,215) size 660x2030. No upscaling, no interpolation; the editor rendered the vectors at the requested zoom.",
+    "framing": "eda.dmt_EditorControl.zoomToRegion(left, right, top, bottom); each closeup frame was 80 units wide x 246 units tall, matching the 660x2030 canvas aspect (0.325), so the frame is the crop.",
+    "scale": "8.25 px/unit (660 px / 80 units; 2030 px / 246 units). The editor's zoom readout sat around 800-870% during these frames. The only 16x attempt (40-unit frame) clipped the labels and was discarded.",
+    "rejectedApi": "eda.dmt_EditorControl.getCurrentRenderedAreaImage returns a fixed whole-page PNG (same sha256 regardless of camera: 90c78e1ea240...), so it was not used for closeups.",
+    "readOnly": "only camera commands (zoomToRegion, zoomTo, zoomToAllPrimitives) and read calls; no save/delete/create/modify/clear."
+  },
+  "images": [
+    {
+      "tag": "mcu",
+      "file": "docs/evidence/current/r12t1-mcu.png",
+      "sha256": "fe62a93cade861680710af5778ac1212ffc81f170dacbb171880b21e070e3630",
+      "bytes": 170211,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 173.5, "y1": 671.5, "x2": 253.5, "y2": 917.5 },
+      "pxPerUnit": 8.25,
+      "role": "MCU left pins: black pin names, blue net labels, green wires; the +3V3/VOUT area at the bottom",
+      "verdict": "有候选",
+      "note": "The blue net labels (MCU-36/35/... and the +3V3 label) are drawn on top of black pin names; black strokes are visible only at the glyph edges. The green wires run behind the labels at the pin rows. At the bottom the blue +3V3 text covers the black VOUT pin name and crosses the red symbol outline."
+    },
+    {
+      "tag": "mcuR",
+      "file": "docs/evidence/current/r12t1-mcuR.png",
+      "sha256": "bafe1f5d05e90390b5a91879363a26e2683b35191a04d79123878a13aa995a6b",
+      "bytes": 233778,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 210, "y1": 671.5, "x2": 290, "y2": 917.5 },
+      "pxPerUnit": 8.25,
+      "role": "MCU right pins: PA0-PA15 and the MCU-34/MCU-33/MCU-32 labels (W2 area)",
+      "verdict": "有候选",
+      "note": "The blue MCU-34 label starts at the end of PA10 (page x 270.5-290, y 795-804) and is drawn over the short red pin stub (x 270.5-275.5). PA10's glyphs (x 253-271) stay readable; the label touches only the last stroke of the pin name. The green wires are on the other side of the symbol body, not under these labels."
+    },
+    {
+      "tag": "power",
+      "file": "docs/evidence/current/r12t1-power.png",
+      "sha256": "ab97f8919006fc3ce100469f6ecd4e1df486ea52726d4dc824ea3d085fa7099d",
+      "bytes": 83116,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 580, "y1": 737, "x2": 660, "y2": 983 },
+      "pxPerUnit": 8.25,
+      "role": "POWER: both wires (y=910 and y=810) and the POWER-A0/A1 labels at the resistor bodies",
+      "verdict": "无候选",
+      "note": "The green wires stop at the red component body; no green ink crosses a glyph. Separately observed and confirmed: the blue POWER-A0/POWER-A1 text overlaps the red body outline at its top-left corner (page x 600-660, y 905-915 and 805-815)."
+    },
+    {
+      "tag": "io",
+      "file": "docs/evidence/current/r12t1-io.png",
+      "sha256": "6bcbdcd03d0899f28917ed61bb60bdf5b168c90457b0cc961b47fde47ab091b6",
+      "bytes": 78497,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 260, "y1": 217, "x2": 340, "y2": 463 },
+      "pxPerUnit": 8.25,
+      "role": "IO: IO-A0 wire + label (U4) and IO-A1 wire + label (U5)",
+      "verdict": "无候选",
+      "note": "The green wire ends at the red body of U4/U5; no wire ink crosses the glyphs. Separately observed: IO-A0/IO-A1 overlap the red body outline at the top-left corner (page x 280-340, y 390-400 and 290-300)."
+    },
+    {
+      "tag": "clk",
+      "file": "docs/evidence/current/r12t1-clk.png",
+      "sha256": "069f8ad1bdf30abdc9c8c9714ebc69d2f4ee3e49b326ce8328c8ea58a7e869e0",
+      "bytes": 80154,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 580, "y1": 217, "x2": 660, "y2": 463 },
+      "pxPerUnit": 8.25,
+      "role": "CLK: CLK-A0 wire + label (U6) and CLK-A1 wire + label (U7)",
+      "verdict": "无候选",
+      "note": "Same shape as IO: the green wire stops at U6/U7; the blue CLK-A0/CLK-A1 text overlaps the red body outline (page x 600-660, y 390-400 and 290-300)."
+    },
+    {
+      "tag": "title",
+      "file": "docs/evidence/current/r12t1-title.png",
+      "sha256": "09f1f08ddae1dbf9b7109af91d3820717364db9c8848c2ccac40475958aa5c46",
+      "bytes": 100450,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 340, "y1": -33, "x2": 420, "y2": 213 },
+      "pxPerUnit": 8.25,
+      "role": "title block, label column (图样名称/项目/版本/设计/批准)",
+      "verdict": "无候选",
+      "note": "At 8.25 px/unit the labels and the cell borders are clean; no text or wire overlap."
+    },
+    {
+      "tag": "titleV",
+      "file": "docs/evidence/current/r12t1-titleV.png",
+      "sha256": "2dd11ea1111826d2ccbb7cb5415323ab643a73dd567ea3f9717aeb6d5fb42758",
+      "bytes": 89927,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 400, "y1": -33, "x2": 480, "y2": 213 },
+      "pxPerUnit": 8.25,
+      "role": "title block, value column (MAIN, project, V0.1)",
+      "verdict": "无候选",
+      "note": "MAIN / dsh-t19-... / V0.1 are separately legible; no overlap with the label column or the cell borders in this frame. The text31/text32 A-box overlap claimed for this area is not visible here; it is not reproduced at this zoom."
+    },
+    {
+      "tag": "restored",
+      "file": "docs/evidence/current/r12t1-restored.png",
+      "sha256": "8918efe5eaa8366002f654d59b2c917a61fa0d85f636a1795f53d2cbc2363daa",
+      "bytes": 250088,
+      "pixels": { "w": 660, "h": 2030 },
+      "pageRect": { "x1": 5.5, "y1": -348.44, "x2": 904.5, "y2": 1518.44 },
+      "pxPerUnit": 0.734,
+      "role": "camera restore proof: zoomToAllPrimitives() fit the full page back into the canvas",
+      "verdict": "n/a"
+    }
+  ],
+  "findings": {
+    "wireThroughGlyph": {
+      "mcu": "有候选：at the left pins the green wires run behind the blue net labels (same row); the labels also cover the black pin names. At the right pins the green wires are on the far side of the symbol body and do not reach the labels.",
+      "power": "无候选：the green wires terminate at the resistor body; no green stroke crosses a glyph.",
+      "io": "无候选：same as POWER.",
+      "clk": "无候选：same as POWER.",
+      "title": "无候选：no wires in the title block; text and borders are clean.",
+      "summary": "The strict class 'wire ink through a glyph/symbol outline' is confirmed only at the MCU left pins, where the wire passes behind the net label. POWER/IO/CLK are clean for the wire itself."
+    },
+    "labelOverlap": {
+      "confirmed": true,
+      "where": "MCU left labels cover pin names; MCU right labels sit on the red pin stubs; POWER/IO/CLK labels overlap the red component outlines; +3V3 overlaps VOUT and the symbol outline.",
+      "coordinates": "MCU left: page x 210-237, y 898-910 (label and pin name share the bbox); MCU right: PA10 x 253-271, MCU-34 x 270.5-290, y 795-804; POWER: x 600-660, y 905-915 / 805-815; IO: x 280-340, y 390-400 / 290-300; CLK: x 600-660, y 390-400 / 290-300. All approximate, mapped at 8.25 px/unit."
+    }
+  },
+  "w1w2": {
+    "question": "does the blue net name press the pin-name text or the wire?",
+    "answer": "It presses the pin name (left pins) / the pin stub (right pins), not the green wire as the primary overlap.",
+    "evidence": {
+      "leftPins": "in r12t1-mcu.png the black pin-name strokes are only visible at the edges of the blue MCU-36/35/... text, i.e. the blue glyphs are on top of the black glyphs; the green wire is also behind the label at the same row, but the wire ink does not cross the glyph strokes.",
+      "rightPins": "in r12t1-mcuR.png PA10 stays readable; MCU-34 starts exactly at the end of PA10 and covers the red pin stub, not the pin-name glyphs.",
+      "powerPin": "the blue +3V3 label covers the black VOUT pin name and the red body outline."
+    },
+    "verdict": "supports the host's 'net name over pin name' classification; the guide's 'over wire' is not the primary overlap (the wire is only incidentally behind the left labels)."
+  },
+  "writeProtection": {
+    "mutatingCalls": 0,
+    "callsUsed": [
+      "eda.dmt_EditorControl.zoomToRegion",
+      "eda.dmt_EditorControl.zoomTo (once, calibration)",
+      "eda.dmt_EditorControl.zoomToAllPrimitives",
+      "eda.dmt_EditorControl.getCurrentRenderedAreaImage (read, discarded)",
+      "eda.dmt_EditorControl.getCurrentRenderedAreaImage / page info via t53 (read)"
+    ],
+    "forbidden": "no save / delete / create / modify / clear was called",
+    "mainBefore": { "components": 21, "part": 8, "netflag": 13, "wires": 55, "pairs": 55, "pages": 2 },
+    "mainAfter": { "components": 21, "part": 8, "netflag": 13, "wires": 55, "pairs": 55, "pages": 2 },
+    "t53Before": "PASS exit 0",
+    "t53After": "PASS exit 0",
+    "cameraRestored": { "rect": { "left": 5.5, "right": 904.5, "bottom": -348.44, "top": 1518.44 }, "proof": "r12t1-restored.png" },
+    "wrote": 0
+  },
+  "gates": {
+    "t53": { "exit": 0, "result": "PASS 5/5" },
+    "freshness": { "exit": 0, "result": "FRESH baselineVersion 4" },
+    "packagesGetStateLine": "2 pre-existing hits (packages/schematic-easyeda/src/build.ts:464 and tests/build.spec.ts:2230); 0 introduced by this task (no code changed)."
+  },
+  "limits": [
+    "The page-coordinate ranges are the requested zoomToRegion frames; the crop is the 660x2030 visible canvas at 8.25 px/unit, so the frame and the crop coincide. Coordinates of individual glyphs are read off the image and are approximate to ~1 unit.",
+    "The screen capture includes only the visible canvas; content behind the left project panel / right properties panel is not in these images.",
+    "The W1/W2 names from the host were not available as coordinates; the classification above is per visible label group (left pins, right pins, +3V3). If W1/W2 mean other labels, the same pixel mapping applies.",
+    "getCurrentRenderedAreaImage is a fixed whole-page image in this editor build and could not provide the closeups; all closeups are screen captures of the vector renderer, not upscaled."
+  ],
+  "overall": "有候选（网名压引脚名/引脚线/器件轮廓）；严格意义上的导线穿字只在 MCU 左侧引脚的网名处成立，POWER/IO/CLK 的导线本身无候选。"
+}
