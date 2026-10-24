@@ -1,0 +1,194 @@
+{
+  "task": "r7t1 - bridge-free MAIN invariant verifier",
+  "advisory": "offline, read-only, not a gate",
+  "generatedAt": "2026-10-24T10:28:45.475Z",
+  "mode": "offline snapshot; no bridge, no fetch, no write",
+  "exit": 0,
+  "ok": true,
+  "provenance": {
+    "source": "docs/evidence/current/t31-dataset.json",
+    "bytes": 131060,
+    "sha256": "ad35b61c891cd3a261c55e5cac4158ca53e3f17ef2541c9add6bd06177a222c9",
+    "main": {
+      "uuid": "b275cd23e45c4271bead56f66d4f98fe",
+      "name": "MAIN"
+    },
+    "mainPageFoundInPages": true,
+    "mainPageIndex": 0,
+    "pageNamesFirstFive": [
+      "MAIN",
+      "P1",
+      "P1",
+      "P1",
+      "P1"
+    ],
+    "lastCommit": "e7644e8 2026-10-21 13:51:29 +0800",
+    "referenceCommit": "9c9ae06 2026-10-24 18:08:00 +0800",
+    "stale": "YES - the source was last committed before 9c9ae06, so it cannot represent the canvas as of that commit"
+  },
+  "expected": {
+    "components": 21,
+    "part": 8,
+    "netflag": 13,
+    "wires": 55,
+    "pairs": 55,
+    "pages": 2
+  },
+  "computed": {
+    "components": 21,
+    "part": null,
+    "netflag": null,
+    "wires": 55,
+    "pairs": 55,
+    "pages": 18,
+    "segmentsStride4": 62,
+    "segmentsStride2_wrong": 69,
+    "hexIds": {
+      "comps": 0,
+      "wires": 0,
+      "texts": 0,
+      "rects": 0,
+      "attrs": 530
+    }
+  },
+  "hasComponentType": false,
+  "reconstruction": {
+    "designatorNonEmpty": 8,
+    "idConvention": 13,
+    "naiveNameMatching": 14,
+    "note": "three different proxy rules; Designator and id-convention both give 8/13, the name rule gives 14 (it counts +3V3, a part, as a netflag)"
+  },
+  "rows": [
+    {
+      "item": "components",
+      "expected": 21,
+      "computed": 21,
+      "status": "PASS",
+      "provable": "provable - comps.length is a direct count of the export"
+    },
+    {
+      "item": "part",
+      "expected": 8,
+      "computed": null,
+      "status": "RECONSTRUCTED-AGREES",
+      "provable": "NOT PROVABLE - the export carries no componentType; the value shown is a reconstruction from Designator",
+      "reconstruction": {
+        "rule": "Designator non-empty",
+        "value": 8,
+        "idConvention": 13
+      }
+    },
+    {
+      "item": "netflag",
+      "expected": 13,
+      "computed": null,
+      "status": "RECONSTRUCTED-AGREES",
+      "provable": "NOT PROVABLE - the export carries no componentType; the value shown is a reconstruction (comps minus Designator-bearing ones)",
+      "reconstruction": {
+        "rule": "comps minus Designator-bearing ones",
+        "value": 13,
+        "idConvention": 13
+      },
+      "negativeControl": {
+        "what": "counting by name/id instead of componentType",
+        "value": 14,
+        "why": "+3V3 is a PART that carries a layout:flag id and matches /MCU|GND|3V3/, so a name-based rule over-counts by 1"
+      }
+    },
+    {
+      "item": "wires",
+      "expected": 55,
+      "computed": 55,
+      "status": "PASS",
+      "provable": "provable - wires.length is a direct count",
+      "segments": {
+        "stride4": 62,
+        "stride2_wrong": 69
+      }
+    },
+    {
+      "item": "pairs",
+      "expected": 55,
+      "computed": 55,
+      "status": "PASS",
+      "provable": "provable - unique id|net over the same wire records"
+    },
+    {
+      "item": "pages",
+      "expected": 2,
+      "computed": 18,
+      "status": "NOT-PROVABLE-DIFFERS",
+      "provable": "NOT PROVABLE - t53 pins pages via --pages=N (default 2) and never measures it; this export records 18 page records instead. A mismatch here is not evidence of a broken canvas, and a match would not be evidence of a healthy one."
+    },
+    {
+      "item": "hex-id residue (components)",
+      "expected": 0,
+      "computed": 0,
+      "status": "PASS",
+      "provable": "provable - component ids in this export are stable ids (u*, layout:*), never raw hex",
+      "note": "attrs legitimately carry hex ids (530 of 662); that is the attribute primitive id format, not residue. Scope matters: the invariant is about components."
+    }
+  ],
+  "provability": {
+    "provableFromThisSource": [
+      "components",
+      "wires",
+      "pairs",
+      "segments (stride 4)",
+      "component hex-id residue",
+      "MAIN uuid/name identity",
+      "page record count and names"
+    ],
+    "notProvableFromThisSource": [
+      "part / netflag split - the export has no componentType field",
+      "pages = 2 - t53 pins it as a parameter; the export records 18 page records",
+      "anything about the live canvas: instance ids, current selection, current page order"
+    ],
+    "whatWouldBeNeeded": [
+      "for part/netflag: a component export that includes componentType (the live getAll does return it, the committed export never stored it)",
+      "for pages: a live dmt_Schematic.getAllSchematicPagesInfo() read at the same moment as the component read"
+    ],
+    "circularity": "t31-dataset.json is ALSO the baseline that t53 compares the live document against. Reading it offline therefore re-states the pinned expectation; it cannot show that the live canvas still equals it. The only thing an offline read proves is that the baseline file itself still contains these numbers and that its bytes are these bytes."
+  },
+  "comparison": {
+    "pinned": "21 / 8 / 13 / 55 / 55 / 2 (last reported by a successful t53)",
+    "matched": [
+      "components",
+      "wires",
+      "pairs",
+      "hex-id residue (components)"
+    ],
+    "reconstructed": [
+      "part",
+      "netflag"
+    ],
+    "notProvable": [
+      "part",
+      "netflag",
+      "pages"
+    ],
+    "failed": []
+  },
+  "t53ThisRound": {
+    "addedAfterGeneration": true,
+    "why": "the offline verifier must not call the bridge, so the t53 retry is recorded here rather than computed by it",
+    "command": "node docs/evidence/review/t53-verify-main.mjs",
+    "exit": 2,
+    "stdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected — open https://pro.lceda.cn/api/landing?port=49620 as a NEW TAB IN THE SAME BROWSER that holds the web editor tab, after that e\n[t53] no invariant was evaluated; this is exit 2, not a pass",
+    "verdict": "NOT A PASS - no invariant was evaluated. The live MAIN numbers remain unverified in this session; this report does not change that."
+  },
+  "selfProof": {
+    "scriptWrites": 0,
+    "scriptWriteCalls": "grep for .save|.modify|.create|.delete|.clear calls and writeFileSync/appendFileSync/createWriteStream/child_process/spawn/exec/fetch: zero executable hits; the only match is a comment on L10 that says so",
+    "imports": [
+      "node:fs readFileSync,statSync",
+      "node:crypto createHash",
+      "node:path dirname,resolve",
+      "node:url fileURLToPath"
+    ],
+    "sourceUntouched": "t31-dataset.json sha256 ad35b61c891cd3a261c55e5cac4158ca53e3f17ef2541c9add6bd06177a222c9, identical before and after the run",
+    "wrote": 0,
+    "packagesAdded": 0,
+    "bridgeCalls": 0
+  }
+}
