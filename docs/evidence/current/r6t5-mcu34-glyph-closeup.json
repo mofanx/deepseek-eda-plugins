@@ -1,0 +1,192 @@
+{
+  "task": "r2t3 - decisive high-magnification read-only close-up of the black glyph under the MCU-34 label",
+  "mode": "read-only. The bridge was used only for getAll/page-info and zoomTo* camera moves. No document save, modify, create, delete or clear. PNG/JSON files below are image/evidence artifacts, not document writes.",
+  "capturedAt": "2026-10-24T06:20:13.270Z",
+  "headAtCapture": "511b19626bbd69581efee4a63023fd760451ad93",
+  "originAtCapture": "511b19626bbd69581efee4a63023fd760451ad93",
+  "requestedCorridor": {
+    "x1": 214,
+    "x2": 252,
+    "y1": 787,
+    "y2": 797
+  },
+  "verdict": "① confirm the pressed glyph is pin number 31 under the MCU-34 white box",
+  "summary": "At 25.9 px/unit, the black pixels inside the MCU-34 box separate into two tall components: a wide 3 at page x235.5-238.7 and a narrow vertical 1 at x240.5-241.7, both inside the box x229.33-248.48. The exact union 235.5-241.7 matches r5t2's independent 235.64-241.82 within 0.17 unit. r6t4's 232-244 is a column envelope, and j6's x224 is the pin-number anchor, not ink. PA10 is at x252.85-268.85, outside the box. No 4, 0, P or A glyph is present, so the two components are 31, not 34, 30, 32, or a PA10 fragment.",
+  "render": {
+    "screen": { "w": 1280, "h": 2568 },
+    "requestedFrame": { "x1": 214, "x2": 252, "y1": 787, "y2": 797 },
+    "framingRequestedBecauseExactFrameClipped": { "x1": 195, "x2": 255, "y1": 787, "y2": 797 },
+    "actualContextRenderSize": "1280x2568",
+    "contextPng": {
+      "file": "docs/evidence/current/r6t5-mcu34-context.png",
+      "renderSize": "1280x2568",
+      "sha256": "6d1241221ad11676a238ff1bc8dfc0cf88f357540a186943e9b3dd8d93ee3dc3",
+      "bytes": 458179
+    },
+    "corridorPng": {
+      "file": "docs/evidence/current/r6t5-mcu34-corridor.png",
+      "renderSize": "984x259",
+      "screenCrop": { "x": 82, "y": 887, "w": 984, "h": 259 },
+      "pageRect": { "x1": 214, "x2": 252, "y1": 787, "y2": 797 },
+      "sha256": "658fd2b322bcd58013b13109e082adba1cad74ebe71ca25f7fd535c03535dfdf",
+      "bytes": 39581
+    },
+    "glyphPng": {
+      "file": "docs/evidence/current/r6t5-mcu34-glyph-closeup.png",
+      "renderSize": "560x160",
+      "screenCrop": { "x": 450, "y": 930, "w": 560, "h": 160 },
+      "readme": "blue MCU-34 label with the black 31 visible behind it; white box is the sub-rectangle x479-970,y972-1073 of the context",
+      "sha256": "0b3427c5b76c12a28ce324b47bd91ac898ced70a32fe554429a83065700c3fb6",
+      "bytes": 31376
+    },
+    "pxPerUnit": 25.9,
+    "rowPitchPx": 259,
+    "rowPitchSamplesPx": [260, 258.5, 258, 260],
+    "calibration": "Five blue label bands (MCU-38/37/34/33/32) have centers 504, 764, 1022.5, 1280.5, 1540.5 px; diffs 260, 258.5, 258, 260; median 259 px for exactly 10 schematic units -> 25.9 px/unit. The 984x259 corridor crop independently gives 984/38 = 25.89 and 259/10 = 25.9. The editor ignored the declared frame (the exact 38-unit frame clipped the box's left border), so the capture frame was widened to 195..255 and the final corridor was cropped back to the exact requested page rect.",
+    "atLeast16PxPerUnit": true
+  },
+  "whiteBox": {
+    "page": { "x1": 229.33, "x2": 248.48, "y1": 790.3, "y2": 794.06 },
+    "screen": { "x1": 479, "x2": 970, "y1": 972, "y2": 1073 },
+    "source": "r6t4 box; the blue-label bounding box at this zoom is x479-970,y972-1073, width 491 px / 19.15 units = 25.64 px/unit, consistent with the 25.9 row-pitch calibration",
+    "glyphCropSubRect": { "x": 29, "y": 42, "w": 491, "h": 101 }
+  },
+  "characters": [
+    {
+      "char": "3",
+      "screenX": [639, 722],
+      "screenY": [956, 1087],
+      "pageX": [235.51, 238.71],
+      "pageY": [789.68, 794.74],
+      "widthPage": 3.2,
+      "heightPage": 5.06,
+      "insideBoxX": true,
+      "insideBoxY": "partial: top 0.62 above and bottom 0.68 below the 3.76-unit box; the box contains the middle of the glyph",
+      "shape": "two bowls, wide; a 3, not a 4 (no diagonal or crossbar) and not an A/P fragment"
+    },
+    {
+      "char": "1",
+      "screenX": [768, 798],
+      "screenY": [956, 1085],
+      "pageX": [240.49, 241.65],
+      "pageY": [789.68, 794.66],
+      "widthPage": 1.16,
+      "heightPage": 4.98,
+      "insideBoxX": true,
+      "insideBoxY": "partial: same 0.62/0.60 overhang as the 3",
+      "shape": "single narrow vertical stem plus foot; a 1, not the 4 of 34 and not a 0 loop"
+    }
+  ],
+  "characterUnion": {
+    "pageX": [235.51, 241.65],
+    "widthPage": 6.14,
+    "r5t2Independent": [235.64, 241.82],
+    "deltaVsR5t2": [-0.13, -0.17],
+    "matchesR5t2": true,
+    "r6t4ColumnEnvelope": [232, 244],
+    "r6t4Note": "232-244 is a pin-number column envelope (12 units wide), not the 6.14-unit glyph; it contains the exact ink and is not contradicted, but it must not be quoted as the character box.",
+    "anchorX": 224,
+    "anchorNote": "224 is the pin-number attribute anchor, 11.51 units left of the 3 and 5.33 units left of the white box. It is not ink and cannot be used to decide the glyph."
+  },
+  "j6BlackBandExplained": {
+    "band": { "x1": 230.18, "x2": 248.0, "widthPage": 17.82 },
+    "whyItIsNotOneGlyph": "That low-resolution black envelope includes the blue label's short dark edge/anti-alias fragments: the fragments are only about 0.4-0.5 units tall at the top of the box, while the two pin digits are 4.98-5.06 units tall. Separating by component height leaves exactly the 3 and the 1; the six-glyph-width band is label edge + two digits, not a six-character number.",
+    "consequence": "j6's caution was justified at the earlier zoom; at 25.9 px/unit the height/connectivity split is decisive."
+  },
+  "fontIdentity": {
+    "candidate31": "confirmed",
+    "candidate34": "rejected: the right component is a narrow 1 (1.16 units), with no 4 diagonal/crossbar; a 4 would be about as wide as the 3",
+    "candidate30or32": "rejected: the right component is a single vertical 1, not a 0 loop or a 2 curve",
+    "pa10Fragment": "rejected: PA10 ink is x252.85-268.85, entirely outside the white box right edge 248.48; no P/A/0 components appear in the box",
+    "numberOfGlyphs": 2,
+    "bothInsideBoxX": true
+  },
+  "impactOnExistingFindings": {
+    "verdict": "Because the result is ①, none of the existing entries lose its object. The following list records what would lose object under ②/③, as requested, so the dependency is explicit.",
+    "standUnderThisResult": [
+      "r6t1 4.37/6.42: both depend on the pressed object being pin 31; ① confirms it. 4.37 is the upward tangent, 6.42 the fixed-MCU-33 bound.",
+      "r5t4 3.81/1.62/2.10: obj1 font-shrink options around the pressed pin-31 glyph; ① confirms the object. r5t4 2.85 is obj2/PB10 and is independent even of this glyph.",
+      "r5t6 1.54/4.70: label-ink to MCU-33/own-wire; independent of pin-31 identity and stands.",
+      "r6t2 MCU-33 1.00: normal MCU-33 label probe; independent of pin-31 identity and stands.",
+      "r6t4 pin31 column 232-244 and r5t2 exact 235.64-241.82: the exact measurement is confirmed; the column envelope remains a valid conservative envelope."
+    ],
+    "wouldLoseObjectIfNot31": [
+      { "entry": "r6t1 4.37/6.42", "effect": "loses object: it is a window for moving pin 31 clear of the MCU-34 label" },
+      { "entry": "r5t4 3.81/1.62/2.10", "effect": "loses object: those are font-shrink solutions around the pressed pin-31 glyph; 2.85 (PB10, obj2) still stands" },
+      { "entry": "r6t4 pin31 x232-244", "effect": "loses object as a pin-31 glyph, though it remains a column envelope; r5t2's 235.64-241.82 would also lose object" },
+      { "entry": "r5t6 1.54/4.70", "effect": "stands even under ②/③: it measures label ink against wires, not the identity of the black glyph; only the 3.76 tangent's object would be affected" },
+      { "entry": "r6t2 MCU-33 1.00", "effect": "stands under ②/③: it is the MCU-33 normal-label probe, not the pin-31 object" }
+    ]
+  },
+  "readOnlyProof": {
+    "bridgeCalls": [
+      "sch_PrimitiveComponent.getAll(undefined,false)",
+      "sch_PrimitiveWire.getAll()",
+      "dmt_Schematic.getAllSchematicPagesInfo()",
+      "dmt_Schematic.getCurrentSchematicPageInfo()",
+      "dmt_EditorControl.zoomToAllPrimitives()",
+      "dmt_EditorControl.zoomToRegion(195,255,797,787)"
+    ],
+    "forbiddenEditorPattern": "(sch_|dmt_)[^\\n]*(save|modify|create|delete|clear)",
+    "forbiddenEditorMatches": [],
+    "literalDotSave": [
+      { "file": "docs/evidence/review/r6t5-glyph-closeup.mjs", "line": 88, "text": "$bmp.Save(...PNG...)" },
+      { "file": "docs/evidence/review/r6t5-crops.ps1", "line": 17, "text": "$c.Save(...PNG...)" }
+    ],
+    "literalDotSaveClassification": "System.Drawing.Bitmap.Save writes the PNG evidence artifacts; these are not editor/document saves. The five forbidden editor verbs have zero matches.",
+    "grepCommand": "Select-String -Path docs/evidence/review/r6t5-glyph-closeup.mjs,docs/evidence/review/r6t5-analyze.ps1 -Pattern '(sch_|dmt_)[^\\n]*(save|modify|create|delete|clear)' -AllMatches",
+    "grepResult": "NO_MATCHES for the editor pattern; the only .Save calls are the two bitmap PNG writes shown above",
+    "cameraRestored": true,
+    "fitRectBefore": { "left": 5.5, "right": 904.5, "bottom": -348.4375, "top": 1518.4375 },
+    "fitRectAfter": { "left": 5.5, "right": 904.5, "bottom": -348.4375, "top": 1518.4375 },
+    "invariantsBefore": { "components": 21, "parts": 8, "netflags": 13, "wires": 55, "pairs": 55, "pages": 2, "active": "b275cd23e45c4271bead56f66d4f98fe" },
+    "invariantsAfter": { "components": 21, "parts": 8, "netflags": 13, "wires": 55, "pairs": 55, "pages": 2, "active": "b275cd23e45c4271bead56f66d4f98fe" },
+    "mainDigestSame": true,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "editorSaveCalls": 0,
+    "imageArtifactsWritten": 3
+  },
+  "gates": {
+    "t53Before": "PASS 5/5 exit 0 (21/8+13/55/55/2; MAIN b275cd23e45c4271bead56f66d4f98fe)",
+    "t53After": "PASS 5/5 exit 0",
+    "t53Exit": 0,
+    "t53Available": true,
+    "freshness": "FRESH baselineVersion 4, exit 0",
+    "packagesNew": 0,
+    "wrote": 0,
+    "codeChanged": false,
+    "guideEdited": false
+  },
+  "files": [
+    "docs/evidence/current/r6t5-mcu34-glyph-closeup.json",
+    "docs/evidence/current/r6t5-mcu34-glyph-closeup.png",
+    "docs/evidence/current/r6t5-mcu34-corridor.png",
+    "docs/evidence/current/r6t5-mcu34-context.png",
+    "docs/evidence/review/r6t5-glyph-closeup.mjs",
+    "docs/evidence/review/r6t5-analyze.ps1",
+    "docs/evidence/review/r6t5-profile.ps1",
+    "docs/evidence/review/r6t5-crops.ps1"
+  ],
+  "verify": [
+    {
+      "task": "r6t4",
+      "verdict": "partial",
+      "evidence": {
+        "summary": "The W1 identity is confirmed: the pressed glyph is pin number 31. The exact visible ink is x235.5-241.7, matching r5t2's independent 235.64-241.82. r6t4's x232-244 is a conservative pin-number column envelope, not the character box; it contains the exact ink. j6's x224 is the attribute anchor, not ink. The W1 conclusion stands; only the x-precision characterization needs the envelope/anchor distinction.",
+        "baseline": "r6t4-review-layout-feasibility.json (W1 pin31Ink x232-244) at ee0fe70; no r6t4 file changed",
+        "diff": "none; independent 1280x2568 capture at 511b196, 25.9 px/unit, exact corridor 214-252/787-797"
+      }
+    }
+  ],
+  "baseline": "HEAD 511b196; no document or guide edit; r6t4 W1 pin31Ink 232-244 and r5t2 exact 235.64-241.82 are the two conflicting prior measurements",
+  "diff": "new r6t5 evidence only: capture/analyze/profile/crop scripts, three PNGs, this JSON; no packages, guide, canvas, or document changes",
+  "reproSteps": [
+    "node docs/evidence/review/r6t5-glyph-closeup.mjs  # t53 before/after are run separately; captures 1280x2568 context and restores camera",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File docs/evidence/review/r6t5-crops.ps1 -Context docs/evidence/current/r6t5-mcu34-context.png -OutDir docs/evidence/current",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File docs/evidence/review/r6t5-analyze.ps1 -Png docs/evidence/current/r6t5-mcu34-context.png -Out $env:TEMP/r6t5-bands.json",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File docs/evidence/review/r6t5-profile.ps1 -Png docs/evidence/current/r6t5-mcu34-glyph-closeup.png -Out $env:TEMP/r6t5-glyph-profile.json",
+    "Check the 25.9 px/unit row pitch and the 3 at 235.5-238.7 plus 1 at 240.5-241.7; compare r5t2 235.64-241.82 and r6t4 envelope 232-244"
+  ],
+  "verifyCommand": "node docs/evidence/review/r6t5-glyph-closeup.mjs"
+}
