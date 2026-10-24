@@ -1,0 +1,81 @@
+{
+  "task": "r3t2",
+  "reviewedTask": "t1",
+  "reviewedCommits": ["b536763", "444c7aa", "1788d9d"],
+  "reviewedCommit": "1788d9d",
+  "head": "1788d9d",
+  "origin": "7af7518",
+  "ahead": 4,
+  "behind": 0,
+  "guideBlob": "ba4560deedc896bb12bc43eb7a5958262da127cf",
+  "reviewedAt": "2026-10-24T04:27:10Z",
+  "reviewedAtHead": "1788d9d",
+  "headNote": "HEAD advanced during this review from 53efda5 (my r4t4 review) to 1788d9d (t1's L52/L75 correction, 1 file 2+/2-). This review targets the committed 1788d9d; parent guide blob was fda4925, HEAD guide blob is ba4560d.",
+  "verdict": "sound",
+  "items": [
+    {
+      "id": "P1_head_guide_blob",
+      "verdict": "成立",
+      "raw": "HEAD=1788d9da9f590837eedddf5a558ba7bdfb56e4ef; guide blob=ba4560deedc896bb12bc43eb7a5958262da127cf; origin/master=7af75182d18c951fe2b0fac07f53ffaa39e94620; HEAD...origin/master = 4 0 (ahead 4, behind 0). t1's 1788d9d touches only docs/evidence/current/r9t1-main-view-guide.md (1 file, 2 insertions, 2 deletions); diff index fda4925..ba4560d. The commit is on top of 53efda5, so the reviewed version is the committed one, not a working-tree draft."
+    },
+    {
+      "id": "P2_L52_status",
+      "verdict": "成立",
+      "raw": "L52 now reads: '第三类总判定（2026-10-22 改判；其中 text31 一项已由 D1 修复，见下）：文字-文字 = 已证实——A 框 text31 压 text32 是 D1 改前的实例（当时 16pt 越格；已由 D1 收到 14pt：实测墨迹右界 579.63、距格线 583.68 内缩 4.05、图幅 格内无外来墨迹，证据 r4t1-d1-text31-shrink.json／r4t3-review-d1.json；此条保留为「该重叠确实存在过」的历史证据，不再代表现状）；当前仍然成立的文字-文字实例是 W1/W2 那一组（W1 压引脚编号 31，网络标志名压 PB10，见下表与 r2t1 定标）；文字-符号 = 几何不可判；导线穿字 = 判不了 … 导线穿符号 = 判不了 …'. It is not deleted: the historical A-box finding and the four category verdicts are all still present, with the A-box status explicitly moved to pre-D1/historical. It matches L9 ('红框 A 记录的是 D1 修复前 … 已由 D1 把 text31 收到 14pt … 579.63 … 4.05'), L45 ('① D1 改前 … 已由 D1 收到 14pt 修复 … ② 网名压引脚编号：W1 的 MCU-34 压 PA10 的引脚号 31 …'), and L183 ('该溢出已由 D1 修复 … 579.63 … 4.05'). The current text-text instance is stated as the W1/W2 group only, and W1 is '压引脚编号 31', not '压引脚名'; the flag-name-vs-pin-name subcase is separately named (MCU-26 flag 压 PB10)."
+    },
+    {
+      "id": "P3_L75_grep_scope",
+      "verdict": "成立",
+      "raw": "L75 now reads: '… 该版 L56 确写『规则（代码逐字实现下面这一条）』（git grep -n \"代码逐字实现\" 430f3be -- docs/evidence/current/r9t1-main-view-guide.md 命中），而规则缺 ValueVisible 条件（git grep ValueVisible 430f3be -- docs/evidence/current/r9t1-main-view-guide.md 零命中；⚠️ 必须限定到指南这一个文件——不限路径的全树检索会命中 10 个文件（含生成器 r9t1-main-view-guide.mjs 与 t31-dataset.json），照敲裸命令 git grep ValueVisible 430f3be 会得到「到处都有」的相反结论）…'. I ran both forms myself at 430f3be: (a) path-scoped git grep -n ValueVisible 430f3be -- <guide> = 0 hits, exit 1; (b) whole-tree git grep -l ValueVisible 430f3be = exactly 10 files (docs/2026-10-17-schematic-pagination-hardening.md, docs/evidence/current/t31-dataset.json, docs/evidence/review/r9t1-main-view-guide.mjs, t25-primitive-netlabel.mjs, t31-overlap-classify.mjs, t32-flag-glyph-size.mjs, t33-verify-t31-classify.mjs, t36-cross-review-t10.mjs, t55-page-overlap.mjs, t8-netlabel-font.mjs); (c) path-scoped git grep -n '代码逐字实现' 430f3be -- <guide> = L56 hit, exit 0. The guide's '10 个文件' and '零命中' both match my measurements exactly, and the warning about the bare command is correct."
+    },
+    {
+      "id": "P4_L177_untouched",
+      "verdict": "成立",
+      "raw": "L177 is unchanged: '| 同排邻居 | text30「项目」(340,116) 14pt、text32「图幅」(590,116) 14pt、text33「910×1170」(654,116) 16pt |'. It still has 14/14/16pt and no text31; 1788d9d's diff does not touch it. This matches the correct reading that text33 is genuinely 16pt and the t2 staleAfterThisFix claim about L177 was inaccurate."
+    },
+    {
+      "id": "P5_no_overreach",
+      "verdict": "成立",
+      "raw": "1788d9d touches only the guide (git show --name-only = docs/evidence/current/r9t1-main-view-guide.md). r9t3 blob is 8c1d2931e52e8e0d7009bc0bd12cd31a6d7a1eb1 at both 1788d9d and 1788d9d^, so zero diff. Host's original words remain at L158 ('MCU-28 压的是引脚名 PB9 …'), and the ※ annotation remains at L160 (r2t1 correction: 引脚号 31 / flag name 压 PB10). TEXT_RADIUS=6, d≤12 and 步长 4 remain at L145/L147/L162/L190; the generator's stride-2 caveat is still explicitly flagged, not silently changed. No PNG and no D1 evidence JSON was touched (git diff --name-only 1788d9d^..1788d9d -- r9t3 '*.png' = 0 files)."
+    },
+    {
+      "id": "P6_push_state",
+      "verdict": "blocked",
+      "raw": "HEAD=1788d9d, origin/master=7af7518, ahead 4 / behind 0. Unpushed commits: f4051ed (t4 r4t3 D1 review), 444c7aa (t1 stale sync), 53efda5 (t4 r4t4 review), 1788d9d (t1 L52/L75 correction). Push attempt: git push origin master -> exit 128, fatal: unable to access https://github.com/mofanx/deepseek-eda-plugins.git/: Failed to connect to github.com port 443 after 21089 ms: Could not connect to server. This is a network-side block, not a content defect; .git has no WIP and the working tree is clean."
+    },
+    {
+      "id": "P7_gates",
+      "verdict": "成立",
+      "raw": "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0. packages new in 068ad8f..HEAD = 0. 1788d9d is doc-only (1 file, 2+/2-), no bridge calls; this review ran git/grep/read and the freshness check only, no bridge, wrote=0."
+    }
+  ],
+  "push": {
+    "head": "1788d9d",
+    "origin": "7af7518",
+    "ahead": 4,
+    "behind": 0,
+    "unpushed": ["f4051ed", "444c7aa", "53efda5", "1788d9d"],
+    "pushedAt": null,
+    "lastErrorCode": 128,
+    "lastError": "Failed to connect to github.com port 443 after 21089 ms: Could not connect to server",
+    "note": "No force-push; this review commit will add one more unpushed commit if the network remains down."
+  },
+  "gates": {
+    "freshness": "FRESH v4, exit 0 at 1788d9d",
+    "packagesNew": 0,
+    "wrote": 0,
+    "tree": "clean"
+  },
+  "overall": "sound",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "Both defects I raised in r4t4 are fixed correctly at 1788d9d. L52 now marks the text31/text32 A-box instance as D1 pre-fix/historical (579.63, inside 583.68 by 4.05), keeps the paragraph and all four category verdicts, states the current text-text instance is the W1/W2 group with W1 pressing pin number 31, and is consistent with L9/L45/L183. L75's both greps are now path-scoped; I independently confirm the guide-only ValueVisible grep is 0 (exit 1), the whole-tree grep is exactly 10 files, and '代码逐字实现' hits guide L56. L177 is untouched (text30 14/text32 14/text33 16, no text31). r9t3 zero diff, host quote and ※ retained, criteria/band/stride unchanged, no PNG. Gates FRESH v4 / packages 0 / wrote 0. Push is blocked by GitHub 443 (exit 128), an environment issue, not a content defect.",
+        "baseline": "53efda5 guide blob fda4925: L52 still said '文字-文字 = 已证实（text31 压 text32…）' as current; L75 used the bare 'git grep ValueVisible 430f3be 零命中'",
+        "diff": "1788d9d: 1 file 2+/2-: L52 rewritten to D1 pre-fix/historical with current W1/W2 and W1 pin 31; L75 both greps scoped to -- docs/evidence/current/r9t1-main-view-guide.md with the whole-tree 10-file warning. L177/host quote/※/criteria/r9t3/PNG untouched."
+      }
+    }
+  ]
+}
