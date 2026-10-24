@@ -1,0 +1,156 @@
+{
+  "task": "r2t4 - third-party review of t2: does the new visibility criterion actually separate hidden from visible, or did it just rename the field",
+  "reviewer": "eda4 / j6",
+  "generatedAt": "2026-10-24T14:22:00Z",
+  "generatedAtLocal": "2026-10-24T22:22:00+08:00",
+  "headline": "Overall: 成立 (sound). The fix is not a rename. I ran the runbook's own step 3.1 + 3.3 verbatim against the live landing page while the relay was connected (14:18:08.762Z) and got manual.visible=false, offsetParent=false, rect 0x0, display:none - the old ambiguous 'manual:true' is gone, replaced by an object whose visible field is false. Then I tested the other side: I captured the real landing HTML byte-for-byte from the relay (1257 bytes) and served that identical page behind a stub /health that answers edaConnected:false, matching what the real relay returns with zero windows. On that page (14:18:40.588Z) the same command returned manual.visible=true, offsetParent=true, rect 1208x21, pop 147.95x21. So the criterion discriminates in both directions and is not an 'always invisible' stub. F2 and F3 are genuinely fixed: the wait is now 4 s with the 3.994 s measured gap labelled as one observation and explicitly not an SLA, and tab selection matches URL + title, throwing when the match count is not exactly 1 instead of blind-selecting index 1. Nothing was deleted to make room for F1: the 10-row per-step timeline with edaWindowCount, the same-browser/profile requirement (5 mentions) and all three recorded failures are still present. One honest limit: the disconnected side was reproduced on the byte-identical page behind a stub health endpoint, not on the real relay in a genuine 0-window state, because the real relay held 1 window throughout my review.",
+  "reviewed": {
+    "head": "6c1832843030fa16733bc80e1a750175517337b5",
+    "originMaster": "6c1832843030fa16733bc80e1a750175517337b5",
+    "aheadBehindBeforeReview": "0 0",
+    "workingTreeBeforeReview": "clean",
+    "runbookBlobReviewed": "915252266568da098161284d22c14374027cfce2 docs/evidence/current/r9t1-window-registration-runbook.md",
+    "runbookBlobBefore": "a6db8dea8e20a4ed97f2d383c44f943d48b14a3c (the version I reviewed as r9t5)",
+    "fixCommit": "18f5e0bd89847f1854fc1d8ef59a6e318669cb35 docs(runbook): visibility probe, 4s wait, match landing by URL (104 insertions / 18 deletions, runbook only)",
+    "committedVersion": true
+  },
+  "criteria": [
+    {
+      "id": "1-committed-version",
+      "verdict": "成立",
+      "evidence": "git ls-tree -r HEAD -> runbook blob 9152522; git rev-parse HEAD == origin/master == 6c18328; status --porcelain empty before I started, so I reviewed the committed text"
+    },
+    {
+      "id": "2-visibility-in-connected-state",
+      "verdict": "成立",
+      "claim": "the new command reports invisible, and no longer emits a bare positive like manual:true",
+      "command": "runbook section 3.1 verbatim (tab-list -> ConvertFrom-Json -> match url ^http://127.0.0.1:49620/landing(?:[/?#]|$) AND title -eq 'dsh-eda-bridge: register EasyEDA' -> throw if count != 1 -> dpx tab-select $landing.id), then section 3.3 verbatim (the 20-line probe here-string) via dpx eval",
+      "ranAt": "2026-10-24T14:18:08.762Z",
+      "relayState": "edaConnected:true, edaWindowCount:1, activeWindowId:25883914a72e5cbb",
+      "rawResult": {
+        "url": "http://127.0.0.1:49620/landing",
+        "manual": { "exists": true, "visible": false, "offsetParent": false, "rect": { "width": 0, "height": 0 }, "display": "none", "visibility": "visible", "hiddenAttr": true },
+        "pop": { "exists": true, "visible": false, "offsetParent": false, "rect": { "width": 0, "height": 0 }, "display": "inline-block", "visibility": "visible", "hiddenAttr": false }
+      },
+      "whyItIsNotARename": "the top-level manual/pop values are now objects, so there is no boolean that can be misread as 'visible'; the decision field is manual.visible === false, and the runbook's rule says not to click on that. pop.display is 'inline-block' yet pop.visible is false, which is exactly the case a display-only check would have got wrong - the parent hides it and offsetParent/rect catch that."
+    },
+    {
+      "id": "3-criterion-correctness-both-sides",
+      "verdict": "成立",
+      "claim": "offsetParent !== null (plus rect/display/visibility) really distinguishes hidden from visible, and is not an always-false predicate",
+      "sideA_hidden": {
+        "method": "real relay, 1 window registered, real landing page",
+        "at": "2026-10-24T14:18:08.762Z",
+        "result": "manual.visible=false, offsetParent=false, rect 0x0, display:none, hiddenAttr:true"
+      },
+      "sideB_visible": {
+        "method": "captured the live landing HTML byte-for-byte from http://127.0.0.1:49620/landing (1257 bytes) and served that same page from a local stub on 127.0.0.1:49626 whose /health returns edaConnected:false / edaWindowCount:0 - i.e. exactly the payload the real relay produces with no window. The page logic is unmodified; only the health payload differs.",
+        "at": "2026-10-24T14:18:40.588Z",
+        "result": "manual.visible=true, offsetParent=true, rect 1208x21, display:block, hiddenAttr:false; pop.visible=true, offsetParent=true, rect 147.95x21",
+        "consistencyWithSource": "this matches the page's own code (dsh-eda-bridge.mjs: manual.hidden = !!popup && !popup.closed, only inside the not-connected branch), so the visible state is the page's real behaviour rather than something the stub invented"
+      },
+      "honestLimit": "the disconnected side is a faithful reproduction (identical HTML, real page script, real not-connected branch), not the real relay observed with 0 windows - the real relay held 1 window for the whole review. I am not claiming I watched the real relay in a 0-window state.",
+      "edgeCaseNoted": "offsetParent is also null for position:fixed elements, so the predicate is not universally sufficient on its own; here #manual/#pop are statically positioned, and the runbook additionally requires rect width/height > 0 and display/visibility, which covers that gap."
+    },
+    {
+      "id": "4-F2-wait-time",
+      "verdict": "成立",
+      "evidence": [
+        "L222-228: Start-Sleep -Seconds 4, followed by the explicit paragraph '等待时间用 约 4 秒 ... 本 runbook 记录的那次点击是 13:39:33.364Z，首次读到 edaWindowCount:1 是 13:39:37.358Z，差 3.994 秒。这只是一次观察值，不保证每次恒定；4 秒是保留余量的操作值，不是 SLA'",
+        "L246 retry branch changed from '若 2 秒后仍为 0' to '若约 4 秒后仍为 0'",
+        "L355 summary changed from '约 2 秒' to '3.994 秒（一次实测）... 不保证恒定'",
+        "my own arithmetic check: 13:39:37.358 - 13:39:33.364 = 3.994 s, so the quoted number is the recorded delta rather than a rounded guess"
+      ]
+    },
+    {
+      "id": "5-F3-tab-selection",
+      "verdict": "成立",
+      "evidence": [
+        "L96-112 is a new section 3.1 that matches on url regex AND exact title, then throws 'LANDING_TAB_NOT_FOUND_OR_AMBIGUOUS: N match(es); refuse to blind-select' unless exactly 1 matched, and selects by $landing.id",
+        "L87 and L215 (the stale-pinned-id paragraph) both now say to match by URL/title, '不盲选索引'",
+        "no hardcoded index survives as an instruction: the only 'index 1' left is L330, an honest note that the historical run actually used index 1 while the executable command has been changed",
+        "I ran the 3.1 block verbatim and it behaved as documented: matches=1 (id 7ECB1C0259C2F8A0D7408F483CF0DF6A), tab-select exit 0, '已绑定' - and on the stub port the same block matched exactly 1 as well"
+      ]
+    },
+    {
+      "id": "6-nothing-deleted",
+      "verdict": "成立",
+      "claim": "the F1 rewrite did not drop the per-step count record, the same-profile requirement, or the three failure records",
+      "evidence": [
+        "timeline table still has 10 data rows, each with a UTC timestamp and an edaWindowCount: 13:38:56.830Z(0), 13:39:09.940Z(0), 13:39:10.161Z(0), 13:39:12.358Z(0), 13:39:23.081Z(0), 13:39:24.834Z(0), 13:39:33.364Z(0->1), 13:39:37.358Z(1), 13:39:55.037Z(1), 13:40:03.087Z(1)",
+        "same browser / same profile still stated at L5, L19, L38 and L89 (four places, plus L355 in the summary)",
+        "all three failures still recorded: TAB_FAILED at L77/L85/L328, NO_SUCH_TAB at L210 (with the stale pinned id CEB3AD7543E8B2BEB1F3A9FE26F0BE6A), StandardOutputEncoding at L284",
+        "the section 7 wording was refined rather than removed: the snapshot row now says '#manual / #pop 存在（仅存在性，非可见性结论）', which is a correction of the old overclaim, not a deletion"
+      ]
+    },
+    {
+      "id": "7-write-boundary",
+      "verdict": "成立",
+      "evidence": [
+        "Select-String for save|modify|create|delete|clear|openDocument in the runbook returns only two lines, both prohibitions: L21 '不要调用 save/modify/create/delete/clear' and L348 '不调用 save/modify/create/delete/clear/openDocument'",
+        "the only click instructions are 'dpx click #pop' at L222 and L253 - both on the landing page",
+        "no tab-close appears anywhere in the runbook, so it does not manufacture a state by closing the editor tab",
+        "for my own two tests I closed only the landing/stub tabs I had opened: tab-list after each run listed exactly the editor tab (https://pro.lceda.cn/editor#id=242b6f26...,tab=*b275cd23...), and the editor tab was never selected, navigated, clicked or closed",
+        "no canvas or document write occurred: the only page I evaluated JS on was the landing page"
+      ]
+    },
+    {
+      "id": "8-self-proof",
+      "verdict": "成立",
+      "evidence": [
+        "node docs/evidence/review/shared/freshness.mjs --check -> {\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}, exit 0 (run by me)",
+        "git status --porcelain -- packages -> 0 lines",
+        "wrote=0: my only new tracked file is this review JSON; my scratch .tmp-* files were removed",
+        "I did not delete .tmp-r2t3-* - those are a peer's in-flight files, not mine"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "N1",
+      "severity": "info",
+      "title": "running 3.3 without 3.1 probes whichever tab is bound",
+      "detail": "my first attempt ran the 3.3 probe while the editor tab happened to be bound (I had closed the landing tab earlier), and it returned manual.exists=false / visible=false for the editor URL. That is fail-closed and cannot produce a false 'visible', but the only signal that you are on the wrong page is the url field in the output. A one-line guard ('if result.url does not start with http://127.0.0.1:49620/landing then you are on the wrong tab - stop') would make it explicit.",
+      "whyItIsMinor": "section 3.1 exists precisely to bind the right tab, and section 3.3's output always prints url, so the information is present"
+    },
+    {
+      "id": "N2",
+      "severity": "info",
+      "title": "offsetParent is not a universal visibility predicate",
+      "detail": "offsetParent is null for position:fixed elements even when visible. Not an issue for #manual/#pop (static), and the probe also requires rect width/height > 0 and display/visibility, so the combined test is sound here. Worth knowing if the probe is ever copied to another page."
+    }
+  ],
+  "whatIActuallyRan": [
+    { "at": "2026-10-24T14:17:42.954Z", "what": "health before", "result": "edaConnected:true, count:1, active 25883914a72e5cbb" },
+    { "at": "2026-10-24T14:17:46.178Z", "what": "3.3 probe while the editor tab was bound (wrong tab, no 3.1 first)", "result": "url=editor, manual.exists=false, manual.visible=false, pop.exists=false" },
+    { "at": "2026-10-24T14:18:08.762Z", "what": "3.1 verbatim + 3.3 verbatim on the real landing page, relay connected", "result": "manual.visible=false, offsetParent=false, rect 0x0, display:none" },
+    { "at": "2026-10-24T14:18:33Z-14:18:47Z", "what": "stub relay on 49626 serving the byte-identical landing HTML with /health edaConnected:false, then 3.1 + 3.3", "result": "manual.visible=true, offsetParent=true, rect 1208x21, pop 147.95x21; stub tab closed, stub process stopped, editor tab untouched" }
+  ],
+  "boundaries": [
+    "The real relay was never in a 0-window state during this review, so the visible side was produced on a byte-identical copy of the page behind a stub health endpoint. I label it as such rather than as a real 0-window observation.",
+    "dpx required escalated file access to write its session files under C:\\Users\\yanwuning\\.dp_cli; those exact commands ran escalated and modified nothing inside the repository.",
+    "One successful connected-state probe does not make the bridge stable; the window can still drop at any time."
+  ],
+  "selfProof": {
+    "reviewWrote": 1,
+    "reviewFile": "docs/evidence/current/r9t7-review-runbook-visibility.json",
+    "canvasWrites": 0,
+    "documentWrites": 0,
+    "editorTabTouched": false,
+    "packagesAdded": 0,
+    "freshness": "FRESH v4, exit 0 (my own run)",
+    "scratchCleanup": "my .tmp-* files removed; a peer's .tmp-r2t3-* files were deliberately left alone"
+  },
+  "baseline": "HEAD 6c18328 (origin 6c18328, 0 0); runbook blob 9152522 reviewed; previous version a6db8de",
+  "diff": "adds docs/evidence/current/r9t7-review-runbook-visibility.json only; does not modify the runbook, r9t2, t53, the guide or any package",
+  "reproSteps": [
+    "git ls-tree -r HEAD -- docs/evidence/current/r9t1-window-registration-runbook.md",
+    "# connected side:",
+    "dpx tab-new 'http://127.0.0.1:49620/landing'",
+    "dpx tab-list | ConvertFrom-Json, match url+title, dpx tab-select $landing.id   # runbook 3.1",
+    "# then paste the runbook 3.3 probe block with dpx eval   # expect manual.visible=false while connected",
+    "# not-connected side: serve the saved landing HTML with /health edaConnected:false and repeat",
+    "node docs/evidence/review/shared/freshness.mjs --check"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check"
+}
