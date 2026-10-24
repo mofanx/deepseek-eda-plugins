@@ -1,0 +1,199 @@
+{
+  "task": "t3 - independent review of t1's 6.42 self-proof fix: does the guide still claim a 6.42 arithmetic sentence, is t53 honestly reported as unverified, and were protected artifacts left alone?",
+  "mode": "read-only review. The only file written is this JSON; no guide, r6t7, r6t1, gate, package or Host text is changed.",
+  "reviewedAt": "2026-10-24",
+  "reviewedAtHead": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+  "headAtCommit": "a3bc59e85c48ba6b8f00311494ab288a079ad529",
+  "headAdvancedDuringReview": {
+    "from": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+    "to": "a3bc59e85c48ba6b8f00311494ab288a079ad529",
+    "via": "r6t11 review of the W1 correction by another member",
+    "effectOnTarget": "none: a3bc59e adds only r6t11-review-w1-foreign.json; the guide blob remains c90d239 at a3bc59e and at the r6t10 commit."
+  },
+  "t1Head": "f45a943c8ba51529953fc5cd8a7084c7890e5d5c",
+  "t1Parent": "e7e94a20d8dcd139bced04553bf60c192f6b338d",
+  "head": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+  "origin": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+  "aheadBehind": "0 0",
+  "guide": {
+    "path": "docs/evidence/current/r9t1-main-view-guide.md",
+    "blobAtT1": "c90d239f8bce0fbd7e98b18f5a2bf2613a67d534",
+    "blobAtReview": "c90d239f8bce0fbd7e98b18f5a2bf2613a67d534",
+    "blobBeforeT1": "ffdfc718fad393a9396b8dc89c788bcc017755e3",
+    "t1ChangedFiles": [
+      "docs/evidence/current/r9t1-main-view-guide.md"
+    ],
+    "t1DiffStat": "1 file changed, 1 insertion(+), 1 deletion(-)",
+    "commitVersionVerified": "the working-tree file hashes to c90d239, identical to f45a943:docs/.../r9t1-main-view-guide.md; the review is against the committed version. t2 (6ccd41d) changed only r6t7, so the guide was unchanged at review. a3bc59e later adds only r6t11-review-w1-foreign.json; guide blob at a3bc59e and at the r6t10 commit is still c90d239."
+  },
+  "checks": [
+    {
+      "id": "1-head-and-blob",
+      "verdict": "成立",
+      "quote": "HEAD=6ccd41d; t1=f45a943; guide blob c90d239 at both t1 and current HEAD; parent e7e94a2; t1 diff only the guide, +1/-1.",
+      "evidence": {
+        "reviewedAtHead": "6ccd41d16f7dfd1c28b2659c5f3cc5ae19ded1ec",
+        "t1Head": "f45a943c8ba51529953fc5cd8a7084c7890e5d5c",
+        "t1Parent": "e7e94a20d8dcd139bced04553bf60c192f6b338d",
+        "guideBlob": "c90d239f8bce0fbd7e98b18f5a2bf2613a67d534",
+        "nameStatus": "M docs/evidence/current/r9t1-main-view-guide.md"
+      }
+    },
+    {
+      "id": "2-six42-self-proof",
+      "verdict": "成立",
+      "quote": "`6.42` **仅见于** `r6t1-layout-layer-feasibility.json`（`adopted` 与 `max` 字段），**本指南不复述这个数值**——原句把该数值与前三者并列称作「已定稿算术句」，属失实，此处改正。",
+      "evidence": {
+        "hitsInGuide": 1,
+        "hitLines": [257],
+        "judgment": "The sole hit is an accurate reference, not a claim that the guide contains a 6.42 arithmetic sentence. It explicitly calls the old juxtaposition false and says the guide does not restate the number.",
+        "r6t1Fields": "r6t1-layout-layer-feasibility.json has `\"max\": 6.42` (L34) and `\"adopted\": 6.42` (L50); the parenthetical is factually correct.",
+        "arithmeticStillPresent": "h=2.18 is L150; 4.70/1.54 is L147; t1 changed only L257, so those sentences are untouched.",
+        "noRemainingFalseClaim": true
+      }
+    },
+    {
+      "id": "3-t53-honesty",
+      "verdict": "成立",
+      "quote": "t1 report: 『重试 t53 仍为 exit 2 BRIDGE_UNREACHABLE，MAIN 不变量本轮未验证，如实记录且未写成 PASS』；guide L259: 『MAIN 不变量：跑前 21/8/13/55/55/2。』",
+      "evidence": {
+        "actualCommand": "node docs/evidence/review/t53-verify-main.mjs",
+        "actualExitCode": 2,
+        "actualStdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass",
+        "isPass": false,
+        "t1ReportLabel": "explicitly says MAIN 不变量本轮未验证 and not written as PASS",
+        "guideL259": "only the historical pre-run baseline 21/8/13/55/55/2; it does not claim a post-run PASS",
+        "caveat": "The explicit '未验证' label is in t1's submitted report, not in the committed guide. L259 remains a pre-run baseline only. This is a record-location caveat, not a false PASS claim."
+      }
+    },
+    {
+      "id": "4-no-overreach",
+      "verdict": "成立",
+      "quote": "L160: `(a) 引脚号 y 在本仓不可达。` L168: `(c) 两条都不在本仓能力范围内，属 host 决策。` L150: `h=2.18`; L147: `4.70`/`1.54`.",
+      "evidence": {
+        "t1NameStatus": "M docs/evidence/current/r9t1-main-view-guide.md only",
+        "protectedZeroDiff": [
+          "r9t3",
+          "three historical hashes",
+          "Host quotes and ※",
+          "TEXT_RADIUS=6 / d<=12 / stride 4",
+          "all PNGs",
+          "D1/r5t4/r5t6 evidence JSON",
+          "r6t1-layout-layer-feasibility.json"
+        ],
+        "zeroDiffMethod": "git diff --name-status e7e94a2 f45a943 shows only the guide; there is no other path in the commit, so all listed protected paths have zero diff.",
+        "threeLayersUnchanged": "L160 (a) and L168 (c) are intact; t1's only hunk is L257, so the section is not rewritten.",
+        "arithmeticUnchanged": "L150 h=2.18 and L147 4.70/1.54 are intact; 6.42 is only cited as an r6t1 field, not presented as a guide arithmetic sentence."
+      }
+    },
+    {
+      "id": "5-self-proof-gates",
+      "verdict": "成立",
+      "quote": "freshness FRESH v4 exit 0; packages 新增 0; t1 纯文档 `wrote=0`; t53 exit 2 is not counted as a pass.",
+      "evidence": {
+        "freshnessCommand": "node docs/evidence/review/shared/freshness.mjs --check",
+        "freshnessExitCode": 0,
+        "freshnessStdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}",
+        "packagesNew": 0,
+        "packagesCommand": "git diff --name-only e7e94a2 f45a943 -- packages",
+        "wrote": 0,
+        "t53": "exit 2, BRIDGE_UNREACHABLE; explicitly not a PASS"
+      }
+    }
+  ],
+  "t53": {
+    "command": "node docs/evidence/review/t53-verify-main.mjs",
+    "exitCode": 2,
+    "stdout": "[t53] CANNOT JUDGE (BRIDGE_UNREACHABLE): easyeda bridge at http://127.0.0.1:49620 has no EasyEDA window connected ... [t53] no invariant was evaluated; this is exit 2, not a pass",
+    "isPass": false,
+    "t1Report": "重试 t53 仍为 exit 2 BRIDGE_UNREACHABLE，MAIN 不变量本轮未验证，如实记录且未写成 PASS",
+    "guideLine259": "MAIN 不变量：跑前 21/8/13/55/55/2。",
+    "verdict": "成立（报告层）",
+    "caveat": "The committed guide keeps only the pre-run baseline; the explicit '本轮未验证' sentence is in t1's report, not the guide. No PASS is claimed in either place."
+  },
+  "six42": {
+    "hitCount": 1,
+    "hits": [
+      {
+        "line": 257,
+        "text": "`6.42` **仅见于** `r6t1-layout-layer-feasibility.json`（`adopted` 与 `max` 字段），**本指南不复述这个数值**——原句把该数值与前三者并列称作「已定稿算术句」，属失实，此处改正。",
+        "judgment": "accurate citation; explicitly rejects the old claim that the guide preserved a 6.42 arithmetic sentence"
+      }
+    ],
+    "r6t1": {
+      "path": "docs/evidence/current/r6t1-layout-layer-feasibility.json",
+      "fields": [
+        {"line": 34, "text": "\"max\": 6.42"},
+        {"line": 50, "text": "\"adopted\": 6.42"}
+      ],
+      "changedByT1": false
+    },
+    "noGuideArithmeticClaim": true
+  },
+  "protected": {
+    "changedFiles": [
+      "docs/evidence/current/r9t1-main-view-guide.md"
+    ],
+    "nameStatus": "M docs/evidence/current/r9t1-main-view-guide.md",
+    "zeroDiff": [
+      "docs/evidence/current/r9t3-main-view-third-class.json",
+      "three historical hashes (in guide text)",
+      "Host quotes / ※",
+      "TEXT_RADIUS=6, d<=12, stride 4",
+      "all PNGs",
+      "D1 / r5t4 / r5t6 evidence JSON",
+      "r6t1-layout-layer-feasibility.json"
+    ],
+    "threeLayersQuote": [
+      "L160: **(a) 引脚号 `y` 在本仓不可达。** 三条实测：",
+      "L168: **(c) 两条都不在本仓能力范围内，属 host 决策。**"
+    ],
+    "arithmeticQuote": [
+      "L150: ...两者在 `h=2.18` 相等...",
+      "L147: ...墨迹离自己导线 **4.70**、离上一排 `MCU-33` 只有 **1.54**..."
+    ],
+    "t1OnlyChangedL257": true
+  },
+  "gates": {
+    "freshness": {
+      "command": "node docs/evidence/review/shared/freshness.mjs --check",
+      "exitCode": 0,
+      "stdout": "{\"status\":\"FRESH\",\"strictLib\":false,\"baselineVersion\":4,\"packages\":5,\"files\":21,\"configs\":8,\"tsconfigs\":7}"
+    },
+    "packagesNew": 0,
+    "wrote": 0,
+    "documentWrites": 0,
+    "canvasWrites": 0,
+    "bridgeWrites": 0
+  },
+  "baseline": "e7e94a2 guide blob ffdfc718fad393a9396b8dc89c788bcc017755e3: L257 claimed the guide preserved h=2.18/4.70/1.54/6.42 arithmetic sentences.",
+  "diff": "f45a943 guide blob c90d239f8bce0fbd7e98b18f5a2bf2613a67d534, 1 insertion/1 deletion, only L257; no other file. Current HEAD 6ccd41d guide blob is unchanged c90d239.",
+  "reproSteps": [
+    "git rev-parse HEAD; git rev-parse origin/master; git rev-list --left-right --count HEAD...origin/master  # 6ccd41d, 6ccd41d, 0 0",
+    "git diff --name-status e7e94a2 f45a943  # M guide only",
+    "git diff --unified=3 e7e94a2 f45a943  # one L257 hunk +1/-1",
+    "git rev-parse f45a943:docs/evidence/current/r9t1-main-view-guide.md; git hash-object docs/evidence/current/r9t1-main-view-guide.md  # c90d239 both",
+    "Select-String -Path docs/evidence/current/r9t1-main-view-guide.md -Pattern '6\\.42'  # one hit at L257, accurate reference",
+    "node docs/evidence/review/t53-verify-main.mjs  # exit 2 BRIDGE_UNREACHABLE, not a PASS",
+    "node docs/evidence/review/shared/freshness.mjs --check  # FRESH v4 exit 0"
+  ],
+  "verifyCommand": "node docs/evidence/review/shared/freshness.mjs --check",
+  "verify": [
+    {
+      "task": "t1",
+      "verdict": "pass",
+      "evidence": {
+        "summary": "The 6.42 self-proof was corrected, not merely reworded: the guide's only 6.42 hit is an accurate citation of r6t1's adopted/max fields and explicitly rejects the old arithmetic-sentence claim. t53 was actually run and exits 2 with no invariant evaluated; t1's report explicitly labels MAIN unverified and does not claim PASS. No protected artifact changed; freshness exit 0, packages 0, wrote 0.",
+        "baseline": "e7e94a2 guide blob ffdfc718; L257 falsely claimed the guide preserved a 6.42 arithmetic sentence.",
+        "diff": "f45a943 guide blob c90d239, +1/-1 only L257; current HEAD 6ccd41d guide blob unchanged; t1 changed no other file.",
+        "t53ExitCode": 2,
+        "t53Meaning": "BRIDGE_UNREACHABLE; no invariant evaluated; not a PASS",
+        "freshnessExitCode": 0,
+        "packagesNew": 0,
+        "wrote": 0
+      }
+    }
+  ],
+  "overall": "sound",
+  "overallReason": "The only prior defect (the guide falsely claiming a 6.42 arithmetic sentence) is fixed accurately. The remaining caveat is record location: the explicit MAIN-unverified label is in t1's report, while the committed guide retains only the pre-run baseline. Neither place claims PASS, and the actual t53 exit 2 matches the report."
+}
